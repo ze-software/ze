@@ -46,15 +46,22 @@ func (*parsingTransport) RX() <-chan transport.Inbound { return nil }
 // declares for the peer, in microseconds.
 const peerRequiredMinRx = 300_000
 
+// adminDownWindowDetectionTimes is the number of Detection Times Ze sends
+// AdminDown Control packets for (owner decision 2026-09-30 under the MAY of
+// RFC 5880 Section 6.8.16). The tests pin it by value, so a change to the
+// producer's factor reddens them.
+const adminDownWindowDetectionTimes = 3
+
 // RFC requirement: RFC5880-6.8.16-2 positive -- after an Up session moves to
 // AdminDown, through handle.Shutdown and through the last client's
 // ReleaseSession, tick keeps transmitting: the first packet leaves at the
 // transition, every packet carries State AdminDown and Diagnostic 7, no gap
 // between two packets exceeds the transmission interval the packets announce,
-// and the last one leaves no earlier than one interval before the longer of
-// the local Detection Time and the Detection Time the remote system derives
-// from those packets (their Detect Mult times the larger of their Desired Min
-// TX Interval and the peer's Required Min RX Interval).
+// packets still leave after one and after two Detection Times, and the last
+// one leaves no earlier than one interval before three Detection Times, where
+// the Detection Time is the longer of the local one and the one the remote
+// system derives from those packets (their Detect Mult times the larger of
+// their Desired Min TX Interval and the peer's Required Min RX Interval).
 func TestRFC5880AdminDownControlTransmittedForADetectionTime(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -94,7 +101,7 @@ func TestRFC5880AdminDownControlTransmittedForADetectionTime(t *testing.T) {
 			start := clk.now
 			tc.enter(t, l, h)
 			pt.sent = nil
-			for clk.now.Sub(start) <= 10*time.Second {
+			for clk.now.Sub(start) <= 30*time.Second {
 				l.tick()
 				clk.now = clk.now.Add(10 * time.Millisecond)
 			}
@@ -121,8 +128,15 @@ func TestRFC5880AdminDownControlTransmittedForADetectionTime(t *testing.T) {
 				}
 			}
 			last := pt.sent[len(pt.sent)-1].at.Sub(start)
-			if last < need-interval {
-				t.Fatalf("last AdminDown packet at +%v; transmission must run for a Detection Time %v (interval %v)", last, need, interval)
+			for times := 1; times < adminDownWindowDetectionTimes; times++ {
+				mark := time.Duration(times) * need
+				if last <= mark {
+					t.Fatalf("last AdminDown packet at +%v; none sent after %d Detection Times (%v)", last, times, mark)
+				}
+			}
+			window := adminDownWindowDetectionTimes * need
+			if last < window-interval {
+				t.Fatalf("last AdminDown packet at +%v; transmission must run for %d Detection Times, %v (interval %v)", last, adminDownWindowDetectionTimes, window, interval)
 			}
 		})
 	}

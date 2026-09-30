@@ -217,9 +217,10 @@ func (l *Loop) tick() {
 			// RFC 5880 Section 6.8.16: "BFD Control packets SHOULD be
 			// transmitted for at least a Detection Time after transitioning
 			// to AdminDown state in order to ensure that the remote system is
-			// aware of the state change." Past that window the session
-			// falls silent: the Section's MAY to go on indefinitely is not
-			// taken.
+			// aware of the state change." Ze sends for three Detection
+			// Times, the length AdminDownTransmitEnd holds, and then falls
+			// silent: of the Section's MAY to go on indefinitely it takes
+			// only that bounded extension.
 			if !now.Before(entry.machine.AdminDownTransmitEnd()) {
 				continue
 			}

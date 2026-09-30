@@ -228,14 +228,24 @@ RFC 5880 §6.8.16: "BFD Control packets SHOULD be transmitted for at least a
 Detection Time after transitioning to AdminDown state in order to ensure that
 the remote system is aware of the state change." Every entry into `AdminDown`,
 through `Shutdown` or through the last `ReleaseSession`, sends a packet at once
-and sets `Machine.AdminDownTransmitEnd` to the transition time plus the longer
-of two Detection Times: the local one (§6.8.4), and the one the remote system
-derives from our packets, `bfd.DetectMult` times the transmission interval,
-read after the one-second floor for a session that is not Up. Until then `tick`
-sends Control packets with State `AdminDown` and the diagnostic set, at the
-normal jittered cadence. After it the session is silent: the MAY to go on
-indefinitely is not taken. Echo packets stop at the transition, because echo is
-sent only in `Up` (§6.8.9).
+and sets `Machine.AdminDownTransmitEnd` to the transition time plus three
+Detection Times (`adminDownTransmitDetectionTimes`). The Detection Time is the
+longer of two: the local one (§6.8.4), and the one the remote system derives
+from our packets, `bfd.DetectMult` times the transmission interval, read after
+the one-second floor for a session that is not Up. Until then `tick` sends
+Control packets with State `AdminDown` and the diagnostic set, at the normal
+jittered cadence. After it the session is silent. Echo packets stop at the
+transition, because echo is sent only in `Up` (§6.8.9).
+
+Why three: the SHOULD sets one Detection Time as the floor, and the next
+sentence of §6.8.16, "BFD Control packets MAY be transmitted indefinitely after
+transitioning to AdminDown state in order to maintain session state in each
+system", leaves anything longer to the implementer. One Detection Time is
+exactly the span in which the peer would declare the session down on its own,
+so losing the few packets it holds lets the peer read an administrative
+shutdown as a path failure. Three Detection Times carry the state change
+through a run of lost packets, and stopping afterwards keeps a session nobody
+wants from transmitting for ever (owner decision, 2026-09-30).
 
 <!-- source: internal/component/bfd/session/fsm.go -- AdminDown, AdminDownTransmitEnd -->
 

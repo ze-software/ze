@@ -228,6 +228,21 @@ func (m *Machine) onStateChange(prev packet.State) {
 	m.notify(m.vars.SessionState, m.vars.LocalDiag)
 }
 
+// adminDownTransmitDetectionTimes is how many Detection Times Ze goes on
+// sending AdminDown Control packets after the transition, before it stops.
+//
+// RFC 5880 Section 6.8.16: "BFD Control packets SHOULD be transmitted for at
+// least a Detection Time after transitioning to AdminDown state in order to
+// ensure that the remote system is aware of the state change. BFD Control
+// packets MAY be transmitted indefinitely after transitioning to AdminDown
+// state in order to maintain session state in each system."
+//
+// The SHOULD sets one Detection Time as the floor and the MAY leaves anything
+// longer to the implementer. Owner decision (2026-09-30): Ze sends for three
+// Detection Times, so the peer still learns of the change when a few packets
+// in a row are lost, and then stops rather than transmitting indefinitely.
+const adminDownTransmitDetectionTimes = 3
+
 // AdminDown forces the session into AdminDown state with the supplied
 // diagnostic. The engine calls this when an operator disables the session
 // or when an external signal indicates the path is down.
@@ -246,13 +261,17 @@ func (m *Machine) AdminDown(diag packet.Diag) {
 	// remote system's, which is our bfd.DetectMult times the interval we now
 	// transmit at. It is read after onStateChange, which has raised
 	// bfd.DesiredMinTxInterval to one second, the value these packets carry.
+	// The longer of the two is the Detection Time; Ze sends for
+	// adminDownTransmitDetectionTimes of it, under the Section's MAY.
 	remoteDetect := time.Duration(m.vars.DetectMult) * m.TransmitInterval()
-	m.adminDownTxEnd = m.clk.Now().Add(max(m.DetectionInterval(), remoteDetect))
+	detect := max(m.DetectionInterval(), remoteDetect)
+	m.adminDownTxEnd = m.clk.Now().Add(adminDownTransmitDetectionTimes * detect)
 }
 
-// AdminDownTransmitEnd returns when the Control packets owed after the last
-// entry into AdminDown may stop (RFC 5880 Section 6.8.16). Meaningful only
-// while the session is in AdminDown.
+// AdminDownTransmitEnd returns when Ze stops sending the Control packets that
+// follow the last entry into AdminDown: adminDownTransmitDetectionTimes
+// Detection Times after it (RFC 5880 Section 6.8.16). Meaningful only while
+// the session is in AdminDown.
 func (m *Machine) AdminDownTransmitEnd() time.Time { return m.adminDownTxEnd }
 
 // AdminEnable transitions the session out of AdminDown back to Down so it

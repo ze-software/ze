@@ -406,10 +406,14 @@ func TestRFC5880PeriodicTransmitWhenRemoteDemandInactive(t *testing.T) {
 // 6.8.16) has passed. A session put in AdminDown sends at the transition, and a
 // tick an hour later sends nothing. Without this the positive could pass on
 // code that transmitted on every tick regardless of session state.
-// RFC requirement: RFC5880-6.8.16-3 negative -- Ze does not take the MAY to
-// transmit indefinitely after AdminDown: tick (Loop.tick) sends the AdminDown
-// Control packet at the transition, and once the window RFC5880-6.8.16-2 owes
-// has passed it skips the session, so a tick an hour later sends nothing.
+// RFC requirement: RFC5880-6.8.16-3 negative -- Ze takes the MAY only for a
+// bounded time, three Detection Times (owner decision 2026-09-30), and does
+// not transmit indefinitely after AdminDown: tick (Loop.tick) sends the
+// AdminDown Control packet at the transition and again one nanosecond after
+// one and after two Detection Times, and sends nothing at three Detection
+// Times nor an hour later. The Detection Time is the longer of the local one
+// and bfd.DetectMult times the transmission interval, read after the
+// transition.
 func TestRFC5880NoPeriodicTransmitWhileAdminDown(t *testing.T) {
 	clk := &steppedClock{now: time.Unix(1_000_000, 0)}
 	ct := &captureTransport{}
@@ -419,20 +423,38 @@ func TestRFC5880NoPeriodicTransmitWhileAdminDown(t *testing.T) {
 		t.Fatalf("EnsureSession: %v", err)
 	}
 	key := req.Key()
+	m := machineFor(t, l, key)
 
+	start := clk.now
 	l.mu.Lock()
-	l.sessions[key].machine.AdminDown(packet.DiagAdminDown)
+	m.AdminDown(packet.DiagAdminDown)
 	l.mu.Unlock()
+	detect := max(m.DetectionInterval(), time.Duration(m.DetectMult())*m.TransmitInterval())
 	l.tick()
 	if !ct.sent {
 		t.Fatal("precondition: no AdminDown Control packet at the transition")
 	}
 
-	clk.now = clk.now.Add(time.Hour)
+	for times := 1; times < adminDownWindowDetectionTimes; times++ {
+		clk.now = start.Add(time.Duration(times)*detect + time.Nanosecond)
+		ct.sent = false
+		l.tick()
+		if !ct.sent {
+			t.Fatalf("no AdminDown Control packet after %d Detection Times (%v)", times, time.Duration(times)*detect)
+		}
+	}
+
+	clk.now = start.Add(adminDownWindowDetectionTimes * detect)
 	ct.sent = false
 	l.tick()
 	if ct.sent {
-		t.Fatal("a session in AdminDown transmitted a periodic Control packet after its AdminDown window")
+		t.Fatalf("a session in AdminDown transmitted at %d Detection Times (%v), the end of its AdminDown window", adminDownWindowDetectionTimes, adminDownWindowDetectionTimes*detect)
+	}
+
+	clk.now = clk.now.Add(time.Hour)
+	l.tick()
+	if ct.sent {
+		t.Fatal("a session in AdminDown transmitted a periodic Control packet an hour after its AdminDown window")
 	}
 }
 
