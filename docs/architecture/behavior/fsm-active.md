@@ -3,7 +3,8 @@
 ## TL;DR
 
 The system is listening for an incoming TCP connection. Entered from Idle
-on `ManualStart` when the peer is configured with the passive bit. Exits
+on `ManualStart` when the peer is configured with the passive bit, or from
+OpenSent when the TCP connection fails. Exits
 to OpenSent once a remote peer connects and the session layer accepts,
 or back to Idle on stop or error.
 
@@ -18,7 +19,13 @@ Entered from `Idle` on `EventManualStart` when the FSM passive flag is
 true. `Session.Start()` fires the event, the passive check in
 `handleIdle` picks Active over Connect.
 
+Also entered from `OpenSent` on `EventTCPConnectionFails` (RFC 4271
+Section 8.2.2: OpenSent "changes its state to Active"). That Session is
+finished by then: its connection is closed, and the peer run loop starts
+the next attempt on a new Session.
+
 <!-- source: internal/component/bgp/fsm/fsm.go — handleIdle passive branch -->
+<!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent EventTCPConnectionFails -->
 <!-- source: internal/component/bgp/reactor/session.go — Start -->
 
 A peer in Active does not dial. It waits for `Session.Accept(conn)` to

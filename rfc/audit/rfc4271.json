@@ -1,5 +1,8 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4271-10-1": {
@@ -155,17 +158,21 @@
       "verdict": "weak"
     },
     "RFC4271-4.4-2": {
-      "note": "TestKeepaliveWithZeroHoldTime proves Timers with SetHoldTime(0) does not start or fire the keepalive timer. Nothing asserts that a session whose NEGOTIATED hold time is 0 (configured non-zero, peer sent 0) feeds 0 into the timers, nor that no KEEPALIVE reaches the wire; a session passing the configured hold time would keep both units green.",
+      "note": "Session level: handleOpen+handleKeepalive with a 1 s configured keepalive. Positive: negotiated hold 9 -> timers hold 9, KeepaliveTimer running, >=1 KEEPALIVE in 1.6 s. Negative: negotiated zero from either side -> timers hold 0, KeepaliveTimer stopped, zero octets in 1.6 s. Judge break: negotiateWith feeding the configured hold into the timers when the peer offers 0 turned the negative red. Old fsm timer_test.go tags are supplementary.",
       "requirement_sha": "3842d65d888c9e9e",
       "tests": {
         "internal/component/bgp/fsm/timer_test.go::TestKeepaliveWithZeroHoldTime": "c1acf4c219f9cfb6",
-        "internal/component/bgp/fsm/timer_test.go::TestTimersKeepaliveTimer": "c1acf4c219f9cfb6"
+        "internal/component/bgp/fsm/timer_test.go::TestTimersKeepaliveTimer": "c1acf4c219f9cfb6",
+        "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives": "5f8f67ef39a01742",
+        "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive": "5f8f67ef39a01742"
       },
       "units": {
         "internal/component/bgp/fsm/timer_test.go::TestKeepaliveWithZeroHoldTime": "b5085232cd78eb17",
-        "internal/component/bgp/fsm/timer_test.go::TestTimersKeepaliveTimer": "9d12c289d62cd299"
+        "internal/component/bgp/fsm/timer_test.go::TestTimersKeepaliveTimer": "9d12c289d62cd299",
+        "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives": "5dead24ec81737fd",
+        "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive": "cef3ce72f71f752a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5-2": {
       "code": {},
@@ -798,8 +805,8 @@
       "note": "The FSM units assert only the counter increment for Events 21 and 22, with Idle as the negative. The quote also carries the NOTIFICATION with the appropriate error code, the ConnectRetryTimer zeroed, BGP resources released and the TCP connection dropped, and none of these has an assertion in these units.",
       "requirement_sha": "256a9d664c4c5ac0",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "7d8de10d9a918ee9",
@@ -811,8 +818,8 @@
       "note": "Only Event 25 is driven. The quote's other trigger, TcpConnectionFails (Event 18), has no assertion under this tag. Only the counter is asserted, not the ConnectRetryTimer, resources or TCP-drop clauses. The negative calls one FSM ten times and proves the step size, not a non-triggering input.",
       "requirement_sha": "4238b0246f50f657",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterStepsByExactlyOnePerNotification": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterStepsByExactlyOnePerNotification": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "73f1d90f28bba6b5",
@@ -824,8 +831,8 @@
       "note": "Only the counter is asserted for Event 24. Event 25 and Event 18 are not driven under this tag, and 'deletes all routes associated with this connection', the ConnectRetryTimer, the resources and the TCP-drop clauses have no assertion.",
       "requirement_sha": "6bfd9a1aaddd36a7",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "85c5b0116a6b5b93",
@@ -834,15 +841,15 @@
       "verdict": "weak"
     },
     "RFC4271-8.2.2-13": {
-      "note": "Only the counter is asserted, not the ConnectRetryTimer, resources or TCP-drop clauses, and Event 25 is not driven under this tag. The negative also pins OpenSent + Event 18 to StateIdle, where RFC 4271 Section 8.2.2 OpenSent says 'changes its state to Active'. It asserts non-conformant behaviour, and its own comment says 'leaves for Active'.",
+      "note": "The row is the OpenConfirm Event 18/25 action list (sets ConnectRetryTimer to zero, releases resources, drops TCP, increments the counter). Only the counter clause is asserted: TestRFC4271ConnectRetryCounterOnTCPFailurePerState (Active/OpenConfirm/Established increment) and the Connect/OpenSent quiet negative, which now also pins OpenSent + Event 18 to Active per Section 8.2.2 OpenSent (D-8 fixed in fsm.go handleOpenSent). Missing: ConnectRetryTimer-to-zero, resource release and TCP-drop clauses, and Event 25 under this tag (R45: peer-level test owed).",
       "requirement_sha": "4238b0246f50f657",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnTCPFailurePerState": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnTCPFailurePerState": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnTCPFailurePerState": "c67a262cb339e844",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent": "1c823aacbfbd2f75"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent": "f92bc699439ebbaa"
       },
       "verdict": "weak"
     },
@@ -850,8 +857,8 @@
       "note": "Only the counter is asserted for Event 28 in Established. 'sends a NOTIFICATION message with an Update error', the ConnectRetryTimer zeroed, 'deletes all routes associated with this connection', resources released and the TCP connection dropped have no assertion in these units.",
       "requirement_sha": "116a7b17f910543b",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnGoodUpdate": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnGoodUpdate": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "8d5cebfdf18328b6",
@@ -863,8 +870,8 @@
       "note": "The quote lists Events 8, 10-11, 13, 19, 23 and 25-28. The positive drives one event per state (KeepaliveMsg in Connect/Active), so the other listed events are unasserted. Only the counter and Idle are checked: the ConnectRetryTimer and DelayOpenTimer stop-and-reset, resources released and TCP dropped have no assertion.",
       "requirement_sha": "8eb58e2ae923bd3c",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "036839da754b3095",
@@ -876,8 +883,8 @@
       "note": "Only the counter is asserted for AutomaticStop. The quote's Cease NOTIFICATION in OpenSent, the ConnectRetryTimer zeroed, resources released and the TCP connection dropped have no assertion in these FSM units.",
       "requirement_sha": "a352498314ffa6c7",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "340d047f268ec3e9",
@@ -889,8 +896,8 @@
       "note": "Only the counter is asserted for OpenCollisionDump. The quote's Cease NOTIFICATION, the ConnectRetryTimer zeroed, resources released and the TCP connection dropped have no assertion in these FSM units.",
       "requirement_sha": "62f4e069199f5746",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "c4a93a4c6ae5bc65",
@@ -969,8 +976,8 @@
       "note": "The counter clause is proven: ManualStart in Idle zeroes a counter of 7 on both branches, and damped starts leave it. 'initializes all BGP resources for the peer connection' has no assertion. AutomaticStart (Event 3) is not driven, because Ze has no such event, and no {gap} or annotation records that absence.",
       "requirement_sha": "7942f56e0c1cc260",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "de8aed85af4c5d6f",
@@ -982,8 +989,8 @@
       "note": "The FSM units assert only ConnectRetryCounter zeroing and the Idle state on ManualStop. The quote's first four clauses have no assertion in these units: the Cease NOTIFICATION in OpenSent, the ConnectRetryTimer zeroed, BGP resources released and the TCP connection dropped. An FSM whose ManualStop arm only reset the counter passes.",
       "requirement_sha": "6cf6e6855f218ef1",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop": "c17eaef340a42ce4",
@@ -995,8 +1002,8 @@
       "note": "The FSM units assert only the counter step 3 to 4 and the healthy-traffic negative. The NOTIFICATION, ConnectRetryTimer, resources and TCP-drop clauses of this Event 10 list have no assertion in these units.",
       "requirement_sha": "b8c76b3004f9f490",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "4f8fa06ff4a84927",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic": "4f8fa06ff4a84927"
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "95aae5897386c2cc",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic": "95aae5897386c2cc"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "7aa8b2f695752953",

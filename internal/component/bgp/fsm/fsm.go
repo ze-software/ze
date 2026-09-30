@@ -7,12 +7,7 @@
 //
 // RFC 4271 VIOLATIONS:
 //
-//  1. OpenSent + TcpConnectionFails → Idle (RFC says Active):
-//     RFC 4271 Section 8.2.2 specifies transition to Active state with
-//     ConnectRetryTimer restart. Implementation transitions to Idle instead
-//     for simplicity.
-//
-//  2. Missing optional session attributes (RFC 4271 Section 8.1.1):
+//  1. Missing optional session attributes (RFC 4271 Section 8.1.1):
 //     DelayOpen, TrackTcpState, and related timers are not implemented. This
 //     is permitted per RFC 4271 Section 8.2.1.3. The MANDATORY attributes of
 //     Section 8.1.1 are all present: State, ConnectRetryCounter (see
@@ -23,7 +18,7 @@
 //     (AutomaticStart_with_DampPeerOscillations) is implemented while Events 3
 //     to 5 and 7 are not.
 //
-//  3. Missing NOTIFICATION message sending:
+//  2. Missing NOTIFICATION message sending:
 //     RFC requires sending NOTIFICATION messages on various error conditions
 //     (e.g., FSM Error on unexpected events in OpenSent/OpenConfirm/Established).
 //     This FSM only handles state transitions; message sending is external.
@@ -506,7 +501,7 @@ func (f *FSM) handleConnect(event Event) error {
 		//
 		// Ze never enters that sub-state. It is reached only from Section
 		// 8.3.5, an OPEN received while the DelayOpenTimer runs, and ze
-		// implements no DelayOpenTimer (see VIOLATIONS 2 in the file header,
+		// implements no DelayOpenTimer (see VIOLATIONS 1 in the file header,
 		// permitted by RFC 4271 Section 8.2.1.3). So the "not in the sub-state"
 		// branch is the only one, and staying in Connect is the whole action.
 
@@ -912,14 +907,17 @@ func (f *FSM) handleOpenSent(event Event) error {
 		f.change(StateIdle)
 
 	case EventTCPConnectionFails:
-		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
-		// "closes the BGP connection, restarts the ConnectRetryTimer,
-		// continues to listen for a connection... and changes its state to Active."
-		// No ConnectRetryCounter clause in this paragraph, so none here.
+		// RFC 4271 Section 8.2.2: "If a TcpConnectionFails event (Event 18)
+		// is received, the local system: - closes the BGP connection, -
+		// restarts the ConnectRetryTimer, - continues to listen for a
+		// connection that may be initiated by the remote BGP peer, and -
+		// changes its state to Active."
 		//
-		// VIOLATION: RFC specifies transition to Active, but this implementation
-		// transitions to Idle for simplicity. See VIOLATIONS section in file header.
-		f.change(StateIdle)
+		// The caller closes the connection (Session.handleConnectionClose),
+		// the peer run loop is the ConnectRetryTimer, and the reactor
+		// listener keeps accepting. No ConnectRetryCounter clause in this
+		// paragraph, so none here.
+		f.change(StateActive)
 
 	default:
 		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,

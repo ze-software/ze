@@ -2,6 +2,28 @@
   "rfc": "rfc7911",
   "records": [
     {
+      "rid": "RFC7911-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC7911OpenCarriesOneAddPathInstance",
+      "unit-sha": "ee658261f318e407",
+      "claim-sha": "82751b616c0fdc74",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config_capabilities.go::parseAddPathFromTree",
+      "producer-sha": "31b8a6b6e664f9b5",
+      "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC7911PerFamilyAddPathStaysOneInstance",
+      "unit-sha": "c61ffda16c738bc8",
+      "claim-sha": "643b5e1ce39f1031",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config_capabilities.go::parseAddPathFromTree",
+      "producer-sha": "31b8a6b6e664f9b5",
+      "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7911-5-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily",

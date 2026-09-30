@@ -2,6 +2,50 @@
   "rfc": "rfc4724",
   "records": [
     {
+      "rid": "RFC4724-3-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags",
+      "unit-sha": "b62a0d0175facf5b",
+      "claim-sha": "7040019cc02ad040",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::parseGracefulRestart",
+      "producer-sha": "47250ac050cc92e5",
+      "break": "body of parseGracefulRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-3-2",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags",
+      "unit-sha": "b62a0d0175facf5b",
+      "claim-sha": "fe74e1840974cb02",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::parseGracefulRestart",
+      "producer-sha": "47250ac050cc92e5",
+      "break": "body of parseGracefulRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-3-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags",
+      "unit-sha": "c66298718262a552",
+      "claim-sha": "f21b1307b7ad47da",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::parseGracefulRestart",
+      "producer-sha": "47250ac050cc92e5",
+      "break": "body of parseGracefulRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-3-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags",
+      "unit-sha": "c66298718262a552",
+      "claim-sha": "ace885fdde946841",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::parseGracefulRestart",
+      "producer-sha": "47250ac050cc92e5",
+      "break": "body of parseGracefulRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4724-4-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes",

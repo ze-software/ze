@@ -52,17 +52,21 @@
       "verdict": "enforced"
     },
     "RFC8950-4-2": {
-      "note": "MUST determine peer support through Capability Advertisement for the pair(s) of interest. TestNegotiateExtendedNextHop and ...Mismatch (capability/negotiated_test.go) prove both-advertise and remote-absent. An implementation that treated any remote ExtNH capability as support for every pair passes both tagged units. The untagged TestNegotiateExtendedNextHopMultipleFamilies tests per-tuple negotiation and would close the clause if tagged.",
+      "note": "TestRFC8950PeerSupportDecidedPerPair / ...PeerWithoutThePairGetsNoIPv6NextHop drive Negotiate with both sides' Extended Next Hop capabilities and read the per-pair answer through Negotiated and EncodingCaps alike: both list the pair -> AFI 2; peer lacks the pair, lists another NH AFI, or sends no capability -> 0. Judge breaks: intersection ignoring the NH AFI, and intersection enabling every local pair, each turned the negative red.",
       "requirement_sha": "3657dea459e3c135",
       "tests": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "79de3d0b159f3a42",
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42"
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair": "d1862fc4bd3afdc5",
+        "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerWithoutThePairGetsNoIPv6NextHop": "d1862fc4bd3afdc5"
       },
       "units": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "7cfa7c59e93867e9",
-        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "7c2c903b883f0b20"
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "7c2c903b883f0b20",
+        "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair": "4931133ea11c12a3",
+        "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerWithoutThePairGetsNoIPv6NextHop": "54573e05d68bbb15"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8950-5-1": {
       "note": "MUST NOT change the encoding of a next hop passed along unchanged. The non-compliant behaviour is the RR re-encoding the 16-byte IPv6 next hop. TestReactorForwardRRPreservesExtendedNextHop (reactor/forward_rr_test.go) asserts require.Equal(mpReach, attrs[14]) and the next-hop bytes 4:20, so any re-encoding goes red. Single-polarity positive per the row's marker.",

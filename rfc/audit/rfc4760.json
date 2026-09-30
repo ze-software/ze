@@ -1,5 +1,9 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4760-3-1": {
       "note": "Clause \"MUST be set to 0\": (a) forbidden: an MP_REACH_NLRI whose Reserved octet is non-zero on send, e.g. inherited from a pooled buffer. (b) rfc4760_reserved_test.go TestRFC4760ReservedIsWrittenNotInherited asserts buf[reserved]==0 over a 0xAA-poisoned buffer at a non-zero offset for six next-hop forms, and TestRFC4760ReservedSurvivesBufferReuse asserts 0 where the previous encode left 0x11; both go red if MPReachNLRI.WriteTo stops writing the octet. Single-polarity marker on the row: there is no non-zero form Ze could emit to reject.",
@@ -99,15 +103,19 @@
       "verdict": "weak"
     },
     "RFC4760-8-1": {
-      "note": "(a) forbidden: Ze exchanging routes of an <AFI, SAFI> with a peer without having advertised the Multiprotocol capability for that <AFI, SAFI> in its OPEN. (b) none: TestParseCapabilities only parses a received Code 1 capability into AFI/SAFI. It proves the parser (a neighbouring rule, the Section 8 wire layout), not that Ze advertises a capability for each family it exchanges; it never inspects an OPEN Ze builds or a family Ze sends.",
+      "note": "Now reads Ze's own built OPEN (parsePeerFromTree -> buildOpen -> ParseFromOptionalParams). Positive: three configured families each get one Multiprotocol capability, all negotiated against a peer offering them. Negative: ipv6/unicast mode disable -> no MP capability for it, and Negotiate against a peer offering it leaves it unsupported, so no exchange without Ze's advertisement. Judge break: the disabled-family skip in parseFamiliesFromTree removed turned the negative red. Old parse-level TestParseCapabilities tag is supplementary. Single-polarity marker removal is correct.",
       "requirement_sha": "89aa529f61dbd564",
       "tests": {
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760FamilyNotAdvertisedIsNotExchanged": "48d5a544cfcb8b61",
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760OpenAdvertisesEveryConfiguredFamily": "48d5a544cfcb8b61",
         "internal/core/bgp/capability/capability_test.go::TestParseCapabilities": "b3428c78168b854d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760FamilyNotAdvertisedIsNotExchanged": "759afafee7d53850",
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760OpenAdvertisesEveryConfiguredFamily": "d3e6da5bb63130cd",
         "internal/core/bgp/capability/capability_test.go::TestParseCapabilities": "75c7b1f753e9d4ae"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC4760-8-2": {
       "note": "capability.Negotiate is the determination the sentence names: TestMUPSessionNegotiatesBothAFIs shows both families usable when both speakers advertise MP(1,85) and MP(2,85); TestMUPSessionMissingAFIIsNotNegotiated shows a family the peer did not advertise is not usable (v4-only peer drops ipv6/mup, no-MUP peer drops both). Exercised for SAFI 85 only; the gating of sends and receives on SupportsFamily is outside these units. Both records red on Negotiate",
@@ -123,9 +131,5 @@
       "verdict": "enforced"
     }
   },
-  "rfc": "rfc4760",
-  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
-  "reaudit_history": [
-    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
-  ]
+  "rfc": "rfc4760"
 }

@@ -46,6 +46,17 @@
       "break": "body of canUseNextHopFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5549-4-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair",
+      "unit-sha": "e49104e0e92aaeb6",
+      "claim-sha": "06c5b8c335884f4e",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5549-4-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair",

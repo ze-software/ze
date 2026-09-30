@@ -54,7 +54,7 @@ as long as it takes the process to cross the two function boundaries.
 | `EventBGPOpenMsgErr` | `handleOpen` on version, hold-time, or capability validation failure | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventNotifMsg` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none | `Idle` |
-| `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; ConnectRetryCounter untouched (no counter clause in this state) | none | `Idle` (RFC says `Active`, see deviation) |
+| `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; ConnectRetryCounter untouched (no counter clause in this state); the peer run loop is the restarted ConnectRetryTimer and the listener keeps accepting | none | `Active` (RFC 4271 Section 8.2.2) |
 | any other event | unexpected | log transition | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent -->
@@ -185,18 +185,15 @@ Section 8.2.2, Event 10.
 <!-- source: internal/component/bgp/reactor/session.go — newSession OnHoldTimerExpires wiring -->
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer, ResetHoldTimer -->
 
-## RFC deviations
-
-- **`EventTCPConnectionFails` goes to Idle, not Active.** RFC 4271
-  Section 8.2.2 specifies that OpenSent on `TcpConnectionFails` should
-  close the BGP connection, restart the `ConnectRetryTimer`, and
-  transition to Active. Ze instead transitions directly to Idle. The
-  reconnection logic lives in the peer-level run loop with exponential
-  backoff, not in an FSM-resident timer. Documented as a deliberate
-  simplification in the file header of `fsm.go`.
-  <!-- source: internal/component/bgp/fsm/fsm.go — VIOLATIONS section -->
-
 ## Architectural notes
+
+- **`EventTCPConnectionFails` goes to Active.** RFC 4271 Section 8.2.2
+  says OpenSent on `TcpConnectionFails` closes the BGP connection,
+  restarts the `ConnectRetryTimer`, keeps listening, and "changes its
+  state to Active". The caller closes the connection, the reconnect delay
+  is the peer-level run loop with exponential backoff rather than an
+  FSM-resident timer, and the reactor listener keeps accepting.
+  <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent EventTCPConnectionFails -->
 
 - **NOTIFICATION sending lives outside the FSM.** Every arm of
   `handleOpenSent` only decides "transition to Idle". The actual

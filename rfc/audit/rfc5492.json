@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC5492-3-1": {
       "note": "Forbidden: an Unsupported Capability NOTIFICATION that omits a causing capability or lists one that did not cause it. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet drives handleOpen on a session requiring Route Refresh and Extended Message and reads the wire: none sent -> one 2/7 NOTIFICATION with Data exactly 02 00 06 00; Route Refresh plus unknown 254 sent -> Data exactly 06 00 (sent and unknown capabilities excluded); both sent -> no NOTIFICATION, OpenConfirm.",
@@ -19,17 +19,21 @@
       "verdict": "enforced"
     },
     "RFC5492-3-2": {
-      "note": "Forbidden: failing on a capability the speaker does not support or recognize. Positive TestParseUnknownCapability asserts Parse preserves code 254 with no error, parser level. Negative TestParseRejectsMalformedKnownCapabilityLength proves malformed known capabilities are rejected, a neighbouring rule, not a violation of this one. The session-level proof that an unknown capability is ignored is TestOpenIgnoresUnknownCapability, tagged 3-3/3-4/5-2 but not 3-2.",
+      "note": "Session level via handleOpen. Positive: unrecognized codes 253/254 interleaved with MP IPv4 and required Route Refresh -> OpenConfirm, one KEEPALIVE, known capabilities negotiated. Negative (R1(b)): code 254 carrying the MP IPv6 value -> accepted but IPv6 not negotiated. Judge breaks: unrecognized 4-octet value parsed as Multiprotocol turned the negative red; unrecognized capability refused turned the positive red. HEAD negative TestParseRejectsMalformedKnownCapabilityLength concerns known capabilities and is supplementary.",
       "requirement_sha": "a4756f2db7068a2d",
       "tests": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "6069318487a1dc5e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "6069318487a1dc5e",
         "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "b3428c78168b854d",
         "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "b3428c78168b854d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "11a18f6ff74ad27b",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "04b1225ea459d2f4",
         "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "7f68b4b7efff141c",
         "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "adf52c0295182801"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5492-3-3": {
       "note": "Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.",
@@ -54,28 +58,34 @@
       "verdict": "enforced"
     },
     "RFC5492-4-1": {
-      "note": "Forbidden: refusing or de-duplicating an OPEN that repeats an identical capability. TestParseAcceptsMultipleIdenticalCapabilityInstances asserts Parse returns both instances with no error, which goes red on a parser reject or dedup. No tagged unit drives an OPEN with duplicate identical capabilities through handleOpen and negotiation, so a session-level rejection would stay green.",
+      "note": "Row single-polarity positive. TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession sends Route Refresh x3 and each MP TLV twice through handleOpen -> OpenConfirm, one KEEPALIVE, all negotiated; closes the session-level gap. Parser-level tag kept as supplementary.",
       "requirement_sha": "2ad7c926df955bc6",
       "tests": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "6069318487a1dc5e",
         "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "b3428c78168b854d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "29fb443f05d0168c",
         "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "92e6b44f1bc9e8fc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5492-4-2": {
-      "note": "Positive TestParseFromOptionalParamsMultipleCapabilitiesParameters asserts both Type-2 parameters contribute (Len 2, Multiprotocol then ASN4), red if the second parameter were dropped; parser level only. Negative TestOptionalParamRejectsTruncatedCapabilityTLV proves a truncated inner TLV is rejected, a neighbouring malformed-TLV rule that does not violate this requirement. No single-polarity marker, so the pair is incomplete.",
+      "note": "Positive: three Capabilities parameters (RR / ExtMsg / 254) through handleOpen -> OpenConfirm, both required capabilities negotiated. Negative: required RR+ExtMsg split across two parameters with one missing -> NOTIFICATION 2/7 whose Data is exactly the capability absent from ALL parameters, Idle. Judge break: ParseFromOptionalParams returning after the first parameter turned both red.",
       "requirement_sha": "3ac3408f07f25667",
       "tests": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "6069318487a1dc5e",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "6069318487a1dc5e",
         "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "b3428c78168b854d",
         "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "b3428c78168b854d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "a1f957c885fbf491",
+        "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "19f65d18d69c910c",
         "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "6437edcbd51ff175",
         "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "c4610e5b4c316eeb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5492-5-1": {
       "note": "Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet asserts the sent NOTIFICATION's Data octets exactly: both missing -> 02 00 06 00 (the whole set), one missing -> 06 00 only (the causing set, not the required set). Builder-level units remain as supporting evidence.",

@@ -24,6 +24,28 @@
       "break": "body of buildUnsupportedCapabilityDataCodes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5492-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession",
+      "unit-sha": "fe0cf749a8b8976c",
+      "claim-sha": "14dce7fba7e60ef2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5492-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown",
+      "unit-sha": "30b821076f26d7dd",
+      "claim-sha": "0ed4b780c5c86d96",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5492-3-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability",
@@ -40,6 +62,39 @@
       "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability",
       "unit-sha": "43945298a8c1e9bf",
       "claim-sha": "96dd562097241504",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5492-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession",
+      "unit-sha": "abc88de8ea80f6c8",
+      "claim-sha": "57d1e3b2a684db1c",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5492-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters",
+      "unit-sha": "082ad17a333137a0",
+      "claim-sha": "7bcc19a6d1fa9233",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5492-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing",
+      "unit-sha": "428ced1d54caaa93",
+      "claim-sha": "0052778dc5a688ca",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
       "producer-sha": "94e8c8a8e7563891",

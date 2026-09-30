@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -34,17 +34,19 @@
       "verdict": "enforced"
     },
     "RFC5549-4-2": {
-      "note": "Sentence: MUST use RFC 5492 Capability Advertisement with the Extended Next Hop Encoding capability to establish whether the peer supports this for the NLRI AFI/SAFI pair(s). The 4-2-tagged units (TestExtendedNextHopCapability, TestExtendedNextHopRoundTrip) prove only the capability TLV encodes and parses. The clause 'to establish whether its peer supports this' (support decided from the peer's advertised capability) has no 4-2-tagged assertion; the negotiation units that would prove it carry only 4-1 and RFC8950 tags.",
+      "note": "Row single-polarity positive, superseded by RFC8950-4-2. TestRFC8950PeerSupportDecidedPerPair proves peer support is decided per NLRI pair through the Extended Next Hop capability negotiation (Negotiated and EncodingCaps). The negative tag moved off the RFC8950 negative (approval D-15), consistent with the row's single-polarity marker.",
       "requirement_sha": "89fb58b534ab0411",
       "tests": {
         "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "b3428c78168b854d",
+        "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair": "d1862fc4bd3afdc5"
       },
       "units": {
         "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "10454f274bcedd4e",
-        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "ba4f31d076a2e369"
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "ba4f31d076a2e369",
+        "internal/core/bgp/capability/rfc8950_extnh_negotiation_test.go::TestRFC8950PeerSupportDecidedPerPair": "4931133ea11c12a3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5549-4-3": {
       "note": "Forbidden: a Capability Code other than 5 for Extended Next Hop Encoding. Red on it: TestCapabilityCodeConstants asserts uint8(CodeExtendedNextHop)==5, and TestExtendedNextHopCapability requires a raw code-0x05 TLV to parse as *ExtendedNextHop (require.True on the type assertion). Single-polarity marker on the row.",

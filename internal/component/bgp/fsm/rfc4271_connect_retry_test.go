@@ -381,12 +381,21 @@ func TestRFC4271ConnectRetryCounterOnTCPFailurePerState(t *testing.T) {
 // carries the clause; OpenSent's leaves for Active rather than tearing the
 // peering down (internal/component/bgp/fsm/fsm.go).
 func TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent(t *testing.T) {
-	for _, st := range []State{StateConnect, StateOpenSent} {
-		f, c := crcFSM(t, st, 4)
+	// RFC 4271 Section 8.2.2 sends Connect's Event 18 (no DelayOpenTimer
+	// running) to Idle, and OpenSent's to Active.
+	cases := []struct {
+		from State
+		to   State
+	}{
+		{StateConnect, StateIdle},
+		{StateOpenSent, StateActive},
+	}
+	for _, tc := range cases {
+		f, c := crcFSM(t, tc.from, 4)
 		require.NoError(t, f.Event(EventTCPConnectionFails))
 		require.Equal(t, uint32(4), c.Load(),
-			"%s + TCPConnectionFails has no ConnectRetryCounter clause", st)
-		require.Equal(t, StateIdle, f.State(), "%s + TCPConnectionFails still leaves the state", st)
+			"%s + TCPConnectionFails has no ConnectRetryCounter clause", tc.from)
+		require.Equal(t, tc.to, f.State(), "%s + TCPConnectionFails", tc.from)
 	}
 }
 

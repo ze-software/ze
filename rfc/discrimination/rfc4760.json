@@ -79,6 +79,28 @@
       "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4760-8-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760FamilyNotAdvertisedIsNotExchanged",
+      "unit-sha": "108d5c01b5f8fde7",
+      "claim-sha": "ba0c42cc883da272",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config.go::parseFamiliesFromTree",
+      "producer-sha": "0d2d27e5fa3634e1",
+      "break": "body of parseFamiliesFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4760-8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4760OpenAdvertisesEveryConfiguredFamily",
+      "unit-sha": "5be950e5d086129d",
+      "claim-sha": "08c146230b83d6ff",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config.go::parseFamiliesFromTree",
+      "producer-sha": "0d2d27e5fa3634e1",
+      "break": "body of parseFamiliesFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4760-8-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated",

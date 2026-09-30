@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4684-4-1": {
       "note": "(a) forbidden: a 4-octet RTC next hop read as anything but IPv4, or a 16-octet one read as anything but IPv6 (for instance by keying on AFI 1). (b) TestRFC4684RTCNextHopByLength builds MP_REACH_NLRI for AFI 1 SAFI 132 and t.Fatalf's unless MPReachWire.NextHop returns exactly 192.0.2.1 and not Is6 for 4 octets, and exactly 2001:db8::1 and not Is4 for 16 octets. Both clauses carry both polarities.",
@@ -19,17 +19,21 @@
       "verdict": "enforced"
     },
     "RFC4684-5-2": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: a speaker exchanging RT membership without advertising (1, 132) in the Multiprotocol Extensions capability. TestRFC4684RTCFamilyIsAMultiprotocolCapability proves the codec: a Multiprotocol value the test builds encodes as 01 04 00 01 00 84, and Negotiate supports the family from two capability lists the test builds. Nothing asserts that Ze's own OPEN carries MP(1,132) when ipv4/rtc is configured, which is the obligation. The negative (TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily: the pair under code 200 is not MP) proves the capability parser, a neighbouring rule.",
+      "note": "TestRFC4684RTCAdvertisedAsMultiprotocolPair reads Ze's built OPEN: ipv4/rtc configured -> MP (1,132) present and negotiated with a peer offering it; mode disable -> absent and not negotiated. Judge break: disabled-family skip removed turned it red. The codec-level tag is supplementary. Summary prose that said 5-2 carries no test is corrected.",
       "requirement_sha": "71b051fe88579d1a",
       "tests": {
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair": "48d5a544cfcb8b61",
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair#2": "48d5a544cfcb8b61",
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability": "39bf14ba25dcd356",
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily": "39bf14ba25dcd356"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair": "c72db7131d7f6e8d",
+        "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair#2": "c72db7131d7f6e8d",
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability": "f1bcb90f5a4c6a74",
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily": "fdbd2aedb7e15e31"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4684"

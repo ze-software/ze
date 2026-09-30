@@ -1,31 +1,39 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4724-3-2": {
-      "note": "the sentence carries two obligations: zero on send and ignored on receive. TestGracefulRestartEncodeReservedBits proves only the sender half (WriteTo masks); no tagged unit parses a Restart Flags nibble with reserved bits set and asserts they are ignored (parseGracefulRestart does ignore them)",
+      "note": "Sender half: TestGracefulRestartEncodeReservedBits (WriteTo masks to R bit and 12-bit time). Receiver half: TestRFC4724ReceiverIgnoresReservedRestartFlags parses the nibble with reserved 0x3 set, R clear and set, and requires the result equal to the clean parse. Judge breaks: R bit read with mask 0x9000, and Restart Time read with mask 0x3FFF, each turned the test red. Only 0x3 used because RFC 8538 assigned the N bit.",
       "requirement_sha": "82503bdc2d2d8e2e",
       "tests": {
         "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags": "dad25bb523dfbd36",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags#2": "dad25bb523dfbd36"
       },
       "units": {
         "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "46c5c81f27202784",
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784"
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags": "85c4483729721ded",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags#2": "85c4483729721ded"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-3-3": {
-      "note": "same split as 3-2 for the Address Family Flags byte: sender zeroing is proven by TestGracefulRestartEncodeReservedBits, the receiver-ignore half is not tested by any tagged unit",
+      "note": "Sender half: TestGracefulRestartEncodeReservedBits (only F bit 0x80 per family). Receiver half: TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags sets all seven reserved bits (0x7F) with F clear and set and requires the parse equal to the clean one. Judge break: ForwardingState read as flags != 0 turned it red.",
       "requirement_sha": "82503bdc2d2d8e2e",
       "tests": {
         "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "b3428c78168b854d",
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d"
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags": "dad25bb523dfbd36",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags#2": "dad25bb523dfbd36"
       },
       "units": {
         "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "46c5c81f27202784",
-        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784"
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags": "fbddac27d22d23b8",
+        "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags#2": "fbddac27d22d23b8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-3-4": {
       "note": "two GR instances with distinct restart time and family; Negotiate must keep the second; fails on first-wins or merge. The negative tag is the complement of the positive's assertion on the same input (two hats), not an independent case",

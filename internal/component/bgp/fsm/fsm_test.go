@@ -417,14 +417,14 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 
 		// === OPENSENT state ===
 		// RFC 4271 Section 8.2.2: BGPOpen → OpenConfirm, HoldTimer/errors → Idle,
-		// TCPFails → Idle (violation: RFC says Active), all others → Idle (FSM Error)
+		// TCPFails → Active (RFC 4271 Section 8.2.2), all others → Idle (FSM Error)
 		{"OpenSent_ManualStart", StateOpenSent, false, EventManualStart, StateIdle},
 		{"OpenSent_ManualStop", StateOpenSent, false, EventManualStop, StateIdle},
 		{"OpenSent_ConnectRetryTimerExpires", StateOpenSent, false, EventConnectRetryTimerExpires, StateIdle},
 		{"OpenSent_HoldTimerExpires", StateOpenSent, false, EventHoldTimerExpires, StateIdle},
 		{"OpenSent_KeepaliveTimerExpires", StateOpenSent, false, EventKeepaliveTimerExpires, StateIdle},
 		{"OpenSent_TCPConnectionConfirmed", StateOpenSent, false, EventTCPConnectionConfirmed, StateIdle},
-		{"OpenSent_TCPConnectionFails", StateOpenSent, false, EventTCPConnectionFails, StateIdle},
+		{"OpenSent_TCPConnectionFails", StateOpenSent, false, EventTCPConnectionFails, StateActive},
 		{"OpenSent_BGPOpen", StateOpenSent, false, EventBGPOpen, StateOpenConfirm},
 		{"OpenSent_BGPHeaderErr", StateOpenSent, false, EventBGPHeaderErr, StateIdle},
 		{"OpenSent_BGPOpenMsgErr", StateOpenSent, false, EventBGPOpenMsgErr, StateIdle},

@@ -90,6 +90,39 @@
       "break": "body of packAttributesWithASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-4.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives",
+      "unit-sha": "6a96829addb5c839",
+      "claim-sha": "7df8fbe9376aa8b9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
+      "producer-sha": "494dadd2baaba793",
+      "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-4.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive",
+      "unit-sha": "1de6cf8a8eeac830",
+      "claim-sha": "efc4f1d4936ac393",
+      "route": "revert",
+      "producer": "internal/component/bgp/fsm/timer.go::StartKeepaliveTimer",
+      "producer-sha": "d93ae479ecda9202",
+      "break": "body of StartKeepaliveTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop",
+      "unit-sha": "5e6c66981d211e72",
+      "claim-sha": "79a4b8bb3123dca5",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build.go::checkInlineNextHop",
+      "producer-sha": "49f11b15c857676e",
+      "break": "body of checkInlineNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-5-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes",
@@ -563,6 +596,17 @@
       "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-8.2.2-13",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent",
+      "unit-sha": "cca1d3c87c1c2cff",
+      "claim-sha": "ef5d6e17fd725a3b",
+      "route": "revert",
+      "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
+      "producer-sha": "5e4f8b63fdfd2696",
+      "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-9-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go::TestRFC4271AdjRIBInPlacesNewRoute",
@@ -605,17 +649,6 @@
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate",
       "producer-sha": "dc5ad13d0f504b34",
       "break": "body of extractCandidate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-5-2",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop",
-      "unit-sha": "5e6c66981d211e72",
-      "claim-sha": "79a4b8bb3123dca5",
-      "route": "revert",
-      "producer": "internal/component/bgp/message/update_build.go::checkInlineNextHop",
-      "producer-sha": "49f11b15c857676e",
-      "break": "body of checkInlineNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
