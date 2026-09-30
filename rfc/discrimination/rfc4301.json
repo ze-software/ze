@@ -42,7 +42,7 @@
       "claim-sha": "bb3f57da3803d658",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
+      "producer-sha": "8f63f3a0a7079324",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "96bb7078d87a4caf",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
+      "producer-sha": "8f63f3a0a7079324",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -68,6 +68,39 @@
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4301-4.1-12",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration",
+      "unit-sha": "5377cd340f5d6a0e",
+      "claim-sha": "94510c836bab114a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.1-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSALookupRefusesAnUnconfiguredSPIOrGroup",
+      "unit-sha": "27ccf0cd3d4d69fa",
+      "claim-sha": "d606a9e79cb19d71",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.1-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSAsAreMappedBySPIAndGroup",
+      "unit-sha": "f789a65f74260afe",
+      "claim-sha": "e825bc9db955be9a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.1-9",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
@@ -75,7 +108,7 @@
       "claim-sha": "a2cef497b7a8a50f",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
+      "producer-sha": "8f63f3a0a7079324",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +119,7 @@
       "claim-sha": "4d4b0b930be9ad7c",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
+      "producer-sha": "8f63f3a0a7079324",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -486,6 +519,28 @@
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4301-4.4.2.1-11",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate",
+      "unit-sha": "51907360090f88c3",
+      "claim-sha": "55eaa3178865d442",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rekey.go::newLifetimeState",
+      "producer-sha": "16f87a9e362aa80d",
+      "break": "body of newLifetimeState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2.1-11",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval",
+      "unit-sha": "931046db1a30cefc",
+      "claim-sha": "27f97030022d2dc6",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rekey.go::newLifetimeState",
+      "producer-sha": "16f87a9e362aa80d",
+      "break": "body of newLifetimeState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.4.2.1-12",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemModeIsInstalled",
@@ -537,7 +592,7 @@
       "claim-sha": "8e82625738388775",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
+      "producer-sha": "8f63f3a0a7079324",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -548,7 +603,7 @@
       "claim-sha": "63b50fac2b7e73a6",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
+      "producer-sha": "8f63f3a0a7079324",
       "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -557,6 +612,28 @@
       "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSequenceCounterIsThe32BitCounterNegotiated",
       "unit-sha": "52c16cddd0601007",
       "claim-sha": "16426da5fb571a60",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+      "producer-sha": "8f63f3a0a7079324",
+      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2.1-5",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover",
+      "unit-sha": "f574de5a9431f88c",
+      "claim-sha": "fcfac9034b636535",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+      "producer-sha": "8f63f3a0a7079324",
+      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.2.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
+      "unit-sha": "123ec0767cac9453",
+      "claim-sha": "ac8561d8c9d4f430",
       "route": "revert",
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
       "producer-sha": "8f63f3a0a7079324",
@@ -692,7 +769,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
       "producer-sha": "105a438ab75af3a8",
-      "break": "line 243: \"ic.IPsec != nil\" -> \"false\""
+      "break": "line 243: \"ic.IPsec != nil\" -\u003e \"false\""
     },
     {
       "rid": "RFC4301-4.5.2-1",

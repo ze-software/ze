@@ -6,7 +6,7 @@
   "source-sha": "263fd9a78175c888",
   "signed-off": "2026-09-30",
   "reviewer": "claude",
-  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Re-walked 2026-09-30 for site 4.1:4 as well: the indication of source and destination address matching exists only inside the section 4.1 multicast de-multiplexing algorithm, which \"Implementations that support only unicast traffic need not implement\"; Ze negotiates unicast SAs only, so the site is excluded as feature-out-of-scope and row RFC4301-4.1-8 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 15 to 16. Re-walked 2026-09-30 for site 4.4:1 (ruling R22): a framing sentence whose observable characteristics are each a section 4.4.x row, excluded as not-a-requirement, row RFC4301-4.4-1 retired. Exclusions rise from 16 to 17. Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
+  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Re-walked 2026-09-30 for site 4.4:1 (ruling R22): a framing sentence whose observable characteristics are each a section 4.4.x row, excluded as not-a-requirement, row RFC4301-4.4-1 retired. Exclusions rise from 15 to 16. Site 4.1:4 was excluded as feature-out-of-scope earlier the same day on the reading that Ze has no multicast SAs; ruling R24 found that wrong (the OSPFv3 RFC 4552 installer, buildIPsecInterfaceSAs in internal/plugins/ospf/ipsec_install.go, keys manual SAs to ff02::5 and ff02::6, and section 4.4.2 states \"The SAD can support multicast SAs, if manually configured.\"), so the site is mapped again, to RFC4301-4.1-12, the row that restores retired RFC4301-4.1-8 under the next free ordinal (rfc/corrections/rfc4301.md). Exclusions stay at 16. Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
   "sections": [
     {
       "id": "front",
@@ -495,9 +495,8 @@
     {
       "id": "4.1:4",
       "quote": "The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547].",
-      "disposition": "excluded",
-      "excluded-kind": "feature-out-of-scope",
-      "reason": "Multicast SAs are optional, and the indication exists only inside the multicast de-multiplexing algorithm. Section 4.1 states: \"If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs. Implementations that support only unicast traffic need not implement this de-multiplexing algorithm.\" Ze negotiates unicast Child SAs only (IKEv2, no GDOI), and the kernel finds each inbound SA by SPI, destination and protocol (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go); RFC4301-4.1-6 records the algorithm as not applicable."
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.1-12"
     },
     {
       "id": "4.1:5",

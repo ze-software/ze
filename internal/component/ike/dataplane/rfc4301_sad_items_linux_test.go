@@ -269,3 +269,33 @@ func TestRFC4301SADItemMixedFamilyTunnelHeaderIsRefused(t *testing.T) {
 		t.Fatalf("got state %v err %v, want refusal and no state", state, err)
 	}
 }
+
+// TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover proves the SAD entry's
+// overflow flag selects the stop, never the rollover. Linux holds that flag as
+// XFRM_SA_XFLAG_OSEQ_MAY_WRAP: set, the outbound counter wraps to zero; unset, the
+// kernel's xfrm_replay_overflow audits the overflow and refuses the packet. Method:
+// build an ESP and an AH SA in each direction and read the flag back.
+func TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover(t *testing.T) {
+	// RFC requirement: RFC4301-4.4.2.1-5 positive -- the SAD entry Ze builds for an ESP and an AH SA, inbound and outbound, leaves the rollover-permitted flag (OSEQ_MAY_WRAP) unset and carries no ESN, so the overflow flag is the one that selects the audited stop.
+	for _, proto := range []uint8{ProtoESP, ProtoAH} {
+		for _, dir := range []SADir{SADirIn, SADirOut} {
+			params := boundarySA(0x1000)
+			params.Proto = proto
+			params.Dir = dir
+			if proto == ProtoAH {
+				params.Mode = ModeTransport
+				params.AuthKey = []byte("0123456789abcdef0123456789abcdef")
+			}
+			state, err := xfrmStateFromParams(params)
+			if err != nil {
+				t.Fatalf("proto %d dir %d: xfrmStateFromParams: %v", proto, dir, err)
+			}
+			if state.OSeqMayWrap {
+				t.Errorf("proto %d dir %d: rollover permitted, want overflow to stop transmission", proto, dir)
+			}
+			if state.ESN {
+				t.Errorf("proto %d dir %d: ESN set, want the 32-bit counter whose overflow is audited", proto, dir)
+			}
+		}
+	}
+}
