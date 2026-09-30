@@ -139,10 +139,10 @@ func statusIsSupportClaim(status string) bool {
 
 func derivedRegisters(deriver *Deriver, signed map[string]Extraction,
 	requirements []Requirement) (map[string]string, error) {
-	gated := gatedCounts(requirements)
+	gated := sourcedGatedCounts(requirements, signed)
 	out := map[string]string{}
 	for _, stem := range sortedKeysOf(signed) {
-		inventory, err := deriver.Inventory(stem, gated[stem])
+		inventory, err := deriver.InventoryUnder(stem, gated[stem], signed[stem].Register)
 		if err != nil {
 			return nil, err
 		}

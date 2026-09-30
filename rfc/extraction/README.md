@@ -118,9 +118,13 @@ against the RFC's own text or against the text of a document the reason names by
 Derived from the source text, never authored. An artifact may declare the derived register
 or a **weaker** one; a stronger claim is refused.
 
+A `prose` sign-off over a source that derives `rfc2119` is judged against the `prose` site
+set it walked, never the keyword set. A `manual-walk` sign-off carries the sites the source
+derives (`InventoryUnder`).
+
 | Register | Derived when | What the sign-off rests on |
 |---|---|---|
-| `rfc2119` | the source has capitalised MUST-level keywords outside the RFC 2119 boilerplate, and at least as many sites as the summary declares gated rows | the full forward and reverse arithmetic over a keyword inventory |
+| `rfc2119` | the source has capitalised MUST-level keywords outside the RFC 2119 boilerplate, and at least as many sites as the summary declares gated rows, less the rows a section of this artifact lists in `unsourced-ids` (an id the walk admits no capitalised sentence states does not consume the room a sourced row needs) | the full forward and reverse arithmetic over a keyword inventory |
 | `prose` | no capitalised keyword, or fewer sites than gated rows declared | the same arithmetic over a noisier case-insensitive modal inventory |
 | `manual-walk` | the inventory is empty under both scans while the summary declares a gated requirement | the reviewer's declared section walk, plus a stated reason why no inventory exists |
 

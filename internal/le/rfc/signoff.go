@@ -494,12 +494,12 @@ func evaluateExtractions(deriver *Deriver, requirements []Requirement) (map[stri
 	if err != nil {
 		return nil, nil, err
 	}
-	gated := gatedCounts(requirements)
+	gated := sourcedGatedCounts(requirements, artifacts)
 	signed := map[string]Extraction{}
 	var errs []string
 	for _, stem := range sortedKeysOf(artifacts) {
 		art := artifacts[stem]
-		inv, err := deriver.Inventory(stem, gated[stem])
+		inv, err := deriver.InventoryUnder(stem, gated[stem], art.Register)
 		if err != nil {
 			return nil, nil, err
 		}

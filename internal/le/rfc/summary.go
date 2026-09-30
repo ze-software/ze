@@ -613,5 +613,37 @@ func gatedCounts(requirements []Requirement) map[string]int {
 	return out
 }
 
+// sourcedGatedCounts answers, per stem, the gated requirements a keyword site
+// must back: every gated row less the ones its own extraction lists in a
+// section's `unsourced-ids`. This is the count DeriveRegister compares with the
+// keyword sites.
+//
+// A sanctioned unsourced id is the walk's admission that no capitalised
+// sentence states the row, and `./le rfc check` accepts it on that basis.
+// Billing it against the keyword budget as well is one exemption granted and
+// charged for: at the boundary it flips the register to prose and refuses the
+// sign-off that accepted it. An id the artifact names that is not a gated row
+// of the same stem subtracts nothing.
+func sourcedGatedCounts(requirements []Requirement, extractions map[string]Extraction) map[string]int {
+	out := map[string]int{}
+	for _, req := range requirements {
+		if req.Gated() && !extractionUnsources(extractions[req.RFC], req.RID) {
+			out[req.RFC]++
+		}
+	}
+	return out
+}
+
+// extractionUnsources reports whether one of the artifact's sections lists id
+// in its `unsourced-ids`.
+func extractionUnsources(extraction Extraction, id string) bool {
+	for _, section := range extraction.Sections {
+		if slices.Contains(section.UnsourcedIDs, id) {
+			return true
+		}
+	}
+	return false
+}
+
 // sortedSet answers a set's members sorted, for a message or an envelope.
 func sortedSet(set map[string]bool) []string { return sortedKeys(set) }

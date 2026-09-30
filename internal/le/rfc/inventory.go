@@ -840,10 +840,14 @@ func sitesFor(text string, pattern *regexp.Regexp) []Site {
 // DeriveRegister answers which keyword register the SOURCE is written in, and
 // therefore what a sign-off can be graded against.
 //
+// sourced is the gated requirements a keyword site must back, less the ids the
+// extraction sanctions as unsourced (sourcedGatedCounts). An id the walk admits
+// no capitalised sentence states never consumes the room a sourced one needs.
+//
 // Derived from the text, never authored: the RFCs that would most benefit from
 // claiming the strong grade are exactly the ones whose source cannot support it.
-func DeriveRegister(keywordSites, proseSites, gated int) string {
-	if keywordSites > 0 && keywordSites >= gated {
+func DeriveRegister(keywordSites, proseSites, sourced int) string {
+	if keywordSites > 0 && keywordSites >= sourced {
 		return registerRFC2119
 	}
 	if proseSites > 0 {
@@ -864,10 +868,11 @@ func DeriveRegister(keywordSites, proseSites, gated int) string {
 // The path is in the key because it is not a function of the bytes: the same
 // text found under rfc/full and under rfc/drafts is two different sources.
 type inventoryKey struct {
-	stem  string
-	gated int
-	raw   string
-	path  string
+	stem    string
+	sourced int
+	signed  string
+	raw     string
+	path    string
 }
 
 // Deriver answers inventories for one checkout, remembering what it has already
@@ -897,7 +902,22 @@ func (d *Deriver) Tree() string { return d.tree }
 // nil is NOT an empty inventory. An empty inventory says "the source states no
 // obligations"; nil says "I could not look", and the two must never render
 // alike.
-func (d *Deriver) Inventory(stem string, gated int) (*Inventory, error) {
+//
+// sourced is the stem's gated requirements less its sanctioned unsourced ids,
+// as sourcedGatedCounts answers it: the count the register is derived from.
+func (d *Deriver) Inventory(stem string, sourced int) (*Inventory, error) {
+	return d.InventoryUnder(stem, sourced, registerRFC2119)
+}
+
+// InventoryUnder answers Inventory with its sites derived under signed, the
+// register an artifact signs, when signed is prose and the source supports
+// rfc2119. Register still answers what the source supports, which is
+// the ceiling a sign-off is refused above.
+//
+// A weaker sign-off is legal, so it is judged against the sites its own
+// register reads. Deriving the stronger register's sites for it instead reds a
+// prose walk the moment its stem's sourced count reaches the keyword sites.
+func (d *Deriver) InventoryUnder(stem string, sourced int, signed string) (*Inventory, error) {
 	raw, ok := SourceText(d.tree, stem)
 	if !ok {
 		// "This repository holds no source text" is a state each caller
@@ -907,22 +927,36 @@ func (d *Deriver) Inventory(stem string, gated int) (*Inventory, error) {
 		return nil, nil //nolint:nilnil // nil means "I could not look", stated in the doc comment
 	}
 	rel, _ := SourcePath(d.tree, stem)
-	key := inventoryKey{stem: stem, gated: gated, raw: raw, path: rel}
+	key := inventoryKey{stem: stem, sourced: sourced, signed: signed, raw: raw, path: rel}
 	if found, seen := d.memo[key]; seen {
 		return found, nil
 	}
 
 	stripped := stripPageFurniture(raw)
 	keyword := sitesFor(stripped, siteKeywordRE)
-	register := DeriveRegister(len(keyword), 0, gated)
-	sites := keyword
+	register := DeriveRegister(len(keyword), 0, sourced)
+	// The prose scan runs only where a site set or the register reads it.
+	var prose []Site
 	if register != registerRFC2119 {
-		prose := sitesFor(stripped, siteProseRE)
-		register = DeriveRegister(len(keyword), len(prose), gated)
-		sites = nil
-		if register == registerProse {
-			sites = prose
+		prose = sitesFor(stripped, siteProseRE)
+		register = DeriveRegister(len(keyword), len(prose), sourced)
+	}
+	// Only prose lowers the set. A manual-walk sign-off rests on a declared
+	// section walk rather than on an inventory, so it keeps the sites the
+	// source derives, as it always has.
+	under := register
+	if signed == registerProse && register == registerRFC2119 {
+		under = registerProse
+	}
+	var sites []Site
+	if under == registerRFC2119 {
+		sites = keyword
+	}
+	if under == registerProse {
+		if register == registerRFC2119 {
+			prose = sitesFor(stripped, siteProseRE)
 		}
+		sites = prose
 	}
 
 	counts := map[string]int{}

@@ -1,7 +1,7 @@
 {
   "schema-version": 1,
   "stem": "rfc8707",
-  "register": "prose",
+  "register": "rfc2119",
   "source-path": "rfc/full/rfc8707.txt",
   "source-sha": "3b04fcfbb0d22e5a",
   "signed-off": "2026-09-22",

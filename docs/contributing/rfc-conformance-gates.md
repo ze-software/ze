@@ -829,6 +829,12 @@ before you meet one:
 - **The register is derived, and a stronger claim is refused.** It is `rfc2119`,
   `prose`, or `manual-walk`. A keyword-only check can be vacuously green when an
   RFC declares gated obligations without a capitalised MUST-level keyword site.
+  `rfc2119` needs at least as many keyword sites as the summary's gated rows,
+  less the ids a section lists in `unsourced-ids`: an id the walk sanctions as
+  unsourced is not billed against the keyword budget
+  (`sourcedGatedCounts`, `DeriveRegister`). A `prose` sign-off over a source
+  that supports `rfc2119` is judged against the prose site set it walked
+  (`InventoryUnder`).
 - **The bound is over keyword-visible sites, not over obligations.** Recall can
   be near zero for an indicative-prose section. `unsourced-ids` records an
   obligation the extractor cannot see. This raises a floor from zero; it does

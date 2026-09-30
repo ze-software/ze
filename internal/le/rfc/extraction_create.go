@@ -143,19 +143,6 @@ func createExtraction(tree, stem string) (extractionCreateReport, error) {
 // a caller may go on to change is a disposition, and everything else comes back
 // from the source (rfc/extraction/README.md).
 func deriveExtractionDocument(tree, stem string) (extractionDocument, error) {
-	gated := summaryGatedCount(tree, stem)
-	inventory, err := NewDeriver(tree).Inventory(stem, gated)
-	if err != nil {
-		return extractionDocument{}, err
-	}
-	if inventory == nil {
-		var message textbuf.Buffer
-		return extractionDocument{}, errors.New(message.Str(stem).
-			Str(" has no source text at rfc/full/").Str(stem).Str(".txt or rfc/drafts/").
-			Str(stem).Str(".txt. Fetch it (https://www.rfc-editor.org/rfc/").Str(stem).
-			Str(".txt) before extracting: with no source there is no inventory to derive and no register to sign under").String())
-	}
-
 	path := treePath(tree, extractionRel+"/"+stem+".json")
 	var previous *Extraction
 	if _, statErr := os.Stat(path); statErr == nil {
@@ -168,6 +155,27 @@ func deriveExtractionDocument(tree, stem string) (extractionDocument, error) {
 		var message textbuf.Buffer
 		return extractionDocument{}, errors.New(message.Str(relTo(tree, path)).Str(": cannot read: ").Err(statErr).String())
 	}
+
+	// The register is derived from the rows a keyword site must back, so the
+	// ids the landed sign-off already sanctions as unsourced are not billed. A
+	// landed sign-off under a weaker register keeps it, and with it the sites
+	// that register reads.
+	signed := registerRFC2119
+	if previous != nil {
+		signed = previous.Register
+	}
+	inventory, err := NewDeriver(tree).InventoryUnder(stem, summarySourcedCount(tree, stem, previous), signed)
+	if err != nil {
+		return extractionDocument{}, err
+	}
+	if inventory == nil {
+		var message textbuf.Buffer
+		return extractionDocument{}, errors.New(message.Str(stem).
+			Str(" has no source text at rfc/full/").Str(stem).Str(".txt or rfc/drafts/").
+			Str(stem).Str(".txt. Fetch it (https://www.rfc-editor.org/rfc/").Str(stem).
+			Str(".txt) before extracting: with no source there is no inventory to derive and no register to sign under").String())
+	}
+
 	return newExtractionDocument(inventory, previous), nil
 }
 
@@ -225,11 +233,13 @@ func validateExtractionStem(stem string) error {
 		Str("The stem names the source text and the artifact file, so it may never carry a path").String())
 }
 
-// summaryGatedCount preserves the legacy writer's failure direction: an absent
-// or malformed summary supplies zero declared requirements. That can select a
-// stronger derived register, so the public check still reports the malformed
-// summary and governs whether the refreshed artifact can earn sign-off.
-func summaryGatedCount(tree, stem string) int {
+// summarySourcedCount answers the summary's gated requirements less the ids
+// previous, the landed sign-off, lists as unsourced (sourcedGatedCounts). It
+// preserves the legacy writer's failure direction: an absent or malformed
+// summary supplies zero declared requirements. That can select a stronger
+// derived register, so the public check still reports the malformed summary and
+// governs whether the refreshed artifact can earn sign-off.
+func summarySourcedCount(tree, stem string, previous *Extraction) int {
 	path := treePath(tree, summaryRel+"/"+stem+".md")
 	if _, err := os.Stat(path); err != nil {
 		return 0
@@ -238,7 +248,11 @@ func summaryGatedCount(tree, stem string) int {
 	if err != nil {
 		return 0
 	}
-	return gatedCounts(requirements)[stem]
+	extractions := map[string]Extraction{}
+	if previous != nil {
+		extractions[stem] = *previous
+	}
+	return sourcedGatedCounts(requirements, extractions)[stem]
 }
 
 func newExtractionDocument(inventory *Inventory, previous *Extraction) extractionDocument {
