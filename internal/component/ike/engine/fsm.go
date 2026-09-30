@@ -182,7 +182,10 @@ func (ps *PeerSession) runInitiator(
 		return fmt.Errorf("ike: resolve remote: %w", err)
 	}
 
-	initMsg := buildSAInitRequest(sa, ikeGroup)
+	initMsg, err := encodeSAInitRequest(sa, ikeGroup)
+	if err != nil {
+		return err
+	}
 	sa.InitiatorSAInitMsg = initMsg
 	sa.State = StateSAInitSent
 	sa.LastSentMsg = initMsg
@@ -919,7 +922,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		}
 		// The accepted proposal keys the Child SA, so the SA's ESP group narrows to it
 		// here. RFC 7296 Section 3.3.6 lets the responder "select a single complete set
-		// of parameters from the offers". buildWireESPProposals put EVERY configured
+		// of parameters from the offers". wireESPOffer put EVERY configured
 		// proposal on the wire, so the set it selected is not always the first.
 		//
 		// Without this, the check above passes for a peer that accepted the second

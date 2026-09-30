@@ -204,7 +204,12 @@ func retrySAInit(
 		sa.ResponderSPI = [8]byte{}
 	}
 
-	msg := buildSAInitRequest(sa, sa.IKEGroup)
+	msg, err := encodeSAInitRequest(sa, sa.IKEGroup)
+	if err != nil {
+		log.Warn("ike: cannot rebuild IKE_SA_INIT", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return false
+	}
 	// Re-anchoring is not bookkeeping. RFC 7296 Section 2.15 computes the AUTH payload
 	// over the first IKE_SA_INIT message, and auth.go reads sa.InitiatorSAInitMsg for
 	// exactly that. A retry that left the old bytes here would pass every payload-shape

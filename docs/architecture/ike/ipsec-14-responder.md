@@ -84,7 +84,7 @@ assignment.
   and keyed the first child from proposal 0. `selectResponderESP` negotiates one
   proposal and narrows the SA's ESP group.
 
-<!-- source: internal/component/ike/engine/responder.go -- selectResponderESP, matchOfferedESPProposal, buildAuthResponse -->
+<!-- source: internal/component/ike/engine/responder.go -- selectResponderESP, matchOfferedESP, buildAuthResponse -->
 
 - RFC 9190 Section 2.1.2 requires the EAP-TLS server to send one or more
   post-handshake NewSessionTicket messages in the initial authentication. The

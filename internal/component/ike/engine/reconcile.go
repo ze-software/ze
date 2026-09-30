@@ -324,6 +324,10 @@ type PeerInfo struct {
 	ESPEncryptionID crypto.EncryptionID
 	ESPKeyBits      uint16
 	ESPIntegrityID  crypto.IntegrityID
+	// ESPTransformErr is non-nil when the installed proposal's transforms do not
+	// resolve through the crypto registry. ESPIntegrity and the three typed fields are
+	// then unset, so a reader MUST check it before reading them.
+	ESPTransformErr error
 	Lifetime        uint32
 	RekeyCount      uint64
 	HasChild        bool
@@ -378,8 +382,15 @@ func (ps *PeerSession) Info() PeerInfo {
 		// (AC-15 of spec-path-mtu-diagnostic).
 		if len(child.ESPGroup.Proposals) > 0 {
 			prop := child.ESPGroup.Proposals[0]
-			enc, integ := espTransforms(prop)
 			info.ESPEncryption = prop.Encryption.String()
+			// The child was keyed from this proposal, so it resolved then. A failure now
+			// is a Ze defect; it is named in ESPTransformErr and the typed fields stay
+			// unset rather than reading as Transform ID 0.
+			enc, integ, err := resolveESPTransforms(prop)
+			if err != nil {
+				info.ESPTransformErr = err
+				return info
+			}
 			// An AEAD proposal configures no hash, so its integrity is the transform's
 			// AUTH_NONE ("none") rather than the config enum's zero ("unknown").
 			info.ESPIntegrity = integ.ID.String()

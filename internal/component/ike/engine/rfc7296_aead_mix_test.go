@@ -16,7 +16,10 @@ func aeadOurs(t *testing.T) (encID, keyLen uint16) {
 	if !our.Encryption.IsAEAD() {
 		t.Fatal("the fixture cipher is not AEAD, so this test is about the wrong class")
 	}
-	enc := lookupEncryption(our.Encryption)
+	enc, err := lookupEncryption(our.Encryption)
+	if err != nil {
+		t.Fatalf("the AEAD cipher does not resolve: %v", err)
+	}
 	if enc.ID == 0 {
 		t.Fatal("the AEAD cipher resolves to no algorithm")
 	}
@@ -40,7 +43,11 @@ func aeadOurs(t *testing.T) (encID, keyLen uint16) {
 // the obligation gains proof, it does not lose scope.
 func TestAeadMixInOneProposalIsRefused(t *testing.T) {
 	encID, keyLen := aeadOurs(t)
-	integ := uint16(lookupIntegrity(ipsec.HashSHA256).ID)
+	integTransform, err := lookupIntegrity(ipsec.HashSHA256)
+	if err != nil {
+		t.Fatalf("the non-AEAD integrity algorithm does not resolve: %v", err)
+	}
+	integ := uint16(integTransform.ID)
 	if integ == 0 {
 		t.Fatal("the non-AEAD integrity algorithm resolves to zero, so the mix is not expressible")
 	}

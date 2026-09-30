@@ -215,7 +215,15 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 	}
 
 	// RFC 7296 Section 2.7: responder selects exactly one proposal.
-	localProposals := buildIKEProposals(sa.IKEGroup)
+	localProposals, err := localIKEProposals(sa.IKEGroup)
+	if err != nil {
+		// No configured proposal can be offered, so none is acceptable: the peer is
+		// answered as for any offer this node cannot accept, and the cause is logged.
+		log.Warn("ike: configured IKE proposals do not resolve", "peer", sa.PeerName, "error", err)
+		sendSAInitNotify(sa, tr, remote, wire.NotifyNoProposalChosen, nil, log)
+		sa.State = StateDead
+		return
+	}
 	remoteProposals := wireProposalsToIKE(remoteSA.Proposals)
 	chosen, err := crypto.NegotiateIKE(remoteProposals, localProposals)
 	if err != nil {
@@ -699,7 +707,10 @@ func selectResponderESP(sa *SA, remoteSAi2 *wire.PayloadSA) error {
 		// SAi2 therefore binds no exchange, so it takes no part in this comparison. The
 		// esp-group's pfs leaf governs the CREATE_CHILD_SA rekey, where a KE payload
 		// exists (respondChildRekey, rekey.go).
-		rp, ok := matchOfferedESPProposal(remoteSAi2, our, espDHMatch{Unbound: true})
+		rp, ok, err := matchOfferedESP(remoteSAi2, our, espDHMatch{Unbound: true})
+		if err != nil {
+			return err
+		}
 		if !ok {
 			continue
 		}
@@ -730,26 +741,36 @@ type espDHMatch struct {
 	Unbound bool
 }
 
-// matchOfferedESPProposal returns the ESP proposal in the peer's offer that agrees
+// matchOfferedESP returns the ESP proposal in the peer's offer that agrees
 // with one configured proposal, and reports whether the offer holds one. The caller
 // reads its Proposal Num, which RFC 7296 Section 3.3.1 makes the response echo.
-func matchOfferedESPProposal(offer *wire.PayloadSA, our ipsec.ESPProposal, dh espDHMatch) (wire.Proposal, bool) {
+//
+// A configured proposal whose algorithm the crypto registry does not hold is an error,
+// never "no match": it would otherwise match an offer of Transform ID 0.
+func matchOfferedESP(offer *wire.PayloadSA, our ipsec.ESPProposal, dh espDHMatch) (wire.Proposal, bool, error) {
 	if offer == nil {
-		return wire.Proposal{}, false
+		return wire.Proposal{}, false, nil
 	}
-	enc := lookupEncryption(our.Encryption)
+	enc, err := lookupEncryption(our.Encryption)
+	if err != nil {
+		return wire.Proposal{}, false, fmt.Errorf("esp proposal %d: %w", our.Number, err)
+	}
 	aead := our.Encryption.IsAEAD()
 	var integID uint16
 	if !aead {
-		integID = uint16(lookupIntegrity(our.Hash).ID)
+		integ, err := lookupIntegrity(our.Hash)
+		if err != nil {
+			return wire.Proposal{}, false, fmt.Errorf("esp proposal %d: %w", our.Number, err)
+		}
+		integID = uint16(integ.ID)
 	}
 	for _, rp := range offer.Proposals {
 		if rp.ProtocolID == wire.ProtocolESP &&
 			espProposalMatches(rp, uint16(enc.ID), enc.KeyLength, integID, aead, dh) {
-			return rp, true
+			return rp, true, nil
 		}
 	}
-	return wire.Proposal{}, false
+	return wire.Proposal{}, false, nil
 }
 
 // logKeyLengthUpgrade reports an encryption key that the responder accepted above its own
@@ -873,7 +894,7 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 	}
 	// RFC 7296 Section 2.7: "The accepted cryptographic suite MUST contain exactly one
 	// transform of each type included in the proposal" (rfc/full/rfc7296.txt:1976-1980).
-	// espProposalToWire (initiator.go) answers Transform Type 5 with espESNNotExtended
+	// espProposalWire (initiator.go) answers Transform Type 5 with espESNNotExtended
 	// and ze can key nothing else, so an offer that includes the type without that value
 	// has no answer ze can honor. Section 3.3.2 says the same from the peer's side: a
 	// proposal carrying a single ESN transform of value 1 "means that using normal

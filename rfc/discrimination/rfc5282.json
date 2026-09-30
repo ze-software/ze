@@ -481,9 +481,9 @@
       "unit-sha": "919b70a2f81117dc",
       "claim-sha": "4391e91d5f86a3ea",
       "route": "revert",
-      "producer": "internal/component/ike/engine/initiator.go::buildIKEProposals",
-      "producer-sha": "548bc500a429fc8d",
-      "break": "body of buildIKEProposals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/initiator.go::localIKEProposals",
+      "producer-sha": "3f16d8469346cd92",
+      "break": "body of localIKEProposals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-8-1",
@@ -514,9 +514,9 @@
       "unit-sha": "14418364447861e8",
       "claim-sha": "e6da910f44e5c82c",
       "route": "revert",
-      "producer": "internal/component/ike/engine/initiator.go::buildWireIKEProposals",
-      "producer-sha": "bb5c444c5fbeaae1",
-      "break": "body of buildWireIKEProposals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/initiator.go::wireIKEOffer",
+      "producer-sha": "2c8eeccc7a2b8917",
+      "break": "body of wireIKEOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-8-2",
@@ -525,9 +525,9 @@
       "unit-sha": "4fa72bd505fc2b69",
       "claim-sha": "eadaa585faf5287c",
       "route": "revert",
-      "producer": "internal/component/ike/engine/initiator.go::buildWireIKEProposals",
-      "producer-sha": "bb5c444c5fbeaae1",
-      "break": "body of buildWireIKEProposals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/initiator.go::wireIKEOffer",
+      "producer-sha": "2c8eeccc7a2b8917",
+      "break": "body of wireIKEOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-8-2",
@@ -536,9 +536,9 @@
       "unit-sha": "36ae76a9220dcfe0",
       "claim-sha": "8a86576e581760d1",
       "route": "revert",
-      "producer": "internal/component/ike/engine/initiator.go::espProposalToWire",
-      "producer-sha": "90db7205673f9767",
-      "break": "body of espProposalToWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+      "producer-sha": "45e5f1b4f57f775e",
+      "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-8-2",
@@ -547,9 +547,9 @@
       "unit-sha": "d12569cea547e834",
       "claim-sha": "19a0905e33795aaf",
       "route": "revert",
-      "producer": "internal/component/ike/engine/initiator.go::espProposalToWire",
-      "producer-sha": "90db7205673f9767",
-      "break": "body of espProposalToWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+      "producer-sha": "45e5f1b4f57f775e",
+      "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

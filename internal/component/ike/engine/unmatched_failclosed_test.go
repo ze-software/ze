@@ -12,11 +12,13 @@ package engine
 
 import (
 	"errors"
+	"net"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -85,6 +87,94 @@ func TestUnmatchedDiscardInstallFailureFailsTheApply(t *testing.T) {
 		if err := bypass.applyConfig(cfg, phase); err != nil {
 			t.Errorf("phase %d: a failed bypass catch-all failed the apply: %v", phase, err)
 		}
+	}
+}
+
+// A reload refused because its DISCARD catch-all failed to install changes nothing the
+// running configuration put in place. applyConfig installs the catch-all before the
+// operator's SPD entries and the cookie threshold, so the refused configuration's
+// threshold never takes effect, its SPD entry never reaches the backend or the engine's
+// record, and the running configuration's entry is not removed. Method: apply a running
+// discard configuration with one bypass entry and threshold 7 on a backend that holds
+// the catch-all, make every later install fail, then apply a configuration with another
+// entry and threshold 99, and compare the threshold, installedSPD and the backend's live
+// entries with what the running apply left.
+func TestUnmatchedDiscardRefusalLeavesThresholdAndSPDEntriesUnchanged(t *testing.T) {
+	dp := &catchAllDP{}
+	loadFailClosedBackend(t, dp)
+	withCookieThreshold(t, CookieThreshold())
+	state := applyTestState(t)
+
+	running := testIPsecConfig(applyTestPeer("127.0.0.1"))
+	running.Unmatched = dataplane.SPActionDiscard
+	running.CookieThreshold = 7
+	running.Policies = map[string]ipsec.SPDPolicy{"pass-mgmt": failClosedBypassEntry(t, "pass-mgmt", "192.0.2.0/24")}
+	if err := state.applyConfig(running, applyReload); err != nil {
+		t.Fatalf("running apply: %v", err)
+	}
+	runningEntries := spdPolicyParams(running.Policies["pass-mgmt"])
+	for _, sp := range runningEntries {
+		if _, live := dp.live[keyOf(sp)]; !live {
+			t.Fatalf("the running apply did not install its bypass entry %+v", sp)
+		}
+	}
+	removed := len(dp.removed)
+
+	dp.installErr = errors.New("operation not permitted")
+	refused := testIPsecConfig(applyTestPeer("127.0.0.1"))
+	refused.Unmatched = dataplane.SPActionDiscard
+	refused.CookieThreshold = 99
+	refused.Policies = map[string]ipsec.SPDPolicy{"pass-other": failClosedBypassEntry(t, "pass-other", "203.0.113.0/24")}
+	if err := state.applyConfig(refused, applyReload); err == nil {
+		t.Fatal("a reload whose discard catch-all failed to install was reported applied")
+	}
+
+	if got := CookieThreshold(); got != 7 {
+		t.Errorf("the refused configuration's cookie threshold is in force: %d, want 7", got)
+	}
+	if _, kept := state.installedSPD["pass-mgmt"]; !kept {
+		t.Errorf("the engine no longer records the running entry: %v", state.installedSPD)
+	}
+	if _, taken := state.installedSPD["pass-other"]; taken {
+		t.Errorf("the engine records the refused configuration's entry: %v", state.installedSPD)
+	}
+	if len(dp.removed) != removed {
+		t.Errorf("the refused apply removed %d SPD entries: %+v", len(dp.removed)-removed, dp.removed[removed:])
+	}
+	for _, sp := range runningEntries {
+		if _, live := dp.live[keyOf(sp)]; !live {
+			t.Errorf("the running bypass entry %+v is no longer installed", sp)
+		}
+	}
+	for _, sp := range spdPolicyParams(refused.Policies["pass-other"]) {
+		if _, live := dp.live[keyOf(sp)]; live {
+			t.Errorf("the refused configuration's entry %+v is installed", sp)
+		}
+	}
+}
+
+// failClosedBypassEntry is an operator bypass entry for local prefix local, in both
+// directions, any protocol and port.
+func failClosedBypassEntry(t *testing.T, name, local string) ipsec.SPDPolicy {
+	t.Helper()
+	_, localPrefix, err := net.ParseCIDR(local)
+	if err != nil {
+		t.Fatalf("parse local prefix: %v", err)
+	}
+	_, remotePrefix, err := net.ParseCIDR("198.51.100.0/24")
+	if err != nil {
+		t.Fatalf("parse remote prefix: %v", err)
+	}
+	return ipsec.SPDPolicy{
+		Name:         name,
+		Action:       dataplane.SPActionBypass,
+		Order:        1000,
+		Direction:    ipsec.SPDDirBoth,
+		Protocol:     protoUDP,
+		LocalPrefix:  localPrefix,
+		LocalPort:    ipsec.AnyPort(),
+		RemotePrefix: remotePrefix,
+		RemotePort:   ipsec.AnyPort(),
 	}
 }
 

@@ -501,7 +501,7 @@ func matchESP(remote, local *ESPProposal, rule keyLengthRule) (ESPProposal, erro
 // Length attribute is therefore read under keyLengthExact.
 //
 // The responder's own Child SA selection does not come through here. It reads the wire
-// proposals directly, in matchOfferedESPProposal (ike/engine/responder.go), because it
+// proposals directly, in matchOfferedESP (ike/engine/responder.go), because it
 // also needs the Proposal Num that RFC 7296 Section 3.3.1 makes the response echo. That
 // path compares the key length for equality too.
 //

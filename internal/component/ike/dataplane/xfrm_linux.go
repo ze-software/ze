@@ -301,9 +301,12 @@ func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 
 // CatchAllSupported answers yes when the kernel's XFRM netlink socket opens. An XFRM
 // policy is node-wide, so an entry bound to no interface is the ordinary kind, and the
-// only question is whether this process can program XFRM at all: a kernel built
-// without CONFIG_XFRM_USER refuses the socket, and so does a process without
-// CAP_NET_ADMIN.
+// only question is whether the kernel offers XFRM at all: a kernel built without
+// CONFIG_XFRM_USER refuses the socket. A process without CAP_NET_ADMIN still opens
+// it, because the kernel checks the capability per message rather than at socket
+// creation, so this probe answers yes for such a process. Its install then fails
+// when the configuration is applied, and installUnmatched refuses that apply, so the
+// catch-all still fails closed.
 func (b *xfrmBackend) CatchAllSupported() error {
 	handle, err := netlink.NewHandle(unix.NETLINK_XFRM)
 	if err != nil {

@@ -260,7 +260,10 @@ func createFirstChildSA(
 	}
 
 	prop := espGroup.Proposals[0]
-	enc, integ := espTransforms(prop)
+	enc, integ, err := resolveESPTransforms(prop)
+	if err != nil {
+		return nil, fmt.Errorf("child-sa: %w", err)
+	}
 
 	// RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr) in absolute initiator/
 	// responder order, not this side's Local/Remote order (identical for an

@@ -23,8 +23,7 @@ func espEncTransform(id, keyLen uint16) wire.Transform {
 func espOurs(t *testing.T) (encID, keyLen, integID uint16) {
 	t.Helper()
 	our := ipsec.ESPProposal{Number: 1, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256}
-	enc := lookupEncryption(our.Encryption)
-	integ := lookupIntegrity(our.Hash)
+	enc, integ := espTransforms(our)
 	if enc.ID == 0 || integ.ID == 0 {
 		t.Fatal("the configured proposal resolves to no algorithm, so no comparison below discriminates")
 	}

@@ -882,13 +882,26 @@ applied:
 
 | Situation | `discard` | `bypass` |
 |---|---|---|
-| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, a kernel without XFRM, or a daemon without `CAP_NET_ADMIN` | Refused at commit | Accepted; no entry is installed, and the kernel passes the traffic |
+| The dataplane cannot hold an entry bound to no interface: the VPP backend, a build off Linux, or a kernel without XFRM | Refused at commit | Accepted; no entry is installed, and the kernel passes the traffic |
 | No dataplane loaded (the daemon logged that the load failed) | Refused at commit | Accepted; no entry is installed |
-| The install itself fails when the configuration is applied | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
+| The install itself fails when the configuration is applied, which includes a daemon without `CAP_NET_ADMIN`: it can open the XFRM socket, so the commit check passes, and the kernel refuses the install | The apply fails with the error, and the configuration is not reported applied: a commit is refused, and at startup the configure step returns the error | Logged as a warning; the kernel passes the traffic |
 | Before the first configuration is applied, and after the engine stops | No entry exists, and the kernel passes the traffic in the clear | Same |
 
-The catch-all is installed before the `policy` entries and the peers of the
-same configuration, so a refused apply leaves the previous entries in place.
+The catch-all is installed before the `policy` entries, the peers and the
+cookie threshold of the same configuration, so a refused apply leaves the
+previous entries and threshold in place.
+
+That order has a cost with `discard`. Between the catch-all install and the
+install of your `bypass` entries, traffic those entries are meant to pass
+matches only the catch-all and is dropped. This happens on the first apply,
+and on every reload that adds or changes a `bypass` entry, for the flows that
+entry covers (a changed entry is removed and installed again). An entry the
+reload leaves unchanged stays installed throughout. The window lasts as long as the apply takes to install the `policy`
+entries. When you first turn `discard` on, commit the `bypass` entries while
+`unmatched` is still `bypass`, then set `unmatched discard` in a later commit:
+the entries are then already installed when the catch-all starts dropping. A
+`bypass` entry added or changed once `discard` is in force always crosses the
+window.
 
 <!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
 <!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched, verifyUnmatchedEnforceable -->

@@ -8,6 +8,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -1163,16 +1164,16 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3-1": {
-      "note": "send side emits AEAD and non-AEAD in separate proposals (TestESPProposalsNeverMixAEADClass); receive side refuses a mixed proposal and accepts AEAD alone (rfc7296_aead_mix_test.go)",
+      "note": "Re-judged 2026-09-30 after R30 D-8 (lookups return errors). The sentence (Section 3.3, rfc/full/rfc7296.txt:4308) obliges an initiator offering both classes to use two proposals. Send side: TestESPProposalsNeverMixAEADClass builds a group holding an AEAD and a non-AEAD proposal through the offer builder (now wireESPOffer via the test-only one-value wrapper) and asserts two proposals, AEAD with one ENCR and no INTEG, non-AEAD with one ENCR and one INTEG; a merge or an INTEG beside the AEAD cipher goes red. ipsec.ESPProposal holds one cipher, so the send-side negative is inexpressible (single-polarity positive on that side). Receive side: TestAeadMixInOneProposalIsRefused (negative) feeds espProposalMatches one proposal with the AEAD cipher plus a real INTEG and asserts refusal; TestAeadAloneInItsOwnProposalIsAccepted (positive, absent INTEG and explicit NONE) rules out a comparison that refuses every AEAD proposal. The edit to the negative is mechanical: lookupIntegrity now returns (T, error) and the test fails on the error; assertions and fixture unchanged. Records: negative revert on responder.go::espProposalMatches, observed red. The two positives carry no record (tags predate the record ratchet).",
       "requirement_sha": "81063204dec4fd71",
       "tests": {
-        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "e2b129c524e22893",
-        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "e2b129c524e22893",
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "8548638729d67e42",
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "8548638729d67e42",
         "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "e032382b6fba7977"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "abeb51a4922d4ca4",
-        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "98effe87177aa276",
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "051fc2b22946fdb5",
         "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "304e342b5f71e225"
       },
       "verdict": "enforced"
@@ -1300,8 +1301,8 @@
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "08f2f5dac8da8a2b",
         "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "ff3d9ab01e05bb35",
         "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "ff3d9ab01e05bb35",
-        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal": "0fd28eef419a4a62",
-        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer": "0fd28eef419a4a62"
+        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal": "931cc5eb9032ffd5",
+        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer": "931cc5eb9032ffd5"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "4a993fd959306c98",

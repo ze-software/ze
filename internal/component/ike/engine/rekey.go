@@ -372,7 +372,7 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// proposals it sent. It stops the exchange when the two disagree. The replacement
 	// Child SA then takes the suite the peer selected. That suite is not always the
 	// first proposal of the offer. The section lets the responder "select a single
-	// complete set of parameters from the offers", and buildWireESPProposals sends them
+	// complete set of parameters from the offers", and wireESPOffer sends them
 	// all. Keying from Proposals[0] would install a Child SA under an algorithm the peer
 	// never agreed to, and the peer would drop every packet it carries.
 	offer, err := verifyAcceptedOffer(accepted, sa.IKEGroup, old.ESPGroup)
@@ -380,7 +380,10 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 		return nil, fmt.Errorf("child rekey response: %w", err)
 	}
 	prop := offer.ESPConfig
-	rekeyEnc, rekeyInteg := espTransforms(prop)
+	rekeyEnc, rekeyInteg, err := resolveESPTransforms(prop)
+	if err != nil {
+		return nil, fmt.Errorf("child rekey response: %w", err)
+	}
 	keys, err := childRekeyKeys(sa, pending.dh, accepted, acceptedKE, pending.localNonce, nr, rekeyEnc, rekeyInteg)
 	if err != nil {
 		return nil, fmt.Errorf("child rekey response: %w", err)
@@ -528,7 +531,10 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// the exchange the operator asked for. With no group required, an offer that names
 	// one is refused for the mirror reason: RFC 7296 Section 2.7 would make the answer
 	// carry a Type 4 transform this node is not running.
-	accepted, ok := matchOfferedESPProposal(offer, old.ESPGroup.Proposals[0], espDHMatch{Want: group})
+	accepted, ok, err := matchOfferedESP(offer, old.ESPGroup.Proposals[0], espDHMatch{Want: group})
+	if err != nil {
+		return nil, nil, fmt.Errorf("child rekey request: %w", err)
+	}
 	if !ok || accepted.Number == 0 {
 		return nil, nil, fmt.Errorf("child rekey request: %w", crypto.ErrNoProposalChosen)
 	}
@@ -585,7 +591,16 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, err
 	}
 	prop := old.ESPGroup.Proposals[0]
-	respEnc, respInteg := espTransforms(prop)
+	respEnc, respInteg, err := resolveESPTransforms(prop)
+	if err != nil {
+		return nil, nil, fmt.Errorf("child rekey request: %w", err)
+	}
+	// The answer is encoded before anything is keyed or installed, so a proposal that
+	// cannot be encoded leaves no Child SA behind.
+	answer, err := espProposalWire(prop, inSPI, accepted.Number, group)
+	if err != nil {
+		return nil, nil, fmt.Errorf("child rekey request: %w", err)
+	}
 
 	// RFC 7296 Section 2.17, the two KEYMAT forms. Without a group the peer is the
 	// initiator here and the seed is "Ni | Nr". With one, this node completes the
@@ -648,7 +663,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// carries the same Transform Type 4 the KE payload names, which is what Section 3.4
 	// requires of every message that carries a KE payload.
 	inner2 := []wire.PayloadEntry{
-		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{espProposalToWire(prop, inSPI, accepted.Number, group)}}},
+		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{answer}}},
 		{Payload: &wire.PayloadNonce{NonceData: nr}},
 	}
 	if group != dhGroupNone {
@@ -865,7 +880,11 @@ func initiateIKERekey(oldSA *SA, ikeGroup ipsec.IKEGroup) ([]byte, *pendingRekey
 		return nil, nil, err
 	}
 
-	props := buildWireIKEProposals(ikeGroup)
+	props, err := wireIKEOffer(ikeGroup)
+	if err != nil {
+		dh.Clear()
+		return nil, nil, fmt.Errorf("ike rekey: %w", err)
+	}
 	spiBytes := make([]byte, 8)
 	copy(spiBytes, newSPI[:])
 	for i := range props {
@@ -1062,7 +1081,11 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 	}
 
 	// Select a proposal we accept for the new IKE SA.
-	chosen, err := crypto.NegotiateIKE(wireProposalsToIKE(remoteSA.Proposals), buildIKEProposals(oldSA.IKEGroup))
+	local, err := localIKEProposals(oldSA.IKEGroup)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ike rekey: %w", err)
+	}
+	chosen, err := crypto.NegotiateIKE(wireProposalsToIKE(remoteSA.Proposals), local)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ike rekey: %w", err)
 	}

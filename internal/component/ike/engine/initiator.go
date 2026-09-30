@@ -49,16 +49,19 @@ func newInitiatorSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.I
 	}, nil
 }
 
-// buildSAInitRequest constructs an IKE_SA_INIT request message.
+// encodeSAInitRequest constructs an IKE_SA_INIT request message.
 // RFC 7296 Section 2.23: includes NAT_DETECTION_*_IP notify payloads.
-func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
+func encodeSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) ([]byte, error) {
 	// RFC 7296 Section 1.2 MUST: a retry after INVALID_KE_PAYLOAD "MUST again propose
 	// its full set of acceptable cryptographic suites because the rejection message was
 	// unauthenticated and otherwise an active attacker could trick the endpoints into
 	// negotiating a weaker suite than a stronger one that they both prefer". The offer
 	// is therefore built from the whole configured group on every attempt, and is never
 	// narrowed to the group the responder named.
-	proposals := buildWireIKEProposals(ikeGroup)
+	proposals, err := wireIKEOffer(ikeGroup)
+	if err != nil {
+		return nil, fmt.Errorf("ike: sa-init offer: %w", err)
+	}
 	// The KE payload names the group of the key it actually carries, read from the
 	// DHExchange rather than recomputed from the config index. The two were computed
 	// independently from that one index and could already drift; after an
@@ -116,7 +119,7 @@ func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
 	// and not the thing that stops an overrun.
 	buf := make([]byte, msg.Len())
 	n := msg.WriteTo(buf, 0)
-	return buf[:n]
+	return buf[:n], nil
 }
 
 // buildNATDetectionPayloads creates the NAT_DETECTION_SOURCE_IP and
@@ -152,13 +155,19 @@ func offerProposalNum(i int) uint8 {
 	return uint8(i + 1)
 }
 
-// buildWireIKEProposals converts config IKE proposals to a wire OFFER.
-func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
+// wireIKEOffer converts config IKE proposals to a wire OFFER. An algorithm the crypto
+// registry does not hold is an error, so the offer never carries Transform ID 0.
+func wireIKEOffer(ikeGroup ipsec.IKEGroup) ([]wire.Proposal, error) {
 	proposals := make([]wire.Proposal, 0, len(ikeGroup.Proposals))
 	for i, p := range ikeGroup.Proposals {
-		enc := lookupEncryption(p.Encryption)
-		prf := lookupPRF(p.Hash)
-		integ := lookupIntegrity(p.Hash)
+		enc, err := lookupEncryption(p.Encryption)
+		if err != nil {
+			return nil, fmt.Errorf("ike proposal %d: %w", p.Number, err)
+		}
+		prf, err := lookupPRF(p.Hash)
+		if err != nil {
+			return nil, fmt.Errorf("ike proposal %d: %w", p.Number, err)
+		}
 		dh := uint16(p.DHGroup)
 
 		transforms := []wire.Transform{
@@ -174,10 +183,14 @@ func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 		// carries one encryption transform here, so "all of the encryption
 		// algorithms" is that one, and an AEAD cipher supplies its own integrity.
 		// A Type 3 transform of any value is still a proposed integrity transform,
-		// which is what the sentence forbids. espProposalToWire, below, has always
+		// which is what the sentence forbids. espProposalWire, below, has always
 		// omitted it for an AEAD ESP proposal; this path sent AUTH_NONE instead,
 		// so ze disagreed with itself about the same obligation on two rails.
 		if !enc.IsAEAD {
+			integ, err := lookupIntegrity(p.Hash)
+			if err != nil {
+				return nil, fmt.Errorf("ike proposal %d: %w", p.Number, err)
+			}
 			transforms = append(transforms, wire.Transform{
 				Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
 			})
@@ -191,27 +204,38 @@ func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 			Transforms: transforms,
 		})
 	}
-	return proposals
+	return proposals, nil
 }
 
-// buildIKEProposals converts config IKE proposals to crypto proposals.
-func buildIKEProposals(ikeGroup ipsec.IKEGroup) []crypto.IKEProposal {
+// localIKEProposals converts config IKE proposals to crypto proposals. An algorithm the
+// crypto registry does not hold is an error, for the reason wireIKEOffer gives.
+func localIKEProposals(ikeGroup ipsec.IKEGroup) ([]crypto.IKEProposal, error) {
 	out := make([]crypto.IKEProposal, 0, len(ikeGroup.Proposals))
 	for _, p := range ikeGroup.Proposals {
-		enc := lookupEncryption(p.Encryption)
-		integ := lookupIntegrity(p.Hash)
-		if enc.IsAEAD {
-			integ = crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
+		enc, err := lookupEncryption(p.Encryption)
+		if err != nil {
+			return nil, fmt.Errorf("ike proposal %d: %w", p.Number, err)
+		}
+		prf, err := lookupPRF(p.Hash)
+		if err != nil {
+			return nil, fmt.Errorf("ike proposal %d: %w", p.Number, err)
+		}
+		integ := crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
+		if !enc.IsAEAD {
+			integ, err = lookupIntegrity(p.Hash)
+			if err != nil {
+				return nil, fmt.Errorf("ike proposal %d: %w", p.Number, err)
+			}
 		}
 		out = append(out, crypto.IKEProposal{
 			Number:     p.Number,
 			Encryption: enc,
-			PRF:        lookupPRF(p.Hash),
+			PRF:        prf,
 			Integrity:  integ,
 			DHGroup:    crypto.DHGroupTransform{ID: crypto.DHGroupID(p.DHGroup)},
 		})
 	}
-	return out
+	return out, nil
 }
 
 // wireProposalsToIKE converts wire SA proposals to crypto proposals for negotiation. One
@@ -399,15 +423,19 @@ func wireProposalsToESP(wireProps []wire.Proposal) []crypto.ESPProposal {
 	return out
 }
 
-// buildESPProposals converts config ESP proposals to crypto proposals, which gives the
-// accepted-offer check the set of suites this side offered.
-func buildESPProposals(espGroup ipsec.ESPGroup) []crypto.ESPProposal {
+// localESPProposals converts config ESP proposals to crypto proposals, which gives the
+// accepted-offer check the set of suites this side offered. Entry i is
+// espGroup.Proposals[i]. An algorithm the crypto registry does not hold is an error.
+func localESPProposals(espGroup ipsec.ESPGroup) ([]crypto.ESPProposal, error) {
 	out := make([]crypto.ESPProposal, 0, len(espGroup.Proposals))
 	for _, p := range espGroup.Proposals {
-		enc, integ := espTransforms(p)
+		enc, integ, err := resolveESPTransforms(p)
+		if err != nil {
+			return nil, fmt.Errorf("esp proposal %d: %w", p.Number, err)
+		}
 		out = append(out, crypto.ESPProposal{Number: p.Number, Encryption: enc, Integrity: integ})
 	}
-	return out
+	return out, nil
 }
 
 // acceptedOffer is the result of the initiator's re-check of a response. Protocol names
@@ -431,7 +459,7 @@ type acceptedOffer struct {
 	// ESPConfig is the configured proposal that the accepted offer agrees with. An ESP
 	// caller uses this field. It is the ESP equivalent of the IKE field above.
 	// crypto.matchIKE returns the LOCAL proposal, so IKE already carries the local key
-	// lengths. ESP does not. Each consumer needs this type anyway: espTransforms
+	// lengths. ESP does not. Each consumer needs this type anyway: resolveESPTransforms
 	// derives the keys from it, and installChildSA (child.go) reads the dataplane
 	// algorithm names off it.
 	ESPConfig ipsec.ESPProposal
@@ -447,7 +475,7 @@ var (
 	errAcceptedOfferMismatch = errors.New("ike: the accepted offer matches no proposal we sent")
 	// errAcceptedOfferUnmapped reports an accepted ESP offer that the negotiation agreed
 	// with, and that no configured proposal answers to. It cannot happen while
-	// buildESPProposals derives its input from the same group. It is refused rather than
+	// localESPProposals derives its input from the same group. It is refused rather than
 	// answered with a zero proposal, which would key an SA with no cipher.
 	errAcceptedOfferUnmapped = errors.New("ike: the accepted ESP offer maps to no configured proposal")
 	// errAcceptedOfferESN reports an accepted ESP offer whose Extended Sequence Numbers
@@ -460,7 +488,7 @@ var (
 //
 // RFC 7296 Section 3.3.6: "The initiator of an exchange MUST check that the accepted
 // offer is consistent with one of its proposals, and if not MUST terminate the exchange"
-// (rfc/full/rfc7296.txt:4906-4909). espProposalToWire offers exactly one value for the
+// (rfc/full/rfc7296.txt:4906-4909). espProposalWire offers exactly one value for the
 // type, espESNNotExtended, so a responder that answers Extended Sequence Numbers has
 // answered a suite this side never proposed. Section 2.7 allows the answer one transform
 // of the type, so a second one is not a selection either.
@@ -493,9 +521,13 @@ func acceptedESPESNConsistent(p wire.Proposal) bool {
 // The comparison is exact. The initiator check runs crypto.NegotiateESP under a key-length
 // rule that accepts only the length this side offered (RFC 7296 Section 3.3.5, "the Key
 // Length attribute ... is always returned unchanged").
-func espConfigForAccepted(espGroup ipsec.ESPGroup, chosen crypto.ESPProposal) (ipsec.ESPProposal, bool) {
-	for _, p := range espGroup.Proposals {
-		enc, integ := espTransforms(p)
+//
+// offered is localESPProposals(espGroup): entry i holds the resolved transforms of
+// espGroup.Proposals[i], so the group is resolved once, where verifyAcceptedOffer can
+// return the error.
+func espConfigForAccepted(espGroup ipsec.ESPGroup, offered []crypto.ESPProposal, chosen crypto.ESPProposal) (ipsec.ESPProposal, bool) {
+	for i, p := range espGroup.Proposals {
+		enc, integ := offered[i].Encryption, offered[i].Integrity
 		if enc.ID == chosen.Encryption.ID &&
 			enc.KeyLength == chosen.Encryption.KeyLength &&
 			integ.ID == chosen.Integrity.ID {
@@ -521,7 +553,11 @@ func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espG
 	}
 	switch accepted.Proposals[0].ProtocolID {
 	case wire.ProtocolIKE:
-		chosen, err := crypto.VerifyAcceptedIKE(wireProposalsToIKE(accepted.Proposals), buildIKEProposals(ikeGroup))
+		local, err := localIKEProposals(ikeGroup)
+		if err != nil {
+			return acceptedOffer{}, err
+		}
+		chosen, err := crypto.VerifyAcceptedIKE(wireProposalsToIKE(accepted.Proposals), local)
 		if err != nil {
 			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
 		}
@@ -532,11 +568,15 @@ func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espG
 				return acceptedOffer{}, errAcceptedOfferESN
 			}
 		}
-		chosen, err := crypto.NegotiateESP(wireProposalsToESP(accepted.Proposals), buildESPProposals(espGroup))
+		offered, err := localESPProposals(espGroup)
+		if err != nil {
+			return acceptedOffer{}, err
+		}
+		chosen, err := crypto.NegotiateESP(wireProposalsToESP(accepted.Proposals), offered)
 		if err != nil {
 			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
 		}
-		local, ok := espConfigForAccepted(espGroup, chosen)
+		local, ok := espConfigForAccepted(espGroup, offered, chosen)
 		if !ok {
 			return acceptedOffer{}, errAcceptedOfferUnmapped
 		}
@@ -573,49 +613,62 @@ func buildSignatureHashAlgosNotify() *wire.PayloadNotify {
 	}
 }
 
-func lookupEncryption(algo ipsec.EncryptionAlgo) crypto.EncryptionTransform {
+// lookupEncryption, lookupPRF and lookupIntegrity resolve a configured algorithm
+// through the crypto registry. A name the registry does not hold is an error, never
+// the zero transform: RFC 7296 Section 3.3.2 reserves Transform ID 0, and a zero
+// transform read as an answer put ENCR 0 on the wire. Config parse refuses such a
+// name (ipsec.EncryptionImplemented); this is the second check, for a group that did
+// not come through the parser.
+func lookupEncryption(algo ipsec.EncryptionAlgo) (crypto.EncryptionTransform, error) {
 	t, err := crypto.LookupEncryption(algo.String())
 	if err != nil {
-		return crypto.EncryptionTransform{}
+		return crypto.EncryptionTransform{}, fmt.Errorf("encryption %s: %w", algo, err)
 	}
-	return t
+	return t, nil
 }
 
-func lookupPRF(hash ipsec.HashAlgo) crypto.PRFTransform {
+func lookupPRF(hash ipsec.HashAlgo) (crypto.PRFTransform, error) {
 	t, err := crypto.LookupPRF(hash.String())
 	if err != nil {
-		return crypto.PRFTransform{}
+		return crypto.PRFTransform{}, fmt.Errorf("prf %s: %w", hash, err)
 	}
-	return t
+	return t, nil
 }
 
-func lookupIntegrity(hash ipsec.HashAlgo) crypto.IntegrityTransform {
+func lookupIntegrity(hash ipsec.HashAlgo) (crypto.IntegrityTransform, error) {
 	t, err := crypto.LookupIntegrity(hash.String())
 	if err != nil {
-		return crypto.IntegrityTransform{}
+		return crypto.IntegrityTransform{}, fmt.Errorf("integrity %s: %w", hash, err)
 	}
-	return t
+	return t, nil
 }
 
-// espTransforms resolves the encryption and integrity transforms of one configured ESP
+// resolveESPTransforms resolves the encryption and integrity transforms of one configured ESP
 // proposal. RFC 7296 Section 3.3 makes the integrity transform NONE for an AEAD
 // cipher, so a hash named beside such a cipher never becomes an integrity key.
 //
 // Every ESP key-derivation site calls this rather than pair lookupEncryption with
 // lookupIntegrity. The sites that paired them put two integrity keys into an AEAD
 // KEYMAT. That moved the responder encryption key 32 octets past the offset the peer
-// reads it at. The wire offer stayed correct, because espProposalToWire omits the
+// reads it at. The wire offer stayed correct, because espProposalWire omits the
 // integrity transform for an AEAD cipher. Both kernels accepted their keys, and one
 // direction of the tunnel decrypted nothing (ai/rules/evidence.md).
 //
 // The verdict comes from the Transform ID, never from the IsAEAD field, for the reason
 // crypto.EncryptionID.IsAEAD gives.
-func espTransforms(p ipsec.ESPProposal) (crypto.EncryptionTransform, crypto.IntegrityTransform) {
-	enc := lookupEncryption(p.Encryption)
-	if enc.ID.IsAEAD() {
-		return enc, crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
+func resolveESPTransforms(p ipsec.ESPProposal) (crypto.EncryptionTransform, crypto.IntegrityTransform, error) {
+	enc, err := lookupEncryption(p.Encryption)
+	if err != nil {
+		return crypto.EncryptionTransform{}, crypto.IntegrityTransform{}, err
 	}
-	return enc, lookupIntegrity(p.Hash)
+	if enc.ID.IsAEAD() {
+		return enc, crypto.IntegrityTransform{ID: crypto.AUTH_NONE}, nil
+	}
+	integ, err := lookupIntegrity(p.Hash)
+	if err != nil {
+		return crypto.EncryptionTransform{}, crypto.IntegrityTransform{}, err
+	}
+	return enc, integ, nil
 }
 
 // wireEncryptionTransform reads one ENCR transform off the wire.
@@ -660,7 +713,11 @@ func buildChildSAPayloads(sa *SA, dh crypto.DHGroupID) (uint32, *wire.PayloadSA,
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
-	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(sa.ESPGroup, espSPI, dh)}
+	offer, err := wireESPOffer(sa.ESPGroup, espSPI, dh)
+	if err != nil {
+		return 0, nil, nil, nil, err
+	}
+	saPayload := &wire.PayloadSA{Proposals: offer}
 	// A REQUEST proposes the operator's configured selectors, so a responder that
 	// narrows has something of ours to narrow. An unconfigured peer still proposes the
 	// wildcard (proposeChildTSPayloads).
@@ -691,7 +748,10 @@ func buildChildSAResponsePayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.Payloa
 	}
 	// The IKE_AUTH response answers an offer this node accepted with no Diffie-Hellman
 	// group, so the answer carries no Transform Type 4 either (RFC 7296 Section 2.17).
-	accepted := espProposalToWire(sa.ESPGroup.Proposals[0], espSPI, sa.ChildProposalNum, dhGroupNone)
+	accepted, err := espProposalWire(sa.ESPGroup.Proposals[0], espSPI, sa.ChildProposalNum, dhGroupNone)
+	if err != nil {
+		return 0, nil, nil, nil, err
+	}
 	saPayload := &wire.PayloadSA{Proposals: []wire.Proposal{accepted}}
 
 	// RFC 7296 Section 2.9: a RESPONSE carries the NARROWED selectors, which are a
@@ -734,14 +794,18 @@ func anyTrafficSelector(ipv6 bool) wire.TrafficSelector {
 // Diffie-Hellman exchange, so its KEYMAT takes the first form of Section 2.17.
 const dhGroupNone = crypto.DHGroupID(wire.DHGroupNone)
 
-// buildWireESPProposals converts an ESP group to a wire OFFER. Every proposal carries the
+// wireESPOffer converts an ESP group to a wire OFFER. Every proposal carries the
 // Diffie-Hellman group the exchange runs, for the reason buildChildSAPayloads gives.
-func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32, dh crypto.DHGroupID) []wire.Proposal {
+func wireESPOffer(espGroup ipsec.ESPGroup, spi uint32, dh crypto.DHGroupID) ([]wire.Proposal, error) {
 	proposals := make([]wire.Proposal, 0, len(espGroup.Proposals))
 	for i := range espGroup.Proposals {
-		proposals = append(proposals, espProposalToWire(espGroup.Proposals[i], spi, offerProposalNum(i), dh))
+		p, err := espProposalWire(espGroup.Proposals[i], spi, offerProposalNum(i), dh)
+		if err != nil {
+			return nil, err
+		}
+		proposals = append(proposals, p)
 	}
-	return proposals
+	return proposals, nil
 }
 
 // espESNNotExtended is the one Transform Type 5 value ze can key. RFC 7296
@@ -763,22 +827,29 @@ func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32, dh crypto.DHGrou
 // until it lands, honesty about the absence is the conformant answer.
 const espESNNotExtended uint16 = 0
 
-// espProposalToWire encodes one configured ESP proposal under the given Proposal
+// espProposalWire encodes one configured ESP proposal under the given Proposal
 // Num. An offer derives that number from the position (offerProposalNum). A response
 // carries the number the peer put on the proposal that was accepted, which RFC 7296
 // Section 3.3.1 requires the response to match.
 //
 // dh names the Diffie-Hellman group of the exchange, and dhGroupNone omits Transform
-// Type 4 entirely.
-func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8, dh crypto.DHGroupID) wire.Proposal {
+// Type 4 entirely. An algorithm the crypto registry does not hold is an error, so the
+// proposal never carries Transform ID 0.
+func espProposalWire(p ipsec.ESPProposal, spi uint32, number uint8, dh crypto.DHGroupID) (wire.Proposal, error) {
+	enc, err := lookupEncryption(p.Encryption)
+	if err != nil {
+		return wire.Proposal{}, fmt.Errorf("esp proposal %d: %w", p.Number, err)
+	}
 	spiBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(spiBytes, spi)
-	enc := lookupEncryption(p.Encryption)
 	transforms := []wire.Transform{
 		{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
 	}
 	if !p.Encryption.IsAEAD() {
-		integ := lookupIntegrity(p.Hash)
+		integ, err := lookupIntegrity(p.Hash)
+		if err != nil {
+			return wire.Proposal{}, fmt.Errorf("esp proposal %d: %w", p.Number, err)
+		}
 		transforms = append(transforms, wire.Transform{
 			Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
 		})
@@ -806,7 +877,7 @@ func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8, dh crypto.
 		SPISize:    4,
 		SPI:        spiBytes,
 		Transforms: transforms,
-	}
+	}, nil
 }
 
 // tsToIPNet was deleted with WP-7. It read selectors[0] only and discarded the port and

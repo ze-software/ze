@@ -7,10 +7,10 @@
       "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero",
       "unit-sha": "7877645e80501ad3",
       "claim-sha": "b069f21d92cf23e6",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
-      "break": "line 495: \"|| peerSPI == 0\" -\u003e \"|| false\""
+      "producer-sha": "5b85e21fdd7a760d",
+      "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4303-2.1-1",
@@ -18,10 +18,10 @@
       "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI",
       "unit-sha": "6b9ea2711cad155a",
       "claim-sha": "a3f9b45600b981ee",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
-      "break": "line 484: \"peerSPI = s\" -\u003e \"peerSPI = s ^ 1\""
+      "producer-sha": "5b85e21fdd7a760d",
+      "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4303-2.1-1",
@@ -29,10 +29,10 @@
       "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero",
       "unit-sha": "7044e2075a200ed0",
       "claim-sha": "9a54b1fbc2417f73",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "17b29c072d9fb626",
-      "break": "line 321: \"|| outSPI == 0\" -\u003e \"|| false\""
+      "producer-sha": "5b0118a256c4dc8c",
+      "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4303-2.1-1",
@@ -40,10 +40,10 @@
       "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI",
       "unit-sha": "6bfd65ce064c2b10",
       "claim-sha": "2919b1d152f354ac",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "17b29c072d9fb626",
-      "break": "line 311: \"outSPI = s\" -\u003e \"outSPI = s ^ 1\""
+      "producer-sha": "5b0118a256c4dc8c",
+      "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4303-2.1-1",

@@ -81,8 +81,7 @@ func utESPOffer(transforms ...wire.Transform) *wire.PayloadSA {
 func utESPPolicy(t *testing.T) (ipsec.ESPProposal, wire.Transform, wire.Transform) {
 	t.Helper()
 	our := ipsec.ESPProposal{Number: 1, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256}
-	enc := lookupEncryption(our.Encryption)
-	integ := lookupIntegrity(our.Hash)
+	enc, integ := espTransforms(our)
 	if enc.ID == 0 || integ.ID == 0 {
 		t.Fatal("the configured ESP proposal resolves to no algorithm")
 	}

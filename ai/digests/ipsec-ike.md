@@ -56,7 +56,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    `initiator.go`, SPI/nonce/DH via `sa.go`, `sa.go`, `dh.go`), inserts
    it into `SATable` keyed by initiator-SPI + zero responder-SPI (`fsm.go`,
    `table.go`), builds SAi1/KEi/Ni + `SIGNATURE_HASH_ALGORITHMS` +
-   `NAT_DETECTION_*` payloads (`buildSAInitRequest`, `initiator.go`,
+   `NAT_DETECTION_*` payloads (`encodeSAInitRequest`, `initiator.go`,
    `buildNATDetectionPayloads` `initiator.go`), sends it (`fsm.go`,
    `udp.go`), then retransmits with exponential backoff up to 7 attempts
    (`fsm.go`, `retransmitBackoff` `fsm.go`).

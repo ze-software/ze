@@ -9,7 +9,7 @@
       "claim-sha": "cf4b61b68e7d1dd0",
       "route": "revert",
       "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
-      "producer-sha": "733df7b23293445e",
+      "producer-sha": "141c3183fc5fad3f",
       "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "d25126fbdb2e547b",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
+      "producer-sha": "5b85e21fdd7a760d",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "f67c7b0fc4fee2e1",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
+      "producer-sha": "5b85e21fdd7a760d",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "84a1ddda02786b64",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
+      "producer-sha": "5b85e21fdd7a760d",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "e9affe4353ecf199",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "17b29c072d9fb626",
+      "producer-sha": "5b0118a256c4dc8c",
       "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "a4b5a62f0e910026",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "17b29c072d9fb626",
+      "producer-sha": "5b0118a256c4dc8c",
       "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "3bb3eeebc10d9684",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
-      "producer-sha": "17b29c072d9fb626",
+      "producer-sha": "5b0118a256c4dc8c",
       "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -476,17 +476,6 @@
     },
     {
       "rid": "RFC7296-2.18-3",
-      "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone",
-      "unit-sha": "92fc3d09151a2e76",
-      "claim-sha": "450e758bf692bb4b",
-      "route": "revert",
-      "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
-      "producer-sha": "ea826d8fe4870acb",
-      "break": "body of initiateIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7296-2.18-3",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone",
       "unit-sha": "92fc3d09151a2e76",
@@ -495,6 +484,17 @@
       "producer": "internal/component/ike/crypto/dh.go::NewDHExchange",
       "producer-sha": "5f5725ea4408ea4f",
       "break": "body of NewDHExchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.18-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_rekey_dh_test.go::TestRFC7296IKERekeyInitiatorNeverProposesDHNone",
+      "unit-sha": "92fc3d09151a2e76",
+      "claim-sha": "450e758bf692bb4b",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/rekey.go::initiateIKERekey",
+      "producer-sha": "3ee270496e27ed3c",
+      "break": "body of initiateIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.18-3",
@@ -515,7 +515,7 @@
       "claim-sha": "5529faca3d1a1c65",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondIKERekey",
-      "producer-sha": "b2954ab0b71c4320",
+      "producer-sha": "eb47efaab47a740a",
       "break": "body of respondIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1098,7 +1098,7 @@
       "claim-sha": "c89ff87787e1358e",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
+      "producer-sha": "5b85e21fdd7a760d",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1109,7 +1109,7 @@
       "claim-sha": "c78b06518d0df2fc",
       "route": "revert",
       "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
-      "producer-sha": "525b13e63f3a18f5",
+      "producer-sha": "5b85e21fdd7a760d",
       "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1219,7 +1219,7 @@
       "claim-sha": "70757e7d9c11a9c1",
       "route": "revert",
       "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
-      "producer-sha": "cca0009a99a7d605",
+      "producer-sha": "f8ed7151f00a7d1a",
       "break": "body of retrySAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1333,15 +1333,26 @@
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused",
+      "unit-sha": "bb68377e58f1a857",
+      "claim-sha": "32ddd7567903aa7c",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/responder.go::espProposalMatches",
+      "producer-sha": "bec5a1b2e45da33e",
+      "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-3.3-7",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_alternate_key_length_test.go::TestRFC7296AlternateKeyLengthsAreOfferedAsSeparateTransforms",
       "unit-sha": "4ea558e3818e7a0f",
       "claim-sha": "e980b13400ae3221",
       "route": "revert",
-      "producer": "internal/component/ike/engine/initiator.go::buildWireIKEProposals",
-      "producer-sha": "bb5c444c5fbeaae1",
-      "break": "body of buildWireIKEProposals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/engine/initiator.go::wireIKEOffer",
+      "producer-sha": "2c8eeccc7a2b8917",
+      "break": "body of wireIKEOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-3.3.2-1",
@@ -1373,7 +1384,7 @@
       "claim-sha": "9257645754cf05a9",
       "route": "revert",
       "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
-      "producer-sha": "733df7b23293445e",
+      "producer-sha": "141c3183fc5fad3f",
       "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -1384,7 +1395,7 @@
       "claim-sha": "c12c2b5667544df2",
       "route": "revert",
       "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
-      "producer-sha": "733df7b23293445e",
+      "producer-sha": "141c3183fc5fad3f",
       "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
