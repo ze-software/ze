@@ -80,6 +80,28 @@
     },
     {
       "rid": "RFC2516-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildNoHostUniqEcho",
+      "unit-sha": "0eb97e77a79a7fab",
+      "claim-sha": "5eea31ea9befd586",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADS",
+      "producer-sha": "9d60507b72ee62d4",
+      "break": "body of BuildPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADO",
+      "unit-sha": "e82ae3a461eacb91",
+      "claim-sha": "6aa26913acd4e2d3",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+      "producer-sha": "7a22cb254e8c485f",
+      "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.2-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS",
       "unit-sha": "6956e2e402efad14",
@@ -475,6 +497,17 @@
       "break": "body of parseTags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2516-x-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParseEndOfListTag",
+      "unit-sha": "eced911fe5f29066",
+      "claim-sha": "2cccf871c84316aa",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+      "producer-sha": "4f37b570278b8732",
+      "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2516-x-5",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
@@ -495,6 +528,28 @@
       "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
       "producer-sha": "83b4062b1bac8da6",
       "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDEcho",
+      "unit-sha": "56fa1fd47c68c1c7",
+      "claim-sha": "d541ee45a2b9675c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+      "producer-sha": "7a22cb254e8c485f",
+      "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-5",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDNoEcho",
+      "unit-sha": "ae281a23f948cf03",
+      "claim-sha": "0e984d1b7618adcb",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+      "producer-sha": "7a22cb254e8c485f",
+      "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-x-6",
@@ -528,6 +583,39 @@
       "producer": "internal/component/l2tp/pppoe/discovery.go::NewBuilder",
       "producer-sha": "74354f59e3cfedea",
       "break": "body of NewBuilder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-7",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParseBroadcastSource",
+      "unit-sha": "ecc3cd95ad72ccaa",
+      "claim-sha": "2133037c315b76cd",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+      "producer-sha": "4f37b570278b8732",
+      "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-7",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParseMulticastSource",
+      "unit-sha": "017aa936b0adb3b1",
+      "claim-sha": "da9272e3ef9d8639",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+      "producer-sha": "4f37b570278b8732",
+      "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-7",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParsePADI",
+      "unit-sha": "1f516388b77e2c4a",
+      "claim-sha": "afe900f760209d42",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+      "producer-sha": "4f37b570278b8732",
+      "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-x-9",
@@ -594,6 +682,17 @@
       "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
       "producer-sha": "fc99bcb5059f671c",
       "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-9",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU",
+      "unit-sha": "cacb7e97368743fb",
+      "claim-sha": "c617a8aa90c204cf",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::sendLCPConfigRequest",
+      "producer-sha": "2935f90e3aee73b3",
+      "break": "body of sendLCPConfigRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

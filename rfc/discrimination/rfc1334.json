@@ -114,6 +114,28 @@
     {
       "rid": "RFC1334-x-1",
       "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder",
+      "unit-sha": "600deb5f31c6ef9f",
+      "claim-sha": "bd0143b671f3e46b",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/auth.go::defaultAuthFallbackOrder",
+      "producer-sha": "cede31658d1191dc",
+      "break": "body of defaultAuthFallbackOrder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1334-x-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback",
+      "unit-sha": "21b2d79b73ba6a8d",
+      "claim-sha": "069bed77622756a8",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/auth.go::selectAuthFallback",
+      "producer-sha": "b48d3452a1ecaf6c",
+      "break": "body of selectAuthFallback replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1334-x-1",
+      "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP",
       "unit-sha": "af1e03db7228d047",
       "claim-sha": "fe15ce83f2d74d5f",

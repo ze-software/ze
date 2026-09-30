@@ -4,6 +4,17 @@
     {
       "rid": "RFC5072-2-1",
       "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened",
+      "unit-sha": "907a0ec5a2449719",
+      "claim-sha": "fd5337604aca2b4c",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
+      "producer-sha": "896f99912ffbdc26",
+      "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-2-1",
+      "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened",
       "unit-sha": "7755df839546f4c6",
       "claim-sha": "d70ec7cbebbb2a0c",
@@ -11,6 +22,28 @@
       "producer": "internal/component/l2tp/ppp/ncp.go::ncpsComplete",
       "producer-sha": "352c7e0e3f28920b",
       "break": "body of ncpsComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase",
+      "unit-sha": "07bc3a43b3eb0cc9",
+      "claim-sha": "e3d2771b3f3f1d3e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+      "producer-sha": "15bf63c906944976",
+      "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5072-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned",
+      "unit-sha": "34cec2ab6dba4e56",
+      "claim-sha": "cb083ca5056b046e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
+      "producer-sha": "896f99912ffbdc26",
+      "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5072-3-1",

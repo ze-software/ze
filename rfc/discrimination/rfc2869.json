@@ -24,6 +24,50 @@
       "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2869-5.14-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted",
+      "unit-sha": "88e64540ff88ffe9",
+      "claim-sha": "0d09b43d92d08cf3",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
+      "producer-sha": "ae7274a02dfc345d",
+      "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.14-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded",
+      "unit-sha": "07af6db1dbb11777",
+      "claim-sha": "65be99c614ffc587",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
+      "producer-sha": "ae7274a02dfc345d",
+      "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.19-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential",
+      "unit-sha": "7282b3abf767cd22",
+      "claim-sha": "d56d504fb2928e23",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+      "producer-sha": "b301ad24ed559272",
+      "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-5.19-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod",
+      "unit-sha": "2adfccc483fbba59",
+      "claim-sha": "41e2c67beeba93d2",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+      "producer-sha": "b301ad24ed559272",
+      "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2869-5.19-1",
       "polarity": "negative",
       "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused",
