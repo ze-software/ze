@@ -152,7 +152,7 @@
       "claim-sha": "b39fb6f1f2ba5d61",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
-      "producer-sha": "144c5d35c442bc45",
+      "producer-sha": "ff89be6e7cb074e5",
       "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

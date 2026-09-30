@@ -42,7 +42,7 @@
       "claim-sha": "be767757d866435d",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/reservation.go::installReservation",
-      "producer-sha": "c0fb0d688f45107e",
+      "producer-sha": "706e7422bd925c24",
       "break": "body of installReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "6fe024fdd303d0b2",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/reservation.go::installReservation",
-      "producer-sha": "c0fb0d688f45107e",
+      "producer-sha": "706e7422bd925c24",
       "break": "body of installReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

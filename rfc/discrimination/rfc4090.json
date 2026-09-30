@@ -119,7 +119,7 @@
       "claim-sha": "262aca8182d7959b",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-      "producer-sha": "64f51006efbc1425",
+      "producer-sha": "43489f89cbda4243",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "e68a4789d2259e68",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-      "producer-sha": "64f51006efbc1425",
+      "producer-sha": "43489f89cbda4243",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -559,7 +559,7 @@
       "claim-sha": "984b83c7f9dfdfad",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-      "producer-sha": "64f51006efbc1425",
+      "producer-sha": "43489f89cbda4243",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -636,7 +636,7 @@
       "claim-sha": "d938a8caa16da02a",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
-      "producer-sha": "144c5d35c442bc45",
+      "producer-sha": "ff89be6e7cb074e5",
       "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -647,7 +647,7 @@
       "claim-sha": "9b21cf74b92bdcf9",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
-      "producer-sha": "144c5d35c442bc45",
+      "producer-sha": "ff89be6e7cb074e5",
       "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

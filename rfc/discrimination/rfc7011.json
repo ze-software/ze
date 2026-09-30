@@ -20,7 +20,7 @@
       "claim-sha": "14efbf9311a74d27",
       "route": "revert",
       "producer": "internal/plugins/flowexport/config.go::Validate",
-      "producer-sha": "10074f59638ccaa8",
+      "producer-sha": "5681502e5edf38f7",
       "break": "body of Validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "09bb22c8b1346c79",
       "route": "revert",
       "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
-      "producer-sha": "a36cce68d0ea99cf",
+      "producer-sha": "760461d784934c54",
       "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "a6ba8b01a84e04e8",
       "route": "revert",
       "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
-      "producer-sha": "a36cce68d0ea99cf",
+      "producer-sha": "760461d784934c54",
       "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

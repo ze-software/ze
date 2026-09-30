@@ -86,7 +86,7 @@
       "claim-sha": "89e3879bcdf65c39",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
-      "producer-sha": "df80e4275c8fb9c4",
+      "producer-sha": "e68804cc5263bcbb",
       "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "c6267d1af6418f9f",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::verify",
-      "producer-sha": "df80e4275c8fb9c4",
+      "producer-sha": "e68804cc5263bcbb",
       "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
