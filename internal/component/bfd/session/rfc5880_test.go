@@ -1123,12 +1123,12 @@ func TestRFC5880AdministrativeDisableEnable(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.8.16-4 negative -- the enable step applies to a
-// session that was administratively disabled, and to no other: AdminEnable on
-// a session that is merely Down (fsm.go) keeps its diagnostic (Control
-// Detection Time Expired) and notifies nothing. The body also asserts the
-// disable guard: a second AdminDown on an AdminDown session notifies nothing
-// and keeps the first diagnostic.
+// VALIDATES: the administrative calls are guarded. AdminEnable on a session
+// that is merely Down (fsm.go) keeps its diagnostic (Control Detection Time
+// Expired) and notifies nothing, and a second AdminDown on an AdminDown
+// session notifies nothing and keeps the first diagnostic. Neither guard is an
+// RFC statement; the RFC5880-6.8.16-4 negative is
+// TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit.
 func TestRFC5880AdministrativeCallsAreGuarded(t *testing.T) {
 	clk := newFakeClock()
 	m, rec := newMachine(t, clk)
@@ -1151,6 +1151,43 @@ func TestRFC5880AdministrativeCallsAreGuarded(t *testing.T) {
 	}
 	if m.LocalDiag() != packet.DiagAdminDown {
 		t.Fatalf("second AdminDown overwrote the diagnostic: %v", m.LocalDiag())
+	}
+}
+
+// RFC requirement: RFC5880-6.8.16-4 negative -- the inputs are pushed toward
+// the violation: an Up session is disabled, the peer keeps sending Up (or
+// Init) while it is AdminDown, so bfd.RemoteSessionState says Up (or Init)
+// when AdminEnable runs. The session still lands on Down, never Up or Init,
+// and the next Control packet it builds announces Down.
+func TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit(t *testing.T) {
+	for _, peer := range []packet.State{packet.StateUp, packet.StateInit} {
+		clk := newFakeClock()
+		m, _ := newMachine(t, clk)
+		if err := m.Receive(recv(packet.StateDown, 0)); err != nil {
+			t.Fatalf("peer Down: %v", err)
+		}
+		if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
+			t.Fatalf("peer Init: %v", err)
+		}
+		if m.State() != packet.StateUp {
+			t.Fatalf("precondition: state after the handshake = %v, want Up", m.State())
+		}
+
+		m.AdminDown(packet.DiagAdminDown)
+		if err := m.Receive(recv(peer, peerLearnedDiscr)); err != nil {
+			t.Fatalf("peer %v while AdminDown: %v", peer, err)
+		}
+		if m.vars.RemoteSessionState != peer {
+			t.Fatalf("precondition: bfd.RemoteSessionState = %v, want %v", m.vars.RemoteSessionState, peer)
+		}
+
+		m.AdminEnable()
+		if m.State() != packet.StateDown {
+			t.Fatalf("peer says %v: state after AdminEnable = %v, want Down", peer, m.State())
+		}
+		if got := m.Build().State; got != packet.StateDown {
+			t.Fatalf("peer says %v: first packet after AdminEnable announces %v, want Down", peer, got)
+		}
 	}
 }
 

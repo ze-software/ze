@@ -8,17 +8,19 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5881-2-2": {
-      "note": "Forbidden: one session carrying both IPv4 and IPv6, or a protocol's packets not encapsulated in that protocol. TestRFC5881PerProtocolSessions reds if a v4 and a v6 peer collapse (n != 2, key equal, discriminator equal), and TestRFC5881SamePeerCoalesces pins keying. No tagged assertion covers '(and thus encapsulated by that protocol)': nothing checks that the v6 session transmits in IPv6 (sendLocked To/transport family).",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a72 \"a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link\". The missing encapsulation clause is now observed on the wire: TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol (rootless netns) runs one Loop over a real transport.Dual with a v4 and a v6 session on lo, distinct discriminators; the peer's IPv4 socket gets the v4 session's Control and never the v6's, the IPv6 socket the v6's and never the v4's. With TestRFC5881PerProtocolSessions (+) and TestRFC5881SamePeerCoalesces (-) for separation. Revert record on dual.go::Send observed red; overlay routing every peer to V4 reds the IPv6 clause (author pin-ov3). This unit also exercises the IPV6_PKTINFO pin on send (Interface lo, unbound Dual).",
       "requirement_sha": "f847315439c3d8c8",
       "tests": {
+        "internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go::TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol": "b320f9a6fe935c99",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "c8bf3135e7e74ea3",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces": "c8bf3135e7e74ea3"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go::TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol": "522c61e7c8f15dbb",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "bd9f84e966d68179",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces": "1dafce6c30c4a7ec"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-3-1": {
       "note": "RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). One clause: both sides of a single-hop session MUST take the Active role. Forbidden: a single-hop session created in the Passive role. The only producer of SessionRequest.Passive is profileConfig.applyTo (OSPF, BGP and static requests set none), and every entry passes profileConfig.permitsMode: pluginConfig.validate for a pinned session, resolveProfile from pluginService.EnsureSession for a client request, checkClientProfile at commit. Red: TestRFC5881SingleHopPassiveProfileRejected Fatal when validate returns nil for a passive single-hop profile (its positive twin differs only in the passive bit); TestRFC5881ClientSingleHopPassiveProfileRefused Fatal when EnsureSession returns a handle or lacks the `sets passive` refusal. Positive: TestRFC5881SingleHopActiveProfileAccepted (passive unset validates and yields Passive false), TestRFC5881SingleHopTakesActiveRole (Init takes RoleActive and arms TX at creation), TestRFC5881ClientMultiHopPassiveProfileAccepted (scope: a blanket refusal fails). TestRFC5881NonActiveStaysSilent proves the Passive-role semantics of RFC5880-6.8.7-5, not this row; session.Init itself accepts Passive in either mode, so the guard is the config layer.",
@@ -42,41 +44,45 @@
       "verdict": "enforced"
     },
     "RFC5881-3-2": {
-      "note": "Forbidden: a Your-Discriminator-zero packet not associated with the session bound to (remote, interface, protocol), or associated with another. TestRFC5881FirstPacketMatchesByTuple reds on non-association; TestRFC5881FirstPacketWrongSourceDropped reds if the remote-address dimension is ignored. No tagged unit varies the interface or the protocol (the interface arm lives in untagged TestFirstPacketMatchesWhatTheTransportSurfaces), so matching that ignored interface or protocol stays green.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a73 \"any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol\". TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol varies interface and protocol independently of the remote: same IPv4 peer on loop and loop2 plus an IPv6 session on loop2; a YD=0 packet from the IPv4 peer on loop2 is associated with (peer, loop2, IPv4) only, the loop session and the v6 session keep RemoteDiscr 0. Remote-address arm kept (FirstPacketMatchesByTuple, FirstPacketWrongSourceDropped). The protocol arm follows from the address family in the byKey key, so its negative cannot diverge from the remote-address one; accepted. Revert records on loop.go::handleInbound observed red (+/-).",
       "requirement_sha": "cd25a5a7c476ea90",
       "tests": {
+        "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol": "78e0044248c8ea5a",
+        "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol#2": "78e0044248c8ea5a",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "c8bf3135e7e74ea3",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "c8bf3135e7e74ea3"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol": "bf5f17b5d99fcf44",
+        "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol#2": "bf5f17b5d99fcf44",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "8d9ee703f1e56ddb",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "b77f28c4e5257d51"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-4-1": {
-      "note": "Judge 2026-09-30. \u00a74 \"BFD Control packets MUST be transmitted in UDP packets with destination port 3784, within an IPv4 or IPv6 packet.\" Assertions are sound: TestRFC5881ControlSentToPort3784OnTheWire observes the newUDPTransport datagram at a listener on :3784 (IPv4) and at [::1]:3784 (IPv6); negative TestRFC5881EchoTransportNeverAddressesControlPort sees the echo datagram at :3785 and silence at :3784; a Port+1 overlay on destination reddens them. Weak because the tests bind fixed host ports (127.88.81.1/.2 :3784/:3785, [::1]:3784) in the root network namespace, so they fail when a running ze holds 0.0.0.0:3784 on the test host and collide with a parallel run of the package; the obligation is observable in a rootless user+net namespace (sadSelNetns pattern, internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go), and the verdict stays weak until the units move there.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a74 \"BFD Control packets MUST be transmitted in UDP packets with destination port 3784\". + TestRFC5881ControlSentToPort3784OnTheWire (IPv4 and IPv6), - TestRFC5881EchoTransportNeverAddressesControlPort (echo at 3785, silence at 3784). Revert records on udp.go::destination (+) and bfd.go::newEchoTransport (-) observed red.",
       "requirement_sha": "682d88bc17ed036a",
       "tests": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire": "0134bd9af506d4b0",
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort": "0134bd9af506d4b0"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire": "ec3f2024a41e142b",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort": "ec3f2024a41e142b"
       },
       "units": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire": "f7c156fe006a65fa",
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort": "bcb6f7b5e3c5a46d"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire": "1be3046735ff3449",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort": "2fafbd0498301f8d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-4-3": {
-      "note": "Judge 2026-09-30. \u00a74 \"The same UDP source port number MUST be used for all BFD Control packets associated with a particular session.\" TestRFC5881ControlSourcePortFixedOnTheWire observes five Control datagrams at the peer with one source AddrPort; a DialUDP-per-Send overlay reddens it. {single-polarity} holds (no per-packet source selection). Weak because the tests bind fixed host ports (127.88.81.1/.2 :3784) in the root network namespace, so they fail when a running ze holds 0.0.0.0:3784 on the test host and collide with a parallel run of the package; the obligation is observable in a rootless user+net namespace (sadSelNetns pattern, internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go), and the verdict stays weak until the units move there. The marker's line citations (bfd.go:355-367, udp.go:218-228) are stale.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a74 \"The same UDP source port number MUST be used for all BFD Control packets associated with a particular session.\" TestRFC5881ControlSourcePortFixedOnTheWire observes five datagrams with one source AddrPort; {single-polarity} holds, marker now names bfd.go newUDPTransport/newUDPTransport6 and udp.go UDP.Send. Record re-observed red by the judge against the pinned udp.go::Send.",
       "requirement_sha": "e531182695e85c79",
       "tests": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "0134bd9af506d4b0"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "ec3f2024a41e142b"
       },
       "units": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "402d5bc3c9cf668e"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "9b7d5ccc4302417a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-4-4": {
       "note": "Forbidden: demultiplexing a subsequent packet by something other than the RFC 5880 discriminator. (a) a packet with an unallocated Your Discriminator from the configured peer's source being associated: TestRFC5881DiscriminatorDemuxUnknownDropped reds (RemoteDiscriminator != 0), catching a source-address fallback; (b) a packet with the right discriminator from another source not delivered: TestRFC5881DiscriminatorDemuxDelivers reds (RemoteDiscriminator != peerMyDiscr). Producer loop.go handleInbound byDiscr.",
@@ -92,43 +98,47 @@
       "verdict": "enforced"
     },
     "RFC5881-4-5": {
-      "note": "Judge 2026-09-30. \u00a74 \"BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 3785 in an IPv4 or IPv6 packet.\" TestRFC5881EchoSentToPort3785OnTheWire observes the newEchoTransport datagram at :3785 (IPv4; the echo transport is IPv4-only, which the \"or\" permits); negative TestRFC5881ControlTransportNeverAddressesEchoPort sees Control at :3784 and silence at :3785. Weak because the tests bind fixed host ports (127.88.81.1/.2 :3784/:3785) in the root network namespace, so they fail when a running ze holds 0.0.0.0:3784 on the test host and collide with a parallel run of the package; the obligation is observable in a rootless user+net namespace (sadSelNetns pattern, internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go), and the verdict stays weak until the units move there.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a74 \"BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 3785\". + TestRFC5881EchoSentToPort3785OnTheWire, - TestRFC5881ControlTransportNeverAddressesEchoPort. Revert records on destination (+) and bfd.go::newUDPTransport (-) observed red.",
       "requirement_sha": "ea7143382005cb72",
       "tests": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlTransportNeverAddressesEchoPort": "0134bd9af506d4b0",
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoSentToPort3785OnTheWire": "0134bd9af506d4b0"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlTransportNeverAddressesEchoPort": "ec3f2024a41e142b",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoSentToPort3785OnTheWire": "ec3f2024a41e142b"
       },
       "units": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlTransportNeverAddressesEchoPort": "6c6b80ebac7974c1",
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoSentToPort3785OnTheWire": "2ab25ba095ee789e"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlTransportNeverAddressesEchoPort": "aa62bba52828f853",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoSentToPort3785OnTheWire": "d343d85360207412"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-4-8": {
-      "note": "Forbidden: echo transmitted so it does not reach the remote. TestEchoRoundTrip reds if no RTT sample is recorded on A, which needs B to receive and reflect. It runs over the in-memory transport.Pair, so the multiaccess clause (destination datalink address corresponds to the remote) has no assertion. {single-polarity} marker present.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a74 \"BFD Echo packets MUST be transmitted in such a way as to ensure that they are received by the remote system. On multiaccess media ... the destination datalink address corresponds to the remote system.\" Over veth pairs in a rootless netns with AF_PACKET capture: + TestRFC5881EchoFrameAddressedToTheRemoteSystem (echo bound p0, frame on p1 with Ethernet dst == remote MAC); - TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt (unbound, /32 via o0 where the remote is not: nothing on o1, frame on p1 with the remote's MAC). {single-polarity} marker removed. Revert records on udp.go::destination (+) and udp.go::pinsToLink (-) observed red; pinsToLink-false overlay reds only the negative (author pin-ov2).",
       "requirement_sha": "00256c77124e1960",
       "tests": {
-        "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip": "396f5d64b0fa756c"
+        "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip": "396f5d64b0fa756c",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoFrameAddressedToTheRemoteSystem": "e069f87eed30683c",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt": "e069f87eed30683c"
       },
       "units": {
-        "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip": "c347756c47fff34a"
+        "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip": "c347756c47fff34a",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoFrameAddressedToTheRemoteSystem": "9adb9476b4ebf321",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt": "05f556a820db02d5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-5-1": {
-      "note": "Judge 2026-09-30. \u00a75 \"If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255.\" Positive now reads the TTL off the received IP header: TestRFC5881ControlLeavesWithTTL255OnTheWire (IPv4 127.88.82.1, IPv6 ::1, no auth section) gets 255; an IPV6_UNICAST_HOPS 64 overlay reddens it. Still weak: the negative TestUDPDefaultTTLNot255 measures a plain kernel socket, not Ze code, so no negative exercises a Ze path; and the positive binds fixed port 47841 in the root netns (move to a rootless user+net namespace).",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a75 \"If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255.\" + TestRFC5881ControlLeavesWithTTL255OnTheWire reads 255 off the received IP header (IPv4 and IPv6), now in a rootless netns. - (R1 a, receiving side) TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire: a peer socket sends Control at TTL 254 / Hop Limit 254 to a started Loop on a real transport.UDP; session stays Down with RemoteDiscr 0, the same packet at 255 reaches Init. Old plain-kernel-socket negative tag removed. Revert records on loop.go::passesTTLGate (-) and udp_linux.go::applySocketOptionsV6 (+) observed red.",
       "requirement_sha": "65870646048361fd",
       "tests": {
-        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "c39263e8017d001e",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPDefaultTTLNot255": "6e647519da0fd861",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "6e647519da0fd861"
+        "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire": "b27d2d5cb5079f05",
+        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "1aa2d39d3b0cd82e",
+        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
       },
       "units": {
-        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "e50efcd6b823c8ab",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPDefaultTTLNot255": "c667992b1ab1cb38",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "f2f63daaf3238e10"
+        "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire": "c222fee642adb96a",
+        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "fde61bb234e77c2b",
+        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-5-2": {
       "note": "Judge 2026-09-30. \u00a75 \"All received BFD Control packets that are demultiplexed to the session MUST be discarded if the received TTL or Hop Limit is not equal to 255.\" Through handleInbound (loop.go passesTTLGate after the session lookup, so both demux paths): TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths - a TTL 255 first packet installs RemoteDiscr and Init, a discriminator-demuxed TTL 255 packet reaches Up; TestRFC5881TTLNot255DiscardedOnBothDemuxPaths - first packets at TTL 254/128/1/0 leave RemoteDiscr 0 and Down, and a discriminator-demuxed TTL 254 packet leaves Init. Buffers isolated: the packets differ only in TTL from the accepted ones. Author's overlay removing the handleInbound gate call reddens the new negative; revert records on passesTTLGate verify. Predicate units in ttl_test.go stay as supplementary.",
@@ -148,56 +158,66 @@
       "verdict": "enforced"
     },
     "RFC5881-5-3": {
-      "note": "Judge 2026-09-30. \u00a75 \"If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255.\" Positive TestRFC5881ControlLeavesWithTTL255OnTheWire reads 255 off the IP header for a Control packet carrying the A bit and a Simple Password section, IPv4 and IPv6. Still weak: the negative TestUDPDefaultTTLNot255 measures a plain kernel socket, not Ze code; and the positive binds fixed port 47841 in the root netns (move to a rootless user+net namespace).",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a75 \"If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255.\" + same wire unit with an auth section, now in netns. - (R1 a) TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire: Keyed SHA1 session, signed packets at 254 dropped (Down, RemoteDiscr 0), at 255 accepted (Init). Revert records on passesTTLGate (-) and applySocketOptions (+) observed red.",
       "requirement_sha": "f2f1ffe5ae8db6b9",
       "tests": {
-        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "c39263e8017d001e",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPDefaultTTLNot255": "6e647519da0fd861",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "6e647519da0fd861"
+        "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire": "b27d2d5cb5079f05",
+        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "1aa2d39d3b0cd82e",
+        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
       },
       "units": {
-        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "e50efcd6b823c8ab",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPDefaultTTLNot255": "c667992b1ab1cb38",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "f2f63daaf3238e10"
+        "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire": "2d9ec136aa6767e7",
+        "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "fde61bb234e77c2b",
+        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-6-1": {
-      "note": "Forbidden: a Control packet leaving over a path other than the protected one-hop path (wrong interface, routed off-link). The tagged units assert IP_TTL=255 on the socket, which is RFC5881-5-1; TTL 255 does not confine a packet to one hop (it permits the most hops). The tag prose 'without TTL 255 the packet is not confined to the one-hop path' asserts a neighbouring rule. Interface binding (SO_BINDTODEVICE in applySocketOptions) is not asserted.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD.\" D-8 defect fixed per R33: UDP.Send pins each single-hop packet on a socket bound to no device to Outbound.Interface with an IP_PKTINFO/IPV6_PKTINFO ifindex cmsg (pinsToLink, egressPin, pktinfoPin); device-bound, multi-hop, zoned and interface-less sends unchanged; an unresolvable interface fails the send (never an unpinned send). Veth+AF_PACKET in netns: + TestRFC5881ControlLeavesOnTheProtectedLink (bound p0), - TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink (bound, /32 via o0), - TestRFC5881UnboundLoopControlLeavesOnTheSessionLink (unbound, /32 via o0: frame on p1, none on o1). Records on applySocketOptions and udp.go::Send observed red; pinsToLink-false overlay reds only the unbound test (pin-ov1). Wrong TTL-based tags removed. Residual: the route-detour negatives are IPv4 only; the IPv6 pin is exercised (sends succeed) by the 2-2 wire unit but no IPv6 detour asserts it. Send errors are logged at Debug only (journal silent-fall-through).",
       "requirement_sha": "1dbda6fd39343a67",
       "tests": {
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPDefaultTTLNot255": "6e647519da0fd861",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "6e647519da0fd861"
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink": "dd8a6cc8a7382e61",
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink": "dd8a6cc8a7382e61",
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "dd8a6cc8a7382e61"
       },
       "units": {
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPDefaultTTLNot255": "c667992b1ab1cb38",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "f2f63daaf3238e10"
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink": "4e88a9a8ab36da3a",
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink": "f4337393245271be",
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "fd62d363ddde423d"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC5881-6-2": {
-      "note": "Forbidden: on multiaccess, a Control packet whose source or destination is off the subnet. TestRFC5881TransmitDestinationStable asserts ct.last.To == configured peer; nothing asserts the peer or the source is on the interface subnet, and the source address is not observed. {single-polarity} marker present.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet\". Source clause enforced: + TestRFC5881ControlAddressedFromAndToTheSubnet (bound p0, source and destination in 10.58.1.0/24), - TestRFC5881ControlNeverSourcedOffTheSubnet (unbound, /32 via o0 that would source from 10.58.2.1; every captured frame sourced in p0's subnet); records on destination (+) and pinsToLink (-) observed red; {single-polarity} removed. Weak: the destination clause is an open D-8 defect (R37): nothing compares a single-hop peer with its interface's subnets, so a peer off the subnet is sent to via a gateway; the untagged red TestRFC5881ControlNeverAddressedOffTheSubnet stays out of the commit until the fix lands.",
       "requirement_sha": "f4c706fa335c606d",
       "tests": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet": "e069f87eed30683c",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "e069f87eed30683c"
       },
       "units": {
-        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c21c424b4e04aa90"
+        "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c21c424b4e04aa90",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet": "87a6267181a6ffe8",
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "c9ef8bca7c9f8dc2"
       },
       "verdict": "weak"
     },
     "RFC5881-6-5": {
-      "note": "Forbidden: subsequent packets demultiplexed on anything besides Your Discriminator. TestRFC5881DiscriminatorDemuxDelivers reds if the source address participates (other source still delivered); TestRFC5881DiscriminatorDemuxUnknownDropped reds on a source fallback. Neither varies the ingress interface or local address, so a byDiscr lookup that additionally required the interface to match stays green; 'solely' is proven for the source dimension only.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"subsequent BFD packets MUST be demultiplexed solely by the Your Discriminator field\". The missing dimensions are now varied: + TestRFC5881DiscriminatorAloneSelectsTheSession (source, local address and ingress interface all differ from the session: delivered); - TestRFC5881AddressingNeverOverridesTheDiscriminator (session 1's exact tuple with session 2's YD goes to 2, 1 untouched). Old source-dimension tags kept. Revert records on loop.go::handleInbound observed red; overlays byDiscr-also-requiring-iface and byKey-before-byDiscr red the new + and - respectively (author e4-ov9a/b).",
       "requirement_sha": "20717f228d4fb731",
       "tests": {
+        "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881AddressingNeverOverridesTheDiscriminator": "95413c5e57ea5808",
+        "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881DiscriminatorAloneSelectsTheSession": "95413c5e57ea5808",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "c8bf3135e7e74ea3",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "c8bf3135e7e74ea3"
       },
       "units": {
+        "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881AddressingNeverOverridesTheDiscriminator": "3effd2e0b0bff8dc",
+        "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881DiscriminatorAloneSelectsTheSession": "1c29fd68731ca3c1",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3880f5c58e9af09b",
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "4112a6d497979c4a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5881-6-6": {
       "note": "Forbidden: after a changed received source, using it as the transmit destination, or not using the configured address. After handleInbound from 198.51.100.7 by discriminator, TestRFC5881TransmitDestinationStable reds if PeerAddr drifts or ct.last.To != configured peer (MUST continue to use configured), and TestRFC5881TransmitDestinationIgnoresChangedSource reds if ct.last.To == changed source (MUST NOT use that address). Producer loop.go sendLocked To: PeerAddr().",

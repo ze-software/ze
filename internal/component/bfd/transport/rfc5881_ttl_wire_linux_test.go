@@ -7,6 +7,9 @@
 // section.
 // PREVENTS: an IPv6 socket that never sets IPV6_UNICAST_HOPS, and a TTL check
 // that reads a socket option back rather than the packet that was sent.
+//
+// The test binds a fixed port, so it runs in a user and network namespace of
+// its own (userns.Enter), where no other socket can hold that port.
 package transport
 
 import (
@@ -16,10 +19,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // ttlWirePort is the port the self-addressed sockets below bind. It is none of
-// the BFD ports, so no other test's socket holds it.
+// the BFD ports, so it is never mistaken for a BFD listener.
 const ttlWirePort = 47841
 
 // rfc5881ControlBytes encodes a peer-less Control packet. With auth set it
@@ -76,6 +80,9 @@ func rfc5881ReceivedTTL(t *testing.T, addr netip.Addr, payload []byte) uint8 {
 // and a Simple Password section, sent through the same transport, is read off
 // the wire with TTL 255 in IPv4 and Hop Limit 255 in IPv6.
 func TestRFC5881ControlLeavesWithTTL255OnTheWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	for _, addr := range []netip.Addr{netip.MustParseAddr("127.88.82.1"), netip.IPv6Loopback()} {
 		for _, auth := range []bool{false, true} {
 			if got := rfc5881ReceivedTTL(t, addr, rfc5881ControlBytes(auth)); got != 255 {

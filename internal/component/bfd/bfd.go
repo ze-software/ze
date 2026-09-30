@@ -280,9 +280,11 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 //   - Default VRF single-hop with one or more pinned sessions all naming
 //     the same interface: the device is that interface name.
 //   - Default VRF single-hop with a mix of interfaces (or no interface
-//     specified): empty device; the engine TTL gate still enforces GTSM
-//     but no kernel-level pinning applies. The full set of conflicting
-//     interfaces is logged once per loop.
+//     specified): empty device; the engine TTL gate still enforces GTSM,
+//     and transport.UDP.Send pins each packet of a session that names an
+//     interface to that interface with an ifindex control message (RFC 5881
+//     Section 6). The full set of conflicting interfaces is logged once per
+//     loop.
 //   - Default VRF multi-hop: empty device (multi-hop does not bind to a
 //     specific interface).
 //

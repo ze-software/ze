@@ -367,6 +367,18 @@ silent in the merge gate and runs for real in a privileged guest or container.
 `internal/component/gtsm/gtsm_rfc5082_linux_test.go` are the two files that do
 this, and both say so in their headers.
 
+A bare `linux` unit that needs only its own network, a fixed port or an
+address of its own on `lo`, needs no privilege at all: `userns.Enter`
+(`internal/test/userns`) re-executes the test in a new user and network
+namespace, where the test is root over a namespace of its own, and skips only
+when the kernel refuses one. A well-known port bound there never collides with
+a ze running on the host or with a parallel run of the same package, and a
+coverage run passes its counter directory to the child, so `./le rfc
+discriminate-record` sees the code the child ran. The BFD wire tests
+(`internal/component/bfd/rfc5881_wire_port_linux_test.go`,
+`internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go`) use it.
+<!-- source: internal/test/userns/userns_linux.go -- Enter -->
+
 ### File Naming
 
 ```

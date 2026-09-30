@@ -2,6 +2,17 @@
   "rfc": "rfc5881",
   "records": [
     {
+      "rid": "RFC5881-2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go::TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol",
+      "unit-sha": "4d735e7116dfbc35",
+      "claim-sha": "46163f1264fa4230",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/dual.go::Send",
+      "producer-sha": "9748136a04a985b7",
+      "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5881-3-1",
       "polarity": "positive",
       "unit": "internal/component/bfd/enabled_test.go::TestRFC5881ClientMultiHopPassiveProfileAccepted",
@@ -46,10 +57,32 @@
       "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5881-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol",
+      "unit-sha": "3d14b21b71d9bf48",
+      "claim-sha": "76b383e369efe504",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+      "producer-sha": "f721533856857321",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol",
+      "unit-sha": "3d14b21b71d9bf48",
+      "claim-sha": "d38c1cb79265f019",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+      "producer-sha": "f721533856857321",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5881-4-1",
       "polarity": "positive",
       "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire",
-      "unit-sha": "d5011c843c174bf3",
+      "unit-sha": "f24f84adcab071ec",
       "claim-sha": "e5b83c82fe675b0a",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::destination",
@@ -60,7 +93,7 @@
       "rid": "RFC5881-4-1",
       "polarity": "negative",
       "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort",
-      "unit-sha": "a3b5ffcc2295b1a7",
+      "unit-sha": "02e0cad9ba5a688a",
       "claim-sha": "dad19b42be94d974",
       "route": "revert",
       "producer": "internal/component/bfd/bfd.go::newEchoTransport",
@@ -71,18 +104,18 @@
       "rid": "RFC5881-4-3",
       "polarity": "positive",
       "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire",
-      "unit-sha": "3012e6f48e857bf2",
+      "unit-sha": "8bf71d2415277f87",
       "claim-sha": "ab34dd0e59edab63",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::Send",
-      "producer-sha": "82ff7899c0a30961",
+      "producer-sha": "4ec6592f89fe4fa9",
       "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5881-4-5",
       "polarity": "negative",
       "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlTransportNeverAddressesEchoPort",
-      "unit-sha": "f101984c8b49d41e",
+      "unit-sha": "59449ddce89e2166",
       "claim-sha": "287acf2d82eff743",
       "route": "revert",
       "producer": "internal/component/bfd/bfd.go::newUDPTransport",
@@ -93,7 +126,7 @@
       "rid": "RFC5881-4-5",
       "polarity": "positive",
       "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoSentToPort3785OnTheWire",
-      "unit-sha": "380f09a43a9eaa25",
+      "unit-sha": "f7246dcec0cd6d26",
       "claim-sha": "301cadfc9d23b54f",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp.go::destination",
@@ -101,10 +134,43 @@
       "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5881-4-8",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoFrameAddressedToTheRemoteSystem",
+      "unit-sha": "9718f01318cc2efc",
+      "claim-sha": "966d38ab004cfd46",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::destination",
+      "producer-sha": "ed6f4947370582ff",
+      "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-4-8",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt",
+      "unit-sha": "bbcea3509f641b84",
+      "claim-sha": "6ed54e578051a729",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::pinsToLink",
+      "producer-sha": "aab765122ad6d2ca",
+      "break": "body of pinsToLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire",
+      "unit-sha": "9b98fcf65d5819c2",
+      "claim-sha": "f79a2a73379d49e8",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+      "producer-sha": "01ebf29739d1658e",
+      "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5881-5-1",
       "polarity": "positive",
       "unit": "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire",
-      "unit-sha": "f3168a74323de459",
+      "unit-sha": "ffc1a13de60917e3",
       "claim-sha": "4bf81f4ba1ce68c5",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptionsV6",
@@ -135,14 +201,102 @@
     },
     {
       "rid": "RFC5881-5-3",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire",
+      "unit-sha": "6ebb3fe9b4eacb2f",
+      "claim-sha": "da025482d7dae162",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+      "producer-sha": "01ebf29739d1658e",
+      "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-5-3",
       "polarity": "positive",
       "unit": "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire",
-      "unit-sha": "f3168a74323de459",
+      "unit-sha": "ffc1a13de60917e3",
       "claim-sha": "fc32b66097173a10",
       "route": "revert",
       "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
       "producer-sha": "018c89e51ff3391c",
       "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink",
+      "unit-sha": "ecaa581b34039d30",
+      "claim-sha": "ced774e03c3f4f0d",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+      "producer-sha": "018c89e51ff3391c",
+      "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink",
+      "unit-sha": "ee5f0faff459a24d",
+      "claim-sha": "2a9dad421fb08031",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+      "producer-sha": "018c89e51ff3391c",
+      "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink",
+      "unit-sha": "0414603d8481932c",
+      "claim-sha": "dd3241d84896db94",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::Send",
+      "producer-sha": "4ec6592f89fe4fa9",
+      "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet",
+      "unit-sha": "19bed474c1c7b09f",
+      "claim-sha": "460d59cf3cf2eb67",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::destination",
+      "producer-sha": "ed6f4947370582ff",
+      "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-2",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet",
+      "unit-sha": "d6aadb2ffae7dff0",
+      "claim-sha": "66e1066179e9bad3",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp.go::pinsToLink",
+      "producer-sha": "aab765122ad6d2ca",
+      "break": "body of pinsToLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-5",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881AddressingNeverOverridesTheDiscriminator",
+      "unit-sha": "66112d2059ac72dc",
+      "claim-sha": "50f718aa35bc90a9",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+      "producer-sha": "f721533856857321",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-6-5",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881DiscriminatorAloneSelectsTheSession",
+      "unit-sha": "da2876014d2c74bb",
+      "claim-sha": "c2e3093b6e9bc9f9",
+      "route": "revert",
+      "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+      "producer-sha": "f721533856857321",
+      "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

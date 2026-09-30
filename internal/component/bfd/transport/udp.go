@@ -75,6 +75,16 @@ type UDP struct {
 	ifNamesMu sync.RWMutex
 	ifNames   map[int]ifName
 
+	// egressPins caches, per interface name, the IP_PKTINFO / IPV6_PKTINFO
+	// control message Send attaches to pin a single-hop packet to that
+	// interface when the socket is bound to no device. The message is built
+	// once per name and read-only after, so every Send shares it without a
+	// lock around the write and without an allocation per packet. Entries
+	// expire on ifNameTTL for the reason ifNames does: a name can come back
+	// with another index after the device is deleted and recreated.
+	egressPinsMu sync.RWMutex
+	egressPins   map[string]egressLink
+
 	// Clock is the time source the ifindex cache ages entries against. Nil
 	// means clock.RealClock{}, which is what every production caller wants; a
 	// test sets it to drive expiry without sleeping.
@@ -233,6 +243,11 @@ func (u *UDP) Stop() error {
 // with the maximum TTL, satisfying RFC 5881 Section 5 for both hop modes
 // (multi-hop peers happily accept TTL=255 since their floor is typically
 // 254).
+//
+// A single-hop packet on a socket bound to no device leaves with an ifindex
+// control message naming the session's interface (see pinsToLink), so the
+// kernel sends it on that link whatever the routing table says about the
+// peer. A multi-hop packet is routed and carries none.
 func (u *UDP) Send(out Outbound) error {
 	u.mu.Lock()
 	conn := u.conn
@@ -240,8 +255,42 @@ func (u *UDP) Send(out Outbound) error {
 	if conn == nil {
 		return errUDPNotStarted
 	}
-	_, err := conn.WriteToUDP(out.Bytes, u.destination(out))
+	to := u.destination(out)
+	if !u.pinsToLink(out, to) {
+		_, err := conn.WriteToUDP(out.Bytes, to)
+		return err
+	}
+	pin, err := u.egressPin(out.Interface)
+	if err != nil {
+		return err
+	}
+	// RFC 5881 Section 6: "Implementations MUST ensure that all BFD Control
+	// packets are transmitted over the one-hop path being protected by BFD."
+	_, _, err = conn.WriteMsgUDP(out.Bytes, pin, to)
 	return err
+}
+
+// pinsToLink answers whether Send must pin this packet to out.Interface with
+// an ifindex control message.
+//
+// Only a single-hop socket pins: RFC 5883 multi-hop traffic is routed. A
+// socket bound to a device (resolveLoopDevices in bfd.go binds a loop whose
+// single-hop sessions all name one interface, and a non-default VRF loop to
+// its VRF device) already has the kernel's answer, and a second, different
+// ifindex on an IPv6 send is refused with EINVAL. A session that names no
+// interface has no link to pin to. A zoned destination is already pinned by
+// its zone (destination, sendZone).
+func (u *UDP) pinsToLink(out Outbound, to *net.UDPAddr) bool {
+	if u.Mode != api.SingleHop {
+		return false
+	}
+	if u.Device != "" {
+		return false
+	}
+	if out.Interface == "" {
+		return false
+	}
+	return to.Zone == ""
 }
 
 // destination builds the socket address one Outbound is written to: the peer
@@ -455,4 +504,45 @@ func (u *UDP) ingressInterface(ifindex int) string {
 	u.ifNames[ifindex] = ifName{name: link.Name, at: now}
 	u.ifNamesMu.Unlock()
 	return link.Name
+}
+
+// egressLink is one cached pinning control message and the moment its
+// interface was resolved.
+type egressLink struct {
+	oob []byte
+	at  time.Time
+}
+
+// errUDPEgressUnknown is returned by Send when the interface a single-hop
+// session names cannot be resolved to an index.
+var errUDPEgressUnknown = errors.New("bfd: single-hop session interface cannot be resolved")
+
+// egressPin answers the control message that pins a packet to the interface
+// named name, from the cache when the entry is younger than ifNameTTL.
+//
+// An interface that does not resolve is an error, never an unpinned send: the
+// link the session protects is gone, and a packet routed over another link
+// would keep the session Up with no one-hop path under it (RFC 5881 Section 6).
+// The failure is not cached, for the reason ingressInterface gives.
+func (u *UDP) egressPin(name string) ([]byte, error) {
+	now := u.now()
+	u.egressPinsMu.RLock()
+	cached, ok := u.egressPins[name]
+	u.egressPinsMu.RUnlock()
+	if ok && now.Sub(cached.at) < ifNameTTL {
+		return cached.oob, nil
+	}
+	link, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %q: %w", errUDPEgressUnknown, name, err)
+	}
+	isV6 := u.Bind.Addr().Is6() && !u.Bind.Addr().Is4In6()
+	oob := pktinfoPin(link.Index, isV6)
+	u.egressPinsMu.Lock()
+	if u.egressPins == nil {
+		u.egressPins = make(map[string]egressLink, 4)
+	}
+	u.egressPins[name] = egressLink{oob: oob, at: now}
+	u.egressPinsMu.Unlock()
+	return oob, nil
 }

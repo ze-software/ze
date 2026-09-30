@@ -236,6 +236,23 @@ func parseReceivedPktinfo(oob []byte) (netip.Addr, int) {
 	return netip.Addr{}, 0
 }
 
+// pktinfoPin builds the sendmsg control message that pins one datagram to the
+// interface ifindex names: IP_PKTINFO for an IPv4 socket, IPV6_PKTINFO for an
+// IPv6 one. Only the ifindex is set. The address fields stay zero, so the
+// kernel still chooses the source address, from the pinned interface.
+//
+// The payloads are the structures parseReceivedPktinfo reads (struct
+// in_pktinfo, 12 bytes; struct in6_pktinfo, 20 bytes). On send the kernel takes
+// ipi_ifindex / ipi6_ifindex as the output interface of the route lookup, as
+// SO_BINDTODEVICE does for the whole socket, so a more specific route to the
+// peer over another link is not taken.
+func pktinfoPin(ifindex int, isV6 bool) []byte {
+	if isV6 {
+		return unix.PktInfo6(&unix.Inet6Pktinfo{Ifindex: uint32(ifindex)})
+	}
+	return unix.PktInfo4(&unix.Inet4Pktinfo{Ifindex: int32(ifindex)})
+}
+
 // oobBufLen is the size of a per-slot control-message backing buffer.
 //
 // The kernel consumes CMSG_SPACE per message, not CMSG_LEN: the header is 16

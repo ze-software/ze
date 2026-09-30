@@ -125,6 +125,13 @@ func parseReceivedTTL(_ []byte) uint8 { return 0 }
 // (ai/rules/platform-linux.md).
 func parseReceivedPktinfo(_ []byte) (netip.Addr, int) { return netip.Addr{}, 0 }
 
+// pktinfoPin returns no control message on non-Linux builds, so a single-hop
+// packet on a socket bound to no device follows the routing table. This is the
+// same platform limit as the missing SO_BINDTODEVICE in applySocketOptions:
+// the RFC 5881 Section 6 one-hop confinement is a Linux property
+// (ai/rules/platform-linux.md).
+func pktinfoPin(_ int, _ bool) []byte { return nil }
+
 // oobBufLen sizes the per-slot oob backing buffer; kept as a constant so
 // the portable readLoop code allocates the same slice shape on every
 // platform. Non-Linux builds never write into it.

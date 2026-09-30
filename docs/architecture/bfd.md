@@ -415,6 +415,7 @@ Stage 2 (transport hardening) are all merged. The production path is now:
 | TTL gate | `internal/component/bfd/engine/loop.go` -- `passesTTLGate` | RFC 5881 §5 single-hop TTL=255 and RFC 5883 §5 multi-hop min-TTL. |
 | Jitter | `internal/component/bfd/engine/engine.go` -- `applyJitter` | RFC 5880 §6.8.7 [0, 25%) reduction, clamped [10%, 25%) when `detect-multiplier=1`. |
 | Device choice | `internal/component/bfd/bfd.go` -- `resolveLoopDevices` | Per-loop `SO_BINDTODEVICE` target derived from pinned sessions. |
+| Egress link | `internal/component/bfd/transport/udp.go` -- `Send`, `pinsToLink`, `egressPin` | RFC 5881 §6 one-hop path. A single-hop socket bound to no device (the loop's default-VRF sessions name several interfaces, or one names none) sends each packet with an `IP_PKTINFO` / `IPV6_PKTINFO` control message carrying the session interface's ifindex (`pktinfoPin`, `udp_linux.go`), so a more specific route to the peer over another link is not taken. A device-bound socket, a multi-hop socket, a zoned link-local destination and a session naming no interface carry none. An interface that does not resolve fails the send rather than routing it. Off Linux no control message is built. |
 
 ## Stage 4 complete (operator UX)
 

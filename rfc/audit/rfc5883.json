@@ -46,17 +46,17 @@
       "verdict": "enforced"
     },
     "RFC5883-5-1": {
-      "note": "Judge 2026-09-30. \u00a75 \"...except that the UDP destination port MUST have a value of 4784.\" TestRFC5883MultiHopControlSentToPort4784OnTheWire observes the multihop datagram at :4784 (IPv4) and [::1]:4784 (IPv6); negative TestRFC5883SingleHopControlNeverAddressesPort4784 sees single-hop Control at :3784 and silence at :4784; Port+1 overlay reddens them. Weak because the tests bind fixed host ports (127.88.81.1/.2 :3784/:4784, [::1]:4784) in the root network namespace, so they fail when a running ze holds 0.0.0.0:3784 on the test host and collide with a parallel run of the package; the obligation is observable in a rootless user+net namespace (sadSelNetns pattern, internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go), and the verdict stays weak until the units move there.",
+      "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a75 \"...except that the UDP destination port MUST have a value of 4784.\" + TestRFC5883MultiHopControlSentToPort4784OnTheWire (IPv4 and IPv6), - TestRFC5883SingleHopControlNeverAddressesPort4784 (3784 seen, silence at 4784). Records on destination (+) and newUDPTransport (-) re-recorded and observed red.",
       "requirement_sha": "0bcd1b4e35b7a0e2",
       "tests": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "0134bd9af506d4b0",
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "0134bd9af506d4b0"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "ec3f2024a41e142b",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "ec3f2024a41e142b"
       },
       "units": {
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "697b4ee5651337f7",
-        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "1473b5b3b781582f"
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "8a2aeb3b4496183a",
+        "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "471e4209743a8096"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5883-x-1": {
       "note": "Re-read 2026-09-27; the quote is the same \u00a73 sentence as RFC5883-3-1 and the same two units carry it. Forbidden: Echo used over multiple hops; TestRFC5883MultiHopEchoRejected fails when validate accepts it, TestRFC5883SingleHopEchoAccepted is the scoping contrast.",

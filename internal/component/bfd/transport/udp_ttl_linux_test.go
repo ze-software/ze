@@ -28,9 +28,6 @@ import (
 // RFC requirement: RFC5881-5-3 positive -- the same IP_TTL=255 is applied
 // unconditionally (udp_linux.go:79), so the transmitted TTL is 255 whether or
 // not authentication is in use.
-// RFC requirement: RFC5881-6-1 positive -- transmitting with TTL 255 is what
-// confines a single-hop Control packet to the one-hop path being protected (a
-// conformant peer's GTSM accepts only TTL 255); the same setsockopt produces it.
 func TestUDPSetOutboundTTL255(t *testing.T) {
 	u := &UDP{
 		Bind: netip.MustParseAddrPort("127.0.0.1:0"),
@@ -155,19 +152,11 @@ func TestUDPBindConflict(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5881-5-1 negative -- the transmit TTL is 255 because ze
-// sets IP_TTL=255 explicitly, not because the kernel default is 255. A plain
-// UDP socket that did NOT run applySocketOptions reports the kernel default
-// TTL, which is not 255, so without ze's setsockopt a Control packet would be
-// transmitted with a TTL a conformant single-hop peer discards.
-// RFC requirement: RFC5881-5-3 negative -- the same holds regardless of
-// authentication: the 255 is a deliberate socket option, and its absence yields
-// a non-255 transmit TTL.
-// RFC requirement: RFC5881-6-1 negative -- without TTL 255 the packet is not
-// confined to the one-hop path; the kernel default would allow it to traverse
-// multiple hops. This pins that ze's one-hop confinement comes from the
-// explicit IP_TTL=255 (internal/component/bfd/transport/udp_linux.go:79), not
-// from chance.
+// A plain UDP socket that did not run applySocketOptions reports the kernel
+// default TTL, which is not 255, so the 255 TestUDPSetOutboundTTL255 reads is
+// Ze's setsockopt and not the default. The RFC5881-5-1 and 5-3 negatives are
+// on Ze's receive path: engine/rfc5881_ttl_wire_linux_test.go. The RFC5881-6-1
+// one-hop path is observed on the wire in rfc5881_one_hop_path_linux_test.go.
 func TestUDPDefaultTTLNot255(t *testing.T) {
 	// A bare UDP socket with no BFD socket options applied.
 	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})

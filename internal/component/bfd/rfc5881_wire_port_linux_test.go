@@ -6,6 +6,10 @@
 // RFC 5883 Section 5 (multihop Control to 4784), in IPv4 and IPv6.
 // PREVENTS: a transport whose Send addresses a port other than the one the RFC
 // names while its bound port still looks right.
+//
+// Every test binds a BFD well-known port, so each runs in a user and network
+// namespace of its own (userns.Enter): a ze on the host holding 0.0.0.0:3784,
+// or a parallel run of this package, can never take the port from it.
 package bfd
 
 import (
@@ -18,11 +22,12 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // Loopback addresses of the wire-port tests. Linux answers the whole of
 // 127.0.0.0/8 on lo, so the sender and the listener take two addresses of
-// their own and never collide with a socket bound to 127.0.0.1.
+// their own and the listener never receives the sender's own datagram.
 var (
 	wireSender   = netip.MustParseAddr("127.88.81.1")
 	wireListener = netip.MustParseAddr("127.88.81.2")
@@ -126,6 +131,9 @@ func wireSelfV6(t *testing.T, tr *transport.UDP) {
 // it reaches a listener on the peer address at port 3784, and in IPv6 it
 // reaches [::1] at port 3784 (the newUDPTransport6 socket's own port).
 func TestRFC5881ControlSentToPort3784OnTheWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listener := wireListen(t, 3784)
 	tr := newUDPTransport(api.SingleHop, "", "")
 	wireStart(t, tr)
@@ -140,6 +148,9 @@ func TestRFC5881ControlSentToPort3784OnTheWire(t *testing.T) {
 // reaches the peer at 3785, and nothing reaches a listener on the peer at
 // 3784.
 func TestRFC5881EchoTransportNeverAddressesControlPort(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	control := wireListen(t, 3784)
 	echo := wireListen(t, 3785)
 	tr := newEchoTransport("", "")
@@ -153,6 +164,9 @@ func TestRFC5881EchoTransportNeverAddressesControlPort(t *testing.T) {
 // transport newEchoTransport builds reaches a listener on the peer address at
 // port 3785, in IPv4.
 func TestRFC5881EchoSentToPort3785OnTheWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listener := wireListen(t, 3785)
 	tr := newEchoTransport("", "")
 	wireStart(t, tr)
@@ -165,6 +179,9 @@ func TestRFC5881EchoSentToPort3785OnTheWire(t *testing.T) {
 // sends reaches the peer at 3784, and nothing reaches a listener on the peer at
 // 3785.
 func TestRFC5881ControlTransportNeverAddressesEchoPort(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	control := wireListen(t, 3784)
 	echo := wireListen(t, 3785)
 	tr := newUDPTransport(api.SingleHop, "", "")
@@ -178,6 +195,9 @@ func TestRFC5881ControlTransportNeverAddressesEchoPort(t *testing.T) {
 // the single-hop transport of one session are observed at the peer, and all
 // five carry the same UDP source port (and the same source address).
 func TestRFC5881ControlSourcePortFixedOnTheWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listener := wireListen(t, 3784)
 	tr := newUDPTransport(api.SingleHop, "", "")
 	wireStart(t, tr)
@@ -195,6 +215,9 @@ func TestRFC5881ControlSourcePortFixedOnTheWire(t *testing.T) {
 // it reaches a listener on the peer address at port 4784, and in IPv6 it
 // reaches [::1] at port 4784 (the newUDPTransport6 socket's own port).
 func TestRFC5883MultiHopControlSentToPort4784OnTheWire(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	listener := wireListen(t, 4784)
 	tr := newUDPTransport(api.MultiHop, "", "")
 	wireStart(t, tr)
@@ -208,6 +231,9 @@ func TestRFC5883MultiHopControlSentToPort4784OnTheWire(t *testing.T) {
 // does not address the multihop port: its datagram reaches the peer at 3784,
 // and nothing reaches a listener on the peer at 4784.
 func TestRFC5883SingleHopControlNeverAddressesPort4784(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	single := wireListen(t, 3784)
 	multi := wireListen(t, 4784)
 	tr := newUDPTransport(api.SingleHop, "", "")

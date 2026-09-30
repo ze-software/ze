@@ -695,6 +695,17 @@
       "break": "body of AdminEnable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5880-6.8.16-4",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit",
+      "unit-sha": "429a16e879246bac",
+      "claim-sha": "a41fd7a6002b4eb4",
+      "route": "revert",
+      "producer": "internal/component/bfd/session/fsm.go::AdminEnable",
+      "producer-sha": "1c36e28288dac228",
+      "break": "body of AdminEnable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5880-6.8.16-5",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes",
