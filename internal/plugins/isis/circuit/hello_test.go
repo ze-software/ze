@@ -230,7 +230,7 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 // emitting a zero or fabricated one, while the Protocols Supported TLV (129)
 // still advertises the IPv4 NLPID (0xCC).
 //
-// RFC requirement: RFC3787-x-2 negative -- a circuit with no IPv4 interface
+// RFC requirement: RFC3787-x-2 positive -- a circuit with no IPv4 interface
 // address still builds a Protocols Supported TLV (129) that advertises the IPv4
 // NLPID (0xCC): the missing address does not drop IP from the protocols list.
 func TestISISHelloTLV132RequiresInterfaceAddr(t *testing.T) {

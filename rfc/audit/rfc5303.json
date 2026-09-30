@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5303-3.1-1": {
       "note": "Forbidden: a Point-to-Point IIH without TLV 240. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption: the IIH buildP2PHello emits (the builder sendP2PHello always uses) must decode with TLV 240 (absent is Fatal); negative: a LAN IIH never carries it.",
@@ -26,19 +27,6 @@
         "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor": "297049562bc3b270"
       },
       "verdict": "enforced"
-    },
-    "RFC5303-3.1-6": {
-      "note": "Re-judged 2026-09-30. The sentence binds Ze to every procedure of section 3.2. adjacency TestISISThreeWayProceduresEngagedByOption: with TLV 240 present a new adjacency receiving Up takes the table's Down action (Down, no event, deleteAt=now; recorded + on threeWayTableAction); with no TLV 240 the legacy two-way reaches Up (recorded - on bidirectional). The state table (3.2-11) and its Initialize action (3.2-13) are now followed. Still weak: the invalid-state discard (RFC5303-3.2-7), the Neighbor System ID / Extended Circuit ID mismatch discard (3.2-8, 3.2-9) and the 'Neighbor restarted' event of the Down action (3.2-12) are not followed; those rows carry {gap}.",
-      "requirement_sha": "08541ffc00c19a11",
-      "tests": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "868db943fa89c621",
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption#2": "868db943fa89c621"
-      },
-      "units": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "1edf667d4ad44060",
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption#2": "1edf667d4ad44060"
-      },
-      "verdict": "weak"
     },
     "RFC5303-3.2-1": {
       "note": "Forbidden: a transmitted IIH whose Adjacency Three-Way State is not the adjacency's current state. circuit TestRFC5303SentIIHReportsCurrentThreeWayState decodes the TLV 240 of the P2P IIH SendHello hands the transport (sendP2PHello -> p2pThreeWayState -> buildP2PHello): Initializing after a peer Hello that does not echo us, Up after the echo. The two values differ, so a send path that ignored the computed state or sent a fixed value goes red; recorded +/- on runtime.go p2pThreeWayState. The older helper-level units remain tagged and are subsumed.",
@@ -75,13 +63,15 @@
       "verdict": "enforced"
     },
     "RFC5303-3.2-11": {
-      "note": "Forbidden: a P2P Hello carrying a valid TLV 240 decided by anything but the section 3.2 table cell for (current three-way state, received state). adjacency TestRFC5303ThreeWayStateTable drives all nine cells through ReceiveHello, each adjacency reached by received Hellos only (adjacencyInState), and requires the resulting state and session flags: Down/Init, Init/Init, Init/Up come Up with SessionUp; Up/Init and Up/Up (Accept) stay Up with no event (positive); Down/Up stays Down, and the received-Down column sets Initializing, taking Up out of Up (negative). Checked against rfc/full/rfc5303.txt section 3.2: every cell matches fsm.go threeWayTableAction/threeWayOnReceivedUp. Recorded +/- on threeWayTableAction. The PDU-discard preconditions (3.2-7 invalid state, 3.2-9 foreign Neighbor System ID) stay their own {gap} rows: those inputs take Initialize instead of discard, outside this sentence's table.",
+      "note": "Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions (3.2-7, 3.2-9) stay their own {gap} rows.",
       "requirement_sha": "8cf2b558704893b3",
       "tests": {
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "9dbfe0180a8a24cd",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "9c8d8a819fd5d2e9",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "9c8d8a819fd5d2e9"
       },
       "units": {
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "f925dc509cd1e837",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "22ea012c7b801368",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "22ea012c7b801368"
       },
@@ -91,8 +81,8 @@
       "note": "Re-judged 2026-09-30. Forbidden: on an Initialize action, generating an adjacency-up event or not setting Initializing. adjacency TestRFC5303InitializeActionOnEveryRow drives received Down on all three rows (Down, Initializing, Up, each reached by Hellos): every row ends Initializing with no SessionUp; Down and Initializing rows raise no flag at all; the Up row raises only SessionDown, which R39 keeps as Ze's internal withdraw notice (fsm.go applyThreeWayAction quotes RFC 5303 sec 3.2 and ISO 10589 sec 9.4/7.5), not the adjacencyStateChange event the sentence forbids. Negative: Initializing row + received Initializing is the Up action, leaving Initializing with SessionUp. This closes the earlier gap (Initializing and Up rows unasserted). TestISISThreeWayInitializeAction remains tagged. Recorded +/- on applyThreeWayAction for both units.",
       "requirement_sha": "07e36258bb67fa66",
       "tests": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction": "868db943fa89c621",
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction#2": "868db943fa89c621",
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction": "9dbfe0180a8a24cd",
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction#2": "9dbfe0180a8a24cd",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "9c8d8a819fd5d2e9",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "9c8d8a819fd5d2e9"
       },

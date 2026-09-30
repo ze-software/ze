@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc5303.txt",
   "source-sha": "126dfb230a6e85de",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-30",
   "reviewer": "claude",
+  "resign-reason": "Re-walked 2026-09-30 for site 3.1:4 only (ruling R22 shape): \"Any system that is able to process this option SHALL follow the procedures below.\" is a framing sentence whose procedures are each a Section 3.2 row (RFC5303-3.2-1 to RFC5303-3.2-13), excluded as not-a-requirement, row RFC5303-3.1-6 retired (rfc/corrections/rfc5303.md). Exclusions rise from 2 to 3. Every other decision is carried forward unchanged from the 2026-09-21 walk.",
   "sections": [
     {
       "id": "front",
@@ -112,8 +113,9 @@
     {
       "id": "3.1:4",
       "quote": "Any system that is able to process this option SHALL follow the procedures below.",
-      "disposition": "mapped",
-      "mapped-to": "RFC5303-3.1-6"
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A framing sentence: it points at the Section 3.2 Elements of Procedure, and each of those procedures is an obligation of its own in rows RFC5303-3.2-1 to RFC5303-3.2-13. No behavior belongs to this sentence that those rows do not already state. Row RFC5303-3.1-6 retired 2026-09-30 (rfc/corrections/rfc5303.md, ruling R22 shape)."
     },
     {
       "id": "3.2:1",

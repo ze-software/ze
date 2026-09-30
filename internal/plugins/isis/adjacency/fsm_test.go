@@ -393,13 +393,14 @@ func TestISISDownOnCircuitDown(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5303-3.1-6 positive -- a system able to process the option
-// follows the section 3.2 procedure: a new adjacency receiving a TLV 240 that
-// reports Up takes the state table's action "Down" (fsm.go threeWayTableAction),
-// so it stays Down, raises no session event, and is marked for deletion.
-// RFC requirement: RFC5303-3.1-6 negative -- the three-way procedure is engaged
-// by the option, not applied blanket: with NO TLV 240 the legacy ISO 10589
-// two-way adjacency forms on the first Hello with no echo at all.
+// TestISISThreeWayProceduresEngagedByOption checks that the three-way procedure
+// is engaged by the option, not applied blanket: with NO TLV 240 the legacy
+// ISO 10589 two-way adjacency forms on the first Hello with no echo at all.
+//
+// RFC requirement: RFC5303-3.2-11 positive -- a new adjacency (three-way state
+// Down) receiving a TLV 240 that reports Up takes the state table's action
+// "Down" (fsm.go threeWayTableAction), so it stays Down, raises no session
+// event, and is marked for deletion.
 func TestISISThreeWayProceduresEngagedByOption(t *testing.T) {
 	area := []types.AreaID{mustArea(t, 0x49, 0x00, 0x01)}
 

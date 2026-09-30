@@ -2,28 +2,6 @@
   "rfc": "rfc5303",
   "records": [
     {
-      "rid": "RFC5303-3.1-6",
-      "polarity": "positive",
-      "unit": "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption",
-      "unit-sha": "5cec10d78147765b",
-      "claim-sha": "1eab6654e74f3ea8",
-      "route": "revert",
-      "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
-      "producer-sha": "a6818b6a91423daa",
-      "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5303-3.1-6",
-      "polarity": "negative",
-      "unit": "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption",
-      "unit-sha": "5cec10d78147765b",
-      "claim-sha": "d904e8e87817ff70",
-      "route": "revert",
-      "producer": "internal/plugins/isis/adjacency/fsm.go::bidirectional",
-      "producer-sha": "847975cb7897039a",
-      "break": "body of bidirectional replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
       "rid": "RFC5303-3.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState",
@@ -62,6 +40,17 @@
       "unit": "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp",
       "unit-sha": "b4c6bbda2cc8af7c",
       "claim-sha": "d2204ba6d53cb2e6",
+      "route": "revert",
+      "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
+      "producer-sha": "a6818b6a91423daa",
+      "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5303-3.2-11",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption",
+      "unit-sha": "5cec10d78147765b",
+      "claim-sha": "f1d72b8d992d38df",
       "route": "revert",
       "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
       "producer-sha": "a6818b6a91423daa",

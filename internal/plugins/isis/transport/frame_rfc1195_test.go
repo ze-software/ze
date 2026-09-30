@@ -47,10 +47,10 @@ func TestRFC1195ParseFrameOSIEncapsulation(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC1195-4.1-1 negative -- a frame that is not the normal OSI
-// encapsulation is refused: an Ethernet II ethertype in place of the 802.3 length
-// is ErrNotISO, and an LLC header other than 0xFE/0xFE/0x03 is ErrBadLLC. No PDU
-// is returned for either.
+// RFC requirement: RFC1195-4.1-1 negative -- a received frame that lacks the
+// normal OSI encapsulation is refused rather than read as an IS-IS PDU: an
+// Ethernet II ethertype in place of the 802.3 length is ErrNotISO, and an LLC
+// header other than 0xFE/0xFE/0x03 is ErrBadLLC. No PDU is returned for either.
 func TestRFC1195ParseFrameRefusesNonOSIEncapsulation(t *testing.T) {
 	pdu := []byte{0x83, 0x1B, 0x01, 0x00, 0x0F, 0x01, 0x00, 0x00}
 

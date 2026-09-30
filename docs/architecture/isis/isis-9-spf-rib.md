@@ -153,6 +153,13 @@ would let a less-specific default forward traffic to an unsupported router.
 Equal-cost originators in the winning preference class contribute one merged,
 deduplicated next-hop set. A capable member excludes terminal-rejection members
 from that set; a higher-cost or less-preferred route cannot bypass rejection.
+A neighbor's Hello with no Protocols Supported TLV (129) advertises CLNP only,
+because RFC 1195 section 4.4 assumes such a packet came from an OSI-only router.
+Its adjacency still comes Up, and supplies the terminal rejection for IPv4 and
+IPv6. A Hello that advertises IP but carries no IP Interface Address TLV (132),
+or one with zero entries, gives the adjacency no IPv4 gateway, so that neighbor
+supplies no IPv4 next hop at all.
+<!-- source: internal/plugins/isis/circuit/ish.go -- receivedProtocols -->
 
 The adjacency's logical interface and on-link flag travel with the gateway
 through the Loc-RIB, route-install RPC, sysrib and kernel FIB. The gateway need

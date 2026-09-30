@@ -30,6 +30,8 @@ Connected and passive-interface prefixes are refreshed on activation and each
 commit, including interface, family, metric and level changes.
 Point-to-point links send and receive ISO 9542 ISHs as well as IS-IS Hellos.
 An ISH starts discovery but cannot establish or sustain an Up adjacency.
+Ze does not require one either: a neighbor that sends only IS-IS Hellos still
+forms its adjacency through the Hello exchange.
 
 Ze accepts narrow IPv4 reachability in TLV 128 and TLV 130 and preserves its
 internal or external metric type through SPF and inter-level leaking. Local

@@ -2,6 +2,7 @@
   "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -102,17 +103,17 @@
       "verdict": "enforced"
     },
     "RFC1195-4.1-1": {
-      "note": "The positive proves ParseFrame accepts the normal OSI 802.3/LLC encapsulation. The negative asserts refusal of Ethernet II and SNAP frames, which the sentence does not require; it is a neighbouring strictness property, so there is no negative for this capability obligation (a {single-polarity} marker would fit).",
+      "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2, which names this row: an accept-on-reception obligation is proven by acceptance (positive) and by how Ze handles the absent or wrong form (negative), and 'refusing non-OSI encapsulation is that negative'. Positive transport TestRFC1195ParseFrameOSIEncapsulation: an 802.3 length + LLC FE/FE/03 frame is accepted and the PDU and source MAC come back intact. Negative TestRFC1195ParseFrameRefusesNonOSIEncapsulation (prose reworded, D-15; body unchanged): an Ethernet II ethertype yields ErrNotISO and a SNAP LLC yields ErrBadLLC, each with a nil PDU, so a frame lacking the normal OSI encapsulation is never read as an IS-IS PDU. Read against transport/frame.go ParseFrame. Records +/- revert ParseFrame, both observed red. The earlier weak verdict called the refusal a neighbouring strictness property; the owner ruled it is this row's negative.",
       "requirement_sha": "f4dce2e8fa4bd0dd",
       "tests": {
-        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameOSIEncapsulation": "d77f20f6b1216260",
-        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "d77f20f6b1216260"
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameOSIEncapsulation": "e679d34165cba861",
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "e679d34165cba861"
       },
       "units": {
         "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameOSIEncapsulation": "4c146cf6e2efad54",
-        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "629a60e778f688c1"
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "e343d316796a26fa"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-4.2-1": {
       "note": "Re-judged 2026-09-30. New root units drive the engine path (dispatched P2P IIH -> adjacency table -> engineNextHopResolver) with a fake iface backend. Positive TestRFC1195MultiAddressNeighborForwarding: a neighbor listing the TLV 132 maximum of 63 addresses forms an Up adjacency and resolves to its own first address, on-link via the arrival interface, so a receiver that refused, truncated or mis-read a 63-address list goes red. Negative TestRFC1195MultiAddressNeighborRenumbered: the same neighbor re-sends a different 63-address list and no address of the old list survives as the next hop; forwarding to an address the neighbor no longer assigns (sec 4.2: each Hello carries the interface's current list) is an incorrect interaction and is rejected. Producer circuit/runtime.go helloInput takes the first decoded TLV 132 address per Hello; +/- recorded on it. The older packet units (63-address decode, truncated TLV refused) remain as codec cover.",
@@ -149,13 +150,14 @@
       "verdict": "enforced"
     },
     "RFC1195-4.4-2": {
-      "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7). Re-judged 2026-09-30 (twice): TestRFC1195ISHTransmitReceive changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments; the finding stands.",
+      "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2 (receive row: the negative is Ze's handling of a missing ISH). RFC 1195 section 4.4: 'For point-to-point links, IS-IS requires exchange of ISO 9542 ISHs, as the first step in establishing the link between routers.' Positive: root TestRFC1195ISHTransmitReceive requires an ISH to AllESs, with NET and 0xCC, before the first IIH, and a received ISH through the production dispatcher to initialize the peer; transport TestRFC1195ISHVethTransport sends and receives it over AF_PACKET on a veth pair. Negative, NEW root TestRFC1195NeighborWithoutISHStillFormsAdjacency: a P2P neighbor that never sends an ISH is not refused; its IIH three-way Down makes an Initializing adjacency and its IIH three-way Initializing naming Ze brings it Up. The ISH is the classification step, the IIH exchange makes the adjacency, so waiting forever on an ISH the peer may not send is the failure this pins (author's overlay making applyHello refuse an ISH-less Down adjacency went red, state down). Held negatives (corrupt ISH and wrong circuit, wrong or missing ISH password) prove neighbouring rules and stay supplementary. Records: - revert applyHello (new unit); this judge recorded + revert sendISH (TestRFC1195ISHTransmitReceive), - revert receiveISH (corruption/wrong circuit), + revert signISHPDU and - revert verifyISHFrame (password units), all observed red. NOT YET RECORDED: TestRFC1195ISHVethTransport (+ revert transport.go SendISH), a guest proof; the guest le build failed on another session's uncommitted internal/component/l2tp/session_fsm.go handleSLI signature change, so that one record is owed when the tree builds. The ISO 10589 immediate-IIH-on-ISH reply is journaled (plan/journal/queued-request-waits-for-an-unrelated-trigger.md), not this row.",
       "requirement_sha": "8c66d07c7d1e3d6f",
       "tests": {
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "53ff993953928049",
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "53ff993953928049",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "fc999353e8eb0648",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
+        "internal/plugins/isis/rfc1195_ish_absence_test.go::TestRFC1195NeighborWithoutISHStillFormsAdjacency": "8ea8b9887f136473",
         "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "dde962b1c6246aa3"
       },
       "units": {
@@ -163,9 +165,10 @@
         "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "6a49678dca8c530b",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "1e254aaaf552ac6f",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
+        "internal/plugins/isis/rfc1195_ish_absence_test.go::TestRFC1195NeighborWithoutISHStillFormsAdjacency": "56cceb96d79089c6",
         "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "84afac45bef8b1b8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-4.4-3": {
       "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit. Re-judged 2026-09-30 (twice): TestRFC1195NodeProtocolsAcrossInterfaces changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments.",
@@ -205,7 +208,7 @@
       "note": "Re-judged 2026-09-30 (TestISISIIHOriginationTLVs claim block changed: its RFC3787 tags were split; this row's tag and the unit body are unchanged). Single-polarity positive per the row (Ze is unconditionally IP-capable). TestISISIIHOriginationTLVs asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH; root TestRFC1195NodeProtocolsAcrossInterfaces asserts TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0; root TestRFC1195ISHTransmitReceive the ISH on a point-to-point circuit; lsdb TestISISOriginateOnAdjacencyUp LSP fragment 0. Every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV (three units); the lsdb unit carries no record of its own. Re-read 2026-09-30 by judge after TestISISIIHOriginationTLVs gained a TLV 132 value assertion (RFC3787-10-1); its TLV 129 assertions in the LAN and P2P IIH are unchanged, so the verdict stands.",
       "requirement_sha": "7dd876d267bd817e",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "78bad3f1ac821eb8",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "d2a6a39b4a89fc93",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"

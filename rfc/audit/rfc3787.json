@@ -2,15 +2,17 @@
   "audited": "2026-09-30",
   "requirements": {
     "RFC3787-10-1": {
-      "note": "Re-judged 2026-09-30 (judge, independent). Section 10: 'it MUST include an IP Interface address (TLV 132) in its IIH PDUs.' Positive circuit TestISISIIHOriginationTLVs decodes the sent LAN and P2P IIH and, via assertIPInterfaceAddr, requires exactly one TLV 132 whose value is exactly c0 00 02 01, the circuit's configured 192.0.2.1: a producer emitting 0.0.0.0, a constant, another address or a duplicate goes red (judge re-ran the author's go -overlay break a4={192,0,2,9}: LAN and P2P red 'c0 00 02 09, want c0 00 02 01'; no ledger record for that break since no gomu mutant writes a wrong address). Negative TestISISHelloTLV132RequiresInterfaceAddr: a circuit with no IPv4 address omits TLV 132 rather than fabricating one. Records +/- revert on circuit/hello.go ipv4InterfaceAddrTLV, both observed red.",
+      "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2. Positive circuit TestISISIIHOriginationTLVs requires exactly one TLV 132 whose value is the configured c0 00 02 01 in the sent LAN and P2P IIH (record + revert ipv4InterfaceAddrTLV). Negatives: circuit TestISISHelloTLV132RequiresInterfaceAddr (generation side: a circuit with no IPv4 omits TLV 132 rather than fabricating one; record - revert ipv4InterfaceAddrTLV) and NEW root TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop (handling of absence: a peer IIH advertising 0xCC with no TLV 132, or TLV 132 with zero entries, still forms an Up adjacency, as RFC 3787 section 10 and RFC 1195 section 4.4 form adjacencies 'independent of the IP interface addresses', and ResolveNextHop answers not-found, inventing neither gateway nor rejection; record - revert spf_wiring.go ResolveNextHop, author's overlay returning an address-less on-link hop went red on both subtests). Read against ResolveNextHop: row.IPv4 empty -> continue -> (NextHop{}, false).",
       "requirement_sha": "3d484bb30936d1f8",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "78bad3f1ac821eb8",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "78bad3f1ac821eb8"
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "d2a6a39b4a89fc93",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "d2a6a39b4a89fc93",
+        "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop": "a940981abe536df7"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "74c2a5e7f81f23e7",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "1cff299a6fa05a25"
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "ccce6b2d66d0df36",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "1cff299a6fa05a25",
+        "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop": "f9c5fe7a057b3f64"
       },
       "verdict": "enforced"
     },
@@ -30,21 +32,23 @@
       "verdict": "enforced"
     },
     "RFC3787-x-2": {
-      "note": "Re-judged 2026-09-30 after the R44 split (the Section 10 TLV 132 clause is now RFC3787-10-1, and the TLV 132 negative moved there). Positive covers every place the Section 9 sentence names: circuit TestISISIIHOriginationTLVs (TLV 129 in the sent LAN and P2P IIH), root TestRFC1195NodeProtocolsAcrossInterfaces (TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0) and root TestRFC1195ISHTransmitReceive (ISH TLV 129 = 0xCC); recorded + on protocolsSupportedTLV. The remaining negative tag, TestISISHelloTLV132RequiresInterfaceAddr narrowed to 'no IPv4 address still advertises NLPID 0xCC', is the obligation met under a second input, i.e. another positive, not a rejected violation. Ze is always IP-capable and has no refusal path, so no genuine negative exists; the {single-polarity: positive} marker is refused by the gate while this HEAD-held negative tag stays (stale-annotation) and dropping the tag trips the coverage ratchet. Stays weak until the owner rules on that deadlock shape. Re-read 2026-09-30 by judge after TestISISIIHOriginationTLVs gained the TLV 132 value assertion (RFC3787-10-1); its TLV 129 assertions are unchanged, so the verdict and its reason stand.",
+      "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2: for a generate row the positive proves what Ze generates and the negative proves Ze's handling of a peer PDU that lacks it. RFC 3787 section 9 names that handling itself: 'A router that does not include the Protocols Supported TLV may be assumed to be a pure OSI router'. Positive: circuit TestISISIIHOriginationTLVs (TLV 129 in sent LAN and P2P IIH), root TestRFC1195NodeProtocolsAcrossInterfaces (0xCC in every IIH and LSP 0), root TestRFC1195ISHTransmitReceive (ISH TLV 129 = 0xCC), circuit TestISISHelloTLV132RequiresInterfaceAddr (retagged positive, D-15: no IPv4 address still advertises 0xCC); records + on protocolsSupportedTLV. Negative: root TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected dispatches a peer P2P IIH through the engine dispatcher with no TLV 129, TLV 129 CLNP-only, and TLV 129 IPv6-only, each with TLV 132 = 192.0.2.2 present, and requires the Up adjacency to resolve IPv4 to Unsupported with no address (RFC 1195 section 4.5 discard); read against circuit/ish.go receivedProtocols (absent -> ProtocolCLNP) and spf_wiring.go ResolveNextHop (no IPv4 bit -> Unsupported). Record - revert receivedProtocols; the author's semantic overlay (absent -> CLNP|IPv4) went red on no_TLV_129 with next hop 192.0.2.2. The CLNP-only and IPv6-only cases isolate the NLPID check from the presence check. Orphan x-2 negative record on TestISISHelloTLV132RequiresInterfaceAddr pruned (tag is now positive).",
       "requirement_sha": "a1deb68ee9a00995",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "78bad3f1ac821eb8",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "78bad3f1ac821eb8",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "d2a6a39b4a89fc93",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "d2a6a39b4a89fc93",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648",
+        "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected": "a940981abe536df7"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "74c2a5e7f81f23e7",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "ccce6b2d66d0df36",
         "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "1cff299a6fa05a25",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
-        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca"
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca",
+        "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected": "76ba879b9e43a241"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc3787"

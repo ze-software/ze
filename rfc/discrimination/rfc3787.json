@@ -24,6 +24,17 @@
       "break": "body of ipv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3787-10-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop",
+      "unit-sha": "19a30359fc096f52",
+      "claim-sha": "485ad6b4e988bcf4",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
+      "producer-sha": "fa86deec17306279",
+      "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3787-x-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged",
@@ -58,7 +69,7 @@
     },
     {
       "rid": "RFC3787-x-2",
-      "polarity": "negative",
+      "polarity": "positive",
       "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr",
       "unit-sha": "cc1c8d4f90a97fb3",
       "claim-sha": "ca1443450ba1cf5c",
@@ -71,7 +82,7 @@
       "rid": "RFC3787-x-2",
       "polarity": "positive",
       "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
-      "unit-sha": "7a2d7060384637a4",
+      "unit-sha": "4d5855ae8d953c32",
       "claim-sha": "bf6bb63c0e7668b8",
       "route": "revert",
       "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
@@ -99,6 +110,17 @@
       "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
       "producer-sha": "1d45130d31599694",
       "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected",
+      "unit-sha": "884d3738db42c1ad",
+      "claim-sha": "3695129dade515b8",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/ish.go::receivedProtocols",
+      "producer-sha": "b86b99e34fdd7035",
+      "break": "body of receivedProtocols replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

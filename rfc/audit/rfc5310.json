@@ -110,7 +110,7 @@
       "verdict": "enforced"
     },
     "RFC5310-4-2": {
-      "note": "Positive sound: TestISISAuthRotation, TestISISAuthRotationOverlapAccepts and TestRFC5310NonSendingKeyStillUsed all fail with a one-key store. The wrong-key and Key-ID-mismatch negatives moved to RFC5310-3.5-1, where they belong. The only negative left, root TestRFC5310NonSendingKeyStillUsed, is a further positive (a non-sending key still verifies). 'Able to store and use more than one key' has no refusal path and no input drives the store toward one key (resolveChain keeps every decodable key, acceptKeys caps at 16), so no genuine negative exists; a {single-polarity: positive} marker plus retagging that unit is the owner decision (OWNER-GATE).",
+      "note": "Re-judged 2026-09-30 (independent judge) on its positives, per the main-thread decision following the owner's BFD RFC5880-6.1-3 ruling (a capability MUST with no refusal path is proven by its positives). Every clause is proven: STORE more than one key, root TestISISAuthRotation requires verifyKeys to return both keys (len 2) before and after the send rollover; USE more than one key at the same time, packet TestISISAuthRotationOverlapAccepts verifies a PDU signed by either of two candidate keys, and root TestRFC5310NonSendingKeyStillUsed verifies with an accepted key that is not the sending key, while signKey moves from key 1 to key 2 in TestISISAuthRotation. Each fails with a one-key store (keys[:1] fails the new-key verify; a single-entry store fails len 2). Records: + revert acceptKeys (TestISISAuthRotation), + revert VerifyPDU (TestISISAuthRotationOverlapAccepts, recorded by this judge), - revert acceptKeys (TestRFC5310NonSendingKeyStillUsed). The negative tag on TestRFC5310NonSendingKeyStillUsed is kept as supplementary because the coverage ratchet holds it: it is a further positive, not a rejected violation, and no input drives the store toward one key.",
       "requirement_sha": "af5b9ba6dd2fcc8b",
       "tests": {
         "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation": "488fb8b461157d91",
@@ -122,7 +122,8 @@
         "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310NonSendingKeyStillUsed": "9248df6db245829a",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "1b2c3ce15746744f"
       },
-      "verdict": "weak"
+      "upgrade_reason": "No tagged unit changed. The earlier weak verdict rested only on the missing genuine negative; the positives were already judged sound. The main thread ruled, on the precedent of the owner's BFD RFC5880-6.1-3 ruling, that a store-and-use capability MUST with no refusal path is judged on its positives, and this judge re-read all three positives against RFC 5310 section 4 and found each clause (store, use at the same time) proven and recorded.",
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5310"

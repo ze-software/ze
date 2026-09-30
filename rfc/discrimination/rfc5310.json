@@ -187,6 +187,17 @@
       "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
       "producer-sha": "a1e1c4ca74caf1aa",
       "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts",
+      "unit-sha": "be293515e21b4a3a",
+      "claim-sha": "7d87f59151925e4a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
+      "producer-sha": "0161e11c870b1404",
+      "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
