@@ -296,10 +296,13 @@ func TestWp2DPDProbeIBitDiffersByRole(t *testing.T) {
 // commit.
 // PREVENTS: a NUL-bearing identity reaching the wire or the policy comparison, where an
 // embedded NUL makes two different strings compare equal in one layer and not another.
-// RFC requirement: RFC7296-3.5-5 positive -- RFC 7296 Section 3.5: "The ID_FQDN and
-// ID_RFC822_ADDR strings MUST NOT contain any terminators (e.g., NULL, CR, etc.)." Both
-// directions are covered: the receive path refuses the peer's value, and the config path
-// refuses ze's own before it can be sent.
+// RFC requirement: RFC7296-3.5-5 positive -- RFC 7296 Section 3.5, ID_FQDN: "The string
+// MUST NOT contain any terminators (e.g., NULL, CR, etc.)." Both directions are covered:
+// the receive path refuses a peer's ID_FQDN holding NUL, CR or LF, and the config path
+// refuses ze's own local-id or remote-id holding one before it can be sent.
+// RFC requirement: RFC7296-3.5-6 positive -- RFC 7296 Section 3.5, ID_RFC822_ADDR: "The
+// string MUST NOT contain any terminators." The receive path refuses a peer's
+// ID_RFC822_ADDR holding a NUL.
 func TestWp2IDTerminatorRefused(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -336,10 +339,12 @@ func TestWp2IDTerminatorRefused(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-3.5-5 negative -- a clean ID_FQDN and a clean mail address are
-// ACCEPTED, on both the receive path and the config path, and an ID_KEY_ID carrying the
-// same octet is left alone because Section 3.5 puts no character rule on it. Without this
-// half the positive test would pass against a check that refused every identity.
+// RFC requirement: RFC7296-3.5-5 negative -- a clean ID_FQDN is ACCEPTED, on both the
+// receive path and the config path, and an ID_KEY_ID carrying a NUL is left alone because
+// Section 3.5 puts no character rule on it. Without this half the positive test would
+// pass against a check that refused every identity.
+// RFC requirement: RFC7296-3.5-6 negative -- a clean ID_RFC822_ADDR is ACCEPTED on the
+// receive path, and on the config path as a remote-id.
 func TestWp2IDWithoutTerminatorAccepted(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

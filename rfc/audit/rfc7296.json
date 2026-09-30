@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -70,8 +71,8 @@
       "note": "Child SA Delete response carries a Delete naming the paired inbound SPI; IKE SA Delete draws an empty response",
       "requirement_sha": "70583a75d4a84af9",
       "tests": {
-        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "15034f1360bdd628",
-        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelResponseCarriesThePairedDelete": "15034f1360bdd628"
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "7748979df6c29890",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelResponseCarriesThePairedDelete": "7748979df6c29890"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "3383bc20c009d2ff",
@@ -80,17 +81,17 @@
       "verdict": "enforced"
     },
     "RFC7296-1.4.1-4": {
-      "note": "TestLcyInformationalResponseCarriesNoDeletePayload never sets up crossed deletes (the exception the MUST NOT governs); its premise that ze attaches no Delete to any response is now false (TestDelResponseCarriesThePairedDelete), so the comment is stale and the unit asserts an unknown-SPI Delete draws none",
+      "note": "TestDelCrossingDeleteAnswersWithoutAPairedDelete runs the production crossing sequence (recordOwnDelete, send, remove) and asserts the response to the peer's crossing Delete carries no Delete payload; reddens when crossOwnDelete stops detecting the crossing. TestDelWithoutOwnDeleteTheSameRequestIsPaired pins the row's own 'In that case' scope: outside the exception the same Delete draws the paired Delete \u00a71.4.1 requires ('Normally, the response ... will contain Delete payloads for the paired SAs'), so a responder that never pairs cannot pass. The tags on TestLcyInformationalResponseCarriesNoDeletePayload are gone and its stale premise rewritten.",
       "requirement_sha": "48702badce76b398",
       "tests": {
-        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload": "575a4c6966d68814",
-        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload#2": "575a4c6966d68814"
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelCrossingDeleteAnswersWithoutAPairedDelete": "7748979df6c29890",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWithoutOwnDeleteTheSameRequestIsPaired": "7748979df6c29890"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload": "3c2658c42cecdc9d",
-        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload#2": "3c2658c42cecdc9d"
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelCrossingDeleteAnswersWithoutAPairedDelete": "54d69523e0d10920",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWithoutOwnDeleteTheSameRequestIsPaired": "3acb69c9a41b012b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-1.7-2": {
       "note": "HMAC PRFs accept 1..200-octet keys and consume the key",
@@ -119,30 +120,34 @@
       "verdict": "weak"
     },
     "RFC7296-2.10-3": {
-      "note": "positive tag claims every rekey nonce uses nonceLen (rekey.go) but only newInitiatorSA/newResponderSA nonces are asserted; PRF list is hand-written in the test, not read from prfRegistry; negative is a tightness guard, not a violating input",
+      "note": "Positive TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey reads the PRF list from the registry and asserts IKE_SA_INIT Ni, Nr and a real CREATE_CHILD_SA rekey Ni. Not read: the CREATE_CHILD_SA response nonce (rekey.go:579, :1097) and the IKE SA rekey request nonce, which \u00a72.10 also binds; a per-site shortening there stays green. Negative TestRFC7296EmittedNoncesMeetTheLargestPRFBound repeats the positive's assertion for the largest PRF (one assertion, two hats); its only addition is that the largest half exceeds 16 octets.",
       "requirement_sha": "310ac223e95176d0",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "c17539d415be3db4",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize#2": "c17539d415be3db4"
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "c694bc78de242c72",
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "c694bc78de242c72"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "765878a8889d35d0",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize#2": "765878a8889d35d0"
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "e18617dbc9a12f42",
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "ad64318fbfd7d1c7"
       },
       "verdict": "weak"
     },
     "RFC7296-2.11-2": {
-      "note": "TestNattRepliesToTheObservedSourcePort asserts the stored peerEndpoint/remoteUDPAddr port, never reads the reply datagram on the odd-port listener it opens; the negative (forged packet does not move the endpoint) is the 2.23 dynamic-update bound, not a violation of this row",
+      "note": "TestRFC7296ReplyLandsOnTheRequestSourcePort reads the actual datagram on the socket bound to the request's odd source port: response flag, the request's Message ID, decrypts under the IKE SA. TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint: the configured remote receives nothing, the violating destination. The older natt positive asserts only the stored endpoint; the natt negative (TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint) proves the \u00a72.23 validated-packet bound on dynamic address update, which no rfc7296 row states yet.",
       "requirement_sha": "0d57af8ddbfd3571",
       "tests": {
         "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "f33281d04b335fdb",
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "f33281d04b335fdb"
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "f33281d04b335fdb",
+        "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint": "10566beea1d5b441",
+        "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "10566beea1d5b441"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "970af1bba30bf5fb",
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "91db65ce82b27316"
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "91db65ce82b27316",
+        "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint": "7525cf8b89507d6a",
+        "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "612fb69fb7fad033"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.13-2": {
       "note": "the tags assert SK_* key sizing, which is RFC7296-2.13-3; no supported cipher has invalid key values (AES only), so nothing tests this row's rule. no supported transform has invalid key values (encryptionRegistry is AES CBC/GCM/CCM only, no DES/3DES); the tags assert SK_* key sizing, which is RFC7296-2.13-3",
@@ -407,8 +412,8 @@
       "verdict": "weak"
     },
     "RFC7296-2.23-2": {
-      "note": "TestChildSANATTEncapPorts asserts ESP UDP encap on 4500 when NAT is detected; the quote says ALL subsequent traffic moves to 4500, and no tagged unit asserts IKE traffic floats to 4500",
-      "requirement_sha": "91d409bd36d2f443",
+      "note": "Row now quotes the \u00a72.23 ESP sentence (verbatim). Positive TestChildSANATTEncapPorts is sound: NATDetected makes both Child SAs UDP-encapsulated on 4500. Negative TestChildSANoNATNoEncap is only an antecedent guard: without a NAT \u00a72.23 lets either side choose ('Either side can decide whether or not to use UDP encapsulation for ESP'), so always-encapsulate complies and the negative asserts ze's interop choice, not this row. Only createFirstChildSA is driven; a rekeyed ESP SA under NAT is not asserted. No refusal path exists for a genuine negative (R1 fallback).",
+      "requirement_sha": "bb6afe31983215b2",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c602227a7107a32",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "e032382b6fba7977"
@@ -690,8 +695,8 @@
       "tests": {
         "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite": "34934f4417c6c829",
         "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "e86fe30046213f74",
-        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "3aea182e6ec56bb9",
-        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "3aea182e6ec56bb9"
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "ca62d931e5068b03",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "ca62d931e5068b03"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite": "d0f6c034813da69d",
@@ -705,8 +710,8 @@
       "note": "IKE_AUTH request and response inner chains hold no SK payload; negative is a vacuity guard",
       "requirement_sha": "91df2a46a9386eaa",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "c17539d415be3db4",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "c17539d415be3db4"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "19c5161b4c10330d",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "19c5161b4c10330d"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "359f0099d0ac11d4",
@@ -868,21 +873,25 @@
       "verdict": "enforced"
     },
     "RFC7296-3.11-2": {
-      "note": "the engine refuses an ESP Delete with SPI Size 3 (INVALID_SYNTAX) and accepts 4; the wire positive round-trips test-chosen sizes and the wire negative is truncation, a neighbouring rule; IKE Delete with non-zero SPI Size and AH with a wrong size are not exercised on receipt",
-      "requirement_sha": "4e968c625adee1be",
+      "note": "TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused drives IKE size 4, AH 0 and 8, ESP 0 through handleInformationalOwned: exactly one INVALID_SYNTAX, no Delete, no SA removed, no reestablish. Each case reddens under the break of its own deleteMalformed arm. TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted: IKE 0 and AH 4 draw no notify, so the refusal is per-protocol size and not a refusal of IKE/AH Deletes. The older ESP-size-3 units and the wire units carry no discrimination record; the wire negative (truncation) proves a neighbouring rule.",
+      "requirement_sha": "b867a954d0b4a3d8",
       "tests": {
-        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "15034f1360bdd628",
-        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "15034f1360bdd628",
+        "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted": "06303361b5af4b5f",
+        "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused": "06303361b5af4b5f",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "7748979df6c29890",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "7748979df6c29890",
         "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol": "459954f82bfe6b71",
         "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol#2": "459954f82bfe6b71"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted": "27476e2b49e75390",
+        "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused": "94c92bc8684c2cba",
         "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "769fa4c4e84033af",
         "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "2e00e2efbe6af953",
         "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol": "e80be1f42aec7a7b",
         "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol#2": "e80be1f42aec7a7b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.13.1-1": {
       "note": "selectorsToWire encodes protocol-0 all-ports Start Port 0; single-port selector proves the encoder can emit non-zero",
@@ -927,7 +936,7 @@
       "note": "Positive: TestSKAcceptsAnyIVOnReceipt decrypts all-zero, all-ones and ascending IVs. Negative (ruling R1 b, no refusal path exists): TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen decrypts a message reusing the previous IV and one whose IV is the previous message's final ciphertext block, the IVs a recipient that policed the sender's rule would refuse; such a break leaves the positive green and turns this unit red. The checksum-corruption negative moved to RFC7296-3.14-6. The row is still the fragment \"recipients MUST accept any value\".",
       "requirement_sha": "94d965b11c7d747c",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "c17539d415be3db4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "19c5161b4c10330d",
         "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "ec58910b762cef5e"
       },
       "units": {
@@ -940,8 +949,8 @@
       "note": "minimum pad and +16/+32 accepted; over-long Pad Length refused with a valid MAC",
       "requirement_sha": "f3bfd65be332a314",
       "tests": {
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "c17539d415be3db4",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "c17539d415be3db4"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "19c5161b4c10330d",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "19c5161b4c10330d"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "6d72b0944f499449",
@@ -955,9 +964,9 @@
       "tests": {
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "3ceaa9f84e99828e",
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "3ceaa9f84e99828e",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "c17539d415be3db4",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "c17539d415be3db4",
-        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "c17539d415be3db4"
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "19c5161b4c10330d",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "19c5161b4c10330d",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "19c5161b4c10330d"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "b8795b1f309fc3ae",
@@ -1244,15 +1253,28 @@
       "verdict": "enforced"
     },
     "RFC7296-3.5-5": {
-      "note": "Clauses: the ID_FQDN string MUST NOT contain terminators; all characters are ASCII, with IDNA syntax for internationalized names. The terminator clause is asserted (refuseIDTerminators refuses NUL/CR/LF in ID_FQDN and ID_RFC822_ADDR, ValidateIdentities refuses them in config; clean ids accepted). The ASCII/IDNA clause has no assertion: a non-ASCII FQDN is neither sent nor refused in any tagged unit.",
-      "requirement_sha": "991740adb20955b8",
+      "note": "Row now quotes the ID_FQDN entry through its ban (verbatim \u00a73.5; the keyword-free ASCII/IDNA sentence the old weak verdict turned on is out of the span). TestWp2IDTerminatorRefused: a peer ID_FQDN holding NUL, CR or LF is refused by refuseIDTerminators, and ze's own local-id/remote-id holding one is refused by ValidateIdentities (config.go:158), the only path to the ID_FQDN ze sends (encodeIKEID). TestWp2IDWithoutTerminatorAccepted: clean FQDN accepted on both paths, NUL ID_KEY_ID left alone, so neither check refuses everything. Both halves call the validators directly; the call sites remote_id.go:393 and config.go:158 are unasserted. Producer comments at remote_id.go:352 and ipsec/validate.go:181 still quote the invented sentence the row dropped.",
+      "requirement_sha": "a6a8d7d8c49a0ea4",
       "tests": {
-        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "3aea182e6ec56bb9",
-        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "3aea182e6ec56bb9"
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "ca62d931e5068b03",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "ca62d931e5068b03"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "23a0a6d9ee6be57d",
-        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "dcd48c0b46fd4aa5"
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "f4b89da69b00e57e",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "935030454f39d3e3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.5-6": {
+      "note": "Row is verbatim \u00a73.5 (ID_RFC822_ADDR entry through its ban). The ban binds whoever sends an ID_RFC822_ADDR, and ze never sends one: encodeIKEID emits only ID_IPV4_ADDR, ID_IPV6_ADDR or ID_FQDN. The tags prove a receive-side refusal (refuseIDTerminators refuses a peer's NUL mail address; a clean one is accepted, and a clean mail remote-id commits), which \u00a73.5 does not require. No tagged unit can fail on a violation Ze could commit; route per R2 (move the tags or retire the row as binding the ID_RFC822_ADDR sender).",
+      "requirement_sha": "48c22fdf4d3cba79",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "ca62d931e5068b03",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "ca62d931e5068b03"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "f4b89da69b00e57e",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "935030454f39d3e3"
       },
       "verdict": "weak"
     },

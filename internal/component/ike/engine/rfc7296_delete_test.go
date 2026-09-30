@@ -163,6 +163,10 @@ func TestDelIKEDeleteDrawsAnEmptyResponse(t *testing.T) {
 // deleted SAs". Ze removes BOTH halves before it sends its own Delete, so both are already
 // gone when each of the section's two events arrives, which satisfies the ordering strictly
 // earlier. This drives that production sequence and asserts the bare response.
+// RFC requirement: RFC7296-1.4.1-4 positive -- RFC 7296 Section 1.4.1: "In that case, the
+// responses MUST NOT include Delete payloads for the deleted SAs". With ze's own ESP Delete
+// for the pair outstanding, the response to the peer's crossing Delete for the same pair
+// carries no Delete payload.
 func TestDelCrossingDeleteAnswersWithoutAPairedDelete(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	f := delSession(t)
@@ -277,6 +281,9 @@ func TestDelWellFormedSPISizeIsAccepted(t *testing.T) {
 // RFC requirement: RFC7296-1.4.1-7 negative -- with no Delete of ze's own outstanding,
 // the very same inbound Delete DOES draw a paired Delete payload. The suppression is
 // therefore the crossing record talking, and not a handler that never answers.
+// RFC requirement: RFC7296-1.4.1-4 negative -- outside "that case" (no Delete of ze's own
+// outstanding for the pair) the same inbound Delete draws a response that DOES carry a
+// Delete payload, so the omission above is confined to the crossed-delete exception.
 func TestDelWithoutOwnDeleteTheSameRequestIsPaired(t *testing.T) {
 	f := delSession(t)
 

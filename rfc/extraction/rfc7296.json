@@ -1691,7 +1691,7 @@
       "quote": "However, if a NAT is detected, both devices MUST use UDP encapsulation for ESP.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.23-2",
-      "reason": "The exception to that free choice: a detected NAT makes UDP encapsulation of ESP mandatory on both sides. RFC7296-2.23-2 is the summary's row for what a detected NAT forces on IKE and ESP traffic."
+      "reason": "The exception to that free choice: a detected NAT makes UDP encapsulation of ESP mandatory on both sides. RFC7296-2.23-2 quotes the sentence."
     },
     {
       "id": "2.23:6",
@@ -2155,15 +2155,14 @@
       "quote": "The string MUST NOT contain any terminators (e.g., NULL, CR, etc.).",
       "disposition": "mapped",
       "mapped-to": "RFC7296-3.5-5",
-      "reason": "The ID_FQDN entry bans terminator characters in the identification string. RFC7296-3.5-5 states that ban for ID_FQDN and ID_RFC822_ADDR."
+      "reason": "The ID_FQDN entry bans terminator characters in the identification string. RFC7296-3.5-5 quotes the ID_FQDN entry through this sentence."
     },
     {
       "id": "3.5:3",
       "quote": "The string MUST NOT contain any terminators.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC7296-3.5-5",
-      "reason": "The ID_RFC822_ADDR entry repeats the terminator ban that the ID_FQDN entry states. Site 3.5:2 maps RFC7296-3.5-5, whose text names both identification types."
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.5-6",
+      "reason": "The ID_RFC822_ADDR entry bans terminator characters in the mail address string. It binds a different identification type from site 3.5:2, so RFC7296-3.5-6 quotes the ID_RFC822_ADDR entry through this sentence."
     },
     {
       "id": "3.5:4",

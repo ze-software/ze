@@ -285,28 +285,14 @@ func TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound(t *testing.T) {
 	}
 }
 
-// VALIDATES: the answer to a Delete request carries no Delete payload of its own.
-// RFC requirement: RFC7296-1.4.1-4 positive -- handleInformationalOwned passes a nil payload
-// chain to the response builder (inbound.go:293), and it does so unconditionally. Ze
-// therefore attaches a Delete to NO informational response, so it attaches none in the
-// crossed-close case this row governs. The only two PayloadDelete constructions in the
-// file build REQUESTS (inbound.go:258 sendDeleteIKE, inbound.go:334 sendDeleteESP).
-// RFC requirement: RFC7296-1.4.1-4 negative -- the same decode helper finds a Delete inside the
-// encrypted request. A count of zero in the answer is therefore a real reading of a real
-// answer. That answer also parses as a response at the request id.
+// VALIDATES: the answer to a Delete request naming an SPI ze does not hold is an empty
+// INFORMATIONAL response at the request's Message ID: ze has no SA to pair, so it names none.
+// The decode helper first finds the Delete inside the encrypted request, so a count of zero in
+// the answer is a real reading of a real answer.
 //
-// Read the scope of this row before you change the test. RFC 7296 section 1.4.1 gives the
-// ordinary case first, where the response usually carries Delete payloads for the paired
-// SAs. It then names ONE exception. That exception is a delete request for SAs we already
-// sent a delete request for. The MUST NOT belongs to that exception alone.
-//
-// This test does not set that case up, and it does not need to. A proof that Ze never
-// attaches a Delete to any response is strictly stronger.
-//
-// The same behavior is a DEFECT against the ordinary case. It is already recorded as the
-// {gap} annotation on RFC7296-1.4-1 in rfc/short/rfc7296.md. This green test does not say
-// that Ze answers a Delete correctly. It says only that Ze never commits the duplicate
-// deletion the crossed case forbids.
+// This unit does not set up the crossed-delete exception of RFC 7296 Section 1.4.1. The
+// crossed case is TestDelCrossingDeleteAnswersWithoutAPairedDelete, and the ordinary case,
+// where the response pairs the Delete, is TestDelResponseCarriesThePairedDelete.
 func TestLcyInformationalResponseCarriesNoDeletePayload(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	local, peer, ps, peerTr, myTr := lcyLoopback(t)

@@ -418,14 +418,9 @@ func forgePadLength(t *testing.T, sa, peer *SA, raw []byte, sk *wire.PayloadSK, 
 	return out
 }
 
-// RFC requirement: RFC7296-2.10-3 positive -- the nonce is at least half the key size of the
-// negotiated PRF. nonceLen is 32 octets (fsm.go:33), and every PRF this implementation can
-// negotiate has a preferred key size of at most 64 octets (crypto/transform.go:126-130). So
-// 32 >= KeyLength/2 for each of them. newInitiatorSA, newResponderSA and every rekey nonce
-// all use that same nonceLen (initiator.go:24, responder.go:30, rekey.go:55, :158, :296, :469).
-// RFC requirement: RFC7296-2.10-3 negative -- the bound is against the PRF, not against the 16-octet
-// wire minimum. For the largest PRF this implementation supports the bound is exactly met, so
-// a nonce one octet shorter would violate it.
+// VALIDATES: nonceLen is at least half the key of the sha256, sha384 and sha512 PRFs, the
+// bound is tight for sha512, and the IKE_SA_INIT nonces use nonceLen. The RFC 7296 Section
+// 2.10 proof over every registered PRF and the rekey Ni is rfc7296_nonce_size_test.go.
 func TestNonceMeetsHalfPRFKeySize(t *testing.T) {
 	for _, name := range []string{"sha256", "sha384", "sha512"} {
 		prf, err := ikecrypto.LookupPRF(name)
