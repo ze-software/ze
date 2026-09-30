@@ -519,6 +519,17 @@
       "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.21.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify",
+      "unit-sha": "afb89a2747ac2804",
+      "claim-sha": "a14eb22adc7b6a45",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+      "producer-sha": "85f45866bb5510fa",
+      "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-2.21.2-3",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthExtensionErrorsRequirePeerUnderstanding",
@@ -539,6 +550,28 @@
       "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
       "producer-sha": "391521701bb06eef",
       "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.21.4-7",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState",
+      "unit-sha": "d37e3adfbd6c360b",
+      "claim-sha": "ce6f28dac660674b",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+      "producer-sha": "16e89dc41a6d249a",
+      "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.21.4-7",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState",
+      "unit-sha": "d37e3adfbd6c360b",
+      "claim-sha": "34a76c3c2d3d49b2",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+      "producer-sha": "16e89dc41a6d249a",
+      "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.23-12",
@@ -992,6 +1025,17 @@
       "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-3.10.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax",
+      "unit-sha": "fe1818594c8a0ae1",
+      "claim-sha": "afe64e74cad62ac4",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+      "producer-sha": "85f45866bb5510fa",
+      "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-3.11-2",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted",
@@ -1144,6 +1188,17 @@
       "producer": "internal/component/ike/engine/remote_id.go::refuseIDTerminators",
       "producer-sha": "5339820b9fcc87ea",
       "break": "body of refuseIDTerminators replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.6-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured",
+      "unit-sha": "68e011888c9f983d",
+      "claim-sha": "eeb43bd0b3397760",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/cert_payload.go::acceptedCertEncoding",
+      "producer-sha": "0cffd81c857102ae",
+      "break": "body of acceptedCertEncoding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

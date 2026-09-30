@@ -348,10 +348,11 @@
       "id": "2.21.4",
       "sites": 5,
       "disposition": "walked",
-      "reason": "Five sites carry the out-of-SA rules for a message on port 500 or 4500 with no known IKE SA. Two of those sentences state two obligations each, so RFC7296-2.21.4-4 and -6 have no site of their own and are recorded unsourced.",
+      "reason": "Five sites carry the out-of-SA rules for a message on port 500 or 4500 with no known IKE SA. Two of those sentences state two obligations each, so RFC7296-2.21.4-4 and -6 have no site of their own and are recorded unsourced. RFC7296-2.21.4-8, the SHOULD to send a protected Notify over an existing IKE SA after a suspicious message, is below the MUST-level scan, so it is recorded unsourced too.",
       "unsourced-ids": [
         "RFC7296-2.21.4-4",
-        "RFC7296-2.21.4-6"
+        "RFC7296-2.21.4-6",
+        "RFC7296-2.21.4-8"
       ]
     },
     {
@@ -1639,7 +1640,7 @@
       "quote": "The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions.",
       "disposition": "mapped",
       "mapped-to": "RFC7296-2.21.4-7",
-      "reason": "The recipient here is the peer that received the protected Notify sent over an existing IKE SA after a suspicious message. RFC7296-2.21.4-7 carries the SHOULD send clause together with this MUST NOT."
+      "reason": "The recipient here is the peer that received the protected Notify sent over an existing IKE SA after a suspicious message. RFC7296-2.21.4-7 quotes the sentence; the SHOULD send clause before it is RFC7296-2.21.4-8."
     },
     {
       "id": "2.22:1",

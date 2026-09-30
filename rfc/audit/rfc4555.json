@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC4555-3.7-1": {
       "note": "Forbidden: answering an INFORMATIONAL request that carries COOKIE2 without the notification, or with altered data. internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds requires, for 8- and 64-octet cookies, that the decrypted response holds only COOKIE2 with byte-identical data (mbOnlyNotify). With no COOKIE2 it requires an empty response. internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket asserts bytes.Equal(echo, cookie) through the owner handoff, and asserts that a replay returns the identical cached response.",
@@ -120,17 +120,21 @@
       "verdict": "enforced"
     },
     "RFC4555-x-1": {
-      "note": "Forbidden: using MOBIKE on an IKE_SA whose own IKE_AUTH lacked MOBIKE_SUPPORTED, or placing it outside the message carrying the SA payload when there are several IKE_AUTH exchanges. internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation (through mbAuthHandshake/mbAuthOfferEmpty) asserts both generated IKE_AUTH messages of a single-exchange PSK handshake carry MOBIKE_SUPPORTED, which goes red if the offer is dropped. The multiple-IKE_AUTH clause (EAP, which the engine implements in eap_auth.go) has no assertion. The negative tag proves the neighbouring receiver rule: a peer that omitted its offer does not get MOBIKE enabled. It does not prove that Ze refuses to use MOBIKE without its own offer.",
+      "note": "Re-judged 2026-09-30 (independent judge). Clause: the MOBIKE_SUPPORTED offer is in IKE_AUTH, and with several IKE_AUTH exchanges in the message carrying the SA payload. rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA drives an EAP initiator: the first IKE_AUTH request (SA, no AUTH) decrypted off the wire carries MOBIKE_SUPPORTED, the later buildEAPResponse request carries neither SA nor the offer, and the peer's answer then enables MOBIKE. TestRFC4555NoOwnOfferNoMOBIKE is the negative for THIS row: an initiator whose own IKE_AUTH carried no offer (never built, or no migrating dataplane, checked off the wire) does not enable MOBIKE on the peer's offer (acceptMobikeOffer gates on mobike.offered). Revert records observed red on mobike.go::mobikeAuthOffer and ::acceptMobikeOffer. Single-exchange placement for both roles stays on TestMobikeAuthNegotiation. The responder's multi-exchange case is not driven end to end; its only offer site is buildAuthResponse (responder.go), the SA-carrying final response, after the SA payload unconditionally, the same builder TestMobikeAuthNegotiation asserts.",
       "requirement_sha": "02c2f816be600836",
       "tests": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "b46b98ab9899ea69",
+        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA": "01a1839717ac348e",
+        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555NoOwnOfferNoMOBIKE": "01a1839717ac348e"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "e2739b5ba06d541a"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "e2739b5ba06d541a",
+        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA": "fd3d694f2e32d3c6",
+        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555NoOwnOfferNoMOBIKE": "b8ed42afa8067b2c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4555-x-2": {
       "note": "Forbidden: a MOBIKE plus NAT-T implementation staying on port 500 for IKE_AUTH when no NAT is detected. internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation (through mbAuthHandshake) binds only NAT-T sockets, targets the port-500 stand-in at respTr-1, fails if ini.NATDetected, and requires the IKE_AUTH to arrive on respTr (mbReceive) with the non-ESP marker. Without the float the packet reaches no listener and the test goes red. Negative: internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE shows that with no NAT-T support the condition does not hold and no MOBIKE offer is made.",

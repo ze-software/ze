@@ -279,19 +279,21 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.2-1": {
-      "note": "Clauses: a request with an unsupported critical payload, or a wholly malformed request, is rejected in its entirety and draws only UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX. The malformed half is asserted (truncated inner chain answered with INVALID_SYNTAX only; bad payload contents not treated as malformed). The unsupported-critical-payload half has no assertion in the tagged units: no request carrying one is shown to draw exactly an UNSUPPORTED_CRITICAL_PAYLOAD response (see RFC7296-2.5-18, weak).",
+      "note": "Re-judged 2026-09-30 (independent judge). Both halves asserted. Unsupported critical payload: rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify sends a protected INFORMATIONAL whose only inner payload is private type 200 with C=1; the request never reaches the exchange handlers (peerAlive false) and the answer, decrypted under the IKE SA, carries exactly one payload, UNSUPPORTED_CRITICAL_PAYLOAD with data {200}. Malformed message: TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing (truncated inner chain answered with INVALID_SYNTAX only). Negative: TestCritChainReportsTruncationButNotBadContents (bad payload contents are not a malformed message). Revert record observed red on inbound.go::respondInnerParseError.",
       "requirement_sha": "81f9339824544b40",
       "tests": {
+        "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify": "021f21e652ee3918",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "4e9aa4949328a3c4",
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "02e1b5b1293a3513",
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "02e1b5b1293a3513"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify": "5de0395b8a5f2c86",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "89c93e44ce0eb218",
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "89c93e44ce0eb218"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.21.2-2": {
       "note": "initiator establishes despite piggybacked error notify; AUTHENTICATION_FAILED still kills the SA",
@@ -358,8 +360,8 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-7": {
-      "note": "Clauses: a node receiving a suspicious message from an address with which it has an IKE SA SHOULD send a Notify in an INFORMATIONAL exchange over that SA; the recipient MUST NOT change the state of any SAs. The MUST NOT is asserted (a protected INFORMATIONAL notify is answered and changes no SA state; a protected Delete does change state, the control). The SHOULD-send clause has no assertion: no unit feeds Ze a suspicious message and checks a Notify goes out over the existing SA.",
-      "requirement_sha": "cf7ff0e7a0d6315f",
+      "note": "Re-judged 2026-09-30 (independent judge) after the row was narrowed to the MUST NOT sentence, verbatim at RFC 7296 Section 2.21.4: \"The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions.\" The SHOULD-send sentence is RFC7296-2.21.4-8 {gap}. TestErrProtectedInformationalNotifyChangesNoState: a protected INFORMATIONAL carrying INVALID_SELECTORS (the kind of notify a node sends after a suspicious ESP packet) is answered, leaves the IKE SA state unchanged and the Child SA in place; control: the same exchange carrying a Delete does change state. Revert records observed red on inbound.go::handleInformationalOwned. Limit: the Child SA check is pointer identity, so an in-place mutation of the Child SA would not be seen; handleInformationalOwned acts on Delete and MOBIKE notifies only.",
+      "requirement_sha": "483418455e5deda8",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "4e9aa4949328a3c4",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "4e9aa4949328a3c4"
@@ -368,7 +370,17 @@
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "ba463a9e833cddbe",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "ba463a9e833cddbe"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The earlier weak verdict rested only on the SHOULD-send clause the row then carried. The row now quotes the MUST NOT sentence alone (Correction 2026-09-30), the send clause moved to RFC7296-2.21.4-8, and the unchanged unit asserts exactly the narrowed obligation, re-read here against Section 2.21.4 and handleInformationalOwned.",
+      "verdict": "enforced"
+    },
+    "RFC7296-2.21.4-8": {
+      "code": {
+        "internal/component/ike/engine/inbound.go::handleOwnedInbound": "af64fe32e991662e",
+        "internal/component/ike/engine/notify_error.go::answerOutOfSA": "7779929ee7fef0de"
+      },
+      "note": "Judged 2026-09-30 at the producers. A message outside any known IKE SA goes to answerOutOfSA (notify_error.go), which answers an unprotected INVALID_IKE_SPI from the header alone and never looks up an IKE SA held with the sender's address; an unprotected message at a cached Message ID of an existing SA is dropped and counted in handleOwnedInbound (inbound.go, unprotected-retransmit). Neither path initiates an INFORMATIONAL exchange over the existing SA. The one protected emission Ze raises unprompted, INVALID_MESSAGE_ID (sendInvalidMessageID), answers an authenticated in-SA request under Section 2.3 and is not this sentence's suspicious message.",
+      "requirement_sha": "353610cc278b34ce",
+      "verdict": "unimplemented"
     },
     "RFC7296-2.23-1": {
       "note": "TestNATDetectionPresent/Absent call DetectNAT on hand-built hashes; no tagged unit shows the initiator checks the received NAT_DETECTION payloads during IKE_SA_INIT, so the tests stay green if the engine stopped calling DetectNAT",
@@ -860,17 +872,19 @@
       "verdict": "enforced"
     },
     "RFC7296-3.10.1-3": {
-      "note": "Clause: INVALID_SYNTAX MUST be sent in response to ANY error not covered by another status type. One uncovered error class is asserted (a truncated inner chain in an authenticated request draws INVALID_SYNTAX); the negative covers the encrypted-and-verified precondition. Other uncovered errors (a bad payload length, an invalid field value in a protected request) have no case, so a responder answering them with another type or nothing stays green.",
+      "note": "Re-judged 2026-09-30 (independent judge). INVALID_SYNTAX for errors no other status type covers, in an authenticated request: truncated inner chain (TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing) and now Payload Length 0 and 3 (rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax), each answered with exactly one notify, INVALID_SYNTAX, and not dispatched. Every non-critical inner-chain parse error reaches the same single producer, respondInnerParseError, which answers INVALID_SYNTAX unconditionally. An invalid field value (a Delete with the wrong SPI Size) is answered with INVALID_SYNTAX under RFC7296-3.11-2's tests. Negative: an outer parse failure (Message ID and checksum never validated) draws nothing. Revert record observed red on inbound.go::respondInnerParseError.",
       "requirement_sha": "35b5fca16beae05c",
       "tests": {
+        "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax": "021f21e652ee3918",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "4e9aa4949328a3c4",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "4e9aa4949328a3c4"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax": "7d6f917a612ec3dc",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "d402e5e224dde39e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.11-1": {
       "note": "PayloadDelete holds one ProtocolID by construction; two protocols need two payloads",
@@ -1292,21 +1306,23 @@
       "verdict": "weak"
     },
     "RFC7296-3.6-2": {
-      "note": "Re-read 2026-09-27. Two clauses: send and accept both Hash and URL formats. Send: TestChuBothHashAndURLFormatsAreConfigurable fails unless buildCertPayloads emits encoding 12 and 13 with the SHA-1 and URL. Accept: the tagged units prove only the OFF default (TestChuHashAndURLIsOffByDefault drops a received encoding 12); no 3.6-2-tagged unit asserts that a received encoding 12 or 13 is resolved and accepted when configured. The .ci proves only that the leaves commit.",
+      "note": "Re-judged 2026-09-30 (independent judge). Send half unchanged: TestChuBothHashAndURLFormatsAreConfigurable fails unless buildCertPayloads emits encodings 12 and 13 with the SHA-1 and URL. Accept half now asserted: rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured, hash-and-url ON, receives encoding 12 (leaf DER) and encoding 13 (DER bundle leaf+intermediate) with http URLs on a loopback server; acceptedCertEncoding admits each, storeRemoteCerts fetches (server hit), matches the SHA-1, stores the leaf as the peer cert and the bundle's intermediate in the chain. Negative: TestChuHashAndURLIsOffByDefault drops encodings 12 and 13 and refuses a live, hash-matching fetch with the option off, and the ON control admits it. Revert record observed red on cert_payload.go::acceptedCertEncoding.",
       "requirement_sha": "d4a12ddfe05c9f47",
       "tests": {
         "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable": "3ca3e5c857155f3a",
         "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable#2": "3ca3e5c857155f3a",
         "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashAndURLIsOffByDefault": "3ca3e5c857155f3a",
+        "internal/component/ike/engine/rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured": "7f3d33b205089603",
         "test/parse/ipsec-hash-and-url-accepted.ci": "cb40e2e73b59857e"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable": "3a168a4f5f695fbd",
         "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable#2": "3a168a4f5f695fbd",
         "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashAndURLIsOffByDefault": "8984e7d914c9e144",
+        "internal/component/ike/engine/rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured": "a7512e92c3bab4b6",
         "test/parse/ipsec-hash-and-url-accepted.ci": "cb40e2e73b59857e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-4-4": {
       "note": "Re-read 2026-09-27. Forbidden: a configuration that cannot accept RSA-1024/2048 PKIX under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, ID_DER_ASN1_DN, or PSK under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR. TestCfmConformanceConfigurationSetIsAcceptable fails if verifyRemoteAuth refuses RSA-1024+FQDN, RSA-2048+RFC822, RSA-2048+DN, RSA-2048+KEY_ID or PSK with each of the three; TestCfmConformanceSetDoesNotAcceptWhatItMustNot shows a mismatched identity is refused; the .ci tests show the DN remote-id commits and remote-id-type is a closed set. Every key size and every ID type is covered, not the full cross product.",
