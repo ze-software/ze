@@ -234,6 +234,20 @@ func TestBFDClient_EnsureSessionMultiHop(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5882-4.2.2.1-1 positive -- "when a BFD session
+// transitions from Up to Down, action SHOULD be taken in the control protocol
+// to signal the lack of connectivity": a BFD Down StateChange delivered to the
+// BGP client of an Established session puts a Cease / BFD Down NOTIFICATION on
+// the wire to the neighbor and moves the session to Idle.
+// RFC requirement: RFC5882-4.2.2.1-2 positive -- "a control protocol timeout
+// SHOULD be emulated for the associated neighbor": the same run ends the
+// session with that neighbor the way a Hold Timer expiry does, a NOTIFICATION
+// then Idle, with the RFC 9384 Cease subcode 10 as the NOTIFICATION's code.
+// RFC requirement: RFC5882-4.2.2.2-1 positive -- "action SHOULD be taken in the
+// control protocol to signal the lack of connectivity for the path in the
+// topology over which BFD is running": the same NOTIFICATION and the move to
+// Idle end the session the BFD session advises, which carries that topology.
+//
 // VALIDATES: a BFD Down StateChange on a peer with a live Established session
 // closes that session with RFC 9384 Cease subcode 10.
 //

@@ -537,9 +537,9 @@ func TestRFC5880KnownSequenceNotReseededByForgedPacket(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-9 positive -- for the Keyed (non-meticulous)
-// variants a Sequence Number from bfd.RcvAuthSeq to bfd.RcvAuthSeq+(3*Detect
-// Mult) inclusive is accepted. Check (internal/component/bfd/auth/meticulous.go)
+// RFC requirement: RFC5880-6.7.4-12 positive -- for Keyed SHA1 a Sequence
+// Number from bfd.RcvAuthSeq to bfd.RcvAuthSeq+(3*Detect Mult) inclusive is
+// accepted. Check (internal/component/bfd/auth/meticulous.go)
 // admits an equal sequence and one exactly 3 * Detect Mult (9) ahead, and each
 // accepted sequence advances bfd.RcvAuthSeq.
 func TestRFC5880KeyedSequenceAtOrAboveFloorAccepted(t *testing.T) {
@@ -558,8 +558,8 @@ func TestRFC5880KeyedSequenceAtOrAboveFloorAccepted(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-9 negative -- a Sequence Number below
-// bfd.RcvAuthSeq is discarded with ErrSequenceOutsideWindow
+// RFC requirement: RFC5880-6.7.4-12 negative -- a Keyed SHA1 Sequence Number
+// below bfd.RcvAuthSeq is discarded with ErrSequenceOutsideWindow
 // (internal/component/bfd/auth/meticulous.go), which is the replay
 // protection: a captured older packet cannot be re-injected.
 func TestRFC5880KeyedSequenceBelowFloorDiscarded(t *testing.T) {
@@ -860,8 +860,8 @@ func TestRFC5880KeyedSequenceBeyondWindowDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-9 positive -- the window is circular: with
-// bfd.RcvAuthSeq two short of the 32-bit wrap, a Keyed sequence that wrapped
+// RFC requirement: RFC5880-6.7.4-12 positive -- the window is circular: with
+// bfd.RcvAuthSeq two short of the 32-bit wrap, a Keyed SHA1 sequence that wrapped
 // to 3 lies 5 ahead and is accepted.
 func TestRFC5880KeyedSequenceWindowWraps(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}

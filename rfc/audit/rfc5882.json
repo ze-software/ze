@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -16,8 +17,8 @@
       "tests": {
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "c179cec33f80bf77",
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "c179cec33f80bf77",
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "2fc964017dc913bc",
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "2fc964017dc913bc",
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "741ef04b97554cc2",
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "741ef04b97554cc2",
         "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "cbd459350ebb4f75",
         "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "cbd459350ebb4f75"
       },
@@ -32,19 +33,37 @@
       "verdict": "enforced"
     },
     "RFC5882-4.2.2.1-1": {
-      "note": "Judge 2026-09-30 (phase 8, first verdict). Untagged SHOULD. Ze's clients act on Up->Down: the BGP peer tears the session down (all families it carries, the shared-topology case), proven untagged by internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown; OSPF declares the neighbor down, internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDDownDrivesNeighborDown. Those two units are usable as the positive; a negative (no action on Up->Init or AdminDown) exists in TestOSPFBFDUpInitNoTeardown and the 4.2-1 AdminDown units. No tag, so implemented-but-unverified here.",
+      "note": "Judge rejudge 2026-09-30 (last five). + reactor TestBFDClient_TeardownOnDown: a non-initial BFD Down StateChange (DiagControlDetectExpired) on an Established peer puts Cease / BFD Down on the wire and moves the session to Idle; asserts the wire, not the opQueue. Producer Peer.runBFDSubscriber -> Session.bfdTeardown (Established arm). MP-BGP is the multi-data-protocol client; ending the session considers the path failed for every family, which is the shared-topology action. {single-polarity: positive} accepted: the obligation is to act on Up->Down and its violation is inaction, which no input presents for refusal; the only no-action boundaries are Up->AdminDown / remote AdminDown (RFC5882-4.2-1, enforced on its own tags, a neighbour row) and the Initial snapshot (not a transition), neither violates this row; no negative existed at HEAD. Record: bfdTeardown revert observed red; author's targeted overlay (Established arm off) red.",
       "requirement_sha": "255570c619693fb4",
-      "verdict": "weak"
+      "tests": {
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+      },
+      "verdict": "enforced"
     },
     "RFC5882-4.2.2.1-2": {
-      "note": "Judge 2026-09-30 (phase 8, first verdict). Untagged SHOULD. Neither client needs the fallback in its generic form: BGP closes the session on BFD Down (the effect a Hold Timer expiry would have) and OSPF drives the neighbor to Down (the InactivityTimer effect), so the emulated timeout is what both do; usable tests are the same TestBFDClient_TeardownOnDown and TestOSPFBFDDownDrivesNeighborDown. No tag, so implemented-but-unverified here.",
+      "note": "Judge rejudge 2026-09-30 (last five). + TestBFDClient_TeardownOnDown: BGP has no per-path announcement short of the session, so Ze emulates the hold-timer outcome: NOTIFICATION then Idle, with RFC 9384 Cease subcode 10 as the code (msg[19]/msg[20] asserted, state polled to Idle). {single-polarity: positive} accepted: action-on-event SHOULD, failure is inaction, no refusal path; the AdminDown no-action case is RFC5882-4.2-1's. Record: bfdTeardown revert observed red.",
       "requirement_sha": "4549c338d453b700",
-      "verdict": "weak"
+      "tests": {
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+      },
+      "verdict": "enforced"
     },
     "RFC5882-4.2.2.2-1": {
-      "note": "Judge 2026-09-30 (phase 8, first verdict). Untagged SHOULD for independent per-data-protocol topologies. Ze does signal loss of connectivity on Up->Down (BGP teardown, OSPF neighbor down: TestBFDClient_TeardownOnDown, TestOSPFBFDDownDrivesNeighborDown), but it acts on the whole session or adjacency rather than only the topology BFD runs over; no client maps a BFD session to one topology. The SHOULD's action is taken; the per-topology scoping the paragraph describes is not shown. No tag.",
+      "note": "Judge rejudge 2026-09-30 (last five). Earlier weak note said Ze acts on the whole session rather than one topology. Re-read \u00a74.2.2.2: the SHOULD is 'action SHOULD be taken in the control protocol to signal the lack of connectivity for the path in the topology over which BFD is running'; the next sentence 'Generally, this can be done without impacting the connectivity of other topologies' carries no keyword and states feasibility, not an obligation to spare the others; \u00a710.2 asks the EBGP session 'should be torn down in accordance with Section 3.2'. Ending the BGP session signals the loss in the BFD topology, so the author's reading holds. + TestBFDClient_TeardownOnDown (Cease/BFD Down on the wire, Idle). {single-polarity: positive} accepted for the same reason as 4.2.2.1-1. Record: bfdTeardown revert observed red.",
       "requirement_sha": "8a1d333ce5fbaa4e",
-      "verdict": "weak"
+      "tests": {
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+      },
+      "verdict": "enforced"
     },
     "RFC5882-4.4-1": {
       "note": "Judge 2026-09-29 (AC-9 re-judge). Forbidden: two control protocols wanting a session to one remote system for one data protocol end up on two BFD sessions. Proven, each unit with an observed-red record: the exact-key registry (TestBFDSharedSessionSameKey len!=1/Refcount!=2 through release; negative TestBFDDistinctSessionsDifferentKey), the single-hop and multi-hop Canonical shapes, the BGP/OSPF/pinned request builders, and the new engine join through the real entry points applyPinned + pluginService.EnsureSession (TestMultiHopClientsInAVRFShareOneSession: pinned-local entry plus BGP peer with no local in VRF red share one session at refcount 2; negative TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions: a different remote in the same VRF, which matches the pinned session on every other field, gets its own; dropping the Peer comparison in sharesSession turns it red). Not the whole MUST: (1) DEFECT at the producer, engine.(*Loop).EnsureSession/sharedEntryLocked: sessionEntry.joined is only ever narrowed (narrowKey) and never widened when the client that narrowed it releases, so after a pinned-local-X client joins an unpinned session and leaves, a pinned-local-Y client to the same peer is refused by sharesSession(Y, joined X) and opens a second session beside the unpinned client's; the outcome depends on history and no tagged unit covers release-then-rejoin. (2) The two configurations the summary discloses as partial (link-local peer with no interface; an unset field with two or more live candidates) still give two sessions by design. Every unit is judged against RFC 5882 sec 4.4 text; buffers isolate (engine loops unstarted, Snapshot read).",
