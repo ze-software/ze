@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc7950.txt",
   "source-sha": "e4e6e164b23abaf7",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-30",
   "reviewer": "claude",
+  "resign-reason": "Re-walked 2026-09-30 for five sections only. Exclusions rise from 35 to 37: site 9.3.2:1 (the decimal64 canonical form) is excluded as feature-out-of-scope because Section 9.1 binds the canonical form to XML-encoded data only, the reason site 9.1:2 already carries, and row RFC7950-9.3.2-1 is retired; site 8.3.1:2 (the NETCONF invalid-value and missing-element replies) is excluded as feature-out-of-scope because Ze implements no NETCONF server, the reason sites 8.3.1:1, 8.3.1:6 and 8.3.1:7 already carry, and row RFC7950-8.3.1-1 is retired (rfc/corrections/rfc7950.md, Retired 2026-09-30). Remapped with no count change: 8.1:6 to the new row RFC7950-8.1-3, 8.1:7 to 8.1:10, 8.1:12 and 8.1:13 to the new row RFC7950-8.1-4, and 7.6.1:2, 7.6.1:3 and 7.6.1:4 to the new rows RFC7950-7.6.1-2, -3 and -4 (the R3 splits, Correction 2026-09-30); section 9.3.1 lists RFC7950-9.3.1-1 under unsourced-ids because it holds no keyword site. Reviewed by the independent judge of the services child, who did not author the walk: each moved site read against rfc/full/rfc7950.txt.",
   "sections": [
     {
       "id": "front",
@@ -1086,7 +1087,10 @@
     {
       "id": "9.3.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-9.3.1-1"
+      ]
     },
     {
       "id": "9.3.2",
@@ -1917,19 +1921,19 @@
       "id": "7.6.1:2",
       "quote": "o Otherwise, if this ancestor is a case node, the default value MUST be used if any node from the case exists in the data tree or the case node is the choice's default case, and if no nodes from any other case exist in the data tree.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.6.1-1"
+      "mapped-to": "RFC7950-7.6.1-2"
     },
     {
       "id": "7.6.1:3",
       "quote": "o Otherwise, the default value MUST be used if the ancestor node exists in the data tree.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.6.1-1"
+      "mapped-to": "RFC7950-7.6.1-3"
     },
     {
       "id": "7.6.1:4",
       "quote": "When the default value is in use, the server MUST operationally behave as if the leaf was present in the data tree with the default value as its value.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-7.6.1-1"
+      "mapped-to": "RFC7950-7.6.1-4"
     },
     {
       "id": "7.6.3:1",
@@ -2515,31 +2519,31 @@
       "id": "8.1:6",
       "quote": "o All leaf data values MUST match the type constraints for the leaf, including those defined in the type's \"range\", \"length\", and \"pattern\" properties.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-3"
     },
     {
       "id": "8.1:7",
       "quote": "o All key leafs MUST be present for all list entries.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-4"
     },
     {
       "id": "8.1:8",
       "quote": "o Nodes MUST be present for at most one case branch in all choices.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-4"
     },
     {
       "id": "8.1:9",
       "quote": "o There MUST be no nodes tagged with \"if-feature\" present if the \"if-feature\" expression evaluates to \"false\" in the server.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-4"
     },
     {
       "id": "8.1:10",
       "quote": "o There MUST be no nodes tagged with \"when\" present if the \"when\" condition evaluates to \"false\" in the data tree.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-4"
     },
     {
       "id": "8.1:11",
@@ -2551,13 +2555,13 @@
       "id": "8.1:12",
       "quote": "o All referential integrity constraints defined via the \"path\" statement MUST be satisfied.",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-4"
     },
     {
       "id": "8.1:13",
       "quote": "o All \"unique\" constraints on lists MUST be satisfied. o The \"mandatory\" constraint is enforced for leafs and choices, unless the node or any of its ancestors has a \"when\" condition or \"if-feature\" expression that evaluates to \"false\".",
       "disposition": "mapped",
-      "mapped-to": "RFC7950-8.1-1"
+      "mapped-to": "RFC7950-8.1-4"
     },
     {
       "id": "8.1:14",
@@ -2581,8 +2585,9 @@
     {
       "id": "8.3.1:2",
       "quote": "o If a leaf data value does not match the type constraints for the leaf, including those defined in the type's \"range\", \"length\", and \"pattern\" properties, the server MUST reply with an \"invalid-value\" <error-tag> in the <rpc-error>, and with the error-app-tag (Section 7.5.4.2) and error-message (Section 7.5.4.1) associated with the constraint, if any exist. o If all keys of a list entry are not present, the server MUST reply with a \"missing-element\" <error-tag> in the <rpc-error>.",
-      "disposition": "mapped",
-      "mapped-to": "RFC7950-8.3.1-1"
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go). The type constraints the reply follows are Section 8.1's, row RFC7950-8.1-3"
     },
     {
       "id": "8.3.1:3",
@@ -2680,8 +2685,9 @@
     {
       "id": "9.3.2:1",
       "quote": "Leading and trailing zeros are prohibited, subject to the rule that there MUST be at least one digit before and after the decimal point.",
-      "disposition": "mapped",
-      "mapped-to": "RFC7950-9.3.2-1"
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the sentence defines the decimal64 canonical form, and Section 9.1 binds the canonical form to the XML encoding only: \"When a server sends XML-encoded data, it MUST use the canonical form defined in this section.\" (site 9.1:2, excluded for the same reason). ze encodes configuration in its own YANG-modeled tree and in JSON and emits no XML instance document. The decimal64 lexical form ze parses is Section 9.3.1, row RFC7950-9.3.1-1"
     },
     {
       "id": "9.3.4:1",

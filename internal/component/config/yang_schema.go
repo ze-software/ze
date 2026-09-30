@@ -745,12 +745,13 @@ func validateTypedefDefault(entry *gyang.Entry, path string) {
 }
 
 // typedefChainMax bounds the walk from a leaf's type statement through the
-// typedefs it derives from.
+// typedefs it derives from, and into the union member that holds the default.
 const typedefChainMax = 64
 
 // validateDefaultNotIfFeature records a schema build error when an enum or a
 // bit that the default names carries an if-feature statement, in the leaf's
-// own type statement or in any typedef the type derives from.
+// own type statement, in any typedef the type derives from, or in the union
+// member type that the default's value belongs to.
 func validateDefaultNotIfFeature(entry *gyang.Entry, path, def string) {
 	var stmt *gyang.Type
 	switch n := entry.Node.(type) {
@@ -778,11 +779,35 @@ func validateDefaultNotIfFeature(entry *gyang.Entry, path, def string) {
 				return
 			}
 		}
+		if len(stmt.Type) > 0 {
+			// RFC 7950 Section 9.12: "a value is validated consecutively
+			// against each member type, in the order they are specified in
+			// the "type" statement, until a match is found."
+			stmt = unionMemberHolding(stmt.Type, path, def)
+			continue
+		}
 		if stmt.YangType == nil || stmt.YangType.Base == stmt {
 			return
 		}
 		stmt = stmt.YangType.Base
 	}
+}
+
+// unionMemberHolding returns the first union member type whose resolved type
+// accepts def, which is the type the default's value belongs to. It returns
+// nil when no member accepts def: that default is not valid for its type, and
+// the type check in validateLeafDefaults records that error, so there is no
+// definition left to inspect for an if-feature.
+func unionMemberHolding(members []*gyang.Type, path, def string) *gyang.Type {
+	for _, member := range members {
+		if member.YangType == nil {
+			continue
+		}
+		if defaultValidator.ValidateType(path, member.YangType, def) == nil {
+			return member
+		}
+	}
+	return nil
 }
 
 func patternsFromType(typ *gyang.YangType) []string {

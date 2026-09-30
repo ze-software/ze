@@ -45,8 +45,8 @@ type suite struct {
 // offering less than 128 bits of security."
 // "Implementations SHOULD NOT negotiate cipher suites based on RSA key
 // transport, a.k.a. "static RSA"."
-// "Implementations SHOULD NOT negotiate non-ephemeral Elliptic Curve DH key
-// agreement."
+// "Similarly, implementations SHOULD NOT negotiate non-ephemeral Elliptic
+// Curve DH key agreement."
 // "TLS 1.2 implementations SHOULD NOT negotiate cipher suites based on
 // ephemeral finite-field Diffie-Hellman key agreement".
 const (

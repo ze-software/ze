@@ -172,7 +172,7 @@ func TestValidateTree_EnumViolation(t *testing.T) {
 // VALIDATES: Range violation detected in nested container (AC-2, AC-3).
 // PREVENTS: Out-of-range numeric values passing validation.
 //
-// RFC requirement: RFC7950-8.3.1-1 negative -- a value outside a leaf's YANG range (receive-hold-time 2, port 0) is rejected with ErrTypeRange, the invalid-value response for a range constraint.
+// RFC requirement: RFC7950-8.1-3 negative -- a leaf data value outside the leaf's YANG range (receive-hold-time 2, port 0) is rejected with ErrTypeRange.
 func TestValidateTree_RangeViolation(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -271,7 +271,7 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 //
 // No RFC requirement tag: this exercises the same generic range-check
 // producer (checkYangRange/validateUnsigned, validator.go) that
-// TestValidateTree_RangeViolation above already carries RFC7950-8.3.1-1 for.
+// TestValidateTree_RangeViolation above already carries RFC7950-8.1-3 for.
 // The obligation is per-requirement, not per-leaf, so a second leaf driving
 // the same producer through the same branch does not owe a second tag.
 //
@@ -313,7 +313,7 @@ func TestValidateTree_PPPoEMaxSessionsPerMACRange(t *testing.T) {
 // VALIDATES: Pattern violation detected for ipv4-address typedef (AC-6).
 // PREVENTS: Malformed strings passing pattern validation.
 //
-// RFC requirement: RFC7950-8.3.1-1 negative -- a string violating a leaf's YANG pattern (router-id "not-an-ip") is rejected with ErrTypePattern, the invalid-value response for a pattern constraint.
+// RFC requirement: RFC7950-8.1-3 negative -- a leaf data value violating the leaf's YANG pattern (router-id "not-an-ip") is rejected with ErrTypePattern.
 func TestValidateTree_PatternViolation(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -414,7 +414,7 @@ func TestValidateTree_UnionViolation(t *testing.T) {
 // validateString's length branch in isolation.
 // PREVENTS: An over-length string silently passing the string type check.
 //
-// RFC requirement: RFC7950-8.3.1-1 negative -- a 256-character hostname violates the leaf's YANG length "1..255", so validateString rejects it with ErrTypeLength (the invalid-value response for a length constraint).
+// RFC requirement: RFC7950-8.1-3 negative -- a 256-character hostname violates the leaf's YANG length "1..255", so validateString rejects it with ErrTypeLength.
 func TestValidateTree_LengthViolation(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -847,8 +847,8 @@ func TestValidator_ValidateString_WrongType(t *testing.T) {
 // VALIDATES: String patterns are enforced.
 // PREVENTS: Accepting malformed IP addresses.
 //
-// RFC requirement: RFC7950-8.3.1-1 positive -- a value matching the leaf's YANG pattern (router-id "192.0.2.1") is accepted.
-// RFC requirement: RFC7950-8.3.1-1 negative -- a value violating the pattern (router-id "not-an-ip") is rejected.
+// RFC requirement: RFC7950-8.1-3 positive -- a value matching the leaf's YANG pattern (router-id "192.0.2.1") is accepted.
+// RFC requirement: RFC7950-8.1-3 negative -- a value violating the pattern (router-id "not-an-ip") is rejected.
 func TestValidator_ValidatePattern(t *testing.T) {
 	v := newTestValidator(t)
 
@@ -896,8 +896,8 @@ func TestValidator_ErrorMessages(t *testing.T) {
 // VALIDATES: Hold-time accepts 0 or values >= 3.
 // BOUNDARY: 0 valid, 1-2 invalid, 3+ valid.
 //
-// RFC requirement: RFC7950-8.3.1-1 positive -- values inside the leaf's YANG range "0 | 3..65535" (0, 3, 180, 65535) are accepted.
-// RFC requirement: RFC7950-8.3.1-1 negative -- values outside that range (1, 2) are rejected.
+// RFC requirement: RFC7950-8.1-3 positive -- values inside the leaf's YANG range "0 | 3..65535" (0, 3, 180, 65535) are accepted.
+// RFC requirement: RFC7950-8.1-3 negative -- values outside that range (1, 2) are rejected.
 func TestValidator_HoldTimeRange(t *testing.T) {
 	v := newTestValidator(t)
 

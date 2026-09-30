@@ -1,5 +1,9 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7950-6.1.3-1": {
@@ -69,8 +73,8 @@
       "note": "all three sentences, both polarities, isolated by one-statement twins: (1) typedef default in/out of its own range (old pair, records on validateLeafDefaults); (2) a leaf of the typedef with no default carries 5, a narrowing leaf or typedef giving a new default carries 7/8 with no error (record on yangToLeaf); (3) a leaf and a typedef narrowing 1..10 to 6..10 with no new default each refused naming \"5\" (record on validateTypedefDefault).",
       "requirement_sha": "b441385f99be6f8c",
       "tests": {
-        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "500812cc5d0e68ab",
-        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault": "500812cc5d0e68ab",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "5f71b053d96f0548",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault": "5f71b053d96f0548",
         "internal/component/config/yang_schema_defaults_rfc7950_test.go::TestRFC7950DefaultInvalidForType": "1bb08415dc3d37d6",
         "internal/component/config/yang_schema_defaults_rfc7950_test.go::TestRFC7950DefaultValidForType": "1bb08415dc3d37d6"
       },
@@ -83,17 +87,47 @@
       "verdict": "enforced"
     },
     "RFC7950-7.6.1-1": {
-      "note": "ApplyDefaults proves the no-ancestor and ancestor-exists branches and that a set value wins; the case-node branch and the negative that an absent ancestor gets no default are untested",
-      "requirement_sha": "7e04186e08807555",
+      "note": "Row narrowed 2026-09-30 to the lead-in and the no-ancestor branch. The positive proves only a top-level leaf; the same branch covers a leaf whose only ancestors are non-presence containers (the reason the row cites Section 7.5.1), where ApplyDefaults must create the absent containers to hold the default, and no tagged unit asserts it (the untagged TestApplyDefaults_NonPresenceContainer does). A break of applyContainerDefault's non-presence path turns no tagged unit red. The negative (a set value keeps its value, no default invented) is valid.",
+      "requirement_sha": "0bf1a689b79e2539",
       "tests": {
-        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultNotUsedWhenSet": "18ac12fda9728d6f",
-        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "18ac12fda9728d6f"
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultNotUsedWhenSet": "d66c7886cead82ee",
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "d66c7886cead82ee"
       },
       "units": {
         "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultNotUsedWhenSet": "94623d90d087993e",
         "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent": "377c178aa2ae3de4"
       },
       "verdict": "weak"
+    },
+    "RFC7950-7.6.1-2": {
+      "code": {
+        "internal/component/config/schema_defaults.go::ApplyDefaults": "b860b9a6be8b5749",
+        "internal/component/config/yang_schema.go::flattenChoiceCases": "636f7a84f69d2e4e"
+      },
+      "note": "flattenChoiceCases yields the data nodes of every case with no case node left in the schema, so ApplyDefaults fills the defaults of every case whether or not a node of that case exists or it is the default case. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "requirement_sha": "872dde68a7369c85",
+      "verdict": "unimplemented"
+    },
+    "RFC7950-7.6.1-3": {
+      "note": "\u00a77.6.1 third branch, both polarities on one isolated unit (own schema build and map per subtest). Positive: an existing presence container and an existing list entry each receive their child leaf's default through ApplyDefaults. Negative: with both ancestors absent ApplyDefaults creates neither and the map stays empty. Records: positive on applyContainerDefault (revert); negative on the targeted mutant 'c.Presence' -> 'false' (a presence container treated as non-presence), observed red on the ancestor-absent subtest, so the negative discriminates the rule rather than a panic.",
+      "requirement_sha": "8de16dbd638d1c06",
+      "tests": {
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultFollowsItsAncestor": "d66c7886cead82ee",
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultFollowsItsAncestor#2": "d66c7886cead82ee"
+      },
+      "units": {
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultFollowsItsAncestor": "5098c68b62d0e263",
+        "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultFollowsItsAncestor#2": "5098c68b62d0e263"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7950-7.6.1-4": {
+      "code": {
+        "internal/component/config/schema_defaults.go::ApplyDefaults": "b860b9a6be8b5749"
+      },
+      "note": "ApplyDefaults evaluates no 'when' and no 'if-feature', so a default whose leaf or ancestor has a false 'when' stays in use. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "requirement_sha": "89d91d68b8cf1fa8",
+      "verdict": "unimplemented"
     },
     "RFC7950-7.6.3-1": {
       "note": "both clauses, both polarities: MUST be present (leaf without type refused / built-in loads, loader_rfc7950_test) and names an existing type (type nosuch refused as unknown type / local typedef and imported prefixed typedef load; twins differ in the type name alone). Records on Resolve and AddModuleFromText.",
@@ -113,29 +147,33 @@
       "verdict": "enforced"
     },
     "RFC7950-7.6.4-2": {
-      "note": "default valid for type and default beside mandatory true proven (old pair); if-feature clause proven for an enum named directly in the leaf's enumeration (x with if-feature refused, y loads, records on validateDefaultNotIfFeature). Missing: validateDefaultNotIfFeature walks stmt.Enum/stmt.Bit only, never a union's member types, so a union default naming an if-feature enum is ACCEPTED (producer defect, no test); the bit and typedef-chain branches have no tagged case.",
+      "note": "all three sentences, both polarities: (1) default valid for the type and (2) no default beside mandatory true, by TestRFC7950DefaultInvalidForType/ValidForType on validateLeafDefaults; (3) if-feature on the default's definition, for an enum named directly (TestRFC7950DefaultNotAnIfFeatureEnum) and through a union member enumeration, a bits type and a typedef chain (TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef: x / 'b1 b2' / x refused naming the if-feature, y / 'b1' / y load). The union branch was a D-8 defect fixed here: validateDefaultNotIfFeature now follows the first member type that accepts the default (Section 9.12 order); red observed before the fix. Records on validateDefaultNotIfFeature and validateLeafDefaults.",
       "requirement_sha": "03829072c89b74fe",
       "tests": {
-        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "500812cc5d0e68ab",
-        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "500812cc5d0e68ab",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "5f71b053d96f0548",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "5f71b053d96f0548",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef": "5f71b053d96f0548",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef#2": "5f71b053d96f0548",
         "internal/component/config/yang_schema_defaults_rfc7950_test.go::TestRFC7950DefaultInvalidForType": "1bb08415dc3d37d6",
         "internal/component/config/yang_schema_defaults_rfc7950_test.go::TestRFC7950DefaultValidForType": "1bb08415dc3d37d6"
       },
       "units": {
         "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "4cdf20b902ecd08c",
         "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "4cdf20b902ecd08c",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef": "423de41b2a2cd2c5",
+        "internal/component/config/yang_schema_defaults_rfc7950_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef#2": "423de41b2a2cd2c5",
         "internal/component/config/yang_schema_defaults_rfc7950_test.go::TestRFC7950DefaultInvalidForType": "5b28008f4ac0a18b",
         "internal/component/config/yang_schema_defaults_rfc7950_test.go::TestRFC7950DefaultValidForType": "a31a5554debe5da0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7950-7.6.5-1": {
       "note": "missing mandatory leaf at container level refused ErrTypeMissing; the case-node branch and the absent-ancestor (not required) branch are untested; TestValidator_MandatoryField checks the type only when errors.AsType succeeds",
       "requirement_sha": "1b0ab1ba6ee9bb4c",
       "tests": {
-        "internal/component/config/validator_yang_test.go::TestValidateTree_MandatoryMissing": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidator_MandatoryField": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidator_MandatoryField#2": "4c4aae6e8c14fcff"
+        "internal/component/config/validator_yang_test.go::TestValidateTree_MandatoryMissing": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidator_MandatoryField": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidator_MandatoryField#2": "3196aa75a5d2a6ec"
       },
       "units": {
         "internal/component/config/validator_yang_test.go::TestValidateTree_MandatoryMissing": "e1f1cd96991029ac",
@@ -183,6 +221,14 @@
       },
       "verdict": "enforced"
     },
+    "RFC7950-8.1-1": {
+      "code": {
+        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+      },
+      "note": "the prefix says every constraint MUST be true in a valid configuration tree; walkTree evaluates no 'when', 'unique' or choice constraint, so a configuration violating one is accepted. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "requirement_sha": "1ae9176c1fd50674",
+      "verdict": "unimplemented"
+    },
     "RFC7950-8.1-2": {
       "note": "The tagged units drive config.LoadConfig directly: TestRFC7950RunningDatastoreRefusesAViolationAfterParse requires a nil result and ErrCustomValidation for a ze:validate violation, and TestRFC7950RunningDatastoreAcceptsAValidConfig loads a valid config. \"Always\" binds every route into the running configuration, and no tagged unit drives one: neither the daemon install path (the load closure runReload receives, cmd/ze/hub/main_reload.go) nor the editor commit (internal/component/cli/editor_commit.go, whose validateStagedTree is a no-op when preCommitValidate is nil). A route that installed a tree without LoadConfig leaves every tagged assertion green. The YANG-type violation is asserted only in TestRFC7950RunningDatastoreRefusesAViolationAtParse, tagged to RFC7950-8.3-1, not to this row.",
       "requirement_sha": "ac895bc9c1082f2f",
@@ -196,6 +242,37 @@
       },
       "verdict": "weak"
     },
+    "RFC7950-8.1-3": {
+      "note": "range: receive-hold-time 2 and port 0 refused ErrTypeRange (TestValidateTree_RangeViolation), 1 and 2 refused and 0, 3, 180, 65535 accepted (TestValidator_HoldTimeRange); pattern: router-id not-an-ip refused ErrTypePattern and 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength, and the same unit asserts a within-length hostname raises no length error (the positive half is asserted in the negative-tagged unit). Each input trips only the constraint named. Records on checkYangRange and validateString. Base-type conformance (a value of the wrong type) is carried by the Section 9 rows.",
+      "requirement_sha": "5a05032565e079ea",
+      "tests": {
+        "internal/component/config/validator_yang_test.go::TestValidateTree_LengthViolation": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_PatternViolation": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_RangeViolation": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange#2": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern#2": "3196aa75a5d2a6ec"
+      },
+      "units": {
+        "internal/component/config/validator_yang_test.go::TestValidateTree_LengthViolation": "12f5b76747db9ef4",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_PatternViolation": "412590cd5d9f69d7",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_RangeViolation": "ed7caa39bd136d28",
+        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange": "01cc92f725f2724d",
+        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange#2": "01cc92f725f2724d",
+        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern": "21fbc065eff41719",
+        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern#2": "21fbc065eff41719"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7950-8.1-4": {
+      "code": {
+        "internal/component/config/yang/validator.go::walkTree": "a4aa0dea11dc30df"
+      },
+      "note": "walkTree checks mandatory, type and leaf-list cardinality but evaluates no 'when', no 'unique', no choice exclusivity and no if-feature, so the at-most-one-case, when, unique and mandatory-under-false-when bullets are not enforced. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+      "requirement_sha": "db7a7bd15882fa47",
+      "verdict": "unimplemented"
+    },
     "RFC7950-8.3-1": {
       "note": "parse window and whole-tree validation window are proven through LoadConfig; the edit-processing window (the config editor set/commit path) is untested",
       "requirement_sha": "a37c845b0879394f",
@@ -208,29 +285,6 @@
         "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "a4dd1bf5400ad5d7",
         "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4",
         "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse": "66e928625a6ded56"
-      },
-      "verdict": "weak"
-    },
-    "RFC7950-8.3.1-1": {
-      "note": "Clause 'the server MUST reply with an \"invalid-value\" <error-tag> in the <rpc-error>' has no assertion: the tagged units assert Ze-internal ValidationError kinds (ErrTypeRange, ErrTypePattern, ErrTypeLength), three distinct kinds, and the string invalid-value appears only in test comments, never in a producer. The range/length/pattern refusal clause is proven with both polarities; the reply-shape clause is not, and Ze has no NETCONF rpc-error producer that could emit it.",
-      "requirement_sha": "87e8a3d34dc88370",
-      "tests": {
-        "internal/component/config/validator_yang_test.go::TestValidateTree_LengthViolation": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_PatternViolation": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_RangeViolation": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange#2": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern#2": "4c4aae6e8c14fcff"
-      },
-      "units": {
-        "internal/component/config/validator_yang_test.go::TestValidateTree_LengthViolation": "4adb2bc1b1f6e6e5",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_PatternViolation": "aac0aa48370caa1c",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_RangeViolation": "586b1cebeea31ea6",
-        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange": "0bf3dc55096dee93",
-        "internal/component/config/validator_yang_test.go::TestValidator_HoldTimeRange#2": "0bf3dc55096dee93",
-        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern": "31ec24ff9fc951af",
-        "internal/component/config/validator_yang_test.go::TestValidator_ValidatePattern#2": "31ec24ff9fc951af"
       },
       "verdict": "weak"
     },
@@ -248,16 +302,16 @@
       "verdict": "weak"
     },
     "RFC7950-9.1-1": {
-      "note": "decimal64 lexical forms both polarities, and integer \"+17\" now accepted for uint8 (validateUnsigned fixed) and int8 (positive only, record on validateUnsigned). Missing: hexadecimal and octal integer forms in a module default (Section 9.2.1, \"0x10\" refused by ParseUint base 10), and bits, binary, empty, identityref fall to validateYangType's default arm with no lexical check or tagged case.",
+      "note": "decimal64 lexical forms both polarities, and integer \"+17\" now accepted for uint8 (validateUnsigned fixed) and int8 (positive only, record on validateUnsigned). Missing: hexadecimal and octal integer forms in a module default (Section 9.2.1, \"0x10\" refused by ParseUint base 10), and bits, binary, empty, identityref fall to validateYangType's default arm with no lexical check or tagged case. Re-judged 2026-09-30: the decimal64 units changed only by their RFC7950-9.3.2-1 tags moving to RFC7950-9.3.1-1; the gaps named stand.",
       "requirement_sha": "75762b5ffc3b2a55",
       "tests": {
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "326068b8277a1735",
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "326068b8277a1735",
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "42b5eb7bb7c9bc1a",
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "42b5eb7bb7c9bc1a",
         "internal/component/config/yang/validator_integer_rfc7950_test.go::TestRFC7950IntegerSignedLexicalForms": "019c7227f6c340cf"
       },
       "units": {
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "152c28c83ee93b5a",
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "781febe32df62f74",
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "8ac07305a919d26e",
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "8a00b786008ce8d0",
         "internal/component/config/yang/validator_integer_rfc7950_test.go::TestRFC7950IntegerSignedLexicalForms": "af6aafba3295ec96"
       },
       "verdict": "weak"
@@ -267,8 +321,8 @@
       "requirement_sha": "cecc88b3b36e0def",
       "tests": {
         "internal/component/config/validator_union_rfc7950_test.go::TestRFC7950UnionAcceptsEveryMemberType": "cded36b0838b1317",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_UnionViolation": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_ValidConfig": "4c4aae6e8c14fcff"
+        "internal/component/config/validator_yang_test.go::TestValidateTree_UnionViolation": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_ValidConfig": "3196aa75a5d2a6ec"
       },
       "units": {
         "internal/component/config/validator_union_rfc7950_test.go::TestRFC7950UnionAcceptsEveryMemberType": "ad02f88c4bb32f5f",
@@ -277,18 +331,18 @@
       },
       "verdict": "enforced"
     },
-    "RFC7950-9.3.2-1": {
-      "note": "The quoted sentence is the decimal64 CANONICAL FORM rule (no leading or trailing zeros, one digit each side of the point), which governs the representation Ze produces. The tagged units TestRFC7950Decimal64Accepted/Refused prove input lexical parsing (Section 9.3.1): they refuse \".5\" and \"1.\" on input and even accept \"10.50\", which carries a trailing zero; no assertion reads a value Ze emits and checks it is canonical.",
-      "requirement_sha": "bd401291927b9bf8",
+    "RFC7950-9.3.1-1": {
+      "note": "every element of the \u00a79.3.1 lexical form, both polarities through validateYangType on one decimal64 type: '+1.5', '-1.5', '1', '0.25', '0.0', '10.50' accepted; '.5' (no leading digit), '1.' (period without digits), '+', '-', '1.2.3', 'abc', '' each refused with ErrTypeType and 'expected decimal64'. Fraction-digits and range refusals in the same unit are distinct asserted kinds. Records on validateDecimal64.",
+      "requirement_sha": "9c6be86a13c047a1",
       "tests": {
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "326068b8277a1735",
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "326068b8277a1735"
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "42b5eb7bb7c9bc1a",
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "42b5eb7bb7c9bc1a"
       },
       "units": {
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "152c28c83ee93b5a",
-        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "781febe32df62f74"
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Accepted": "8ac07305a919d26e",
+        "internal/component/config/yang/validator_decimal64_rfc7950_test.go::TestRFC7950Decimal64Refused": "8a00b786008ce8d0"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC7950-9.3.4-1": {
       "note": "Forbidden: a decimal64 type with no fraction-digits substatement loading. loader_rfc7950_test.go TestRFC7950ModuleLoadRefused case \"decimal64 without fraction-digits\" requires loadModuleTexts to return an error containing \"[1..18]\"; positive: TestRFC7950ModuleLoadAccepted case \"decimal64 with fraction-digits\" requires the module with fraction-digits 2 to load (require.NoError).",
@@ -350,10 +404,10 @@
         "internal/component/config/isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "e4e161212a27bdf8",
         "internal/component/config/radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "4c9eafc440ab45ec",
         "internal/component/config/radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "4c9eafc440ab45ec",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_FamilyModeEnum": "4c4aae6e8c14fcff",
-        "internal/component/config/validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "4c4aae6e8c14fcff"
+        "internal/component/config/validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_FamilyModeEnum": "3196aa75a5d2a6ec",
+        "internal/component/config/validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "3196aa75a5d2a6ec"
       },
       "units": {
         "internal/component/config/isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "67fd8c00e1f8af3a",

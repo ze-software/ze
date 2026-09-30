@@ -56,3 +56,57 @@ func TestRFC7950LeafDefaultNotUsedWhenSet(t *testing.T) {
 	assert.False(t, hasDescription, "leaf without a default must not be inserted")
 	assert.Len(t, m, 1, "no other key may appear")
 }
+
+// TestRFC7950LeafDefaultFollowsItsAncestor checks the third branch of RFC 7950
+// §7.6.1: a leaf whose closest ancestor that is not a non-presence container is a
+// presence container or a list entry gets its default only when that ancestor
+// exists in the data tree.
+//
+// Method: one schema holds a presence container and a list, each with a
+// defaulted leaf. ApplyDefaults runs over a map where both ancestors exist and
+// over an empty map, each on its own schema build and its own map.
+//
+// RFC requirement: RFC7950-7.6.1-3 positive — a presence container and a list entry that exist in the data each receive their child leaf's default.
+// RFC requirement: RFC7950-7.6.1-3 negative — when the presence container and the list entry are absent, ApplyDefaults creates neither, so no default is in use.
+func TestRFC7950LeafDefaultFollowsItsAncestor(t *testing.T) {
+	build := func() *Schema {
+		graceful := Container(Field("restart-time", LeafWithDefault(TypeUint16, "120")))
+		graceful.Presence = true
+		schema := NewSchema()
+		schema.Define("graceful-restart", graceful)
+		schema.Define("peer", List(TypeString,
+			Field("port", LeafWithDefault(TypeUint16, "179")),
+		))
+		return schema
+	}
+
+	t.Run("ancestor exists", func(t *testing.T) {
+		m := map[string]any{
+			"graceful-restart": map[string]any{},
+			"peer":             map[string]any{"192.0.2.1": map[string]any{}},
+		}
+
+		ApplyDefaults(m, build().root)
+
+		graceful, ok := m["graceful-restart"].(map[string]any)
+		require.True(t, ok, "presence container must survive default application")
+		assert.Equal(t, "120", graceful["restart-time"], "existing presence container must carry its child's default")
+		peers, ok := m["peer"].(map[string]any)
+		require.True(t, ok, "peer list must survive default application")
+		entry, ok := peers["192.0.2.1"].(map[string]any)
+		require.True(t, ok, "peer entry must survive default application")
+		assert.Equal(t, "179", entry["port"], "existing list entry must carry its child's default")
+	})
+
+	t.Run("ancestor absent", func(t *testing.T) {
+		m := map[string]any{}
+
+		ApplyDefaults(m, build().root)
+
+		_, hasGraceful := m["graceful-restart"]
+		assert.False(t, hasGraceful, "absent presence container must not be created to hold a default")
+		_, hasPeer := m["peer"]
+		assert.False(t, hasPeer, "absent list must not gain an entry to hold a default")
+		assert.Empty(t, m, "no default may be in use when its ancestor is absent")
+	})
+}

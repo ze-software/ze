@@ -830,8 +830,10 @@ derives from (RFC 7950 Section 7.3.4). The schema build refuses a default in
 five cases: the value is not valid for the type, the leaf is `mandatory true`,
 the leaf-list has `min-elements` of one or more, a leaf or typedef narrows the type so that the inherited default is no longer
 valid and gives no new default, or the default names an enum or a bit that
-carries an `if-feature`.
-<!-- source: internal/component/config/yang_schema.go -- validateLeafDefaults, validateTypedefDefault, validateDefaultNotIfFeature -->
+carries an `if-feature`. That enum or bit is looked up in the leaf's own type,
+in every typedef the type derives from, and, for a union, in the first member
+type that accepts the default (RFC 7950 Section 9.12 order).
+<!-- source: internal/component/config/yang_schema.go -- validateLeafDefaults, validateTypedefDefault, validateDefaultNotIfFeature, unionMemberHolding -->
 
 | Rule | Detail |
 |------|--------|

@@ -82,3 +82,35 @@ func TestRFC7950DefaultNotAnIfFeatureEnum(t *testing.T) {
 	_, err = leafNodeAndBuildError(t, head+`default y; } }`)
 	assert.NoError(t, err)
 }
+
+// TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef reaches the definition
+// of a default through the three indirections a leaf type allows: a union
+// member enumeration, a bits type, and a typedef the leaf derives from. Each
+// case is converted once with a default naming a definition that carries an
+// if-feature statement, and once naming one that does not.
+//
+// RFC requirement: RFC7950-7.6.4-2 negative — a union default "x", naming a member enumeration's enum x that carries "if-feature f", a bits default "b1 b2" whose bit b2 carries it, and a default "x" of a leaf whose typedef defines enum x with it, each record a schema build error naming the if-feature.
+// RFC requirement: RFC7950-7.6.4-2 positive — the same three leaves with the default naming y, "b1", and y, whose definitions carry no if-feature, convert with no schema build error.
+func TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef(t *testing.T) {
+	const module = `module m { namespace "urn:m"; prefix m; feature f; `
+	cases := []struct {
+		name      string
+		leaf      string
+		violating string
+		compliant string
+	}{
+		{"union member", `leaf a { type union { type int8; type enumeration { enum x { if-feature f; } enum y; } } `, "x", "y"},
+		{"bits", `leaf a { type bits { bit b1; bit b2 { if-feature f; } } `, `"b1 b2"`, "b1"},
+		{"typedef", `typedef e { type enumeration { enum x { if-feature f; } enum y; } } leaf a { type e; `, "x", "y"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := leafNodeAndBuildError(t, module+tc.leaf+`default `+tc.violating+`; } }`)
+			require.Error(t, err, "a default whose definition carries an if-feature must be refused")
+			assert.Contains(t, err.Error(), "if-feature")
+
+			_, err = leafNodeAndBuildError(t, module+tc.leaf+`default `+tc.compliant+`; } }`)
+			assert.NoError(t, err)
+		})
+	}
+}
