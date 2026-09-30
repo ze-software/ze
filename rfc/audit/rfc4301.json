@@ -21,7 +21,7 @@
       "verdict": "enforced"
     },
     "RFC4301-4.1-12": {
-      "note": "Single-polarity positive accepted: Ze's only multicast SAs are the RFC 4552 manual OSPFv3 SAs, so the indication is set as a side effect of manual SA configuration and no input builds a multicast SA whose indication came from elsewhere. The unit installs through onInterfaceUp over real XFRM in a rootless netns and reads each group SA back from the kernel: found by (group, SPI) and carrying the unspecified source, i.e. the Any-Source Multicast identifier section 4.1 names ('An Any-Source Multicast group SA requires only an SPI and a destination multicast address as an identifier'). Would go red if manual config pinned a source (an SSM-shaped SA). Note: the test comment's claim that a pinned source would make a neighbor's datagram map to nothing overstates Linux, whose inbound ESP lookup reads no source; the assertion is still on the SAD entry Ze produces. Record: revert buildIPsecSA, observed red.",
+      "note": "Downgraded from enforced: the claim is wider than the check, and the mechanism it names is not Linux's. The unit asserts each group SA is found by (group, SPI) and that its props source is ::. On Linux the inbound ESP lookup, xfrm_state_lookup(daddr, spi, proto), reads no source for ANY SA, so both assertions hold whether or not source matching is required; the unit's failure text ('a pinned source would demand source matching') is false for inbound. What decides inbound source matching on Linux for a transport-mode SA is the state selector x->sel, checked by xfrm_selector_match in __xfrm_policy_check (XfrmInStateMismatch); buildIPsecSA sets Sel.Src to the wildcard ::/0 with UpperProto 89, and nothing asserts that. The props source :: matters for OUTBOUND resolution (__xfrm6_state_addr_check). The claim should be: the manually configured group SA is found by SPI and group with no source key, and the state selector Ze installs carries a wildcard source (::/0), so no source address match is demanded of inbound traffic. Missing: read back x->sel (or assert SAParams.Sel.Src from buildIPsecSA) against a pinned-selector control; fix the unit's doc comment and failure text.",
       "requirement_sha": "791090e9b5ff7269",
       "tests": {
         "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "f212528041326c15"
@@ -29,7 +29,7 @@
       "units": {
         "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration": "549e95b94622f69e"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC4301-4.1-2": {
       "note": "TestChildSAInstallsInDataplane asserts every installed policy is tunnel mode; single-polarity annotated",
@@ -95,13 +95,17 @@
       "verdict": "weak"
     },
     "RFC4301-4.2-1": {
-      "note": "Forbidden: instantiating any ESP SA with NULL encryption and no integrity. OSPFv3 manual path: NULL encryption without integrity is refused with ErrIPsecAuthAlgo and NULL with integrity accepted (both polarities). The IKE-negotiated ESP path, which instantiates most of Ze's ESP SAs, has no assertion in the tagged unit: no case offers or accepts an ENCR_NULL proposal without an integrity transform, and the row carries no marker bounding the clause to the manual path.",
+      "note": "The XFRM backend is now proven both ways at xfrmStateFromParams, the one instantiation point IKE Child SAs and RFC 4552 OSPFv3 manual SAs share there: NULL + sha256 builds a state with the null cipher and hmac(sha256); NULL + '' and NULL + 'none' are refused with no state (xfrmAuthName has no entry). The OSPF config units keep both polarities on the manual path. Revert records observed red. Still weak because the ze_vpp dataplane backend (vppBackend.InstallSA) is a second ESP instantiation path with no tagged unit: read at the producer, vppCryptoAlg refuses the null cipher outright and vppIntegAlg refuses '', so it complies, but nothing asserts it. Missing: one negative under -tags ze_vpp driving vppBackend.InstallSA (or vppCryptoAlg/vppIntegAlg) with NULL encryption and no integrity. The test file's doc comment ('Every ESP SA Ze instantiates ... becomes a kernel state through xfrmStateFromParams') is true only for the XFRM backend.",
       "requirement_sha": "8977a7cc940a547b",
       "tests": {
+        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "4e6fc2b2592630f4",
+        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "4e6fc2b2592630f4",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "24a99999625a9144",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "24a99999625a9144"
       },
       "units": {
+        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithIntegrityIsInstantiated": "5e6ac90d3d27e727",
+        "internal/component/ike/dataplane/rfc4301_esp_null_linux_test.go::TestRFC4301ESPNullEncryptionWithoutIntegrityIsRefused": "fa5c495d3391c42a",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "d758e0d4d20c8f5f",
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "d758e0d4d20c8f5f"
       },
@@ -170,6 +174,15 @@
       },
       "verdict": "enforced"
     },
+    "RFC4301-4.4.1-3": {
+      "code": {
+        "internal/component/ike/engine/unmatched.go::installUnmatched": "1837830eeeca011b",
+        "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
+      },
+      "note": "Disclosed deviation (R27, owner gate pending): with the default configuration the final SPD entry is a BYPASS, not the discard the SHOULD asks for. parseUnmatched returns SPActionBypass for an absent `unmatched` leaf and installUnmatched installs that action at PriorityUnmatched in all 3 directions x 2 families. The gap unit TestRFC4301DefaultFinalSPDEntryDiscards (rfcgap.Demonstrate) runs the real config -> ParseIPsecConfig -> installUnmatched path and asserts every final entry discards; it fails today, so the gap is demonstrated. `unmatched discard` installs the final discard (untagged TestRFC4301FinalSPDEntryFollowsTheUnmatchedLeaf). Row, Support remaining and docs/guide/ipsec.md disclose it. Not counted conformant.",
+      "requirement_sha": "79a186b4ae7a6067",
+      "verdict": "unimplemented"
+    },
     "RFC4301-4.4.1-4": {
       "note": "TestSpdOperatorOrdersOverlappingPeers asserts the operator's priority reaches every entry in both directions and orders overlapping peers; negatives refuse an unstated order reaching the SPD as 0 and ranks that capture IKE (engine and ipsec). The mistagged mirroring unit (TestSPDPolicyMirrorsTheInboundSelector) moved to RFC4301-4.4.1-11/12.",
       "requirement_sha": "dafc8d3e6f262328",
@@ -201,12 +214,14 @@
       "verdict": "weak"
     },
     "RFC4301-4.4.1.2-1": {
-      "note": "asserts one selector set parsed from a one-set input; would still pass if the model grew a list of selector sets, so it cannot fail on non-compliance",
+      "note": "NOT enforced. The row's MUST NOT binds users and is conditional on an SPD entry that can hold multiple selector sets (Section 4.4.1.2: 'One to N selector sets'); Ze's SPDPolicy holds exactly one (N=1) and the YANG policy list has single prefix/port leaves, so the condition never arises. The new reflect unit TestRFC4301SPDEntryCannotCarryASecondSelectorSet proves that ABSENCE (red if a slice/array/map of selectors is added); its recorded break (parseSPDPolicy -> panic) proves only that the unit reaches the parser, and the discriminating overlay (a MoreSets field) is unrecorded. Proving the feature absent does not prove the obligation met: under the rfc-compliance rule an obligation conditional on an absent feature is excluded, not counted. Route (pass 6): exclude the row as feature-out-of-scope quoting the 'Until IKE provides ...' condition and the N=1 structure; keep the reflect unit as the guard that reopens the row if multi-set entries arrive.",
       "requirement_sha": "645903bf753ab4c8",
       "tests": {
-        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "b1d5f436e418ef8b"
+        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "13ad9b85e33ee432",
+        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "13ad9b85e33ee432"
       },
       "units": {
+        "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "9795b2cb7d61e49c",
         "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "d96c393ccd9f6ba5"
       },
       "verdict": "weak"
@@ -275,17 +290,21 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.2.1-11": {
-      "note": "Units call newLifetimeState, the producer established.go uses for every Child and IKE SA, and prove the time interval (hard = build + configured 3600 s) and that soft (replace) precedes hard (terminate), with replace due and terminate not between them, neither at build, terminate at hard. Weak because the 'indication of which of these actions should occur' is carried by the owner loop's mapping (established.go: softExpired -> startChildRekey with a new SPI, hardExpired -> cleanupChild), which no tagged unit asserts: swapping the two actions in the owner loop leaves both units green. Missing: a unit driving the owner loop across the soft and hard times and asserting rekey (new SPI) then deletion. Records: revert newLifetimeState, both polarities observed red.",
+      "note": "Both halves of the row now proven. Interval: the pass-4 units (newLifetimeState, the producer established.go uses) prove hard = build + configured lifetime with soft (replace) before hard (terminate). Indication of which action: the owner-loop units drive the real maintainSA over one tick. Positive: soft past, hard far -> a CREATE_CHILD_SA request on the wire, loop alive, pendingRekey kind rekeyChild naming the old Child SA with a new non-zero inbound SPI (replace with a new SA and new SPI). Negative: soft far, hard past -> loop returns errTimeout, no pendingRekey, Child SA cleared, old inbound SPI removed from the dataplane, silence on the wire (terminate). Revert records on established.go::maintainSA observed red for both; the author's soft/hard swap overlay turned both red, so the pair discriminates the mapping, not only the loop's existence.",
       "requirement_sha": "ce0949965f330cc1",
       "tests": {
+        "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeHardTimeTerminatesTheSA": "c218017646048958",
+        "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeSoftTimeReplacesTheSA": "c218017646048958",
         "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate": "26c4427924e9a4bf",
         "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval": "26c4427924e9a4bf"
       },
       "units": {
+        "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeHardTimeTerminatesTheSA": "6c9654cac40bd417",
+        "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeSoftTimeReplacesTheSA": "53e9e59eeddd7dfb",
         "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate": "583bddfa92ea9eda",
         "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval": "09e92af6f937d25a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4301-4.4.2.1-12": {
       "code": {},
@@ -565,17 +584,21 @@
       "verdict": "enforced"
     },
     "RFC4301-7.1-3": {
-      "note": "Forbidden: an SA whose Next Layer protocol selector is ANY installed with a port field other than ANY. Both tagged units (TestRFC4301ProtocolAnyEntryCarriesAnyPorts, TestRFC4301ProtocolAnyEntryRefusesAPort) drive ParseIPsecConfig and ValidateSPDPolicies over bypass SPD entries, which create no SA; they prove the neighbouring SPD-entry validation. No tagged unit builds a Child SA with protocol ANY through childPolicyParams and asserts both ports ANY, nor refuses a port selector under protocol ANY on the SA path.",
+      "note": "The previous wrong verdict (bypass SPD entries create no SA) is cured by units on the SA path. Positive: a protocol-ANY/ports-ANY proposal narrows (empty and configured policy) to one pair, and childPolicyParams in and out carry UpperProto 0 with both ports ANY. Negative: protocol ANY with a single port (443) or OPAQUE, on TSi or on TSr, narrows to no pair, so no Child SA is built. The producer programmableSelector (Proto 0 with a non-ANY port is refused) is shared through programmablePair by the responder path (narrowSelectors) and by the initiator's answer-adoption loop in ts_narrow.go, so both SA-building paths hold; only the responder path is driven. Revert records observed red (child.go::selectorPort for +, ts_narrow.go::programmableSelector for -). The two ipsec SPD-entry units still tagged 7.1-3 are supplementary: they prove the operator entry side, which creates no SA; moving them to a row they prove is owed when the ratchet allows.",
       "requirement_sha": "4625ebd9c379b15c",
       "tests": {
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "1ed83933ceedc7b1",
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "1ed83933ceedc7b1",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts": "ae75f967654d5dea",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort": "ae75f967654d5dea"
       },
       "units": {
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "ad1f40a257c22d86",
+        "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "3663979f599f5472",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts": "9f1eed08e6c46528",
         "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort": "54ce6b4fc8f97c51"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC4301-7.3-4": {
       "code": {},

@@ -863,7 +863,12 @@ set vpn ipsec unmatched discard
 
 The default is `bypass` because a router's own control plane (BGP, SSH, DNS)
 crosses the IPsec boundary in the clear, and a default of `discard` would stop
-it the moment `vpn ipsec` was configured. With `discard`, write a `bypass`
+it the moment `vpn ipsec` was configured. That default deviates from RFC 4301
+Section 4.4.1: "Every SPD SHOULD have a nominal, final entry that matches
+anything that is otherwise unmatched, and discards it." With `bypass`, the
+final entry passes that traffic instead, so Ze does not meet the SHOULD out of
+the box and the RFC 4301 page lists it as a gap. `set vpn ipsec unmatched
+discard` gives the behavior the section asks for. With `discard`, write a `bypass`
 entry under `policy` for every flow that must still cross in the clear. The IKE
 control-plane bypass at order 100 is installed either way, so the tunnels can
 still be negotiated. The entry is re-asserted on every apply and removed when

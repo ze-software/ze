@@ -168,6 +168,15 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 	if p.ReplayWin > 0 {
 		state.ReplayWindow = int(p.ReplayWin)
 	}
+	// RFC 4301 Section 4.4.2.1: "Sequence Counter Overflow: a flag indicating whether
+	// overflow of the sequence number counter should generate an auditable event and
+	// prevent transmission of additional packets on the SA, or whether rollover is
+	// permitted." Ze never permits rollover: with the flag clear, the kernel's
+	// xfrm_replay_overflow audits the overflow and refuses the packet rather than
+	// wrapping the counter. This is a
+	// guard, written out rather than left to the zero value, so a later change that
+	// wants rollover has to delete this line and its reason.
+	state.OSeqMayWrap = false
 
 	// RFC 4552 OSPFv3: an explicit state selector (x->sel) lets one wildcard-address
 	// SA (Src=Dst=::) be resolved for any OSPF flow (ff02::5, ff02::6, neighbor
