@@ -157,7 +157,12 @@ from that set; a higher-cost or less-preferred route cannot bypass rejection.
 The adjacency's logical interface and on-link flag travel with the gateway
 through the Loc-RIB, route-install RPC, sysrib and kernel FIB. The gateway need
 not share the interface's IP subnet: physical IS-IS adjacency establishes that
-it is on the outgoing link.
+it is on the outgoing link. The IPv4 gateway is the first address of the IP
+Interface Address TLV (132) in the neighbor's latest Hello. A neighbor may list
+up to 63 addresses on one interface, and each Hello replaces the list the
+adjacency holds.
+<!-- source: internal/plugins/isis/circuit/runtime.go -- helloInput -->
+<!-- source: internal/plugins/isis/spf_wiring.go -- ResolveNextHop -->
 
 SPF reads one locked raw LSDB snapshot per level. A source's fragment zero must
 be live before its other standard fragments contribute routes. Every run

@@ -115,30 +115,38 @@
       "verdict": "weak"
     },
     "RFC1195-4.2-1": {
-      "note": "Both units exercise only DecodeIPv4InterfaceAddrTLV: 63 addresses decode, a truncated TLV is refused with ErrLength. Neither shows correct interaction (adjacency, next-hop choice) with a neighbor carrying several addresses per interface; the negative tests a malformed-length rule, not this one.",
+      "note": "Re-judged 2026-09-30. New root units drive the engine path (dispatched P2P IIH -> adjacency table -> engineNextHopResolver) with a fake iface backend. Positive TestRFC1195MultiAddressNeighborForwarding: a neighbor listing the TLV 132 maximum of 63 addresses forms an Up adjacency and resolves to its own first address, on-link via the arrival interface, so a receiver that refused, truncated or mis-read a 63-address list goes red. Negative TestRFC1195MultiAddressNeighborRenumbered: the same neighbor re-sends a different 63-address list and no address of the old list survives as the next hop; forwarding to an address the neighbor no longer assigns (sec 4.2: each Hello carries the interface's current list) is an incorrect interaction and is rejected. Producer circuit/runtime.go helloInput takes the first decoded TLV 132 address per Hello; +/- recorded on it. The older packet units (63-address decode, truncated TLV refused) remain as codec cover.",
       "requirement_sha": "8f1725cbc6016e64",
       "tests": {
         "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLV63Addresses": "66a6e168f4df2485",
-        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "66a6e168f4df2485"
+        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "66a6e168f4df2485",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborForwarding": "12c8d6276548fb6f",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborRenumbered": "12c8d6276548fb6f"
       },
       "units": {
         "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLV63Addresses": "4ca69e4e0032d701",
-        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "8073946b97c64385"
+        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "8073946b97c64385",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborForwarding": "3f59f85a7a4d0f32",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborRenumbered": "48e50c8d9f28c6d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-4.4-1": {
-      "note": "TestFIBOnLinkAdjacencyAndUnsupportedPrefix inserts a Loc-RIB path with OnLink=true by hand and proves the FIB/kernel forwards to the off-subnet gateway (and flips when the mark is cleared). Nothing tagged 4.4-1 shows IS-IS itself marks an adjacency next hop on a different logical subnet OnLink, so an IS-IS resolver that recursed instead stays green. Linux, CAP_NET_ADMIN only.",
+      "note": "Re-judged 2026-09-30. The earlier gap (nothing showed IS-IS itself marks an off-subnet adjacency next hop on-link) is closed at the boundary Ze owns. Positive TestRFC1195OffSubnetNeighborIsOnLinkNextHop: adjacency on isis-on-a 192.0.2.1/24, neighbor 198.51.100.2 (setup asserts off-subnet) resolves to 198.51.100.2 via isis-on-a with OnLink. Negative TestRFC1195OffSubnetNeighborNotResolvedBySubnet: isis-on-b holds the covering 198.51.100.1/24 but no adjacency, and the next hop is never placed on isis-on-b by subnet match; a subnet or recursive resolver goes red. Producer spf_wiring.go ResolveNextHop returns the Up adjacency's circuit with OnLink=true; +/- recorded on it. The FIB side (kernel installs the OnLink gateway, flips when the mark is cleared) is carried by fib/kernel onlink_integration_linux_test.go, Linux CAP_NET_ADMIN only and without a discrimination record.",
       "requirement_sha": "6f71c136a942c21a",
       "tests": {
         "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a"
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop": "12c8d6276548fb6f",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet": "12c8d6276548fb6f"
       },
       "units": {
         "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f"
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop": "21bb266abde0e874",
+        "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet": "6df478449b8362d7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1195-4.4-2": {
       "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7). Re-judged 2026-09-30 (twice): TestRFC1195ISHTransmitReceive changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments; the finding stands.",
@@ -194,16 +202,16 @@
       "verdict": "enforced"
     },
     "RFC1195-5.2-1": {
-      "note": "Re-judged 2026-09-30. Single-polarity positive per the row (Ze is unconditionally IP-capable). The earlier gap (no unit tagged for this row asserted TLV 129 in a point-to-point IIH) is closed: circuit TestISISIIHOriginationTLVs now carries this row's tag and asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH. With root TestRFC1195NodeProtocolsAcrossInterfaces (TLV 129 with NLPID 0xCC in the IIH of each interface and in LSP number 0), root TestRFC1195ISHTransmitReceive (the ISH sent on a point-to-point circuit) and lsdb TestISISOriginateOnAdjacencyUp (LSP fragment 0), every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV.",
+      "note": "Re-judged 2026-09-30 (TestISISIIHOriginationTLVs claim block changed: its RFC3787 tags were split; this row's tag and the unit body are unchanged). Single-polarity positive per the row (Ze is unconditionally IP-capable). TestISISIIHOriginationTLVs asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH; root TestRFC1195NodeProtocolsAcrossInterfaces asserts TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0; root TestRFC1195ISHTransmitReceive the ISH on a point-to-point circuit; lsdb TestISISOriginateOnAdjacencyUp LSP fragment 0. Every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV (three units); the lsdb unit carries no record of its own.",
       "requirement_sha": "7dd876d267bd817e",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "59901d65bcf41614",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "0206a1b06ee18af9",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "85a485646e83c042",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "dd0208f02c409f7c",
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca"

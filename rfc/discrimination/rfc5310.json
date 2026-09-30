@@ -9,7 +9,7 @@
       "claim-sha": "6424260af021db8e",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "fef5fb72bc9f1c84",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "c4abbd07fc411417",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "45e2fe5dd17fca2d",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

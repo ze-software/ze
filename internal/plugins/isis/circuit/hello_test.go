@@ -144,10 +144,12 @@ func hasTLV(tlvs []packet.TLV, typ uint8) bool {
 // the P2P IIH carries TLV 1/129/132/240.
 //
 // RFC requirement: RFC3787-x-2 positive -- the originated IIH (both the LAN and
-// the P2P form) carries a Protocols Supported TLV (129) and an IP Interface
-// Address TLV (132), the mixed-environment interoperability TLVs RFC 3787 sec
-// 9/10 (RFC 1195) require in every Hello. The 129 value advertising the IPv4
-// NLPID is asserted by TestISISHelloTLV132RequiresInterfaceAddr.
+// the P2P form), decoded from the sent bytes, carries a Protocols Supported TLV
+// (129).
+//
+// RFC requirement: RFC3787-10-1 positive -- the originated IIH (both the LAN and
+// the P2P form) of a circuit with an IPv4 interface address, decoded from the
+// sent bytes, carries an IP Interface Address TLV (132).
 //
 // RFC requirement: RFC1195-5.2-1 positive -- the Protocols Supported TLV (129) is
 // included in every IS-IS Hello this circuit transmits: the originated L1 LAN IIH
@@ -197,12 +199,15 @@ func TestISISIIHOriginationTLVs(t *testing.T) {
 	})
 }
 
-// RFC requirement: RFC3787-x-2 negative -- the origination of the IP Interface
-// Address TLV (132) is bounded to a REAL interface address: a circuit with no
-// IPv4 address omits TLV 132 (returns a zero Type-0 TLV the caller drops) rather
-// than emitting a garbage/zero one, while the Protocols Supported TLV (129) still
-// advertises the IPv4 NLPID (0xCC). This pins that the mixed-environment TLVs are
-// generated from live interface state, not fabricated (RFC 3787 sec 9/10, RFC 1195).
+// RFC requirement: RFC3787-10-1 negative -- the IP Interface Address TLV (132)
+// is built only from a real interface address: a circuit with no IPv4 address
+// omits TLV 132 (returns a zero Type-0 TLV the caller drops) rather than
+// emitting a zero or fabricated one, while the Protocols Supported TLV (129)
+// still advertises the IPv4 NLPID (0xCC).
+//
+// RFC requirement: RFC3787-x-2 negative -- a circuit with no IPv4 interface
+// address still builds a Protocols Supported TLV (129) that advertises the IPv4
+// NLPID (0xCC): the missing address does not drop IP from the protocols list.
 func TestISISHelloTLV132RequiresInterfaceAddr(t *testing.T) {
 	c := &Circuit{} // no IPv4 interface address configured
 

@@ -86,7 +86,7 @@
       "claim-sha": "bdd03edf4d1427b2",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "1d597f7fed320156",
       "route": "revert",
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
-      "producer-sha": "5b236d91fdfedb04",
+      "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -143,6 +143,50 @@
       "producer": "internal/plugins/isis/packet/tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV",
       "producer-sha": "d53825749c50ffb3",
       "break": "body of DecodeIPv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborForwarding",
+      "unit-sha": "355ebe935f9badc6",
+      "claim-sha": "a8dfa7166f3f68cd",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::helloInput",
+      "producer-sha": "bcd611a8af1b9e8c",
+      "break": "body of helloInput replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborRenumbered",
+      "unit-sha": "82c4800b49465a9a",
+      "claim-sha": "c7302520cf254ed7",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/runtime.go::helloInput",
+      "producer-sha": "bcd611a8af1b9e8c",
+      "break": "body of helloInput replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop",
+      "unit-sha": "08b265ae146abd65",
+      "claim-sha": "db34088fc989481c",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
+      "producer-sha": "fa86deec17306279",
+      "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet",
+      "unit-sha": "5b034ef2858e977e",
+      "claim-sha": "51257049647c66df",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
+      "producer-sha": "fa86deec17306279",
+      "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-5.2-1",

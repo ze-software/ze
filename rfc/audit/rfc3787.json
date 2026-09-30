@@ -1,6 +1,19 @@
 {
   "audited": "2026-09-30",
   "requirements": {
+    "RFC3787-10-1": {
+      "note": "First judgement 2026-09-30 (row split from x-2 under R44). Positive circuit TestISISIIHOriginationTLVs decodes the sent LAN and P2P IIH and checks only that a TLV of type 132 is present (hasTLV); it never checks the value is the circuit's configured address 192.0.2.1. Negative TestISISHelloTLV132RequiresInterfaceAddr covers only the no-address circuit (TLV 132 omitted, not fabricated). So a producer that, with an address configured, emitted TLV 132 carrying 0.0.0.0 or any constant stays green on both units, and that TLV does not include an IP interface address. Missing: the positive asserting the decoded TLV 132 value equals the circuit's IPv4 address. Records +/- on circuit/hello.go ipv4InterfaceAddrTLV.",
+      "requirement_sha": "3d484bb30936d1f8",
+      "tests": {
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "0206a1b06ee18af9",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "0206a1b06ee18af9"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "74c2a5e7f81f23e7",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "dd0208f02c409f7c"
+      },
+      "verdict": "weak"
+    },
     "RFC3787-x-1": {
       "note": "Receive path now driven: lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying TLV 131 via Flooder.ReceiveLSP (not refused) and floods it byte-identical with 131 present, so a receiver that refused, stripped or rewrote on 131 goes red. Packet TestISISIgnoreObsoleteTLVs131And133: DecodeTLVs returns no error and keeps 131 opaque (positive); the negative is the scope control, a recognized TLV 129 in the same region is still decoded to its NLPID, so a decoder that dropped the PDU content on meeting 131 goes red. Tag prose narrowed to 131 (sec 3.1). TLV 131 is an L2 LSP TLV, so no IIH input is owed. The 'recognized' constant loop cannot go red on any producer change and carries no weight here. Records: + ReceiveLSP, +/- DecodeTLVs.",
       "requirement_sha": "2b6eaf61256d1da6",
@@ -17,17 +30,17 @@
       "verdict": "enforced"
     },
     "RFC3787-x-2": {
-      "note": "Re-judged 2026-09-30. Quote is Section 9 (IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol). Positive now covers every place: circuit TestISISIIHOriginationTLVs (TLV 129 in the sent LAN and P2P IIH), root TestRFC1195NodeProtocolsAcrossInterfaces (TLV 129 with NLPID 0xCC in each interface's IIH and in LSP number 0, decoded from the bytes) and root TestRFC1195ISHTransmitReceive (the ISH's TLV 129 = 0xCC); recorded + on circuit/hello.go protocolsSupportedTLV. Still weak on the negative: the only negative tag, TestISISHelloTLV132RequiresInterfaceAddr, asserts TLV 132 omission, the Section 10 obligation, not this sentence. Ze is always IP-capable and has no refusal path, so R44 routes it: split the Section 10 clause into its own row, move that negative there (D-15), mark x-2 {single-polarity: positive}. Not yet done.",
+      "note": "Re-judged 2026-09-30 after the R44 split (the Section 10 TLV 132 clause is now RFC3787-10-1, and the TLV 132 negative moved there). Positive covers every place the Section 9 sentence names: circuit TestISISIIHOriginationTLVs (TLV 129 in the sent LAN and P2P IIH), root TestRFC1195NodeProtocolsAcrossInterfaces (TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0) and root TestRFC1195ISHTransmitReceive (ISH TLV 129 = 0xCC); recorded + on protocolsSupportedTLV. The remaining negative tag, TestISISHelloTLV132RequiresInterfaceAddr narrowed to 'no IPv4 address still advertises NLPID 0xCC', is the obligation met under a second input, i.e. another positive, not a rejected violation. Ze is always IP-capable and has no refusal path, so no genuine negative exists; the {single-polarity: positive} marker is refused by the gate while this HEAD-held negative tag stays (stale-annotation) and dropping the tag trips the coverage ratchet. Stays weak until the owner rules on that deadlock shape.",
       "requirement_sha": "a1deb68ee9a00995",
       "tests": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "59901d65bcf41614",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "59901d65bcf41614",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "0206a1b06ee18af9",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "0206a1b06ee18af9",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "98361a7a993bdde4",
-        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "85a485646e83c042",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "74c2a5e7f81f23e7",
+        "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "dd0208f02c409f7c",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
         "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca"
       },

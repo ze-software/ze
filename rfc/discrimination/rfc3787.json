@@ -2,6 +2,28 @@
   "rfc": "rfc3787",
   "records": [
     {
+      "rid": "RFC3787-10-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr",
+      "unit-sha": "cc1c8d4f90a97fb3",
+      "claim-sha": "ec89e9a87d349f84",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::ipv4InterfaceAddrTLV",
+      "producer-sha": "f1507d241c9faca4",
+      "break": "body of ipv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-10-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
+      "unit-sha": "7a2d7060384637a4",
+      "claim-sha": "d226ce5ddbd26c0a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::ipv4InterfaceAddrTLV",
+      "producer-sha": "f1507d241c9faca4",
+      "break": "body of ipv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3787-x-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged",
@@ -33,6 +55,28 @@
       "producer": "internal/plugins/isis/packet/tlv_opaque.go::DecodeTLVs",
       "producer-sha": "28f97de83c0d82b9",
       "break": "body of DecodeTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr",
+      "unit-sha": "cc1c8d4f90a97fb3",
+      "claim-sha": "ca1443450ba1cf5c",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+      "producer-sha": "1d45130d31599694",
+      "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-x-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
+      "unit-sha": "7a2d7060384637a4",
+      "claim-sha": "bf6bb63c0e7668b8",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+      "producer-sha": "1d45130d31599694",
+      "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3787-x-2",

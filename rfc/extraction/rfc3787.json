@@ -149,7 +149,7 @@
       "id": "10:1",
       "quote": "For an implementation to interoperate in a such mixed environment, it MUST include an IP Interface address (TLV 132) in its IIH PDUs.",
       "disposition": "mapped",
-      "mapped-to": "RFC3787-x-2"
+      "mapped-to": "RFC3787-10-1"
     }
   ]
 }
