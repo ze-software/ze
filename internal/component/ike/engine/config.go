@@ -34,11 +34,7 @@ func parseIPsecSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error
 		}
 		return parseIPsecFromJSON(s.Data)
 	}
-	return &ipsec.IPsecConfig{
-		ESPGroups: make(map[string]ipsec.ESPGroup),
-		IKEGroups: make(map[string]ipsec.IKEGroup),
-		Peers:     make(map[string]ipsec.SiteToSitePeer),
-	}, nil
+	return ipsec.EmptyConfig(), nil
 }
 
 func loadPKIFromJSON(data string) error {
@@ -58,11 +54,7 @@ func parseVPNSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) 
 		}
 		return parseIPsecFromJSON(s.Data)
 	}
-	return &ipsec.IPsecConfig{
-		ESPGroups: make(map[string]ipsec.ESPGroup),
-		IKEGroups: make(map[string]ipsec.IKEGroup),
-		Peers:     make(map[string]ipsec.SiteToSitePeer),
-	}, nil
+	return ipsec.EmptyConfig(), nil
 }
 
 // candidatePKI parses the "pki" section of a candidate delivery into a lookup

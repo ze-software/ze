@@ -67,7 +67,12 @@ func isNameChar(c rune) bool {
 		c == '-' || c == '_' || c == '.'
 }
 
-func emptyConfig() *IPsecConfig {
+// EmptyConfig is the configuration of a box with no ipsec block: no groups, no
+// peers, and the YANG default catch-all disposition, bypass. Every parser that
+// answers "nothing configured" MUST answer this value, never an IPsecConfig
+// literal, because the SPAction zero value is PROTECT and installUnmatched refuses
+// it (a literal left an empty delivery failing the apply).
+func EmptyConfig() *IPsecConfig {
 	return &IPsecConfig{
 		ESPGroups: make(map[string]ESPGroup),
 		IKEGroups: make(map[string]IKEGroup),
@@ -102,17 +107,17 @@ func parseUnmatched(t *config.Tree) (dataplane.SPAction, error) {
 // Returns an empty config if no vpn { ipsec {} } block is present.
 func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 	if tree == nil {
-		return emptyConfig(), nil
+		return EmptyConfig(), nil
 	}
 
 	vpnRoot := tree.GetContainer("vpn")
 	if vpnRoot == nil {
-		return emptyConfig(), nil
+		return EmptyConfig(), nil
 	}
 
 	ipsecRoot := vpnRoot.GetContainer("ipsec")
 	if ipsecRoot == nil {
-		return emptyConfig(), nil
+		return EmptyConfig(), nil
 	}
 
 	cfg := &IPsecConfig{
