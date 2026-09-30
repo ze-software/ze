@@ -53,6 +53,10 @@ func narrowEntryMetricOctet(t *testing.T, lsp *packet.LSP, prefix netip.Prefix, 
 // RFC requirement: RFC2966-2-1 negative -- the bit is set only for L2-derived
 // prefixes advertised into L1: the L1-derived narrow prefix leaked into L2 goes
 // out in the L2 LSP's TLV 128 with bit 8 clear.
+// RFC requirement: RFC2966-2-4 positive -- a narrow prefix that is not
+// L2-derived-into-L1 goes out with the bit zero: the L1-derived prefix leaked
+// into L2 is in the stored L2 LSP's TLV 128 with bit 8 of the default metric
+// octet clear.
 func TestRFC2966NarrowLeakUpDownBit(t *testing.T) {
 	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"metric":"10"}}}}}`)
 	defer eng.shutdown()

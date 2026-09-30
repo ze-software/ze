@@ -36,7 +36,8 @@
     {
       "id": "1.4",
       "sites": 3,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": ["RFC1195-1.4-3"]
     },
     {
       "id": "1.5",
@@ -71,7 +72,8 @@
     {
       "id": "3.4",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": ["RFC1195-3.4-2"]
     },
     {
       "id": "3.5",
@@ -868,10 +870,8 @@
     {
       "id": "5.3.5:12",
       "quote": "However, this field must not appear in pseudonode LSPs.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "the pseudonode prohibition repeated for the Inter-Domain Routing Protocol Information field, which the row already names",
-      "mapped-to": "RFC1195-5.3.4-2"
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.3.5-2"
     },
     {
       "id": "5.3.5:13",

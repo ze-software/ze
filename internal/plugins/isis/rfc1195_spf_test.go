@@ -444,6 +444,9 @@ func TestRFC1195SpecificLeakCollapsesDuplicatePrefix(t *testing.T) {
 
 // RFC requirement: RFC1195-5.3.4-2 positive -- a pseudonode originates IS-neighbor connectivity without any IP reachability or IDRPI TLV.
 // RFC requirement: RFC1195-5.3.4-2 negative -- narrow internal and external prefixes on the originating router cannot leak into its pseudonode LSP.
+// RFC requirement: RFC1195-5.3.5-2 positive -- the Level 2 pseudonode LSP carries IS-neighbor connectivity and no TLV 130 (IP External Reachability).
+// RFC requirement: RFC1195-5.3.5-2 negative -- a narrow external prefix the originating router advertises in its own Level 2 LSP as TLV 130 does not appear in its pseudonode LSP.
+// RFC requirement: RFC1195-3.4-2 positive -- the pseudonode LSP carries no TLV 131 (Inter-Domain Routing Protocol Information).
 func TestRFC1195PseudonodeCannotInheritRouterPrefixes(t *testing.T) {
 	d := lsdb.New(nil)
 	o := lsdb.NewOriginator(d, nil)

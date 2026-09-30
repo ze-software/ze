@@ -3,10 +3,17 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "RFC1195-1.4-3": {
+      "no_code_path": "The sentence constrains the composition of a dual area within a dual routing domain (which routers an operator may place in it), not an implementation's behavior. Ze runs pure-IP Integrated IS-IS and routes no OSI/CLNP traffic, so it is never a dual router and has no code path that could admit or refuse area membership on that basis; mirrors RFC1195-1.4-1.",
+      "note": "Judged 2026-09-30. Level MUST over 'only dual routers may be used' kept under D-3; {not-applicable} accepted (binds the network design, same as 1.4-1).",
+      "requirement_sha": "948eed7b2137df9e",
+      "verdict": "not-applicable"
+    },
     "RFC1195-3.1-1": {
       "note": "Clause 'ignored': packet TestISISUnknownTLVPassthrough decodes TLVs 199/250 with no error and re-encodes the region byte-for-byte (prose now cites sec 5.2, matching the row). Clause 'forwarded LSPs passed on unchanged': new lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying 131/199/250 via Flooder.ReceiveLSP and after FloodTick requires the LAN circuit to send bytes.Equal to the received raw PDU, each unknown TLV present, and nothing back on the arrival circuit; a flood that rebuilt or stripped the LSP goes red. Both recorded red (ReceiveLSP, DecodeTLVs). {single-polarity: positive} holds: there is no reject path for an unrecognized code.",
       "requirement_sha": "ee8583f8eb844dd5",
@@ -24,8 +31,8 @@
       "note": "Re-judged after a comment-only edit above TestRFC1195ExternalReachabilityWithInternalMetric (its RFC1195-7-4 tag moved away); the body is unchanged. A costly internal-metric L2 prefix (163) beats a cheap external-metric one in the installed Loc-RIB; an external TLV with an internal metric is not penalized (3, 2). Both fail if metric type is ignored.",
       "requirement_sha": "7bac94d979fa5979",
       "tests": {
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195ExternalReachabilityWithInternalMetric": "2fd56cd76cc7d907",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195ExternalReachabilityWithInternalMetric": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195ExternalReachabilityWithInternalMetric": "c31214f17c3af54a",
@@ -50,8 +57,8 @@
       "note": "Positive: L1 path 50+40 leaked to L2 with metric 63. Negative: 10+5 preserved as 15. Both fail if the clamp is removed or applied wrongly.",
       "requirement_sha": "2a0097ceac911f99",
       "tests": {
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "2fd56cd76cc7d907",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "15e5a7fdf864b92a",
@@ -64,7 +71,7 @@
       "requirement_sha": "bdf8c500d5a357fb",
       "tests": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum": "1ef6f2102a068439",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum": "8f84718c4570858d",
@@ -82,6 +89,17 @@
       "units": {
         "internal/plugins/isis/packet/ish_test.go::TestRFC1195ISHGOSIPReservedRefused": "a8a26be9d6280f63",
         "internal/plugins/isis/packet/ish_test.go::TestRFC1195ISHGOSIPReservedZero": "fc006e3959c2647e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-3.4-2": {
+      "note": "Judged 2026-09-30. Positive: TestRFC1195PseudonodeCannotInheritRouterPrefixes decodes every pseudonode TLV and fails on type 131. {single-polarity: positive} checked: packet/tlv.go has no TLV 131 constant and no Go producer writes type 131, so no input can drive a producer toward placing it and no refusal path exists; no HEAD negative on the row. Level MUST NOT over 'is not included in pseudonode LSPs' (no keyword) is a D-3 call, accepted. Record: revert on OriginatePseudonode, observed red.",
+      "requirement_sha": "76c743412ce4b8ab",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "b67887a5f61b2632"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "d824f90aa4e55147"
       },
       "verdict": "enforced"
     },
@@ -191,8 +209,8 @@
         "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
         "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195NeighborProtocolTransitions": "1b6b580adc0147c1",
         "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "1b6b580adc0147c1",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "2fd56cd76cc7d907",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
@@ -264,8 +282,8 @@
       "note": "Positive: a leaked internal L2 entry is decoded with ExternalMetric false. Negative: a producer asking for ExternalMetric on an internal prefix still emits TLV 128 with bit 0x40 clear. Both would fail if the originator set I/E.",
       "requirement_sha": "119119e4c95c31e0",
       "tests": {
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "2fd56cd76cc7d907",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "eae62ddfdf501058",
@@ -274,15 +292,15 @@
       "verdict": "enforced"
     },
     "RFC1195-5.3.4-2": {
-      "note": "TestRFC1195PseudonodeCannotInheritRouterPrefixes fails if the pseudonode LSP carries TLV 128 (also 130, 131) while the router LSP carries the prefixes. Positive and negative tags sit on the same assertion; the input is the violation attempt, so the one test discriminates.",
+      "note": "Re-judged 2026-09-30: TestRFC1195PseudonodeCannotInheritRouterPrefixes gained only the RFC1195-5.3.5-2 and RFC1195-3.4-2 tag comments; the body is byte-identical. The unit fails if the pseudonode LSP carries TLV 128 while the router LSP carries the narrow internal prefix (routerTypes[128] required), and the pseudonode's TLV 22 member entry is the positive. Positive and negative tags sit on the one assertion; the input is the violation attempt.",
       "requirement_sha": "8e7861f0a678e2da",
       "tests": {
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "2fd56cd76cc7d907",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "b67887a5f61b2632"
       },
       "units": {
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "0a8d1d7ff20fe614",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "0a8d1d7ff20fe614"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "d824f90aa4e55147",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "d824f90aa4e55147"
       },
       "verdict": "enforced"
     },
@@ -298,6 +316,19 @@
         "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "1310acb87f70d516"
       },
       "upgrade_reason": "The earlier wrong verdict was about the row, not the units: it quoted the default-metric bit-8 sentence while the units prove the optional-metric bit-7 sentence. The row now quotes the bit-7 sentence, re-read against rfc/full/rfc1195.txt Section 5.3.4, and the unchanged units prove both clauses of it.",
+      "verdict": "enforced"
+    },
+    "RFC1195-5.3.5-2": {
+      "note": "Judged 2026-09-30 (routing phase-8 judge). TestRFC1195PseudonodeCannotInheritRouterPrefixes originates a Level 2 router LSP carrying a narrow external prefix (203.0.113.0/24, External+ExternalMetric) so the router LSP holds TLV 130 (the unit requires routerTypes[130]), then a pseudonode LSP from the same system into the same LSDB; every pseudonode TLV is decoded and TLV 130 there is t.Fatalf. Positive: the pseudonode exists and carries the member neighbor in TLV 22 (neighborSeen). Negative: inputs forced toward the violation (the originating router holds TLV 130 in the same LSDB) and the pseudonode still has none; one assertion wearing both tags, as for RFC1195-5.3.4-2, valid because the input is the violation attempt. Producer OriginatePseudonode builds only from Members, so there is no input that selects a TLV 130. Records are body-panic reverts on lsdb/pseudonode.go::OriginatePseudonode (coarse, but the assertion itself is the discriminator).",
+      "requirement_sha": "af07b1140a146078",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "b67887a5f61b2632"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "d824f90aa4e55147",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "d824f90aa4e55147"
+      },
       "verdict": "enforced"
     },
     "RFC1195-7-1": {
@@ -318,7 +349,7 @@
       "requirement_sha": "0b92b9bc4e437fb6",
       "tests": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal": "1ef6f2102a068439",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal": "403d36cb18bc29ad",
@@ -344,7 +375,7 @@
       "requirement_sha": "2fa4ebf4b250f210",
       "tests": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalSetRetainedBesideInternal": "1ef6f2102a068439",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalSetRetainedBesideInternal": "7568bae7abbba721",

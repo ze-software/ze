@@ -1618,12 +1618,18 @@
     {
       "id": "B.3.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC905-B.3.1-1"
+      ]
     },
     {
       "id": "B.3.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC905-B.3.2-1"
+      ]
     },
     {
       "id": "B.3.3",
@@ -1638,7 +1644,10 @@
     {
       "id": "B.3.5",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC905-B.3.5-1"
+      ]
     },
     {
       "id": "B.4",
@@ -1656,7 +1665,10 @@
     {
       "id": "B.4.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC905-B.4.2-1"
+      ]
     },
     {
       "id": "B.4.3",

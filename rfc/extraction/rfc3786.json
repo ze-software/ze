@@ -208,7 +208,7 @@
       "id": "3.2.1:1",
       "quote": "Other neighbors MUST NOT be specified in an Extended LSP, because those other neighbors would only specify the Originating System and not the Virtual System, and hence would not satisfy the bi- directionality check in the SPF computation.",
       "disposition": "mapped",
-      "mapped-to": "RFC3786-x-2"
+      "mapped-to": "RFC3786-3.2.1-1"
     },
     {
       "id": "5:1",

@@ -16,6 +16,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC3787-3.2-1": {
+      "note": "Judged 2026-09-30. Positive TestRFC3787TLV133IgnoredOnReceipt: an L2 LSP whose first TLV is TLV 133 (auth-type 1 + cleartext password) decodes, keeps TLV 133 as an opaque span, AuthTLVIndex returns -1 and VerifyPDU with no keys accepts it. Negative TestRFC3787TLV133NeverAuthenticates: under a cleartext key equal to TLV 133's password, VerifyPDU returns ErrAuthMissing; a receiver that honored TLV 133 as authentication would authenticate the LSP and go red. Recorded red on packet/tlv_opaque.go::AuthTLVIndex (both).",
+      "requirement_sha": "ce0b190218d971f5",
+      "tests": {
+        "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133IgnoredOnReceipt": "fe9114b09a6b67b2",
+        "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133NeverAuthenticates": "fe9114b09a6b67b2"
+      },
+      "units": {
+        "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133IgnoredOnReceipt": "f7da128f67014335",
+        "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133NeverAuthenticates": "d16e306bc3a47dfc"
+      },
+      "verdict": "enforced"
+    },
     "RFC3787-x-1": {
       "note": "Receive path now driven: lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying TLV 131 via Flooder.ReceiveLSP (not refused) and floods it byte-identical with 131 present, so a receiver that refused, stripped or rewrote on 131 goes red. Packet TestISISIgnoreObsoleteTLVs131And133: DecodeTLVs returns no error and keeps 131 opaque (positive); the negative is the scope control, a recognized TLV 129 in the same region is still decoded to its NLPID, so a decoder that dropped the PDU content on meeting 131 goes red. Tag prose narrowed to 131 (sec 3.1). TLV 131 is an L2 LSP TLV, so no IIH input is owed. The 'recognized' constant loop cannot go red on any producer change and carries no weight here. Records: + ReceiveLSP, +/- DecodeTLVs.",
       "requirement_sha": "2b6eaf61256d1da6",

@@ -1,13 +1,23 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "RFC3786-3.2.1-1": {
+      "no_code_path": "The ban binds the originator of an Extended LSP (Mode 1 virtual-system operation). Owner decision 2026-09-21 'Keep standard fragment sets': Ze has no Mode 1 configuration, no virtual-system adjacency and no extended-LSP producer (internal/plugins/isis/config.go, lsdb/origination.go), so no code path can specify a neighbor in an Extended LSP. Mirrors RFC3786-x-2.",
+      "note": "Judged 2026-09-30. {not-applicable} accepted; the child spec constraint records x-2's split as a row-text decision.",
+      "requirement_sha": "87f9f7f916ce11f6",
+      "verdict": "not-applicable"
+    },
     "RFC3786-5-1": {
       "note": "Row narrowed to the Original-set sentences. Missing fragment 0: TestRFC1195StandardFragmentsRequireFragmentZero requires the fragment-1 route while fragment 0 lives (2, 15) and no route after fragment 0 is deleted. RemainingLifetime zero: TestRFC3786ExpiredFragmentZeroExcludesSet stores a zero-lifetime fragment 0, asserts it is still held by the LSDB, and requires no route although fragment 1 still carries the link back and the prefix. Whole-stack: RawSnapshot drops zero-lifetime entries and Records admits no fragment of a source without a live fragment 0. The extended-set clause is RFC3786-5-2.",
       "requirement_sha": "9458f1ac64010ed2",
       "tests": {
-        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "e6d3e6dc3c5c468c",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "2fd56cd76cc7d907",
-        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "2fd56cd76cc7d907"
+        "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "1ef6f2102a068439",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "b67887a5f61b2632",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "b67887a5f61b2632"
       },
       "units": {
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "1605bcf97c31dd62",

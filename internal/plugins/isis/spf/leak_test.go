@@ -62,6 +62,10 @@ func leakNode(level Level, root types.SystemID, to types.SourceID, metric uint64
 // RFC requirement: RFC2966-2-2 negative -- the down-bit suppression is scoped, not
 // a blanket drop: a clear-bit L1-native prefix IS still leaked up into L2
 // (assertion 1), so ordinary L1 prefixes are not withheld.
+// RFC requirement: RFC2966-2-4 negative -- inputs pushed toward the violation
+// still leave L2 with the bit zero: alreadyDown enters L1 carrying the up/down
+// bit and is absent from IntoL2 (assertion 3), and the L1-native prefix leaked
+// up into L2 carries up/down=false (assertion 1, hasLeak(IntoL2, l1Only, false)).
 // RFC requirement: RFC5305-4.1-1 positive -- leakInto SETS the up/down bit on a
 // level 2 to level 1 advertisement: l2Derived enters the L2 graph with UpDown false
 // (leakNode) and assertion 2 requires hasLeak(IntoL1, l2Derived, true).

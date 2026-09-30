@@ -79,6 +79,17 @@
       "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1195-3.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes",
+      "unit-sha": "e5456eae99b0f667",
+      "claim-sha": "d45e71aedb1f060b",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/pseudonode.go::OriginatePseudonode",
+      "producer-sha": "3b51febba96bf840",
+      "break": "body of OriginatePseudonode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1195-3.9-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
@@ -244,6 +255,17 @@
       "break": "body of applyHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1195-4.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport",
+      "unit-sha": "26ca59a9b0db9f2c",
+      "claim-sha": "b4d6a8a02723e5fe",
+      "route": "revert",
+      "producer": "internal/plugins/isis/transport/transport.go::SendISH",
+      "producer-sha": "706e2acee0bd58fb",
+      "break": "body of SendISH replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1195-5.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
@@ -341,6 +363,28 @@
       "producer": "internal/plugins/isis/packet/tlv_narrow_ipv4.go::WriteTo",
       "producer-sha": "19c6dd2f19b28e6d",
       "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.3.5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes",
+      "unit-sha": "e5456eae99b0f667",
+      "claim-sha": "bb6cf185e573cc82",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/pseudonode.go::OriginatePseudonode",
+      "producer-sha": "3b51febba96bf840",
+      "break": "body of OriginatePseudonode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.3.5-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes",
+      "unit-sha": "e5456eae99b0f667",
+      "claim-sha": "aed492026deeeae1",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/pseudonode.go::OriginatePseudonode",
+      "producer-sha": "3b51febba96bf840",
+      "break": "body of OriginatePseudonode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-7-1",

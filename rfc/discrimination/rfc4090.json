@@ -585,6 +585,28 @@
       "break": "body of handlePathErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4090-6.5.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndRevertsGlobally",
+      "unit-sha": "1720c9e501a85003",
+      "claim-sha": "de44cb91a2912220",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::reoptimizeOnNotify",
+      "producer-sha": "9c886a3711180d2d",
+      "break": "body of reoptimizeOnNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-6.5.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitDoesNotReoptimize",
+      "unit-sha": "8a1b11a9cd7bdba7",
+      "claim-sha": "9ede3067f462b9a2",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handlePathErr",
+      "producer-sha": "64f633735c5f1244",
+      "break": "body of handlePathErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4090-7.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",

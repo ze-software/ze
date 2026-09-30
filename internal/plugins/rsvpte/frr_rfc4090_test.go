@@ -664,6 +664,7 @@ func TestRFC4090DetourOtherCTypeStillUnknownClass(t *testing.T) {
 // RFC 4090 Section 6.5.2 defines.
 //
 // RFC requirement: RFC4090-6.5-3 positive -- on a Notify (Error Code 25, value 3 "Tunnel locally repaired") the head-end re-optimizes the repaired LSP at once, without waiting for the failed resource: it signals a make-before-break replacement, a fresh PATH with the next LSP_ID, while the repaired LSP stays in place.
+// RFC requirement: RFC4090-6.5.2-1 positive -- the head-end LSR of the repaired tunnel is the one that reoptimizes it: on the Notify it signals a replacement LSP itself, without waiting for the failed resource to return.
 func TestRFC4090HeadEndRevertsGlobally(t *testing.T) {
 	e, ft, key := headEndEngine(t)
 
@@ -686,6 +687,7 @@ func TestRFC4090HeadEndRevertsGlobally(t *testing.T) {
 // the Notify on toward the head-end.
 //
 // RFC requirement: RFC4090-6.5-3 negative -- a transit that receives the Notify for an LSP it does not head-end starts no re-optimization: it creates no replacement LSP, sends no PATH, and relays the Notify (Error Code 25, value 3) to its previous hop toward the head-end.
+// RFC requirement: RFC4090-6.5.2-1 negative -- reoptimization is the head-end's alone: a transit receiving the Notify for an LSP it does not head-end creates no replacement LSP and sends no PATH.
 func TestRFC4090TransitDoesNotReoptimize(t *testing.T) {
 	e, ft, psb := rfc2205TransitWithPath(t)
 	key := keyFromPSB(psb)

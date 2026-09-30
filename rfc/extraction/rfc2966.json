@@ -143,10 +143,8 @@
     {
       "id": "2:6",
       "quote": "The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "The zero half of the same sender rule the previous sentence states: RFC2966-2-1 reads 'Set the up/down bit to one for L2-derived prefixes advertised into L1 LSPs, zero otherwise'.",
-      "mapped-to": "RFC2966-2-1"
+      "disposition": "mapped",
+      "mapped-to": "RFC2966-2-4"
     },
     {
       "id": "2:7",

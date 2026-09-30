@@ -30,6 +30,12 @@
       },
       "verdict": "enforced"
     },
+    "RFC5305-3.3-2": {
+      "no_code_path": "Conditional on implementing IS-IS traffic engineering. Ze originates no TE sub-TLV: lsdb/encode.go writes a zero sub-TLV length on every TLV 22 entry, so there is no TE producer on which the p2p neighbor-address inclusion could be met or violated. Mirrors RFC5305-3.2-2 and 4.3-1.",
+      "note": "Judged 2026-09-30. Accepted as mirroring the HEAD siblings; under ruling R23 the stricter form for all three TE-conditional rows is an extraction exclusion feature-out-of-scope quoting the 'If a router implements traffic engineering' condition.",
+      "requirement_sha": "0c9fd677d786eb68",
+      "verdict": "not-applicable"
+    },
     "RFC5305-4-1": {
       "note": "\u00a74 excludes a prefix 'advertised with a metric larger then MAX_PATH_METRIC'. spf TestRFC5305PrefixAboveMaxPathMetricNotConsidered drives BuildRoutes: node 3 (distance 10) advertises 10.9.0.0/24 at 50 (positive, installed at 60 via node 3 alone); node 2 (distance 10) advertises the same prefix at 0xFE000001 and 10.8.0.0/24 only at 0xFFFFFFFF (negative, strictly larger than MAX_PATH_METRIC, the input the previous note found missing): one next hop at 60 and the lone prefix absent. IPv4 has no per-entry filter, the path ceiling (route.go total >= MaxPathMetric after clampMetric) is the guard, and a BuildRoutes without it installs the lone prefix, so the unit goes red on the forbidden behaviour. Recorded +/- on BuildRoutes. TestISISMetricWidth stays tagged and proves the path ceiling at exactly MAX_PATH_METRIC.",
       "requirement_sha": "b981ef464b036da5",
@@ -48,21 +54,21 @@
       "verdict": "enforced"
     },
     "RFC5305-4.1-1": {
-      "note": "spf TestISISLeakOriginationL1L2 now carries the row and drives the producer leakInto via LeakPrefixes. Clause 1 (bit set to 1 on a higher-to-lower advertisement): l2Derived enters the L2 graph with UpDown false and assertion 2 requires hasLeak(IntoL1, l2Derived, true), so a leakInto that did not set the bit on L2->L1 goes red. Clause 2 (a prefix with the bit set only goes down): alreadyDown carried in L1 with UpDown true must be absent from IntoL2 (assertion 3), isolated because l1Only from the same node, same graph, does leak up. Both recorded red on spf/leak.go leakInto. The remaining sentences are rationale. lsdb_wiring and redistribute tags stay as the originator-side half. Re-judged 2026-09-30: TestISISEngineLeakOrigination changed only by two added RFC2966-2-1 tag comments; its assertions are unchanged.",
+      "note": "Re-judged 2026-09-30: TestISISEngineLeakOrigination and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Clause 1: l2Derived enters L2 with UpDown false and hasLeak(IntoL1, l2Derived, true) is required; the engine L1 LSP decodes it with the bit set. Clause 2: alreadyDown (UpDown true in L1) must be absent from IntoL2, isolated by l1Only from the same node leaking up. Recorded red on spf/leak.go leakInto.",
       "requirement_sha": "fcae79a8fa946731",
       "tests": {
-        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "38b9fda7904587b3",
-        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "38b9fda7904587b3",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
         "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "a790301b58d73b23",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "a790301b58d73b23"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5affb9956c000248"
       },
       "units": {
-        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "86fa460856391370",
-        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "86fa460856391370",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "b9a1a5e2daa88030",
         "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "d20f48a434482076",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "d20f48a434482076"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "682f56baeb8524c2"
       },
       "verdict": "enforced"
     },

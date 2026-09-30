@@ -131,7 +131,7 @@
       "id": "3.2:1",
       "quote": "TLV 133 is not used, and MUST be ignored.",
       "disposition": "mapped",
-      "mapped-to": "RFC3787-x-1"
+      "mapped-to": "RFC3787-3.2-1"
     },
     {
       "id": "5:1",

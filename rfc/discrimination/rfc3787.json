@@ -35,6 +35,28 @@
       "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3787-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133IgnoredOnReceipt",
+      "unit-sha": "9d9c6077667c8561",
+      "claim-sha": "59da65236a0c8907",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_opaque.go::AuthTLVIndex",
+      "producer-sha": "ef34c57a0c667486",
+      "break": "body of AuthTLVIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3787-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133NeverAuthenticates",
+      "unit-sha": "53c6a00fa9418653",
+      "claim-sha": "3958009083a84f9c",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_opaque.go::AuthTLVIndex",
+      "producer-sha": "ef34c57a0c667486",
+      "break": "body of AuthTLVIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3787-x-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged",

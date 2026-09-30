@@ -269,6 +269,7 @@ func TestISISEngineLeakOrigination(t *testing.T) {
 	l2LSP, l2Seq := frag0(lsdb.Level2)
 	// RFC requirement: RFC5305-4.1-1 negative -- a prefix leaked UP from L1 into L2 leaves the up/down bit CLEAR; the bit is set only on a down-the-hierarchy advertisement (RFC 5305 sec 4.1).
 	// RFC requirement: RFC2966-2-1 negative -- the bit is set only for L2-derived prefixes advertised into L1: the engine's decoded L2 LSP carries the L1-derived prefix with the up/down bit clear.
+	// RFC requirement: RFC2966-2-4 positive -- a prefix that is not L2-derived-into-L1 goes out with the bit zero: the engine's decoded L2 LSP carries the L1-derived prefix with the up/down bit clear.
 	if present, up := tlv135UpDown(l2LSP, l1Derived); !present || up {
 		t.Errorf("L2 LSP: leaked %s present=%v up/down=%v, want present with up/down CLEAR (up leak)", l1Derived, present, up)
 	}
