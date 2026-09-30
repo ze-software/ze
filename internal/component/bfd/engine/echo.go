@@ -100,7 +100,7 @@ func (l *Loop) sendEchoLocked(entry *sessionEntry, now time.Time) {
 		Bytes:     buf[:],
 	}
 	if err := l.echoTransport.Send(out); err != nil {
-		engineLog().Debug("bfd echo send failed", "peer", out.To, "err", err)
+		l.warnSendFailedLocked(entry, "echo", err)
 		return
 	}
 	entry.machine.RegisterEchoTx(seq, now)

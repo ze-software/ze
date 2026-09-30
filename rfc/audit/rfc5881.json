@@ -173,32 +173,36 @@
       "verdict": "enforced"
     },
     "RFC5881-6-1": {
-      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD.\" D-8 defect fixed per R33: UDP.Send pins each single-hop packet on a socket bound to no device to Outbound.Interface with an IP_PKTINFO/IPV6_PKTINFO ifindex cmsg (pinsToLink, egressPin, pktinfoPin); device-bound, multi-hop, zoned and interface-less sends unchanged; an unresolvable interface fails the send (never an unpinned send). Veth+AF_PACKET in netns: + TestRFC5881ControlLeavesOnTheProtectedLink (bound p0), - TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink (bound, /32 via o0), - TestRFC5881UnboundLoopControlLeavesOnTheSessionLink (unbound, /32 via o0: frame on p1, none on o1). Records on applySocketOptions and udp.go::Send observed red; pinsToLink-false overlay reds only the unbound test (pin-ov1). Wrong TTL-based tags removed. Residual: the route-detour negatives are IPv4 only; the IPv6 pin is exercised (sends succeed) by the 2-2 wire unit but no IPv6 detour asserts it. Send errors are logged at Debug only (journal silent-fall-through).",
+      "note": "Judge 2026-09-30 (rejudge, subnet). \u00a76 \"Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD.\" UDP.Send pins single-hop packets on a device-less socket with an IP_PKTINFO/IPV6_PKTINFO ifindex cmsg (pinsToLink, egressLinkOf, pktinfoPin). + TestRFC5881ControlLeavesOnTheProtectedLink; - TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink, - TestRFC5881UnboundLoopControlLeavesOnTheSessionLink (IPv4 /32 detour via o0), and now - TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink (unbound [::], /128 via o0: no frame on o1, one on p1), closing the IPv4-only residual. The Send record went stale with the subnet change and was re-recorded by the judge (observed red); the v6 record reverts pinsToLink. Send failures now Warn once a minute per session (warnSendFailedLocked).",
       "requirement_sha": "1dbda6fd39343a67",
       "tests": {
         "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink": "dd8a6cc8a7382e61",
         "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink": "dd8a6cc8a7382e61",
-        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "dd8a6cc8a7382e61"
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "dd8a6cc8a7382e61",
+        "internal/component/bfd/transport/rfc5881_one_hop_path_v6_linux_test.go::TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink": "9f7a2e21ac385fbc"
       },
       "units": {
         "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink": "4e88a9a8ab36da3a",
         "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink": "f4337393245271be",
-        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "fd62d363ddde423d"
+        "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "fd62d363ddde423d",
+        "internal/component/bfd/transport/rfc5881_one_hop_path_v6_linux_test.go::TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink": "4d606a9f1221ca47"
       },
       "verdict": "enforced"
     },
     "RFC5881-6-2": {
-      "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet\". Source clause enforced: + TestRFC5881ControlAddressedFromAndToTheSubnet (bound p0, source and destination in 10.58.1.0/24), - TestRFC5881ControlNeverSourcedOffTheSubnet (unbound, /32 via o0 that would source from 10.58.2.1; every captured frame sourced in p0's subnet); records on destination (+) and pinsToLink (-) observed red; {single-polarity} removed. Weak: the destination clause is an open D-8 defect (R37): nothing compares a single-hop peer with its interface's subnets, so a peer off the subnet is sent to via a gateway; the untagged red TestRFC5881ControlNeverAddressedOffTheSubnet stays out of the commit until the fix lands.",
+      "note": "Judge 2026-09-30 (rejudge, subnet). \u00a76 \"On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet\". Source clause enforced as before (+ ControlAddressedFromAndToTheSubnet, - ControlNeverSourcedOffTheSubnet). Destination clause R37 runtime fix: Send refuses a single-hop packet whose peer is on no subnet of its interface (egressLink.reaches, errUDPOffSubnet); - TestRFC5881ControlNeverAddressedOffTheSubnet (peer 10.58.3.2 via a gateway on p0: errUDPOffSubnet, no frame), record revert reaches observed red; the + ControlAddressedFromAndToTheSubnet also passes through reaches. Point-to-point exemption matches the RFC's \"On a multiaccess network\". 30 s subnet cache (ifNameTTL): up to 30 s after an address removal an off-subnet peer is still sent to, and after an address add a newly on-subnet peer is refused; bounded and acceptable. Weak for one open defect: reaches exempts every IsLinkLocalUnicast peer, which in net/netip includes IPv4 169.254/16, so a 169.254 peer on an interface holding no 169.254 address passes the check and can leave via a gateway with an off-subnet source and destination; the exemption should be IPv6-only (fe80::/10 is on-link by scope, RFC 4291 2.5.6), and no test covers either exemption. Also untested: point-to-point exemption. Engine TestRFC5881TransmitDestinationStable carries an unrecorded + (unproven).",
       "requirement_sha": "f4c706fa335c606d",
       "tests": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet": "e069f87eed30683c",
-        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "e069f87eed30683c"
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "e069f87eed30683c",
+        "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet": "7759ac6a22152a7b"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c21c424b4e04aa90",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet": "87a6267181a6ffe8",
-        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "c9ef8bca7c9f8dc2"
+        "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet": "c9ef8bca7c9f8dc2",
+        "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet": "b7b5da4ccea500e2"
       },
       "verdict": "weak"
     },

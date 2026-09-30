@@ -8,6 +8,8 @@
 package engine
 
 import (
+	"time"
+
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 	"github.com/ze-software/ze/internal/component/bfd/transport"
@@ -260,13 +262,41 @@ func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 	}
 	l.captureTx(out.Bytes)
 	if err := l.transport.Send(out); err != nil {
-		engineLog().Debug("transport send failed", "peer", out.To, "err", err)
+		l.warnSendFailedLocked(entry, "control", err)
 		return
 	}
 	entry.txPackets++
 	if hook := l.metricsHook.Load(); hook != nil {
 		(*hook).OnTxPacket(key.Mode.String())
 	}
+}
+
+// sendWarnInterval bounds how often one session's failed transmissions are
+// logged at Warn. A failure that does not clear repeats on every transmit
+// interval, up to 300 times a second; one line a minute names the cause
+// without burying the log.
+const sendWarnInterval = time.Minute
+
+// warnSendFailedLocked reports a packet the transport refused to send for
+// entry. The transport refuses a single-hop packet whose interface no longer
+// resolves or whose peer is on none of that interface's subnets (RFC 5881
+// Section 6), and the session then falls Down on Control Detection Time
+// Expired: without this line the operator sees the Down and not its cause.
+// The first failure, and the first after each sendWarnInterval, is logged at
+// Warn; the rest at Debug. packetKind is "control" or "echo". Caller MUST hold
+// l.mu.
+func (l *Loop) warnSendFailedLocked(entry *sessionEntry, packetKind string, err error) {
+	key := entry.machine.Key()
+	now := l.clk.Now()
+	if !entry.sendWarnAt.IsZero() && now.Sub(entry.sendWarnAt) < sendWarnInterval {
+		engineLog().Debug("bfd send failed", "packet", packetKind, "peer", key.Peer,
+			"interface", key.Interface, "vrf", key.VRF, "mode", key.Mode.String(), "err", err)
+		return
+	}
+	entry.sendWarnAt = now
+	engineLog().Warn("bfd send failed, the session cannot reach its peer", "packet", packetKind,
+		"peer", key.Peer, "interface", key.Interface, "vrf", key.VRF, "mode", key.Mode.String(),
+		"local-discriminator", entry.machine.LocalDiscriminator(), "err", err)
 }
 
 // handle is the engine's implementation of api.SessionHandle.

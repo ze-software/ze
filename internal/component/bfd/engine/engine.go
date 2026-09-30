@@ -175,6 +175,10 @@ type sessionEntry struct {
 	// (ReleaseSession). tick removes it once that time has passed, and a
 	// client that asks for it again first revives it (acquireLocked).
 	released bool
+	// sendWarnAt is when a failed transmission of this session was last
+	// logged at Warn, the zero time when none has been. It rate-limits
+	// warnSendFailedLocked to one line per sendWarnInterval per session.
+	sendWarnAt time.Time
 }
 
 // recordTransition appends a new TransitionRecord to the ring buffer.

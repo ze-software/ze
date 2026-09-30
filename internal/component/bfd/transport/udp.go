@@ -83,7 +83,7 @@ type UDP struct {
 	// expire on ifNameTTL for the reason ifNames does: a name can come back
 	// with another index after the device is deleted and recreated.
 	egressPinsMu sync.RWMutex
-	egressPins   map[string]egressLink
+	egressPins   map[string]*egressLink
 
 	// Clock is the time source the ifindex cache ages entries against. Nil
 	// means clock.RealClock{}, which is what every production caller wants; a
@@ -244,10 +244,13 @@ func (u *UDP) Stop() error {
 // (multi-hop peers happily accept TTL=255 since their floor is typically
 // 254).
 //
-// A single-hop packet on a socket bound to no device leaves with an ifindex
-// control message naming the session's interface (see pinsToLink), so the
-// kernel sends it on that link whatever the routing table says about the
-// peer. A multi-hop packet is routed and carries none.
+// A single-hop packet that names an interface is first checked against that
+// interface's subnets (egressLink.reaches): a peer on none of them is refused
+// with errUDPOffSubnet and nothing is written. On a socket bound to no device
+// the packet then leaves with an ifindex control message naming the session's
+// interface (see pinsToLink), so the kernel sends it on that link whatever the
+// routing table says about the peer. A multi-hop packet is routed and is
+// neither checked nor pinned.
 func (u *UDP) Send(out Outbound) error {
 	u.mu.Lock()
 	conn := u.conn
@@ -256,17 +259,31 @@ func (u *UDP) Send(out Outbound) error {
 		return errUDPNotStarted
 	}
 	to := u.destination(out)
-	if !u.pinsToLink(out, to) {
+	if u.Mode != api.SingleHop {
 		_, err := conn.WriteToUDP(out.Bytes, to)
 		return err
 	}
-	pin, err := u.egressPin(out.Interface)
+	if out.Interface == "" {
+		_, err := conn.WriteToUDP(out.Bytes, to)
+		return err
+	}
+	link, err := u.egressLinkOf(out.Interface)
 	if err != nil {
+		return err
+	}
+	// RFC 5881 Section 6: "On a multiaccess network, BFD Control packets MUST
+	// be transmitted with source and destination addresses that are part of
+	// the subnet (addressed from and to interfaces on the subnet)."
+	if !link.reaches(out.To) {
+		return fmt.Errorf("%w: peer %s, interface %q", errUDPOffSubnet, out.To, out.Interface)
+	}
+	if !u.pinsToLink(out, to) {
+		_, err = conn.WriteToUDP(out.Bytes, to)
 		return err
 	}
 	// RFC 5881 Section 6: "Implementations MUST ensure that all BFD Control
 	// packets are transmitted over the one-hop path being protected by BFD."
-	_, _, err = conn.WriteMsgUDP(out.Bytes, pin, to)
+	_, _, err = conn.WriteMsgUDP(out.Bytes, link.oob, to)
 	return err
 }
 
@@ -506,43 +523,112 @@ func (u *UDP) ingressInterface(ifindex int) string {
 	return link.Name
 }
 
-// egressLink is one cached pinning control message and the moment its
-// interface was resolved.
+// egressLink is one cached answer about the interface a single-hop session
+// names: the control message that pins a packet to it, the subnets its
+// addresses sit in, whether it is a point-to-point link, and the moment it was
+// resolved. Every field is read-only once cached, so Send shares the slices
+// without a lock and without an allocation per packet.
 type egressLink struct {
-	oob []byte
-	at  time.Time
+	oob         []byte
+	subnets     []netip.Prefix
+	pointToLink bool
+	at          time.Time
+}
+
+// reaches answers whether peer is a destination RFC 5881 Section 6 lets a
+// single-hop Control packet on this interface be addressed to.
+//
+// The subnet rule is stated "On a multiaccess network", so a point-to-point
+// interface (IFF_POINTOPOINT, such as an unnumbered or /32-peer tunnel) always
+// answers true. A link-local peer is on the link by its own scope (RFC 4291
+// Section 2.5.6), and destination already pins it with its zone. Otherwise the
+// peer MUST sit in a subnet of one of the interface's addresses; an interface
+// with no address has no subnet, and answers false for every global peer.
+func (l *egressLink) reaches(peer netip.Addr) bool {
+	if l.pointToLink {
+		return true
+	}
+	target := peer.Unmap()
+	if target.IsLinkLocalUnicast() {
+		return true
+	}
+	for _, subnet := range l.subnets {
+		if subnet.Contains(target) {
+			return true
+		}
+	}
+	return false
 }
 
 // errUDPEgressUnknown is returned by Send when the interface a single-hop
 // session names cannot be resolved to an index.
 var errUDPEgressUnknown = errors.New("bfd: single-hop session interface cannot be resolved")
 
-// egressPin answers the control message that pins a packet to the interface
-// named name, from the cache when the entry is younger than ifNameTTL.
+// errUDPOffSubnet is returned by Send when a single-hop session's peer is on
+// none of the subnets of the interface the session names (RFC 5881 Section 6).
+var errUDPOffSubnet = errors.New("bfd: single-hop peer is on no subnet of the session interface")
+
+// egressLinkOf answers what Send needs to know about the interface named
+// name, from the cache when the entry is younger than ifNameTTL.
 //
-// An interface that does not resolve is an error, never an unpinned send: the
-// link the session protects is gone, and a packet routed over another link
-// would keep the session Up with no one-hop path under it (RFC 5881 Section 6).
-// The failure is not cached, for the reason ingressInterface gives.
-func (u *UDP) egressPin(name string) ([]byte, error) {
+// An interface that does not resolve is an error, never an unpinned or
+// unchecked send: the link the session protects is gone, and a packet routed
+// over another link would keep the session Up with no one-hop path under it
+// (RFC 5881 Section 6). The failure is not cached, for the reason
+// ingressInterface gives. The subnets age on the same TTL, so an address the
+// operator adds or removes is seen within ifNameTTL; reading them per packet
+// would be a netlink dump on a path that runs 300 times a second per session.
+func (u *UDP) egressLinkOf(name string) (*egressLink, error) {
 	now := u.now()
 	u.egressPinsMu.RLock()
 	cached, ok := u.egressPins[name]
 	u.egressPinsMu.RUnlock()
 	if ok && now.Sub(cached.at) < ifNameTTL {
-		return cached.oob, nil
+		return cached, nil
 	}
 	link, err := net.InterfaceByName(name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q: %w", errUDPEgressUnknown, name, err)
 	}
+	subnets, err := interfaceSubnets(link)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %q addresses: %w", errUDPEgressUnknown, name, err)
+	}
 	isV6 := u.Bind.Addr().Is6() && !u.Bind.Addr().Is4In6()
-	oob := pktinfoPin(link.Index, isV6)
+	resolved := &egressLink{
+		oob:         pktinfoPin(link.Index, isV6),
+		subnets:     subnets,
+		pointToLink: link.Flags&net.FlagPointToPoint != 0,
+		at:          now,
+	}
 	u.egressPinsMu.Lock()
 	if u.egressPins == nil {
-		u.egressPins = make(map[string]egressLink, 4)
+		u.egressPins = make(map[string]*egressLink, 4)
 	}
-	u.egressPins[name] = egressLink{oob: oob, at: now}
+	u.egressPins[name] = resolved
 	u.egressPinsMu.Unlock()
-	return oob, nil
+	return resolved, nil
+}
+
+// interfaceSubnets answers the subnet of every address the interface holds,
+// both families, masked to its prefix length.
+func interfaceSubnets(link *net.Interface) ([]netip.Prefix, error) {
+	addrs, err := link.Addrs()
+	if err != nil {
+		return nil, err
+	}
+	subnets := make([]netip.Prefix, 0, len(addrs))
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		addr, ok := netip.AddrFromSlice(ipNet.IP)
+		if !ok {
+			continue
+		}
+		ones, _ := ipNet.Mask.Size()
+		subnets = append(subnets, netip.PrefixFrom(addr.Unmap(), ones).Masked())
+	}
+	return subnets, nil
 }
