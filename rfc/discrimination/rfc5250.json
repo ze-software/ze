@@ -110,6 +110,39 @@
       "producer": "internal/plugins/ospf/ext_prefix.go::extPrefixUsable",
       "producer-sha": "cab9830aa216966c",
       "break": "body of extPrefixUsable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR",
+      "unit-sha": "8cee69a00eb80b0e",
+      "claim-sha": "b930464c8494cdbd",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::selfIsASBRLocked",
+      "producer-sha": "9617423088a6f2e0",
+      "break": "body of selfIsASBRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR",
+      "unit-sha": "8cee69a00eb80b0e",
+      "claim-sha": "338b6dcc07df8e3f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::selfIsASBRLocked",
+      "producer-sha": "9617423088a6f2e0",
+      "break": "body of selfIsASBRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-5-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5250_asbr_originator_test.go::TestRFC5250TwoRoutersType11OriginatorReachable",
+      "unit-sha": "f8da6b86bde6d0c8",
+      "claim-sha": "0caae0c3287a792c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::selfIsASBRLocked",
+      "producer-sha": "9617423088a6f2e0",
+      "break": "body of selfIsASBRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

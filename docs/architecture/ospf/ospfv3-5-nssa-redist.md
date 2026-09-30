@@ -44,7 +44,11 @@ inject nothing.
   unit test that cannot supply one cannot reach any rule that comes after it.
   The engine holds a single nil-by-default lookup that both the OSPFv2 and the
   OSPFv3 helper consult; production leaves it nil and reads the live interface.
+  The OSPFv3 read loads the iface backend first, as the OSPFv2 address reads do,
+  and takes the first address that is not link-local, loopback, unspecified or
+  multicast (RFC 5340 Appendix A.4.8 requires a global one).
   <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- forwardingAddressForAF -->
+  <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceIPv6ForwardingAddress -->
   <!-- source: internal/plugins/ospf/redist_wiring.go -- nssaIPv4Address -->
 - **The translator carries only a global forwarding address.** A translated
   Type-5 copies the Type-7's forwarding address (RFC 3101 Section 3.2), and

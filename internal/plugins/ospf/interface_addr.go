@@ -74,6 +74,10 @@ func v6UsableForwardingAddress(addr netip.Addr) bool {
 }
 
 func interfaceIPv6ForwardingAddress(name string) ([16]byte, bool) {
+	// See interfaceNetworkMask: ensure the iface backend is loaded, or an NSSA border
+	// router whose interfaces skipped the transport open finds no global address and
+	// propagates no forwarding address although the interface carries one.
+	_ = ifcomp.EnsureBackend()
 	addrs, err := ifcomp.Addresses(name)
 	if err != nil {
 		return [16]byte{}, false

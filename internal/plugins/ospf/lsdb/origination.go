@@ -74,8 +74,9 @@ func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int 
 	// Type-4 virtual link record itself.
 	fullTransitAreas := fullVirtualTransitAreas(ifs)
 	// RFC 2328 Section 3.3 / 12.4.4: the node is an ASBR (Router-LSA E-bit) exactly
-	// when it currently originates at least one non-purged Type 5 AS-External-LSA.
-	// This clears the E-bit automatically when the last external is withdrawn (AC-6).
+	// when it currently originates at least one non-purged Type 5 AS-External-LSA (RFC 5250
+	// Section 5 adds a Type 11 opaque LSA, RFC 3101 a Type 7; see selfIsASBRLocked).
+	// This clears the E-bit automatically when the last one is withdrawn (AC-6).
 	asbr := d.selfOriginatesExternal(router)
 	for _, area := range areas {
 		opts := types.Options(0)
@@ -482,8 +483,9 @@ func (d *LSDB) SelfExternalCount(router types.RouterID) int {
 }
 
 // selfIsASBRLocked reports whether this router is an AS boundary router -- it originates a
-// non-purged Type 5 AS-External-LSA, OR a non-purged Type 7 NSSA-LSA (an NSSA ABR default or
-// redistributed NSSA external). Both make the router an ASBR and require the Router-LSA E-bit
+// non-purged Type 5 AS-External-LSA, a non-purged OSPFv2 Type 11 AS-scope opaque LSA (RFC 5250
+// Section 5), OR a non-purged Type 7 NSSA-LSA (an NSSA ABR default or redistributed NSSA
+// external). Each makes the router an ASBR and requires the Router-LSA E-bit
 // (RFC 2328 sec 12.4.1); without the E-bit a receiver will not compute routes from the router's
 // Type 7s ("originating router is not an ASBR"). It walks the self-LSA index d.own (the small
 // set this router originates) rather than every area store, so it stays O(self-LSAs) on the
@@ -496,6 +498,14 @@ func (d *LSDB) selfIsASBRLocked(router types.RouterID) bool {
 	// only a real external/NSSA LSA sets the E-bit).
 	for key, e := range d.asExternal.entries {
 		if key.Type.ASExternal() && key.AdvertisingRouter == router && e.self && !e.purged {
+			return true
+		}
+	}
+	// RFC 5250 Section 5: "(1) An OSPF router that is configured to originate AS-scope opaque
+	// LSAs will advertise itself as an ASBR". Receivers look up the ASBR routing table entry of
+	// every Type-11 originator (Section 5 (2)) and ignore its Type-11 LSAs without one.
+	for key, e := range d.asOpaque.entries {
+		if key.AdvertisingRouter == router && e.self && !e.purged {
 			return true
 		}
 	}

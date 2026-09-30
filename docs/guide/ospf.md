@@ -128,7 +128,7 @@ ipv6` lists each running AF instance with its address family and Instance ID.
 
 ## AS-External routes and redistribution
 
-A router becomes an AS Boundary Router (ASBR) when it originates external LSAs, either by redistributing routes from another protocol or through `default-information originate`. OSPFv2 uses Type 5 AS-External-LSAs; OSPFv3 uses AS-External-LSAs (`0x4005`) in normal areas and NSSA-LSAs (`0x2007`) in attached NSSA areas. The ASBR sets the E-bit in its Router-LSA; the ABR and ASBR roles are independent. AS-scoped Type 5 / `0x4005` LSAs live in the AS-wide store, separate from per-area LSDBs.
+A router becomes an AS Boundary Router (ASBR) when it originates external LSAs, either by redistributing routes from another protocol or through `default-information originate`. OSPFv2 uses Type 5 AS-External-LSAs; OSPFv3 uses AS-External-LSAs (`0x4005`) in normal areas and NSSA-LSAs (`0x2007`) in attached NSSA areas. An OSPFv2 router that originates an AS-scope Type 11 opaque LSA (for example Router Information or Traffic Engineering flooded AS-wide) is also an ASBR (RFC 5250 Section 5), because routers in other areas track that LSA's originator through its ASBR routing table entry and ignore the LSA without one. The ASBR sets the E-bit in its Router-LSA; the ABR and ASBR roles are independent. AS-scoped Type 5 / `0x4005` LSAs live in the AS-wide store, separate from per-area LSDBs.
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateExternal, PurgeExternal -->
 <!-- source: internal/plugins/ospf/origination_v6_external.go -- v6InjectExternal, v6OriginateExternalLSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->

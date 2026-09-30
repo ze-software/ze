@@ -222,9 +222,8 @@
     {
       "id": "5:1",
       "quote": "(1) An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF].",
-      "disposition": "excluded",
-      "excluded-kind": "cross-document",
-      "reason": "The obligation named is 'the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF]', which is RFC 2328's ASBR E-bit rule."
+      "disposition": "mapped",
+      "mapped-to": "RFC5250-5-3"
     },
     {
       "id": "5:2",

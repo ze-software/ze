@@ -140,6 +140,21 @@
         "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "15324195f3bef120"
       },
       "verdict": "enforced"
+    },
+    "RFC5250-5-3": {
+      "note": "Judged 2026-09-30 (independent judge, ospf c13). Section 5 (1): 'An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF].' RFC 2328 Section 12.1.2: the E-bit 'should also be set in all AS-external-LSAs'. Producers: lsdb/origination.go selfIsASBRLocked now scans d.asOpaque (self, non-purged); lsdb/opaque_as.go OriginateOpaque ORs OptionE into every Type-11 header. Production refreshes the Router-LSA on every origination tick (instance.go ticker -> originateSelfLSAs -> OriginateFromTopology), so the E-bit follows a Type-11 origination or withdrawal within one tick. lsdb TestRFC5250Type11OriginatorAdvertisesASBR: - Router-LSA E clear with nothing, with Type-10 only, and after the only Type-11 is withdrawn; + Type-11 header Options carries E although the caller passed only O, and Router-LSA E set. Two-router TestRFC5250TwoRoutersType11OriginatorReachable: router A's own originated Router-LSA installed on engine B, B's SPF runs, deliverOpaque judges A's Type-11: unusable before A originates it, usable after (the end-to-end consequence of 5 (1) against the 5 (2) receiver). Judge overlays observed red for the right reason: dropping !e.purged from the asOpaque scan reds the withdrawn negative ('E-bit still set after the only Type-11 opaque LSA was withdrawn'); dropping the OptionE set reds the header assertion ('Options 0x40 lack the E-bit'). Recorded revert breaks on selfIsASBRLocked are panic halts. The Router-LSA is carried by Install, not over the wire: the encode/flood path is not exercised.",
+      "requirement_sha": "477124ff0374bb88",
+      "tests": {
+        "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR": "59d06d627d816596",
+        "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR#2": "59d06d627d816596",
+        "internal/plugins/ospf/rfc5250_asbr_originator_test.go::TestRFC5250TwoRoutersType11OriginatorReachable": "b37b04ed02c13f2d"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR": "c8b703d1392130c7",
+        "internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go::TestRFC5250Type11OriginatorAdvertisesASBR#2": "c8b703d1392130c7",
+        "internal/plugins/ospf/rfc5250_asbr_originator_test.go::TestRFC5250TwoRoutersType11OriginatorReachable": "583c4ee39142d081"
+      },
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5250"

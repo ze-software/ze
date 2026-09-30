@@ -113,15 +113,22 @@ func (d *LSDB) OriginateOpaque(in OpaqueOriginateInput) (packet.LSAHeader, bool)
 	// Type 10 uses the target area; Type 11 uses the backbone area as the fixed
 	// sequence key while dbForLocked routes it to the AS-wide opaque store.
 	seqArea := in.Area
+	options := in.Options
 	if in.Scope == types.LSTypeOpaqueAS {
 		seqArea = types.BackboneArea
+		// RFC 5250 Section 5: "(1) An OSPF router that is configured to originate AS-scope
+		// opaque LSAs will advertise itself as an ASBR and MUST follow the requirements
+		// related to setting of the Options field E-bit in OSPF LSA headers as specified in
+		// [OSPF]." RFC 2328 Section 12.1.2: the E-bit "should also be set in all
+		// AS-external-LSAs", and a Type-11 LSA floods where they do.
+		options = options.Set(types.OptionE)
 	}
 	if in.Withdraw {
 		ok := d.flushSelfLSA(seqArea, key)
 		h, _ := d.Lookup(seqArea, key)
 		return h, ok
 	}
-	enc := opaqueEncoder(key, in.Options, in.Body)
+	enc := opaqueEncoder(key, options, in.Body)
 	return d.OriginateSelf(seqArea, key, in.Body, enc)
 }
 

@@ -34,6 +34,14 @@ never becomes an SPF vertex (RFC 5250 Section 3).
   router SPF reaches without the Router-LSA E-bit has none, so its Type 11 LSAs
   are not usable. Types 9 and 10 are always reachable.
   <!-- source: internal/plugins/ospf/opaque.go -- spfASBRReachable -->
+- **A Type 11 originator advertises itself an ASBR** (RFC 5250 Section 5 (1)),
+  which is what makes the lookup above succeed for Ze's own LSAs: while the
+  router originates a non-purged Type 11 LSA, its Router-LSA carries the E-bit,
+  and every Type 11 LSA header it originates carries the Options E-bit, as RFC
+  2328 Section 12.1.2 sets it in every AS-external-LSA. Without the Router-LSA
+  E-bit, another Ze router finds no ASBR entry and ignores the LSA.
+  <!-- source: internal/plugins/ospf/lsdb/origination.go -- selfIsASBRLocked -->
+  <!-- source: internal/plugins/ospf/lsdb/opaque_as.go -- OriginateOpaque -->
 - **A consumer judges Type 11 usability when it reads an entry, never when the
   LSA arrives.** RFC 5250 Section 5 requires discontinuing every Opaque LSA of an
   originator once it is detected unreachable, and no new LSA arrives to say so.
