@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7770",
+  "records": [
+    {
+      "rid": "RFC7770-2.4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea",
+      "unit-sha": "20a65622f0420d94",
+      "claim-sha": "27e8231ff60582b5",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri.go::deriveRICapabilities",
+      "producer-sha": "713ca68f8df55612",
+      "break": "body of deriveRICapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7770-2.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea",
+      "unit-sha": "20a65622f0420d94",
+      "claim-sha": "a93171d2ee2180bb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ri.go::areaHasTE",
+      "producer-sha": "e885f0835a690baa",
+      "break": "body of areaHasTE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

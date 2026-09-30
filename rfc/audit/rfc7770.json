@@ -1,51 +1,55 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC7770-2.4-1": {
-      "note": "Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(...)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Single-polarity marker on the row covers the absent negative.",
+      "note": "Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(area scope, backbone)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Re-judged 2026-09-30 after the call site gained the (area, iface) scope target; the assertion is unchanged. Single-polarity marker on the row covers the absent negative.",
       "requirement_sha": "1a85660b8f889a8e",
       "tests": {
-        "internal/plugins/ospf/ri_test.go::TestRITLVType1First": "3b4c15470c73174b"
+        "internal/plugins/ospf/ri_test.go::TestRITLVType1First": "bae5b63e3ddea225"
       },
       "units": {
-        "internal/plugins/ospf/ri_test.go::TestRITLVType1First": "de7f5ad359823d85"
+        "internal/plugins/ospf/ri_test.go::TestRITLVType1First": "4261492ff5686f76"
       },
       "verdict": "enforced"
     },
     "RFC7770-2.4-2": {
-      "note": "Over-claim and under-claim are enforced for the whole router: TestRICapabilityBitsFromState fails if the TE bit is set with no TE configured or the stub-router bit is clear when max-metric is configured, TestRICapabilityTEBitFromConfig fails if TE is not set with an interface TE block. The clause \"in the scope advertised\" has no assertion: deriveRICapabilities (internal/plugins/ospf/ri.go) takes no scope, and no test shows a capability held in one area is not claimed in an RI LSA flooded into another.",
+      "note": "Area scope is enforced both ways: rfc7770_ri_scope_test.go TestRFC7770AreaRICapabilitiesFollowTheArea fails if the backbone RI LSA (TE on eth0 in area 0) leaves TE clear or the area 0.0.0.5 RI LSA (no TE interface) sets it; revert records on ri.go::areaHasTE (+) and ri.go::deriveRICapabilities (-) observed red. AS scope: TestRICapabilityBitsFromState (-, no TE) and TestRICapabilityTEBitFromConfig (+) hold, unrecorded. Missing: (1) the link-scope branch of riScopeHasTE has no assertion, so returning the router-wide answer for a Type-9 RI LSA survives every test; (2) at AS scope a router-address alone (HasTERouterAddress, no active TE interface) claims TE although teOriginateType1 originates no TE LSA (anyTEActive false), and TestRICapabilityTEBitFromConfig sets both, so neither source is isolated.",
       "requirement_sha": "7df59214bc473f02",
       "tests": {
-        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "3b4c15470c73174b",
-        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "3b4c15470c73174b",
-        "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "3b4c15470c73174b"
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "daec9bdb88530f02",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "daec9bdb88530f02",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "bae5b63e3ddea225",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "bae5b63e3ddea225",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "bae5b63e3ddea225"
       },
       "units": {
-        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "b9f700b4c6697a2d",
-        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "b9f700b4c6697a2d",
-        "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "e7967efdfe03c7c3"
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea": "6a09345a8ceb45f9",
+        "internal/plugins/ospf/rfc7770_ri_scope_test.go::TestRFC7770AreaRICapabilitiesFollowTheArea#2": "6a09345a8ceb45f9",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "84ccc888758cfb8c",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "84ccc888758cfb8c",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "62cd1b2c5a7ad0d4"
       },
       "verdict": "weak"
     },
     "RFC7770-2.6-1": {
-      "note": "Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Single-polarity marker on the row covers the absent negative.",
+      "note": "Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances(area scope, backbone) to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.",
       "requirement_sha": "e3e048d8302b0376",
       "tests": {
-        "internal/plugins/ospf/ri_registry_test.go::TestRITLVRegistered": "1f6ee3444d7ee282"
+        "internal/plugins/ospf/ri_registry_test.go::TestRITLVRegistered": "daec37ca4a67c0dc"
       },
       "units": {
-        "internal/plugins/ospf/ri_registry_test.go::TestRITLVRegistered": "7e82daa55c562ab2"
+        "internal/plugins/ospf/ri_registry_test.go::TestRITLVRegistered": "ba62555032814e17"
       },
       "verdict": "enforced"
     },
     "RFC7770-2.6-2": {
-      "note": "Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Single-polarity marker on the row covers the absent negative.",
+      "note": "Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.",
       "requirement_sha": "2f7328aefc204d11",
       "tests": {
-        "internal/plugins/ospf/ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "3b4c15470c73174b"
+        "internal/plugins/ospf/ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "bae5b63e3ddea225"
       },
       "units": {
-        "internal/plugins/ospf/ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "d382136cd01dec4b"
+        "internal/plugins/ospf/ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "92a23a3b25b8fb1e"
       },
       "verdict": "enforced"
     }

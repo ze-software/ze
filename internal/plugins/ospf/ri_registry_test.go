@@ -39,7 +39,7 @@ func TestRITLVRegistered(t *testing.T) {
 		t.Fatalf("registerRITLV: %v", err)
 	}
 	eng, router := newRedistEngine(t, riCfg(true, "area"))
-	bodies := eng.buildRIInstances(OpaqueScopeArea, router)
+	bodies := eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)
 	if len(bodies) != 1 {
 		t.Fatalf("instances = %d, want 1", len(bodies))
 	}
@@ -83,7 +83,7 @@ func TestRITLVRegisteredOrder(t *testing.T) {
 	}
 
 	eng, router := newRedistEngine(t, riCfg(true, "area"))
-	got := riTLVTypes(t, eng.buildRIInstances(OpaqueScopeArea, router)[0])
+	got := riTLVTypes(t, eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)[0])
 	want := []uint16{packet.RITLVInformationalCapabilities, packet.RITLVFunctionalCapabilities, 8, 10}
 	if len(got) != len(want) {
 		t.Fatalf("TLV order = %v, want %v", got, want)
@@ -105,11 +105,11 @@ func TestRITLVScopeFiltered(t *testing.T) {
 		t.Fatalf("registerRITLV: %v", err)
 	}
 	eng, router := newRedistEngine(t, riCfg(true, "area", "as"))
-	area := riTLVTypes(t, eng.buildRIInstances(OpaqueScopeArea, router)[0])
+	area := riTLVTypes(t, eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)[0])
 	if len(area) != 2 {
 		t.Fatalf("area body TLVs = %v, want just type-1 and type-2 (AS-scoped builder excluded)", area)
 	}
-	as := riTLVTypes(t, eng.buildRIInstances(OpaqueScopeAS, router)[0])
+	as := riTLVTypes(t, eng.buildRIInstances(OpaqueScopeAS, types.BackboneArea, "", router)[0])
 	if len(as) != 3 || as[2] != 8 {
 		t.Fatalf("as body TLVs = %v, want type-1, type-2, type-8", as)
 	}
@@ -128,7 +128,7 @@ func TestRITLVBuilderPanicIsolated(t *testing.T) {
 	var errCount int
 	eng.ri.builderErrors = countingCounter{n: &errCount}
 
-	bodies := eng.buildRIInstances(OpaqueScopeArea, router) // must not panic
+	bodies := eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router) // must not panic
 	if len(bodies) != 1 {
 		t.Fatalf("instances = %d, want 1", len(bodies))
 	}

@@ -112,31 +112,84 @@ func (c riCapabilities) infoField() uint32 {
 	return f
 }
 
-// deriveRICapabilities reads live engine state into the RFC 7770 sec 2.5 informational bits.
-// RFC 7770 sec 2.4 MUST: the bits accurately reflect the router's capabilities. Derived from
-// real config each origination, so the advertisement cannot lie and stays correct as
-// features toggle: stub-router from the RFC 6987 max-metric config, TE from the RFC 3630 TE
-// config, graceful-restart from the GR seam (ext-9 sets it; nil = not GR-capable).
-func (e *engine) deriveRICapabilities() riCapabilities {
+// deriveRICapabilities reads live engine state into the RFC 7770 sec 2.5 informational bits
+// of the RI LSA flooded at one scope target: area names the area of an area-scope LSA, iface
+// the interface of a link-scope one (each is ignored by the scopes that do not use it).
+// Derived from real config each origination, so the advertisement cannot lie and stays
+// correct as features toggle: stub-router from the RFC 6987 max-metric config, TE from the
+// RFC 3630 TE config, graceful-restart from the GR seam (ext-9 sets it; nil = not GR-capable).
+func (e *engine) deriveRICapabilities(scope OpaqueScope, area types.AreaID, iface string) riCapabilities {
 	e.mu.Lock()
 	cfg := e.cfg
 	gr := e.riGRState
 	e.mu.Unlock()
 	caps := riCapabilities{}
+	// Graceful restart, GR helper and stub-router (RFC 6987 max-metric applies to every
+	// Router-LSA the router originates) are properties of the whole router, so every scope
+	// carries them.
 	mm := cfg.MaxMetric
 	caps.StubRouter = mm.RouterLSAAlways || mm.OnStartupSec > 0 || mm.OnShutdownSec > 0
-	caps.TE = cfg.HasTERouterAddress || anyInterfaceHasTE(cfg)
+	// RFC 7770 Section 2.4: "Additionally, the TLV MUST accurately reflect the OSPF router's
+	// capabilities in the scope advertised." TE is held per interface, so the TE bit follows
+	// the flooding scope of the LSA it is written into.
+	caps.TE = riScopeHasTE(cfg, scope, area, iface)
 	if gr != nil {
 		caps.GRCapable, caps.GRHelper = gr()
 	}
 	return caps
 }
 
-// anyInterfaceHasTE reports whether any interface carries a traffic-engineering block (the
+// riScopeHasTE reports whether the router runs RFC 3630 traffic engineering in one RI flooding
+// scope. AS scope: any interface with active TE, or a configured TE router address. Area
+// scope: an interface of that area with active TE, and the backbone also when TE is active
+// but no intra-area TE interface exists, because teOriginateType1 then advertises the TE
+// Router-Address into the backbone. Link scope: that interface has active TE. The answer is
+// the configured capability; a TE link whose adjacency is down stays TE-capable.
+func riScopeHasTE(cfg ospfConfig, scope OpaqueScope, area types.AreaID, iface string) bool {
+	switch scope {
+	case OpaqueScopeLink:
+		for i := range cfg.Interfaces {
+			if cfg.Interfaces[i].Name == iface {
+				return cfg.Interfaces[i].TE.active()
+			}
+		}
+		return false
+	case OpaqueScopeArea:
+		return areaHasTE(cfg, area)
+	case OpaqueScopeAS:
+		return cfg.HasTERouterAddress || anyInterfaceHasTE(cfg)
+	}
+	panic("BUG: riScopeHasTE: unknown opaque scope")
+}
+
+// areaHasTE is the area-scope case of riScopeHasTE, matching the areas teOriginateType1
+// floods TE LSAs into, backbone fallback included.
+func areaHasTE(cfg ospfConfig, area types.AreaID) bool {
+	intraTE := false
+	for i := range cfg.Interfaces {
+		ic := &cfg.Interfaces[i]
+		if !ic.TE.active() {
+			continue
+		}
+		if ic.AreaID == area {
+			return true
+		}
+		if ic.TE.InterAS == nil {
+			intraTE = true
+		}
+	}
+	if area != types.BackboneArea {
+		return false
+	}
+	// TE active only on inter-AS links: the Router-Address falls back to the backbone.
+	return !intraTE && anyInterfaceHasTE(cfg)
+}
+
+// anyInterfaceHasTE reports whether any interface runs active traffic engineering (the
 // RFC 3630 TE capability, informational bit 3).
 func anyInterfaceHasTE(cfg ospfConfig) bool {
 	for i := range cfg.Interfaces {
-		if cfg.Interfaces[i].TE != nil {
+		if cfg.Interfaces[i].TE.active() {
 			return true
 		}
 	}
@@ -149,8 +202,9 @@ func anyInterfaceHasTE(cfg ospfConfig) bool {
 // Capabilities carrier (sec 2.6); registered consumer TLVs for this scope follow in ascending
 // TLV-type order (sec 2.4) and overflow into Instance 1+. The body is identical across
 // address families for the same scope (AC-11) because both carriages call this one builder.
-func (e *engine) buildRIInstances(scope OpaqueScope, router types.RouterID) [][]byte {
-	caps := e.deriveRICapabilities()
+// area and iface name the LSA's flooding target (see deriveRICapabilities).
+func (e *engine) buildRIInstances(scope OpaqueScope, area types.AreaID, iface string, router types.RouterID) [][]byte {
+	caps := e.deriveRICapabilities(scope, area, iface)
 	lead := []packet.RITLV{
 		{Type: packet.RITLVInformationalCapabilities, Value: packet.RICapabilitiesValue(caps.infoField())},
 		{Type: packet.RITLVFunctionalCapabilities, Value: packet.RICapabilitiesValue(0)},
@@ -279,7 +333,7 @@ func (e *engine) riOriginate(router types.RouterID) []opaqueOrigination {
 // (scope, area, iface) target, counting an origination only when the body is new or changed
 // (idempotent re-origination, AC-10).
 func (e *engine) riEmitOpaque(router types.RouterID, scope OpaqueScope, area types.AreaID, iface string, out *[]opaqueOrigination, desired map[riOrigKey][]byte) {
-	bodies := e.buildRIInstances(scope, router)
+	bodies := e.buildRIInstances(scope, area, iface, router)
 	for i, body := range bodies {
 		inst := uint32(i)
 		key := riOrigKey{scope: scope, area: area, iface: iface, inst: inst}
@@ -346,7 +400,8 @@ func (e *engine) refreshRIMetrics() {
 	}
 	e.riLSAsGauge.apply(e.ri.lsas, samples)
 
-	caps := e.deriveRICapabilities()
+	// The gauge reports the router-wide view: the AS scope, which holds every capability.
+	caps := e.deriveRICapabilities(OpaqueScopeAS, types.BackboneArea, "")
 	e.riCapBitsGauge.apply(e.ri.capabilityBit, []gaugeSample{
 		{labels: []string{riBitLabelGRCapable}, value: boolGauge(caps.GRCapable)},
 		{labels: []string{riBitLabelGRHelper}, value: boolGauge(caps.GRHelper)},

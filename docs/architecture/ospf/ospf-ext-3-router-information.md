@@ -42,6 +42,12 @@ LSAs. The TLV byte layout is in `docs/architecture/wire/ospf.md`.
 
 ## Traps
 
+- **The Informational Capabilities word belongs to one flooding target, not to
+  the router.** RFC 7770 Section 2.4 binds it to "the scope advertised", so
+  `buildRIInstances` takes the scope, area and interface of the LSA, and
+  `deriveRICapabilities` asks `riScopeHasTE` for the TE bit. One router-wide
+  word copied into every area's RI LSA claimed TE in areas with no TE
+  interface. Graceful restart and stub router stay router-wide.
 - **The default RI scope is area and AS.** The AS branch also emits an
   area-scoped RI into each attached NSSA, because a Type-11 LSA cannot flood
   into an NSSA (RFC 7770 Section 2.7). Guard that fallback on the area scope

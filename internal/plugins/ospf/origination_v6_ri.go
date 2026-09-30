@@ -79,7 +79,7 @@ func (e *engine) v6OriginateRI(router types.RouterID, activeAreas []types.AreaID
 // backbone for AS scope, whose store routing sends the AS-scope LSType to the AS-wide store).
 func (e *engine) v6OriginateRIScope(router types.RouterID, scope OpaqueScope, area types.AreaID, keep map[ospflsdb.SelfLSARef]struct{}) int {
 	lsType := v6RILSType(scope)
-	bodies := e.buildRIInstances(scope, router)
+	bodies := e.buildRIInstances(scope, area, "", router)
 	count := 0
 	for i := range bodies {
 		body := bodies[i]

@@ -42,7 +42,7 @@ func TestRICapabilityBitsFromState(t *testing.T) {
 		`"router-information":{"enabled":true}}}`)
 	eng.riGRState = func() (bool, bool) { return false, true }
 
-	caps := eng.deriveRICapabilities()
+	caps := eng.deriveRICapabilities(OpaqueScopeAS, types.BackboneArea, "")
 	if !caps.StubRouter {
 		t.Errorf("stub-router bit not set from max-metric config")
 	}
@@ -79,7 +79,7 @@ func TestRICapabilityTEBitFromConfig(t *testing.T) {
 	// RFC requirement: RFC7770-2.4-2 positive -- a configured capability (an interface
 	// traffic-engineering block) is accurately reflected as the RFC 3630 TE Informational
 	// Capability, deriving from live config rather than a static flag (§2.4).
-	if !eng.deriveRICapabilities().TE {
+	if !eng.deriveRICapabilities(OpaqueScopeAS, types.BackboneArea, "").TE {
 		t.Fatalf("TE bit not set with an interface traffic-engineering block")
 	}
 }
@@ -97,8 +97,8 @@ func TestRIBodyIdenticalAcrossAF(t *testing.T) {
 	v6 := newV6RIEngine(t)
 	v6.setConfig(cfg6)
 
-	b4 := v4.buildRIInstances(OpaqueScopeArea, router)
-	b6 := v6.buildRIInstances(OpaqueScopeArea, router)
+	b4 := v4.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)
+	b6 := v6.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)
 	if len(b4) != 1 || len(b6) != 1 {
 		t.Fatalf("instance counts v4=%d v6=%d, want 1 each", len(b4), len(b6))
 	}
@@ -117,7 +117,7 @@ func TestRITLVType1First(t *testing.T) {
 		t.Fatalf("registerRITLV: %v", err)
 	}
 	eng, router := newRedistEngine(t, riCfg(true, "area"))
-	decoded, err := packet.DecodeRITLVStream(eng.buildRIInstances(OpaqueScopeArea, router)[0])
+	decoded, err := packet.DecodeRITLVStream(eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)[0])
 	if err != nil {
 		t.Fatalf("decode RI body: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestRIFunctionalCapabilitiesEmittedZero(t *testing.T) {
 	// Ze supports no functional capabilities, so the Router Functional Capabilities TLV (type 2)
 	// it originates carries the constant all-zero value ("no functional capability supported").
 	eng, router := newRedistEngine(t, riCfg(true, "area"))
-	decoded, err := packet.DecodeRITLVStream(eng.buildRIInstances(OpaqueScopeArea, router)[0])
+	decoded, err := packet.DecodeRITLVStream(eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)[0])
 	if err != nil {
 		t.Fatalf("decode RI body: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestRIInstanceOverflow(t *testing.T) {
 		t.Fatalf("registerRITLV: %v", err)
 	}
 	eng, router := newRedistEngine(t, riCfg(true, "area"))
-	bodies := eng.buildRIInstances(OpaqueScopeArea, router)
+	bodies := eng.buildRIInstances(OpaqueScopeArea, types.BackboneArea, "", router)
 	if len(bodies) < 2 {
 		t.Fatalf("instances = %d, want >= 2 (overflow)", len(bodies))
 	}
