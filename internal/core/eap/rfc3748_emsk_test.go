@@ -155,6 +155,12 @@ func TestRFC3748EAPTLSExportsASixtyFourOctetEMSK(t *testing.T) {
 			// Key_Material(64,127)". In the tls12-rfc5216 case the authenticator's
 			// MSK is octets 0 to 63 and its EMSK octets 64 to 127 of the 128-octet
 			// export under that literal label, read from the TLS session itself.
+			//
+			// RFC requirement: RFC3748-7.10-6 positive -- the EAP-TLS MSK, the only
+			// key the Session hands outward, is exactly octets 0 to 63 of the TLS
+			// export, in both the TLS 1.2 and TLS 1.3 cases, so no key handed out is
+			// derived from the EMSK: an MSK hashed from, or mixed with, the EMSK
+			// fails this comparison.
 			if [64]byte(material[:64]) != sess.MSK() {
 				t.Fatalf("MSK = %x,\n  want %x (octets 0 to 63 of the export under %q)", sess.MSK(), material[:64], tc.label)
 			}

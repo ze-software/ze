@@ -352,10 +352,13 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 // (PeerCertificates non-empty) and the peer's ConnectionState carries the
 // authenticator's certificate, i.e. mutual certificate authentication occurred.
 //
-// RFC requirement: RFC5216-5.3-1 positive -- with valid certificate chains on
-// both sides the handshake is accepted: the authenticator path-validates the
-// peer chain (RequireAndVerifyClientCert against its CA) and the peer
-// path-validates the authenticator chain (VerifyPeerCertificate against its CA).
+// RFC requirement: RFC5216-5.3-1 positive -- with a valid peer certificate chain
+// the handshake is accepted: the authenticator path-validates the peer chain
+// (RequireAndVerifyClientCert against its CA) and sends EAP-Success.
+//
+// RFC requirement: RFC5216-5.3-4 positive -- with a valid authenticator chain
+// the peer path-validates it (VerifyPeerCertificate against its CA) and
+// completes the exchange.
 //
 // RFC requirement: RFC5216-2.3-1 positive -- the MSK derived on each side with
 // the RFC 5216 exporter label "client EAP encryption" is non-zero, exactly 64
@@ -366,11 +369,6 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 //
 // RFC requirement: RFC5216-2.4-2 positive -- the authenticator negotiates a TLS
 // version of at least TLS 1.0.
-//
-// RFC requirement: RFC5216-2.4-3 positive -- the completed handshake uses no TLS
-// record compression: Go's crypto/tls never offers or negotiates compression
-// (its ConnectionState exposes no compression method), so a completed handshake
-// is uncompressed by construction.
 //
 // RFC requirement: RFC5216-2.4-4 positive -- the key material handed to the
 // lower layer is a fixed 64-octet MSK produced by the TLS exporter, whose length
@@ -415,7 +413,8 @@ func TestEAPTLSMutualAuthHandshakeSucceeds(t *testing.T) {
 		t.Fatalf("authenticator negotiated TLS version 0x%04x, want >= TLS 1.0", ss.Version)
 	}
 
-	// RFC5216-2.4-3: a completed Go TLS handshake carries no compression.
+	// Both ends finished the handshake. The compression rule (RFC5216-2.4-3)
+	// is read off the wire in rfc5216_flight_content_test.go, not here.
 	if !ps.HandshakeComplete || !ss.HandshakeComplete {
 		t.Fatalf("handshake not complete on both sides: peer=%v server=%v", ps.HandshakeComplete, ss.HandshakeComplete)
 	}
@@ -494,7 +493,7 @@ func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 // which the authenticator presents a server certificate signed by a CA the peer
 // does not trust, while the peer is configured with a trust anchor.
 //
-// RFC requirement: RFC5216-5.3-1 negative -- the peer path-validates the
+// RFC requirement: RFC5216-5.3-4 negative -- the peer path-validates the
 // authenticator's certificate chain and rejects a server certificate signed by
 // an untrusted CA: the handshake never reaches EAP-Success. This also hardens
 // the peer verification gate (peer.go startTLSClient): when a CA is configured
@@ -529,7 +528,7 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 // no trust anchor the peer cannot path-validate the authenticator, so it refuses
 // to start EAP-TLS rather than proceeding unauthenticated.
 //
-// RFC requirement: RFC5216-5.3-1 negative -- a peer that cannot perform
+// RFC requirement: RFC5216-5.3-4 negative -- a peer that cannot perform
 // certificate path validation (no trust anchor to validate against) does not
 // authenticate the authenticator: startTLSClient returns an error, no
 // ClientHello is sent, and the session never reaches EAP-Success.

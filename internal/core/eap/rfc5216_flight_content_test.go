@@ -203,7 +203,7 @@ func TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone(t *t
 // TestRFC5216ServerSendsItsChainWithoutTheRoot reads the certificate list of
 // the server's certificate message.
 //
-// RFC requirement: RFC5216-5.3-1 positive -- the server sends its certificate
+// RFC requirement: RFC5216-5.3-4 positive -- the server sends its certificate
 // chain minus the root: the list is the server leaf alone, and the trusted CA
 // certificate is not in it.
 func TestRFC5216ServerSendsItsChainWithoutTheRoot(t *testing.T) {

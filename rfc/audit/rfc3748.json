@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -99,7 +99,7 @@
       "verdict": "enforced"
     },
     "RFC3748-2.2-1": {
-      "note": "Notification Request clause now asserted: ze's authenticator sends no Notification Request in a successful or failed conversation, and a Notification carrying the MS-CHAPv2 result bytes draws an empty Notification Response and does not advance the method (an EAP-Success right after it is discarded; the real Request still concludes with the shared MSK). Both new units are recorded. The Nak, Success/Failure and Notification Response clauses rest on TestRFC3748FrameworkMessagesReachNoMethod and TestRFC3748NoFrameworkMessageReachesAnEAPMethod (both tags each), none of which carries a discrimination record.",
+      "note": "All four message kinds asserted at the receiver and the composer: a Nak Response carrying a desired-Type list ends the exchange with EAP-Failure and reaches no method (recording/tap method sees nothing), Success and Failure encode to their four octets, the peer's Notification Response carries zero octets of Type-Data, ze's authenticator sends no Notification Request, and an injected Notification carrying MS-CHAPv2 result bytes does not advance the method. A live Response of the method Type reaches the method with its Type-Data (control arm), so the silence is not a dead method layer. Every unit now carries an observed-red record.",
       "requirement_sha": "f7d5f577f3407982",
       "tests": {
         "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod": "d3558afd0c09e2a8",
@@ -117,7 +117,8 @@
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748ANotificationRequestCarriesNothingToTheMethod": "79aa93cc06525651",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748TheAuthenticatorSendsNoNotificationRequest": "438e9e7d4b9c2980"
       },
-      "verdict": "weak"
+      "upgrade_reason": "Re-read TestRFC3748FrameworkMessagesReachNoMethod and TestRFC3748NoFrameworkMessageReachesAnEAPMethod: their assertions were already judged sound; the only missing proof was a discrimination record, and both units now carry positive and negative records (nakRefused, handleMethod) observed red.",
+      "verdict": "enforced"
     },
     "RFC3748-4-1": {
       "note": "Clauses: a Length larger than the received octets; the message MUST be silently discarded. Both roles are driven through the engine's real entry points with an IKE layer that is valid (checksum verifies, generic header states the true length), so the one fault is the EAP Length. Authenticator (TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength, handleResponderInbound): the overlong EAP Response leaves StateEAPInProgress and writes no datagram (rtxExpectSilence), then the real round-2 request at the same Message ID is processed and answered. Peer (TestRFC3748PeerDiscardsAnOverlongEAPLength, handleInbound): an overlong EAP Request on the first IKE_AUTH response and on round 2 leaves state, NextMsgID and LastSentMsg unchanged, then the real message is processed. Producer: wire/payload_eap.go returns ErrEAPLengthExceedsData, engine/eap_auth.go::eapMessageDiscarded, the three callers return before any state change. Both tests went red on the pre-fix code (StateDead). The four records are panic breaks of eapMessageDiscarded (reach only); the targeted discrimination is the pre-fix red. core/eap TestRFC3748PacketLengthDiscard still covers only the decode error.",
@@ -188,20 +189,22 @@
       "verdict": "enforced"
     },
     "RFC3748-4.1-1": {
-      "note": "'Only in reply to a valid Request': TestRFC3748PeerAnswersNoInvalidRequest (recorded) hands the peer a Request of another method mid-method and a method Request after EAP-Success, each discarded with no Response, and a valid Request between them answered; that discriminates. Still missing: the positive unit TestRFC3748PeerHasNoRetransmitTimer carries no record, and the 'never retransmitted on a timer' clause has no assertion and, since the single-polarity marker was removed, no recorded argument (it rests on Process being the only send path).",
+      "note": "'Only in reply to a valid Request': TestRFC3748PeerAnswersNoInvalidRequest (a Request of another method mid-method and a method Request after Success each discarded, a valid Request answered). 'Never retransmitted on a timer': TestRFC3748PeerNeverRetransmitsOnATimer walks PeerSession for a time.Timer, time.Ticker or chan time.Time (none), checks Process is the only method returning *Packet or PeerResult, and shows an answered peer handed an early EAP-Success returns no Response and marks it Discarded. PeerSession has no transport, so Process is its only send path. Limit: the reflection does not look for a func-typed send callback; adding one would also add a send path the method-set check misses. All units recorded.",
       "requirement_sha": "22dd14ed9eba9a6c",
       "tests": {
+        "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "0491dc997a27dbd8",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "a4c2ccc90d93cad9",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "36f84904ce37bb2d"
       },
       "units": {
+        "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "94286487aa968dd3",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "1af72d0342846e9d",
         "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "e42c0c5ded4373ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3748-4.1-11": {
-      "note": "Row narrowed to the discard sentence (Correction 2026-09-29). Both 'these requirements' are now asserted at the authenticator: a Nak after the initial non-Nak Response is discarded and the method still concludes (new unit, recorded), and a Response of another Type draws nothing while one of the method Type is processed. The two older units, TestAuthenticatorDiscardsAResponseOfAnotherType and TestAuthenticatorProcessesAResponseOfTheMethodType, carry no discrimination record, so the Type-mismatch clause has no observed red.",
+      "note": "Both 'these requirements' asserted at the authenticator: a Response of another Type draws nil and does not complete the exchange (exact nil, Succeeded false), a Nak after the initial non-Nak Response is discarded and the method still concludes; the method-Type control Response is processed to EAP-Success, so the discard is the Type check, not a refusal of every Response. All three units carry observed-red records.",
       "requirement_sha": "44a8418ad5971d2c",
       "tests": {
         "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "34f6e882c4ad0ef2",
@@ -213,7 +216,8 @@
         "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "ede359664aabea59",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse": "453482f99e75f67e"
       },
-      "verdict": "weak"
+      "upgrade_reason": "Re-read TestAuthenticatorDiscardsAResponseOfAnotherType and TestAuthenticatorProcessesAResponseOfTheMethodType: the assertions were sound and the earlier weak rested only on the missing records, which now exist (handleMethod, observed red).",
+      "verdict": "enforced"
     },
     "RFC3748-4.1-3": {
       "note": "Clause 2 (new Requests modify the Identifier): TestRFC3748NewRequestChangesIdentifier, each Request differs from the one before and no Identifier repeats in the exchange. Clause 1 (a retransmitted Request keeps the Identifier): Ze runs no EAP-layer retransmission timer (IKEv2 carries EAP and the IKE initiator retransmits), so the retransmission path is the replay of the cached IKE_AUTH response; TestEapRtxResponderReplaysCachedResponseMidEAP asserts the EAP Request re-sent on a retransmitted IKE_AUTH is byte-identical to the first, so its Identifier is unchanged, while a rebuild cannot match (fresh CBC IV). Record: revert responder.go::replayCachedResponse.",
@@ -470,18 +474,18 @@
       "verdict": "enforced"
     },
     "RFC3748-7.10-2": {
-      "note": "MSK and EMSK values, not sizes, on both methods. EMSK: exact TLS export octets 64-127 (EAP-TLS) or the HKDF expansion (MS-CHAPv2), equal on both ends. MSK: EAP-TLS equals export octets 0-63; MS-CHAPv2 (TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation) equals the RFC 3079 server receive key, server send key and 32 zero octets on both ends, rebuilt in the test from the RFC magic and pads, with the RFC 3079 Section 3.5.3 SendStartKey128 vector as control; a short derived prefix now fails. Negatives: no EMSK before a completed export or a successful exchange. Every tagged unit carries a record. 7.10-1, which quoted the same sentence, is retired into this row.",
+      "note": "Unchanged judgement after a comment-only edit to TestRFC3748EAPTLSExportsASixtyFourOctetEMSK (new 7.10-6 tag): MSK and EMSK values, not sizes, on both methods; EMSK is export octets 64-127 (EAP-TLS) or the HKDF expansion (MS-CHAPv2), equal on both ends; negatives show no EMSK without a completed export or successful exchange. All units recorded.",
       "requirement_sha": "e446a523bd787487",
       "tests": {
-        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "f90912c07fd6dcda",
-        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "f90912c07fd6dcda",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "52158d2dcfac6f3e",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9",
         "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "36f84904ce37bb2d"
       },
       "units": {
-        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "f08a1541b2d84638",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "c39778ddd0693a2c",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "9bd189584eef16ca",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "35b5d750a4884626",
@@ -508,23 +512,25 @@
       "verdict": "enforced"
     },
     "RFC3748-7.10-6": {
-      "note": "MS-CHAPv2 side now enforced: the MSK is asserted octet by octet as a function of the MPPE MasterKey alone, so an MSK derived from the EMSK fails. EAP-TLS side of 'or used to derive any other keys' is still proven only by a byte search (EMSK absent from the MSK and the wire), which an MSK hashed from the EMSK passes; the exact-export assertion that would close it sits on TestRFC3748EAPTLSExportsASixtyFourOctetEMSK, which is not tagged RFC3748-7.10-6 and has no record under it.",
+      "note": "EAP-TLS side now closed: TestRFC3748EAPTLSExportsASixtyFourOctetEMSK asserts the MSK equals export octets 0-63 exactly, TLS 1.2 and 1.3, so an MSK hashed from or mixed with the EMSK fails; MS-CHAPv2 MSK asserted octet by octet from the MPPE MasterKey alone. Remain-on-both-ends: the EMSK is held on both ends and appears in no outward value or wire octet (negatives on both methods). All units recorded.",
       "requirement_sha": "7a1d2dbd0e095562",
       "tests": {
-        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "f90912c07fd6dcda",
-        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "f90912c07fd6dcda",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "52158d2dcfac6f3e",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "52158d2dcfac6f3e",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9"
       },
       "units": {
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "579c906ddfc05d0a",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "7ad959835a867ee3",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "ac81d2cb4c02ab82",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "4e02263e3b3cde01",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "b7a0017ccb0eba21"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3748-7.10-7": {
       "note": "Forbidden: an exchange that fails when one party discarded key state the other still holds. With the authenticator's ticket keys discarded and a peer offering the stale ticket, resumption on either side fails the test (lines 67, 70) and the new MSK must differ from the kept-state MSK; control: with the state kept, both sides resume (lines 48, 51).",
