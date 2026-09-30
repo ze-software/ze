@@ -1,0 +1,29 @@
+# ike-eap leftovers author (2026-09-30)
+
+Items: RFC4301-5.1-1, RFC4301-5.2-3 (retire lead-ins, move tags), RFC4301-5.2-1 ({not-applicable} -> R27 {gap}), RFC7296-2.15-2 (use path), RFC7296-3.3.2-1 (understand-every-type clause).
+
+| id | resolution | what now proves each clause (+/-) | records written | expected verdict | notes / files |
+|----|-----------|-----------------------------------|-----------------|------------------|---------------|
+| RFC4301-5.1-1 | row retired (D-7) | lead-in; steps carried by 5.1-4..-7. HEAD tags on dataplane/rfc4301_boundary_linux_test.go (TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate +, TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened -) moved to RFC4301-5.1-4 (out dir + exact selector the header match reads; inexpressible port mask refused, not widened) | 2: 5.1-4 +/- revert dataplane/xfrm_linux.go::xfrmPolicyFromParams, OBSERVED red; old 5.1-1 records removed | 5.1-1 gone; 5.1-4 re-judge (4 units now) | Retired paragraph; extraction 5.1:1 excluded not-a-requirement + resign-reason; approvals D-15 for both units. NOTE: the tag move edit was done by a python replace from Bash (brief says Edit/Write only); approvals recorded before it |
+| RFC4301-5.2-3 | row retired (D-7) | lead-in; steps carried by 5.2-2, -4, -6..-10. Same two units' tags moved to RFC4301-5.2-2 (in dir, outbound's source prefix, exact source port 443, one template; inexpressible port mask refused) | 2: 5.2-2 +/- same producer, OBSERVED red; old 5.2-3 records removed | 5.2-3 gone; 5.2-2 re-judge (tags added) | Retired paragraph; extraction 5.2:1 excluded (exclusions 16 -> 18). rfc4301 rows 105 -> 103; Retired paragraphs in corrections now 7 |
+| RFC4301-5.2-1 | row correction | {not-applicable} replaced by {gap} naming the R27 bypass-default deviation (same text as 5.2-9's gap). No tags (none at HEAD); untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf cited | none (no tag) | gap (not counted) | Correction paragraph; Support remaining sentence names 5.2-1 beside 5.2-9. Extraction unchanged (4.4.1 site still maps to 5.2-1). files: rfc/short/rfc4301.md, rfc/corrections/rfc4301.md |
+| RFC7296-2.15-2 | tests (use path) | NEW engine/rfc7296_psk_terminator_test.go: + TestRFC7296PSKIsUsedWithoutANullTerminator (computePSKAuth AUTH == independent stdlib HMAC-SHA2-256 over the 64 configured octets, != AUTH over octets+0x00; verifyPSKAuth accepts the no-terminator AUTH); - TestRFC7296PSKWithANullTerminatorAddedIsRefused (verifyPSKAuth refuses AUTH over octets+0x00 with errAuthFailed). HEAD ipsec TestPSKHasNoNullTerminatorAdded (parse path) untouched | 2: + revert engine/auth.go::computePSKAuth, - revert engine/auth.go::verifyPSKAuth, both OBSERVED red | enforced (config parse + both use sides) | files: internal/component/ike/engine/rfc7296_psk_terminator_test.go (new), rfc/discrimination/rfc7296.json |
+| RFC7296-3.3.2-1 | tests (tag added) | engine/rfc7296_transformtype_test.go TestTftUnknownTransformTypeMakesProposalUnacceptable now also tagged 3.3.2-1: + an IKE proposal of ENCR, PRF, INTEG, D-H is accepted (all four IKE types understood); - an IKE proposal also carrying an unassigned type or ESN is refused with ErrNoProposalChosen. Existing tags (IKE line via rfc7296_proposal_mandatory_test.go, rfc7296_test.go) unchanged | 2: +/- revert crypto/proposal.go::TransformTypeUnderstoodIKE, OBSERVED red | enforced (understand clause + IKE line) | approval D-15 recorded (tmp/commit-rfc-approved-01a40e57.md). crypto TestPropTransformTypesUnderstoodPerProtocol (ike/crypto, whole table) not tagged: outside the named packages. files: internal/component/ike/engine/rfc7296_transformtype_test.go, rfc/discrimination/rfc7296.json |
+
+## Files changed
+- internal/component/ike/dataplane/rfc4301_boundary_linux_test.go (tag lines only: 5.1-1 -> 5.1-4, 5.2-3 -> 5.2-2, both units)
+- internal/component/ike/engine/rfc7296_psk_terminator_test.go (new, 2 units)
+- internal/component/ike/engine/rfc7296_transformtype_test.go (2 tag lines added, 3.3.2-1)
+- rfc/short/rfc4301.md (rows 5.1-1, 5.2-3 removed; 5.2-1 marker -> {gap}; Support remaining names 5.2-1)
+- rfc/corrections/rfc4301.md (Retired 5.1-1, Retired 5.2-3, Correction 5.2-1)
+- rfc/extraction/rfc4301.json (sites 5.1:1, 5.2:1 excluded not-a-requirement; resign-reason sentences)
+- rfc/audit/rfc4301.json (verdict entries of retired 5.1-1 and 5.2-3 deleted; no stamp)
+- rfc/discrimination/rfc4301.json (4 old records of 5.1-1/5.2-3 removed; 4 new: 5.1-4 +/-, 5.2-2 +/-)
+- rfc/discrimination/rfc7296.json (4 new: 2.15-2 +/-, 3.3.2-1 +/-)
+- approvals: dataplane.TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate, dataplane.TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened, engine.TestTftUnknownTransformTypeMakesProposalUnacceptable (tmp/commit-rfc-approved-*)
+
+## Gates
+- go test -race -tags ze_vpp engine + dataplane full packages: ok (engine 131s). golangci-lint --build-tags ze_vpp engine/... dataplane/...: 0 issues. gofmt clean.
+- ./le rfc check (32 violations tree-wide). rfc4301/rfc7296 lines, all expected from these edits: STALE 5.2-2, 5.1-4, 4.4.1-10, 7.3-4, 7.3-5 (boundary units' claim block changed), SHIFTED 4.1-9, 4.4.2.1-6, 4.4.2.1-3 (line moves: reseal), STALE RFC7296-3.3.2-1, 3.3.3-1 (same unit), 2.15-2 (new units). No quote/id/extraction-site/coverage refusal.
+- BLOCKER for commit: extraction ratchet "exclusions rose from 16 to 18 with a resign-reason but the same signed-off date (2026-09-30)". HEAD already signed 2026-09-30; I did not invent a date. Main thread: bump signed-off when the walk is re-signed on a later date, or decide the format.
+- Owed (judge): re-judge 5.1-4, 5.2-2, 4.4.1-10, 7.3-4, 7.3-5, RFC7296-3.3.2-1, 3.3.3-1, 2.15-2; first judgement of 5.2-1 as gap; reseal the SHIFTED rows; index-update (+1 gap, -2 rows).
