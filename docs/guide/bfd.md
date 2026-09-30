@@ -209,7 +209,22 @@ BFD AdminDown does NOT tear the BGP session down, in either mode. RFC 5882
 Section 4.2 says a client "SHOULD NOT take any control protocol action" on
 that transition, because Section 3.2 makes AdminDown say nothing about the
 data path.
+
+Authenticate the BFD session of an EBGP peer. RFC 5882 Section 10.2 says
+"BFD authentication SHOULD be used and is strongly encouraged" for a BFD
+session that advises an EBGP session. The peer's `bfd` container carries no
+key of its own: name a `profile` whose `auth` block configures the
+authentication (see "Authentication" above), and the BFD plugin applies it to
+the peer's session. The neighbor must be configured with the same type, key ID
+and secret. A neighbor with a different secret, or one that sends no
+authentication, never brings the session Up, so a strict-mode peer stays out
+of Established. A peer that names no profile, or a profile with no `auth`
+block, runs its BFD session unauthenticated, which the SHOULD permits. Ze logs
+no warning for it, because the same profile may also serve a static
+next-hop's `bfd-profile`, where no such recommendation applies.
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — bfdRequestFor carries the profile name, never a key -->
+<!-- source: internal/component/bfd/config.go — resolveProfile, profileConfig.applyTo copies the profile's auth into the request -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — peer connection bfd container -->
 
 ```

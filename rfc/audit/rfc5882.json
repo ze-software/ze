@@ -7,9 +7,23 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5882-10.2-1": {
-      "note": "Judge 2026-09-30 (phase 8, first verdict). Untagged SHOULD in 10.2 (BGP interaction): a deployment recommendation for EBGP-advised BFD. Ze makes it possible (bfd profile auth block, Simple Password and Keyed MD5/SHA1, proven under RFC 5880 6.7.x) but does not require or default it, and no test ties a BGP-advised session to an authenticated profile. Whether the SHOULD binds the operator rather than Ze (a {not-applicable} or binds-another-role argument) is not annotated on the row; until it is, it stays unverified.",
+      "note": "Judge 2026-09-30 (re-judge, independent of the author). Ze's part of the SHOULD is to let an EBGP-advised BFD session run authenticated and to hold it to that. + reactor TestRFC5882EBGPPeerNamesAuthenticatedProfile: an EBGP peer (65000/65001) naming profile secure passes verifyPeerBFDProfiles and startBFDClient's request carries Profile secure and no Auth. + bfd TestRFC5882BGPPeerAuthProfileSignsItsSession: that request shape through pluginService.EnsureSession sends A bit, Auth Type 4, Len 28, Key ID 7 and comes Up with a same-key neighbor. - MismatchedNeighbor and - UnauthenticatedNeighbor (owner ruling 2: handling of a peer PDU with wrong or absent auth): never Up, no fallback; targeted overlays (sha1 Verify digest compare, fsm A-bit check) each red only their own negative. - WithoutAuthRunsUnauthenticated pins Ze's own permitted absence (A clear, Length 24, Up). Records are whole-body reverts; the targeted overlays are the finer proof. The two halves join on the request shape, not in one test (component boundary). No warning is logged when an EBGP peer's BFD runs unauthenticated: acceptable for a SHOULD whose choice is the operator's, since Ze offers auth and never silently degrades it.",
       "requirement_sha": "454495c41f1df8ee",
-      "verdict": "weak"
+      "tests": {
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor": "9ff7a7a5b87adb14",
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "9ff7a7a5b87adb14",
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "9ff7a7a5b87adb14",
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "9ff7a7a5b87adb14",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "033d8bd0a41bf38a"
+      },
+      "units": {
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor": "9b70f406ca9929ee",
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "721f023511e8e80b",
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "ef9d91536fb011c3",
+        "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "881a0f9e29f74683",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "1048badd1e12d627"
+      },
+      "verdict": "enforced"
     },
     "RFC5882-4.2-1": {
       "note": "Judge rejudge 2026-09-30 (bfd AdminDown, OSPF client). D-8 fixed: engine.runBFDSubscriber (internal/plugins/ospf/bfd_client.go, shared by OSPFv2 and v3) no longer declares the neighbor down on StateAdminDown or on a Down with RemoteAdminDown; the 4.2 quote sits above the statement. + TestOSPFBFDAdminDownTakesNoAction and + TestOSPFBFDRemoteAdminDownTakesNoAction (Up, change, Up; later Up read, neighbor not down, no release, session_down_total 0; arm 2 carries an in-body control: the same Down without the flag still declares the neighbor down). TestOSPFBFDAdminDownTreatedAsDown, which asserted the defect and carried no tag, replaced (D-15). Judge overlays: the old condition reds both new tests; removing only the RemoteAdminDown guard reds only arm 2. BGP arms and engine +/- unchanged (see previous verdict). Every client with independent liveness (BGP hold timer, OSPF RouterDeadInterval) now meets the SHOULD; static routes have none, so treating AdminDown as Down is correct under Section 3.2. Records: revert ospf runBFDSubscriber observed red for both units.",
