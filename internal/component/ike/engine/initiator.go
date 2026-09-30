@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/bits"
 	"net"
 	"time"
 
@@ -268,6 +269,9 @@ func appendIKECombinations(out []crypto.IKEProposal, wp wire.Proposal) []crypto.
 		prfs   []crypto.PRFTransform
 		integs []crypto.IntegrityTransform
 		dhs    []crypto.DHGroupTransform
+		// offeredTypes and usableTypes hold one bit per Transform Type: offered by the
+		// peer, and left with at least one acceptable transform.
+		offeredTypes, usableTypes uint32
 	)
 
 	for _, t := range wp.Transforms {
@@ -278,6 +282,18 @@ func appendIKECombinations(out []crypto.IKEProposal, wp wire.Proposal) []crypto.
 			}
 			continue
 		}
+		// RFC 7296 Section 3.3.6: "if the responder receives a transform that it does
+		// not understand, or one that contains a Transform Attribute it does not
+		// understand, it MUST consider this transform unacceptable; other transforms
+		// with the same Transform Type are processed as usual." The transform is
+		// dropped and its siblings stay on offer. A transform Ze does not understand by
+		// its ID stays in the lists, because negotiation refuses every combination
+		// holding it (crypto.ErrTransformUnspecified) and keeps the others.
+		offeredTypes |= uint32(1) << t.Type
+		if !t.AttrsUnderstood() {
+			continue
+		}
+		usableTypes |= uint32(1) << t.Type
 		switch t.Type {
 		case wire.TransformTypeENCR:
 			encs = append(encs, wireEncryptionTransform(t))
@@ -295,6 +311,15 @@ func appendIKECombinations(out []crypto.IKEProposal, wp wire.Proposal) []crypto.
 	// reason. A single entry carries the refusal exactly as it did before this expansion
 	// existed, and it keeps the reported reason stable.
 	if base.UnknownTransformType != 0 {
+		return append(out, base)
+	}
+
+	// An offered type whose every transform was dropped above has nothing left to
+	// answer with. Without this refusal the empty list would read as a type the peer
+	// omitted, and for an optional type (INTEG beside an AEAD cipher) omission is
+	// acceptable where an unacceptable offer is not.
+	if emptied := offeredTypes &^ usableTypes; emptied != 0 {
+		base.UnacceptableTransformType = crypto.TransformType(bits.TrailingZeros32(emptied))
 		return append(out, base)
 	}
 

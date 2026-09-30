@@ -25,6 +25,10 @@ var (
 	// ErrTransformTypeNotUnderstood reports a proposal that carries a Transform Type the
 	// protocol does not use (RFC 7296 Sections 3.3.3 and 3.3.6).
 	ErrTransformTypeNotUnderstood = fmt.Errorf("%w: proposal carries a transform type this protocol does not use", ErrNoProposalChosen)
+	// ErrTransformUnacceptable reports a proposal in which every transform of one offered
+	// type is unacceptable, because each carries a Transform Attribute this
+	// implementation does not understand (RFC 7296 Section 3.3.6).
+	ErrTransformUnacceptable = fmt.Errorf("%w: every transform of an offered type carries an attribute this implementation does not understand", ErrNoProposalChosen)
 	// ErrKeyLengthMissing reports a transform that requires a Key Length attribute
 	// and carries none (RFC 7296 Section 3.3.5).
 	ErrKeyLengthMissing = fmt.Errorf("%w: transform requires a key length attribute", ErrNoProposalChosen)
@@ -217,6 +221,14 @@ type IKEProposal struct {
 	// Zero means every type the peer offered is one IKE uses, because RFC 7296
 	// Section 3.3.2 reserves the type zero.
 	UnknownTransformType TransformType
+	// UnacceptableTransformType holds the first Transform Type the peer offered whose
+	// every transform the reader of the wire proposal found unacceptable under RFC 7296
+	// Section 3.3.6 (it carries a Transform Attribute this implementation does not
+	// understand). The reader drops such a transform and keeps its siblings, so a type
+	// left with no transform cannot be answered and negotiation refuses the proposal.
+	// Zero means no offered type was emptied this way, because Section 3.3.2 reserves
+	// the type zero.
+	UnacceptableTransformType TransformType
 }
 
 // ESPProposal represents a single ESP/Child SA crypto proposal.
@@ -336,6 +348,9 @@ func acceptDHGroup(remote, local DHGroupTransform, forIKESA bool) error {
 func ikeProposalComplete(p *IKEProposal) error {
 	if p.UnknownTransformType != 0 {
 		return ErrTransformTypeNotUnderstood
+	}
+	if p.UnacceptableTransformType != 0 {
+		return ErrTransformUnacceptable
 	}
 	if transformTypeMandatory(protoIKE, TransformTypeENCR) && p.Encryption.ID == 0 {
 		return ErrProposalIncomplete

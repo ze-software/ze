@@ -471,7 +471,7 @@
       "claim-sha": "f20471d1f3951be5",
       "route": "revert",
       "producer": "internal/component/ike/engine/responder.go::espProposalMatches",
-      "producer-sha": "23ba834aabddc362",
+      "producer-sha": "bec5a1b2e45da33e",
       "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "234b1b6a183992c0",
       "route": "revert",
       "producer": "internal/component/ike/engine/responder.go::espProposalMatches",
-      "producer-sha": "23ba834aabddc362",
+      "producer-sha": "bec5a1b2e45da33e",
       "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

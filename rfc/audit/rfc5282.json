@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC5282-3-1": {
       "note": "Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).",
@@ -218,7 +218,7 @@
       "verdict": "enforced"
     },
     "RFC5282-8-1": {
-      "note": "IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADOfferWithIntegrityIsRefused. ESP SA, initiator re-check: TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADESPOfferWithIntegrityIsRefused. ESP SA, responder (where Ze selects the Child SA's algorithms): TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA runs selectResponderESP over an AES-GCM-only SAi2 with Hash configured, then espProposalToWire over the selection exactly as buildAuthResponse does, and asserts one AES GCM transform and zero INTEG transforms in SAr2; TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity refuses AES-GCM + HMAC-SHA2-256 with ErrNoProposalChosen and accepts no proposal. Records revert responder.go::espProposalMatches.",
+      "note": "IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADOfferWithIntegrityIsRefused. ESP SA, initiator re-check: TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm / TestRFC5282AEADESPOfferWithIntegrityIsRefused. ESP SA, responder (where Ze selects the Child SA's algorithms): TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA runs selectResponderESP over an AES-GCM-only SAi2 with Hash configured, then espProposalToWire over the selection exactly as buildAuthResponse does, and asserts one AES GCM transform and zero INTEG transforms in SAr2; TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity refuses AES-GCM + HMAC-SHA2-256 with ErrNoProposalChosen and accepts no proposal. Records revert responder.go::espProposalMatches. Re-judged 2026-09-30 after espProposalMatches gained the Section 3.3.6 emptied-type refusal: the AEAD+INTEG refusal path is untouched (the INTEG transform in the negative carries no unknown attribute), both records re-recorded and observed red, all six units pass.",
       "requirement_sha": "7612d532bfa75002",
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "d2a8fe0dab3c6a2d",

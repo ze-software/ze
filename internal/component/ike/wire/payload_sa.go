@@ -210,6 +210,19 @@ func (t *Transform) keyLengthAllowed() bool {
 	}
 }
 
+// AttrsUnderstood reports whether every attribute this transform carries is of a type
+// this implementation understands. The parse keeps an attribute of any other type, so
+// that the reader of an offer can apply RFC 7296 Section 3.3.6: a transform "that
+// contains a Transform Attribute it does not understand" is unacceptable.
+func (t *Transform) AttrsUnderstood() bool {
+	for i := range t.Attrs {
+		if _, known := attrFormats[t.Attrs[i].Type]; !known {
+			return false
+		}
+	}
+	return true
+}
+
 // checkAttr rejects an attribute whose encoding or carrier the RFC forbids. An
 // attribute type this implementation does not understand is kept rather than
 // refused. RFC 7296 Section 3.3.6 makes that transform unacceptable, and it leaves

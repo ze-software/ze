@@ -68,6 +68,21 @@ shadow the config types of the same name on purpose: the package qualifier
 disambiguates, and the crypto proposals are resolved transforms rather than
 config references.
 
+**An unacceptable transform is dropped, and its siblings stay on offer.** RFC 7296
+Section 3.3.6 makes a transform unacceptable when the responder does not understand
+it or one of its Transform Attributes. The wire parser keeps an attribute of any type
+(only Key Length is defined), and the two readers of a peer's offer apply the rule:
+`appendIKECombinations` for an IKE offer and `espProposalMatches` for an ESP offer drop
+a transform carrying an attribute Ze does not understand and keep the other transforms
+of its type. A type whose every transform was dropped refuses the proposal
+(`ErrTransformUnacceptable` for IKE), because its empty list would otherwise read as a
+type the peer omitted. A transform with an unknown ID stays among the alternatives and
+fails its own comparison (`ErrTransformUnspecified`).
+
+<!-- source: internal/component/ike/engine/initiator.go -- appendIKECombinations -->
+<!-- source: internal/component/ike/engine/responder.go -- espProposalMatches -->
+<!-- source: internal/component/ike/wire/payload_sa.go -- Transform.AttrsUnderstood -->
+
 **PKCS#7 unpadding is constant time.** IKEv2 encrypts then MACs, so a padding
 oracle is not reachable in practice. The constant-time form is still what ships,
 because the cost is nil and the property does not depend on the caller.

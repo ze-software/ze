@@ -822,11 +822,25 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 		integs []uint16
 		esns   []uint16
 		dhs    []uint16
+		// offeredTypes and usableTypes hold one bit per Transform Type: offered by the
+		// peer, and left with at least one acceptable transform.
+		offeredTypes, usableTypes uint32
 	)
 	for _, t := range p.Transforms {
 		if !crypto.TransformTypeUnderstoodESP(crypto.TransformType(t.Type)) {
 			return false
 		}
+		// RFC 7296 Section 3.3.6: "if the responder receives a transform that it does
+		// not understand, or one that contains a Transform Attribute it does not
+		// understand, it MUST consider this transform unacceptable; other transforms
+		// with the same Transform Type are processed as usual." The transform is
+		// dropped and its siblings stay on offer. A transform Ze does not understand by
+		// its ID never equals the configured one, so the comparisons below skip it.
+		offeredTypes |= uint32(1) << t.Type
+		if !t.AttrsUnderstood() {
+			continue
+		}
+		usableTypes |= uint32(1) << t.Type
 		switch t.Type {
 		case wire.TransformTypeENCR:
 			e := espEnc{id: t.ID}
@@ -847,6 +861,12 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 			// function transform never reaches here, because ESP does not use that type.
 			dhs = append(dhs, t.ID)
 		}
+	}
+	// A type offered with every transform dropped above has nothing left to answer with.
+	// Its empty list would otherwise read as a type the peer omitted, which the ESN, D-H
+	// and AEAD integrity checks below accept.
+	if offeredTypes != usableTypes {
+		return false
 	}
 	if !slices.Contains(encs, espEnc{id: encID, keyLen: keyLen}) {
 		return false

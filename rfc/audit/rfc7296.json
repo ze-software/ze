@@ -10,17 +10,21 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7296-1.2-1": {
-      "note": "Clauses of the quoted span: IKE_SA_INIT negotiates algorithms, exchanges nonces and does a Diffie-Hellman exchange; IKE_AUTH authenticates the previous messages, exchanges identities and certificates and establishes the first Child SA. TestInitialExchangeEncryptionBoundary asserts only the encryption boundary (IKE_SA_INIT carries no SK and decryptAndParse refuses it; IKE_AUTH carries SK and decrypts). No assertion in the tagged unit covers the negotiation, nonce, DH, authentication, identity or Child SA clauses.",
+      "note": "Re-judged 2026-09-30. Descriptive row kept MUST under D-3. Positive TestRFC7296InitialExchangesCarryWhatSection12Names runs production handleSAInitRequest/handleAuthRequest/handleAuthResponse in X.509 mode over all four captured messages: IKE_SA_INIT req/resp carry SA+KE+Nonce, the single accepted proposal is one offered and both SAs hold it; Ni/Nr held crosswise and distinct; both KE name the negotiated group, each side holds the other's public value, equal SK_d; IKE_AUTH req IDi+CERT+AUTH+ESP SA+TSi+TSr, resp IDr+CERT+AUTH+one ESP proposal+TSi+TSr; identities recorded, both Established, initiator holds negotiated TS. Negative TestRFC7296TamperedIKESAInitFailsIKEAuth ('authenticate the previous messages'): one flipped octet in the stored IKE_SA_INIT copy on either side (PSK and X.509) keeps that side off Established while an untouched control establishes; genuine, it fails if AUTH stopped covering the IKE_SA_INIT octets. Encryption clause: TestInitialExchangeEncryptionBoundary +/-. The negotiation, nonce and DH clauses are positive-only here; their refusals are held by their own rows (3.3.6, 2.10, 1.2 KE/3.4). Records: handleSAInitRequest +, verifyRemoteAuth -, observed red.",
       "requirement_sha": "fd6232ea3dc33023",
       "tests": {
+        "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296InitialExchangesCarryWhatSection12Names": "559808277823cf0c",
+        "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296TamperedIKESAInitFailsIKEAuth": "559808277823cf0c",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "e032382b6fba7977",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "e032382b6fba7977"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296InitialExchangesCarryWhatSection12Names": "d8011a7f20f9b287",
+        "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296TamperedIKESAInitFailsIKEAuth": "1450fe17fc6a310a",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "cc07ff143101d2da",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "cc07ff143101d2da"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-1.3.3-1": {
       "note": "initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
@@ -523,21 +527,25 @@
       "verdict": "weak"
     },
     "RFC7296-2.4-3": {
-      "note": "Re-read 2026-09-27; the quote was trimmed to the MUST NOT sentence (the MUST-conclude-only sentence is RFC7296-2.4-11). Two cases. Unprotected IKE messages: TestRteUnownedEstablishedSATrustsNothing fails if a cleartext Delete or CREATE_CHILD_SA moves the SA off Established; TestResponderAcceptsReinitAfterStaleSA and TestResponderKeepsOldSAOnUnauthenticatedInit fail if an unauthenticated IKE_SA_INIT disturbs the established SA. Routing information (e.g., ICMP): no tagged unit injects an ICMP error or unreachable and asserts the SA survives, so that clause has no assertion.",
+      "note": "Re-judged 2026-09-30. Unprotected-message clause unchanged: TestRteUnownedEstablishedSATrustsNothing (cleartext Delete/CREATE_CHILD_SA refused, authenticated Delete still ends the SA) and the two responder IKE_SA_INIT units. Routing-information clause now asserted with real loopback ICMP (linux, unprivileged, ran and passed, not skipped): the IKE socket sets IP_RECVERR and the queued Port Unreachable is consumed by the transport's real error-queue path (records: panic in drainErrorQueue + and deliverQueuedError - observed red, so the ICMP path runs in each unit). Negative TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing: a Port Unreachable from the peer's own address:port while a probe waits, plus a Fragmentation Needed routed into handleSizeRefusal (the engine's only ICMP consumer): SA stays Established, probe stays outstanding with no sa-failed answer, nothing reaches Refusals, later authenticated answer settles it. Positive TestRFC7296ICMPUnreachableDoesNotFailTheSA: after a queued Port Unreachable the SA's next request reaches the peer and the peer's authenticated answer settles the probe as fits. Limit: the assertion covers today's consumers (Refusals channel, handleSizeRefusal); a new ICMP consumer outside them would need its own test.",
       "requirement_sha": "cf7c5c842e6cd8d6",
       "tests": {
         "internal/component/ike/engine/responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "0bd066ff172d78f8",
         "internal/component/ike/engine/responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "a5c7c1939e14d357",
+        "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "a5c7c1939e14d357",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "f133fd37f92cb793",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "f133fd37f92cb793"
       },
       "units": {
         "internal/component/ike/engine/responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "39587d1dcc28ebea",
         "internal/component/ike/engine/responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "77ceeb12989e7f95",
+        "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "f628b3ef4dbe7263",
+        "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "536657035470c4c7",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "d23db3dc53605f85",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "d23db3dc53605f85"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.4-4": {
       "note": "Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.",
@@ -1186,7 +1194,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.2-1": {
-      "note": "Row quotes the Section 3.3.3 span: the understand-all-types sentence and the IKE line (ENCR, PRF, INTEG*, D-H). The IKE line is now proven through the responder's selection (wireProposalsToIKE + crypto.NegotiateIKE): a complete proposal is chosen and an AES-GCM proposal without INTEG is chosen with integrity NONE (TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted); proposals missing ENCR or INTEG draw ErrProposalIncomplete and one missing D-H draws ErrDHGroupNone (TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused); missing PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH proves the KE payload, a neighbour. Missing under THIS id: the understand-every-type clause, proven only under RFC7296-3.3.3-1 (rfc7296_transformtype_test.go, crypto/rfc7296_proposal_test.go). Tag those units with this id too, or trim the duplicated sentence from this row.",
+      "note": "Row quotes the Section 3.3.3 span: the understand-all-types sentence and the IKE line (ENCR, PRF, INTEG*, D-H). The IKE line is now proven through the responder's selection (wireProposalsToIKE + crypto.NegotiateIKE): a complete proposal is chosen and an AES-GCM proposal without INTEG is chosen with integrity NONE (TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted); proposals missing ENCR or INTEG draw ErrProposalIncomplete and one missing D-H draws ErrDHGroupNone (TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused); missing PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH proves the KE payload, a neighbour. Missing under THIS id: the understand-every-type clause, proven only under RFC7296-3.3.3-1 (rfc7296_transformtype_test.go, crypto/rfc7296_proposal_test.go). Tag those units with this id too, or trim the duplicated sentence from this row. Re-judged 2026-09-30 after ikeProposalComplete gained the 3.3.6 UnacceptableTransformType check (ahead of the mandatory-type checks; both wrap ErrNoProposalChosen); the negative record was re-recorded and observed red. Tags unchanged, so the missing understand-every-type clause still stands and the verdict stays weak.",
       "requirement_sha": "8057d3405db4009b",
       "tests": {
         "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "ec6adab8b8441718",
@@ -1250,21 +1258,25 @@
       "verdict": "weak"
     },
     "RFC7296-3.3.6-5": {
-      "note": "the engine positive uses D-H NONE, a transform Ze understands and refuses, not one it does not understand; the crypto unit's positive proves another PROPOSAL is accepted (3.3.6-4), not a sibling transform; the Transform Attribute not-understood clause is not exercised",
+      "note": "Judged 2026-09-30 at the producers after the D-8 fix: wire Transform.AttrsUnderstood (attrFormats, Key Length only); appendIKECombinations and espProposalMatches drop a transform carrying an unknown attribute and keep its siblings, and refuse the proposal only when an offered type loses every transform (IKEProposal.UnacceptableTransformType -> ErrTransformUnacceptable in ikeProposalComplete; ESP offered!=usable). This matches Section 3.3.6: the transform is unacceptable, other transforms of the same type are processed as usual, and a type with nothing acceptable leaves no complete set to select. Negative TestRFC7296UnacceptableTransformAloneRefusesTheProposal: unknown ENCR id alone, and each IKE type (ENCR/PRF/INTEG/D-H) and ESP type (ENCR/INTEG/ESN) carrying attribute 99 alone is refused, with a per-type control without the attribute accepted, so the attribute is the only difference (isolated); this failed before the fix. Positive TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer: the unknown-id and unknown-attribute transform beside an understood sibling, both orders, IKE accepted with the sibling's ENCR and ESP matched (catches an over-reaction that refuses the type or proposal). ESP response is built from config, so no unacceptable attribute is echoed. HEAD crypto/engine tags remain supplementary. Records: appendIKECombinations +, espProposalMatches -, observed red.",
       "requirement_sha": "23d7364b03dabbb1",
       "tests": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "08f2f5dac8da8a2b",
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "08f2f5dac8da8a2b",
         "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "ff3d9ab01e05bb35",
-        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "ff3d9ab01e05bb35"
+        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "ff3d9ab01e05bb35",
+        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal": "0fd28eef419a4a62",
+        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer": "0fd28eef419a4a62"
       },
       "units": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "4a993fd959306c98",
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "4a993fd959306c98",
         "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "5e4fa5e5c62520e7",
-        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "2606dc524a2b1607"
+        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "2606dc524a2b1607",
+        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal": "6e0add8e91dd7d2e",
+        "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer": "d1665001c8788f96"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-3.5-3": {
       "note": "Re-read 2026-09-27. Forbidden: refusing ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR or ID_KEY_ID under configuration. TestRemoteIDAcceptsEveryMandatoryType fails if checkRemoteIdentity refuses any of the four with a matching remote-id, and (anti-vacuity) if it accepts a wrong one. TestRemoteIDRefusesTypesItCannotCompare shows acceptance is per-type; its comment names ID_DER_ASN1_DN as refused but the body tests only ID_DER_ASN1_GN (stale comment).",
