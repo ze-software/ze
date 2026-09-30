@@ -1399,6 +1399,28 @@
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-3.15.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask",
+      "unit-sha": "bae6b367921cfa52",
+      "claim-sha": "ea947556ef0fcb8e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::buildEncryptedMessageEx",
+      "producer-sha": "a8f79798b6df3df3",
+      "break": "body of buildEncryptedMessageEx replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-3.15.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask",
+      "unit-sha": "bae6b367921cfa52",
+      "claim-sha": "23d0f66b2bea3450",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/inbound.go::decryptAndParse",
+      "producer-sha": "27135f248ee76ddb",
+      "break": "body of decryptAndParse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-3.3-1",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused",

@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2759-x-1": {
       "note": "Sender: the Response Value ze's peer emits has 8 zero Reserved octets (td[21:29]). Receiver: each of the 8 Reserved octets set to 1, each on a fresh copy of the authenticator at the Challenge, is refused through mschapv2Method.Process, so a check of the first octet only goes red.",
@@ -157,7 +158,7 @@
       "note": "Row re-levelled MUST->SHOULD (same correction). The source clause is on the crypto/rand.Reader substitution unit; the used-in-NT-Response clause now on TestRFC2759PeerChallengeEntersTheNTResponse: the wire NT-Response equals the one over the sent Peer-Challenge, and flipping one Peer-Challenge octet makes the authenticator refuse it.",
       "requirement_sha": "b35159574d13d7a6",
       "tests": {
-        "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "0826b1125d3c6177",
+        "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "93404fe1a5065a94",
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "023dc89d6ebe0a7b",
         "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "c59064ad278415f3"
       },

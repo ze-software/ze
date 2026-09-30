@@ -188,6 +188,13 @@ half, which is what makes the strict reading interoperable.
 peer-side buffered total are both capped. An unbounded reassembler is a memory
 exhaustion path an unauthenticated peer can drive.
 
+Reassembly also refuses a malformed fragment train, on the authenticator and
+the peer alike. A first fragment with M set and L clear is refused before any
+of its octets are buffered, because RFC 5216 Section 3 says L "MUST be set for
+the first fragment of a fragmented TLS message". A fragment that carries the
+total past the declared TLS Message Length is refused, and so is a train that
+ends with fewer octets than declared. None of these reaches crypto/tls.
+
 <!-- source: internal/core/eap/eap_tls.go -- tlsFragmenter.reassemble, eapTLSMaxReassembly, eapTLSMaxPeerBuffered -->
 
 **A trust anchor must be checked, not assumed.** The peer verifies the server

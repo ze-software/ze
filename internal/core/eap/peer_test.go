@@ -472,10 +472,11 @@ func TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength(t *testing.T) {
 	middle := f.nextFragment()
 	last := f.nextFragment()
 
-	// RFC requirement: RFC5216-3-1 negative -- only the first fragment carries
-	// the L bit; the middle fragment (More set, not first) and the last fragment
-	// (neither More nor first) MUST NOT set L, so the 4-octet TLS Message Length
-	// appears exactly once per message (RFC 5216 Section 3, Section 2.1.5).
+	// RFC requirement: RFC5216-3-1 negative -- Ze's sender sets the L bit on the
+	// first fragment only: the middle fragment carries M without L and the last
+	// fragment carries neither, so the 4-octet TLS Message Length appears once per
+	// message. RFC 5216 Section 3 requires L on the first fragment and does not
+	// forbid it on later ones; clearing it there is Ze's choice.
 	if middle[0]&eapTLSFlagM == 0 {
 		t.Fatalf("middle fragment should have the M flag set, flags=0x%02x", middle[0])
 	}

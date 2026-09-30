@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-01",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -457,7 +457,7 @@
       "verdict": "enforced"
     },
     "RFC7296-2.23-2": {
-      "note": "Row now quotes the \u00a72.23 ESP sentence (verbatim). Positive TestChildSANATTEncapPorts is sound: NATDetected makes both Child SAs UDP-encapsulated on 4500. Negative TestChildSANoNATNoEncap is only an antecedent guard: without a NAT \u00a72.23 lets either side choose ('Either side can decide whether or not to use UDP encapsulation for ESP'), so always-encapsulate complies and the negative asserts ze's interop choice, not this row. Only createFirstChildSA is driven; a rekeyed ESP SA under NAT is not asserted. No refusal path exists for a genuine negative (R1 fallback).",
+      "note": "Re-judged 2026-10-01 under R46: judged on its positive. TestChildSANATTEncapPorts: with NATDetected, createFirstChildSA installs both the inbound and the outbound ESP SA with UDPEncap on 4500/4500, so Ze uses UDP encapsulation for ESP once a NAT is detected. No receive-side refusal is legitimate: plain ESP must still be accepted (RFC7296-2.23-10, AcceptBothESPForms), so the no-NAT antecedent guard TestChildSANoNATNoEncap stays supplementary (BFD 6.1-3 precedent). Rekeyed SAs: newRekeyedChild copies NATDetected and UDPEncap from the old child, and the untagged TestRekeyKeepsBothESPFormAcceptance (rekey_test.go) asserts UDPEncap on both rekeyed SAs under NAT; that proof sits outside this verdict's fingerprint (traceability gap, not a proof gap). Both tagged units hold observed-red revert records on installChildSA.",
       "requirement_sha": "bb6afe31983215b2",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c602227a7107a32",
@@ -467,7 +467,8 @@
         "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "7a3ddc4e6dceae10"
       },
-      "verdict": "weak"
+      "upgrade_reason": "No tagged unit changed; the earlier weak verdict rested on the missing genuine negative, which R46 (2026-09-30) rules out as illegitimate (it would breach 2.23-10). The earlier note's 'rekeyed ESP SA under NAT is not asserted' was wrong: TestRekeyKeepsBothESPFormAcceptance asserts it, untagged.",
+      "verdict": "enforced"
     },
     "RFC7296-2.23-3": {
       "note": "Rejudged 2026-09-30 (ike-eap judge). TestRFC7296IKEOnPort4500CarriesTheZeroMarker sends through sendRaw (the shared post-establishment send path) on an SA floated to 4500 and reads the raw UDP payload at the peer: exactly 00000000 followed by the IKE message byte for byte, so a missing marker or anything between the UDP header and the marker goes red. TestRFC7296IKEOnPort500CarriesNoMarker shows the same send on port 500 carries the message unchanged, so the zeros are conditional on 4500. Both carry observed-red records on established.go sendRaw. HEAD tags on transport TestNonESPMarker/TestNonESPMarkerESPPacket (helpers in isolation) are supplementary and hold no record.",
@@ -1053,7 +1054,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.15.1-2": {
-      "note": "Clause: a CFG_REQUEST MUST NOT include a non-empty INTERNAL_IP4_NETMASK. The positive asserts no engine-built message carries CP(CFG_REQUEST). The negative tag asserts the receive side tolerates a peer's non-empty netmask, a neighbouring rule (Section 2.5 no-rejection), not a discriminator of this one; no {single-polarity} marker.",
+      "note": "Re-judged 2026-10-01 under owner ruling 5 (ruling 2 reading). Ze sends no CFG_REQUEST: no production code constructs a wire.PayloadCP (only the parser does), and TestZeSendsNoConfigRequestNetmask sweeps every engine-built chain (IKE_SA_INIT, IKE_AUTH, INFORMATIONAL, delete, IKE rekey; outer and decrypted inner, with a vacuity guard) and asserts no CP(CFG_REQUEST). Negative (handling of a peer's violation): a peer CFG_REQUEST with a non-empty 4-octet netmask is decrypted and parsed, not rejected, with the value preserved (RFC 7296 Section 2.5 tolerance). Both polarities hold observed-red revert records added 2026-09-30 (buildEncryptedMessageEx, decryptAndParse). The positive would miss a future CP builder only on an exchange the sweep does not drive.",
       "requirement_sha": "f8e396762d072fc7",
       "tests": {
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "38bdb8cdc7d2fb80",
@@ -1063,7 +1064,8 @@
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "7f5a11b266fb9186",
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask#2": "7f5a11b266fb9186"
       },
-      "verdict": "weak"
+      "upgrade_reason": "No unit changed; the earlier weak verdict read the receive tolerance as a neighbouring rule. Owner ruling 5 (2026-09-30) rules it this row's negative under ruling 2, and the unit now carries observed-red records for both polarities.",
+      "verdict": "enforced"
     },
     "RFC7296-3.16-1": {
       "note": "EAP peer copies request Identifier into each response over three rounds with unrelated ids",
@@ -1353,7 +1355,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.5-6": {
-      "note": "Row is verbatim \u00a73.5 (ID_RFC822_ADDR entry through its ban). The ban binds whoever sends an ID_RFC822_ADDR, and ze never sends one: encodeIKEID emits only ID_IPV4_ADDR, ID_IPV6_ADDR or ID_FQDN. The tags prove a receive-side refusal (refuseIDTerminators refuses a peer's NUL mail address; a clean one is accepted, and a clean mail remote-id commits), which \u00a73.5 does not require. No tagged unit can fail on a violation Ze could commit; route per R2 (move the tags or retire the row as binding the ID_RFC822_ADDR sender).",
+      "note": "Re-judged 2026-10-01 under owner ruling 5 (ruling 2 reading). Ze never sends an ID_RFC822_ADDR: encodeIKEID (auth.go) emits only ID_IPV4_ADDR, ID_IPV6_ADDR or ID_FQDN, and the config path refuses a local-id/remote-id holding a terminator before it can be sent. The handling of the peer's violation is the refusal: TestWp2IDTerminatorRefused feeds refuseIDTerminators an ID_RFC822_ADDR holding a NUL and asserts refusal; TestWp2IDWithoutTerminatorAccepted is the control, a clean mail address accepted, so a check refusing every identity goes red. Tag labels are inverted relative to ruling 2 (refusal tagged positive, acceptance negative) but the pair is complete and isolated (one NUL octet is the only difference). Both units hold observed-red revert records.",
       "requirement_sha": "48c22fdf4d3cba79",
       "tests": {
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "ca62d931e5068b03",
@@ -1363,7 +1365,8 @@
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "f4b89da69b00e57e",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "935030454f39d3e3"
       },
-      "verdict": "weak"
+      "upgrade_reason": "No unit changed; the earlier weak verdict held that a receive-side refusal proves nothing Ze could violate. Owner ruling 5 (2026-09-30) rules the receive refusal of a terminator-bearing peer ID as this row's negative, and Ze's send side is confirmed by encodeIKEID never emitting the type.",
+      "verdict": "enforced"
     },
     "RFC7296-3.6-2": {
       "note": "Re-judged 2026-09-30 (independent judge). Send half unchanged: TestChuBothHashAndURLFormatsAreConfigurable fails unless buildCertPayloads emits encodings 12 and 13 with the SHA-1 and URL. Accept half now asserted: rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured, hash-and-url ON, receives encoding 12 (leaf DER) and encoding 13 (DER bundle leaf+intermediate) with http URLs on a loopback server; acceptedCertEncoding admits each, storeRemoteCerts fetches (server hit), matches the SHA-1, stores the leaf as the peer cert and the bundle's intermediate in the chain. Negative: TestChuHashAndURLIsOffByDefault drops encodings 12 and 13 and refuses a live, hash-matching fetch with the option off, and the ON control admits it. Revert record observed red on cert_payload.go::acceptedCertEncoding.",

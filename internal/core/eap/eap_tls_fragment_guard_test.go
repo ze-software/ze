@@ -49,12 +49,18 @@ func plainFragment(more bool, payload []byte) []byte {
 // and could grow inBuf without limit. EAP-TLS runs before the peer is
 // authenticated, so that is remote memory growth driven by an unauthenticated
 // party (ai/rules/evidence.md).
+//
+// A fragment train whose first fragment lacks L is now refused at that first
+// fragment (RFC 5216 Section 3), so the buffer never grows at all. The loop
+// keeps feeding past the ceiling so that a regression of either guard shows.
 func TestReassembleBoundsBufferWithoutLengthFlag(t *testing.T) {
 	var f tlsFragmenter
 	chunk := make([]byte, 4096)
 
 	var err error
+	fed := 0
 	for range (eapTLSMaxReassembly / len(chunk)) + 8 {
+		fed++
 		if err = f.reassemble(plainFragment(true, chunk)); err != nil {
 			break
 		}
@@ -64,8 +70,14 @@ func TestReassembleBoundsBufferWithoutLengthFlag(t *testing.T) {
 		t.Fatalf("reassemble accepted %d bytes with no L flag, want refusal above %d",
 			len(f.inBuf), eapTLSMaxReassembly)
 	}
-	if !strings.Contains(err.Error(), "too large") {
-		t.Fatalf("error = %q, want it to name the size limit", err)
+	if fed != 1 {
+		t.Fatalf("refused at fragment %d, want the first fragment refused for lacking L", fed)
+	}
+	if !strings.Contains(err.Error(), "L bit") {
+		t.Fatalf("error = %q, want it to name the missing L bit", err)
+	}
+	if len(f.inBuf) != 0 {
+		t.Fatalf("buffered %d bytes of a refused first fragment, want 0", len(f.inBuf))
 	}
 	if len(f.inBuf) > eapTLSMaxReassembly {
 		t.Fatalf("buffer grew to %d bytes, past the %d ceiling", len(f.inBuf), eapTLSMaxReassembly)

@@ -332,6 +332,50 @@
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5216-2.1.5-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip",
+      "unit-sha": "a483832c4ba76b8b",
+      "claim-sha": "cb5ea26ec9ed5f04",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::reassemble",
+      "producer-sha": "b33123e6dfd063e9",
+      "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.1.5-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized",
+      "unit-sha": "22c08b1a151976ac",
+      "claim-sha": "51b217ab8518121a",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::reassemble",
+      "producer-sha": "b33123e6dfd063e9",
+      "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.1.5-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyLongerThanDeclaredIsRefused",
+      "unit-sha": "2c5f10bbf38c2b9a",
+      "claim-sha": "630a243103ff7236",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::reassemble",
+      "producer-sha": "b33123e6dfd063e9",
+      "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.1.5-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyShorterThanDeclaredIsRefused",
+      "unit-sha": "82ebd19f12c12bb4",
+      "claim-sha": "1a2f6c8b0ebe65ef",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::reassemblyComplete",
+      "producer-sha": "391fb3daa2130f76",
+      "break": "body of reassemblyComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5216-2.1.5-2",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData",
@@ -539,6 +583,39 @@
       "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
       "producer-sha": "aa48c8aac651e8dd",
       "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-3-1",
+      "polarity": "positive",
+      "unit": "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength",
+      "unit-sha": "467521ed6915e837",
+      "claim-sha": "c7852369c47a9d0c",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::nextFragment",
+      "producer-sha": "31c577b9e5afba22",
+      "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-3-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength",
+      "unit-sha": "2f8f86ac7c9ceb2c",
+      "claim-sha": "75a62cee0942cd67",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::nextFragment",
+      "producer-sha": "31c577b9e5afba22",
+      "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-3-1",
+      "polarity": "negative",
+      "unit": "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216FirstFragmentWithoutLengthIsRefused",
+      "unit-sha": "336ede04650fa138",
+      "claim-sha": "133390cfe3d03df2",
+      "route": "revert",
+      "producer": "internal/core/eap/eap_tls.go::reassemble",
+      "producer-sha": "b33123e6dfd063e9",
+      "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5216-3-3",

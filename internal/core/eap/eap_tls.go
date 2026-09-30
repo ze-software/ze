@@ -63,6 +63,18 @@ func (f *tlsFragmenter) reassemble(typeData []byte) error {
 	flags := typeData[0]
 	off := 1
 
+	// RFC 5216 Section 3: "The L bit (length included) is set to indicate the
+	// presence of the four-octet TLS Message Length field, and MUST be set for the
+	// first fragment of a fragmented TLS message or set of messages."
+	// A fragment with M set and no message in progress is the first fragment of a
+	// fragmented message, so without L it is malformed and refused before any of
+	// its octets are buffered.
+	if flags&eapTLSFlagM != 0 && flags&eapTLSFlagL == 0 {
+		if f.inExpected == 0 && len(f.inBuf) == 0 {
+			return fmt.Errorf("eap-tls: first fragment of a fragmented TLS message lacks the L bit (flags %#02x)", flags)
+		}
+	}
+
 	if flags&eapTLSFlagL != 0 {
 		if len(typeData) < 5 {
 			return fmt.Errorf("eap-tls: L flag set but message too short (%d bytes)", len(typeData))

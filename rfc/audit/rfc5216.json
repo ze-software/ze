@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-01",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -247,17 +248,21 @@
       "verdict": "enforced"
     },
     "RFC5216-2.1.5-1": {
-      "note": "positive round-trips a 3000-octet message over fragments; the negative asserts the reassembly cap on an oversized L length, a neighbouring DoS bound, not an implementation that fails to fragment or reassemble",
+      "note": "Re-judged 2026-10-01 (owner ruling 5). Positive TestTLSFragmenterRoundTrip: a 3000-octet message is split into >=3 fragments and reassembled byte-for-byte. Negatives (inconsistent reassembly is refused): TestRFC5216ReassemblyLongerThanDeclaredIsRefused declares 30, sends 20+20, and the overrunning fragment is refused with 'exceeds declared length', no answer, buffer keeps the 20-octet prefix; TestRFC5216ReassemblyShorterThanDeclaredIsRefused declares 3000 and ends at 1524 (M clear), refused naming '1524 of 3000', no answer, not drained to crypto/tls. Both drive the peer's handleTLSRequest; the authenticator shares reassemble/reassemblyComplete. TestTLSReassemblyRejectsOversized (cap) stays as a supplementary DoS bound. All four units hold observed-red revert records.",
       "requirement_sha": "b7485b4874dfa938",
       "tests": {
-        "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "0826b1125d3c6177",
-        "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "0826b1125d3c6177"
+        "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "93404fe1a5065a94",
+        "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "93404fe1a5065a94",
+        "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyLongerThanDeclaredIsRefused": "c8157bdfbb11bcb5",
+        "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyShorterThanDeclaredIsRefused": "c8157bdfbb11bcb5"
       },
       "units": {
         "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "b6f673c522bbab14",
-        "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "71bcc302538985a2"
+        "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "71bcc302538985a2",
+        "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyLongerThanDeclaredIsRefused": "ae0f0702bed650f7",
+        "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyShorterThanDeclaredIsRefused": "2959abc165f73b3a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-2.1.5-2": {
       "note": "Forbidden: the peer answering an M-set Request with data or with anything but an EAP-TLS Response. TestRFC5216PeerAcksEachServerFragmentWithNoData errors unless every M-set Request is answered by bareEAPTLSResponse, and errors if the last fragment (M clear) draws the no-data ACK instead of the TLS flight; driveFragmentedFlight fatals unless both sides fragment and the MSKs match.",
@@ -407,23 +412,25 @@
       "verdict": "enforced"
     },
     "RFC5216-3-1": {
-      "note": "positive: first fragment of a multi-fragment message carries L and the 4-octet length; the negative asserts L clear on middle and last fragments, which RFC 5216 does not state (the tag prose calls it a MUST NOT)",
+      "note": "Re-judged 2026-10-01 (owner ruling 5, ruling 2 reading). Positive TestTLSFragmenterFirstFragmentHasLength: Ze's first fragment of a multi-fragment message carries L, M and the exact 4-octet TLS Message Length (2000). Negative TestRFC5216FirstFragmentWithoutLengthIsRefused (new, D-8 fix in reassemble): the peer's handleTLSRequest refuses a first fragment with M set and L clear, isolated from a clean state, with an error naming the L bit, no fragment ACK and 0 octets buffered; the same payload with L+M is ACKed as control. Producer checked: the guard fires only when no message is in progress (inExpected 0, inBuf empty), so middle fragments of an L-opened train and unfragmented messages without L pass; shared by authenticator Process and peer. TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength stays tagged negative as supplementary: its prose now states L-only-on-first is Ze's choice, not an RFC ban. All three units hold observed-red revert records.",
       "requirement_sha": "1180bf078feee7b0",
       "tests": {
-        "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "0826b1125d3c6177",
-        "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "0826b1125d3c6177"
+        "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "93404fe1a5065a94",
+        "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "93404fe1a5065a94",
+        "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216FirstFragmentWithoutLengthIsRefused": "c8157bdfbb11bcb5"
       },
       "units": {
         "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "41dd7add1d483b6b",
-        "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "afa5a1cf765f76ff"
+        "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "7654ab88a5dd6400",
+        "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216FirstFragmentWithoutLengthIsRefused": "706d8c7fc68a2575"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-3-2": {
       "note": "Single-polarity positive. Forbidden: an emitted flags octet with any of bits 3-7 set. TestTLSFragmentReservedFlagBitsAreZero fatals if the S constant or any flags octet nextFragment produces for first (L+M), middle (M), last and single-fragment (L) sends intersects 0x1F. The only other flags octet sent is the literal 0x00 ACK.",
       "requirement_sha": "01d913c8c583d432",
       "tests": {
-        "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "0826b1125d3c6177"
+        "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "93404fe1a5065a94"
       },
       "units": {
         "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "c08ada895dc29ab8"
