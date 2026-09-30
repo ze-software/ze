@@ -68,28 +68,6 @@
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC4301-4.1-8",
-      "polarity": "positive",
-      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
-      "unit-sha": "123ec0767cac9453",
-      "claim-sha": "9bffa42667f14af9",
-      "route": "revert",
-      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
-      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4301-4.1-8",
-      "polarity": "negative",
-      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong",
-      "unit-sha": "2a10a734b6939a7b",
-      "claim-sha": "319b64639ae337ba",
-      "route": "revert",
-      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
-      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
       "rid": "RFC4301-4.1-9",
       "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
@@ -176,6 +154,28 @@
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
       "producer-sha": "9560ce5abe6dc41e",
       "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-10",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry",
+      "unit-sha": "cbc9ec4ddd11ffbf",
+      "claim-sha": "0cb90db7aa5eac1e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-10",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard",
+      "unit-sha": "3d2bad8451a2d2ee",
+      "claim-sha": "2d4308443e530b9c",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyDirection",
+      "producer-sha": "f5e7bc6a44c54f3c",
+      "break": "body of spdPolicyDirection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-4.4.1-10",
@@ -825,6 +825,28 @@
       "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
       "producer-sha": "9560ce5abe6dc41e",
       "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.3-5",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfACompliantPacketAreDelivered",
+      "unit-sha": "90f20f6a176e6ba3",
+      "claim-sha": "7e9beb4de3e7a139",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.3-5",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded",
+      "unit-sha": "62d85993e231d51c",
+      "claim-sha": "e2f9f56ce3479219",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-7.4-1",

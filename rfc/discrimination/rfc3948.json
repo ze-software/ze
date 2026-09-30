@@ -168,6 +168,17 @@
     },
     {
       "rid": "RFC3948-5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted",
+      "unit-sha": "6d225cd1fbae499d",
+      "claim-sha": "a5ae44bc50672aed",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/policy_owner.go::prefixesOverlap",
+      "producer-sha": "a416cf43c15d5eb1",
+      "break": "body of prefixesOverlap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-5.2-1",
       "polarity": "negative",
       "unit": "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportConflictingConnectionIsDisallowed",
       "unit-sha": "9fdcc1fad5b5c052",

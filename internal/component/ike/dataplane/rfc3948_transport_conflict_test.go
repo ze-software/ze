@@ -130,3 +130,54 @@ func TestRFC3948TransportDisjointConnectionsAreAdmitted(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: two transport-mode clients at DIFFERENT addresses (two NATs, or two
+// un-NATed hosts) whose protocol and port descriptions overlap exactly are both
+// admitted, in either direction.
+// PREVENTS: the RFC 3948 Section 5.2 refusal being decided by the protocol and port
+// description alone: the conflict the RFC names needs the SAs to share the address,
+// so a prefix comparison that always answered "overlap" would refuse every second
+// transport client on the server.
+//
+// RFC requirement: RFC3948-5.2-1 positive -- transport-mode clients at different addresses with overlapping descriptions (any against TCP 80 outbound, TCP any port against TCP 80 inbound) are both admitted, each owning its own claim.
+func TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted(t *testing.T) {
+	_, otherNAT, err := net.ParseCIDR("192.0.2.9/32")
+	if err != nil {
+		t.Fatalf("parse second NAT address: %v", err)
+	}
+	elsewhere := func(p SPParams) SPParams {
+		if p.Dir == SADirIn {
+			p.Src = otherNAT
+			return p
+		}
+		p.Dst = otherNAT
+		return p
+	}
+	cases := []struct {
+		name  string
+		first SPParams
+		later SPParams
+	}{
+		{"any then tcp/80 outbound", transportClient(t, "ari", SADirOut, 0, AnyPortMatch()),
+			elsewhere(transportClient(t, "bob", SADirOut, 6, ExactPortMatch(80)))},
+		{"tcp any port then tcp/80 inbound", transportClient(t, "ari", SADirIn, 6, AnyPortMatch()),
+			elsewhere(transportClient(t, "bob", SADirIn, 6, ExactPortMatch(80)))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var owners policyOwners
+			if _, err := owners.claim(tc.first); err != nil {
+				t.Fatalf("first claim: %v", err)
+			}
+			if _, err := owners.claim(tc.later); err != nil {
+				t.Fatalf("a transport client at a different address was refused: %v", err)
+			}
+			if held, _ := owners.ownerOf(tc.first); held != "ari" {
+				t.Errorf("owner of the first claim = %q, want ari", held)
+			}
+			if held, _ := owners.ownerOf(tc.later); held != "bob" {
+				t.Errorf("owner of the second claim = %q, want bob", held)
+			}
+		})
+	}
+}
