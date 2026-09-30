@@ -364,10 +364,11 @@
       "id": "2.23",
       "sites": 10,
       "disposition": "walked",
-      "reason": "Nine of the ten sites map to a summary row and one is the section's own applicability statement. RFC7296-2.23-3, the four zero octets prepended to a tunnelled IKE header, and RFC7296-2.23-12, the SPI rule that lets a receiver tell ESP from IKE on port 4500, are stated in indicative prose with no MUST-level keyword, so they are recorded unsourced.",
+      "reason": "Nine of the ten sites map to a summary row and one is the section's own applicability statement. RFC7296-2.23-3, the four zero octets prepended to a tunnelled IKE header, and RFC7296-2.23-12, the SPI rule that lets a receiver tell ESP from IKE on port 4500, are stated in indicative prose with no MUST-level keyword, so they are recorded unsourced. RFC7296-2.23-13, the SHOULD to adopt the address and port of an integrity-validated packet that arrives from a new endpoint, is below the MUST-level scan, so it is recorded unsourced too.",
       "unsourced-ids": [
         "RFC7296-2.23-3",
-        "RFC7296-2.23-12"
+        "RFC7296-2.23-12",
+        "RFC7296-2.23-13"
       ]
     },
     {

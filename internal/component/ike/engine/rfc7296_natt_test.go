@@ -166,20 +166,22 @@ func TestNattRepliesToTheObservedSourcePort(t *testing.T) {
 }
 
 // VALIDATES: an UNAUTHENTICATED datagram never moves the SA's stored peer endpoint,
-// and never draws a reply toward the address it claims to come from.
+// and the address the next self-initiated send resolves to is not the one it claims
+// to come from.
 // PREVENTS: one forged 28-byte header repointing an established SA at a victim,
 // which is what makes the cached-response replay a spoofable amplifier.
 //
-// RFC requirement: RFC7296-2.11-2 negative
-//
-// This is the discriminating half of the row. RFC 7296 Section 2.11 asks the response
-// to follow the request's source. RFC 7296 Section 2.23 bounds that
-// (rfc/full/rfc7296.txt:3659-3663). It limits a dynamic address update to a NEW
-// packet, because an attacker can otherwise revert the addresses with an old replayed
-// one. It then states that a dynamic update is safe only while replay protection runs.
+// RFC requirement: RFC7296-2.23-13 negative -- RFC 7296 Section 2.23: "When such a
+// validated packet is found, a host ... SHOULD send all packets (including
+// retransmission packets) to the IP address and port in the validated packet, and
+// SHOULD store this as the new address and port combination for the SA". The update
+// is owed to a VALIDATED packet only, one "whose integrity protection validates". A
+// datagram with the right SPI pair and an in-window Message ID but ciphertext that
+// fails the integrity check, sent from a new address and port, leaves the stored
+// endpoint and remoteUDPAddr where the authenticated request put them.
 //
 // The adoption therefore sits AFTER decryptAndParse and AFTER the Message ID window.
-// This test drives a packet that clears neither.
+// This test drives a packet that clears the window and fails the integrity check.
 func TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)

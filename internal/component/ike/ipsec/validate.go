@@ -178,8 +178,9 @@ func IsAddressRange(value string) bool {
 func (c *IPsecConfig) ValidateIdentities() error {
 	for name := range c.Peers {
 		auth := c.Peers[name].Auth
-		// RFC 7296 Section 3.5 MUST NOT: "The ID_FQDN and ID_RFC822_ADDR strings MUST
-		// NOT contain any terminators (e.g., NULL, CR, etc.)."
+		// RFC 7296 Section 3.5, ID_FQDN: "The string MUST NOT contain any terminators
+		// (e.g., NULL, CR, etc.)." Section 3.5, ID_RFC822_ADDR: "The string MUST NOT
+		// contain any terminators."
 		//
 		// THE CHECK IS PER ID TYPE, because the prohibition is. Section 3.5 states it
 		// for ID_FQDN and repeats it for ID_RFC822_ADDR, and those two alone. ID_KEY_ID

@@ -349,9 +349,9 @@ func addressEntryMatches(want string, asserted netip.Addr) bool {
 // refuseIDTerminators refuses a peer whose asserted ID_FQDN or ID_RFC822_ADDR carries a
 // terminator octet.
 //
-// RFC 7296 Section 3.5 MUST NOT: "The ID_FQDN and ID_RFC822_ADDR strings MUST NOT
-// contain any terminators (e.g., NULL, CR, etc.)." Only those two types are text the
-// section constrains. ID_KEY_ID is an opaque octet string the same section puts no
+// RFC 7296 Section 3.5, ID_FQDN: "The string MUST NOT contain any terminators (e.g.,
+// NULL, CR, etc.)." Section 3.5, ID_RFC822_ADDR: "The string MUST NOT contain any
+// terminators." Only those two types are text the section constrains. ID_KEY_ID is an opaque octet string the same section puts no
 // character rule on, and the address and DER types are not text at all, so none of them
 // is examined here.
 //

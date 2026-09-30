@@ -120,30 +120,28 @@
       "verdict": "weak"
     },
     "RFC7296-2.10-3": {
-      "note": "Positive TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey reads the PRF list from the registry and asserts IKE_SA_INIT Ni, Nr and a real CREATE_CHILD_SA rekey Ni. Not read: the CREATE_CHILD_SA response nonce (rekey.go:579, :1097) and the IKE SA rekey request nonce, which \u00a72.10 also binds; a per-site shortening there stays green. Negative TestRFC7296EmittedNoncesMeetTheLargestPRFBound repeats the positive's assertion for the largest PRF (one assertion, two hats); its only addition is that the largest half exceeds 16 octets.",
+      "note": "Positive reads the PRF list from the registry and asserts every emission site: IKE_SA_INIT Ni and Nr, Child SA rekey Ni and Nr, IKE SA rekey Ni and Nr, the four rekey nonces decrypted off the wire by the other side. Negative is R1(b): an IKE SA rekey that negotiates prf-hmac-sha2-512 (checked on the replacement SA's Proposal.PRF, half 32 > the 16-octet wire minimum), and its Ni and Nr off the wire each meet half that key. A per-site shortening at any of the six sites reddens the positive. The IKE_SA_INIT nonces are read from SA.LocalNonce, not the wire.",
       "requirement_sha": "310ac223e95176d0",
       "tests": {
-        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "c694bc78de242c72",
-        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "c694bc78de242c72"
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "65add4d99ee3e401",
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "65add4d99ee3e401"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "e18617dbc9a12f42",
-        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "ad64318fbfd7d1c7"
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "27b8b1633c09b31a",
+        "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "0e1ce0df1864e875"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.11-2": {
-      "note": "TestRFC7296ReplyLandsOnTheRequestSourcePort reads the actual datagram on the socket bound to the request's odd source port: response flag, the request's Message ID, decrypts under the IKE SA. TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint: the configured remote receives nothing, the violating destination. The older natt positive asserts only the stored endpoint; the natt negative (TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint) proves the \u00a72.23 validated-packet bound on dynamic address update, which no rfc7296 row states yet.",
+      "note": "TestRFC7296ReplyLandsOnTheRequestSourcePort reads the reply datagram on the socket bound to the request's odd source port (response flag, request Message ID, decrypts under the IKE SA). The negative is now TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint alone: the configured remote, the violating destination, receives nothing. The NAT-T unauthenticated-packet unit moved to RFC7296-2.23-13, the row it proves. The older natt positive asserts only the stored endpoint and is supplementary.",
       "requirement_sha": "0d57af8ddbfd3571",
       "tests": {
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "f33281d04b335fdb",
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "f33281d04b335fdb",
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "030e172cfa9dc572",
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint": "10566beea1d5b441",
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "10566beea1d5b441"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "970af1bba30bf5fb",
-        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "91db65ce82b27316",
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint": "7525cf8b89507d6a",
         "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort": "612fb69fb7fad033"
       },
@@ -410,6 +408,21 @@
         "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
       },
       "verdict": "weak"
+    },
+    "RFC7296-2.23-13": {
+      "note": "Row is verbatim \u00a72.23. Positive TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA: responder not behind a NAT and without MOBIKE; a second validated request from a new port moves peerEndpoint and remoteUDPAddr (what every send and retransmission reads), and the response is read on the new socket. Negatives each violate one bound of the sentence against adoptAuthenticatedEndpoint: behind a NAT (\u00a72.23 'A host behind a NAT SHOULD NOT do this type of dynamic address update') and MOBIKE keep the stored endpoint (TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow); a packet with an in-window Message ID whose integrity check fails, from a new endpoint, moves nothing (TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint). Each guard in the producer has a case that reddens without it. The 'new packet' replay bound is a separate lowercase-should sentence, not this row.",
+      "requirement_sha": "30832c57d544ba5c",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow": "999bc4e0b6651e29",
+        "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA": "999bc4e0b6651e29",
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "030e172cfa9dc572"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow": "a38d66c259de5d5f",
+        "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA": "28c201ae027cddf5",
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "c6524cfc25ea269a"
+      },
+      "verdict": "enforced"
     },
     "RFC7296-2.23-2": {
       "note": "Row now quotes the \u00a72.23 ESP sentence (verbatim). Positive TestChildSANATTEncapPorts is sound: NATDetected makes both Child SAs UDP-encapsulated on 4500. Negative TestChildSANoNATNoEncap is only an antecedent guard: without a NAT \u00a72.23 lets either side choose ('Either side can decide whether or not to use UDP encapsulation for ESP'), so always-encapsulate complies and the negative asserts ze's interop choice, not this row. Only createFirstChildSA is driven; a rekeyed ESP SA under NAT is not asserted. No refusal path exists for a genuine negative (R1 fallback).",
