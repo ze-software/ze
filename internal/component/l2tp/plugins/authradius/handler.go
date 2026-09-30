@@ -188,6 +188,19 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 			}
 			return
 		}
+		// RFC 2865 Section 1.1: "A NAS MUST treat a RADIUS access-accept
+		// authorizing an unavailable service as an access-reject instead."
+		//
+		// L2TP carries PPP frames only, so an Accept for Framed-User over SLIP,
+		// ARAP or any other framing authorizes a service this LNS cannot offer.
+		if !radius.AcceptedFramedProtocol(resp, radius.FramedProtocolPPP) {
+			logger().Warn("l2tp-auth-radius: Access-Accept names an unsupported Framed-Protocol; rejecting",
+				"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username)
+			if respErr := respond(false, "unsupported Framed-Protocol", nil); respErr != nil {
+				logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
+			}
+			return
+		}
 
 		// RFC 2865: extract subscriber profile attributes from Access-Accept.
 		if meta := extractAuthMetadata(resp); meta != nil {

@@ -395,7 +395,11 @@ An Access-Accept naming a Service-Type other than Framed-User is treated as an
 Access-Reject, and the session is denied with `unsupported Service-Type`. The
 LNS provides framed PPP access and asks for it by name, so an Accept authorizing
 anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
-and 1.1).
+and 1.1). The same holds for the framing: an Access-Accept whose Framed-Protocol
+is anything but PPP (SLIP, ARAP, X.75, the other framings RFC 2865 lists, or
+a value it does not define) is treated as an Access-Reject, and the session is
+denied with `unsupported Framed-Protocol`, because L2TP carries PPP frames only. An Accept
+with no Framed-Protocol is honored.
 
 For MS-CHAPv2 the Accept must also carry a readable MS-CHAP2-Success, and one
 that does not is denied with `no MS-CHAP2-Success in Access-Accept`. RFC 2759

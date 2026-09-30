@@ -14,6 +14,28 @@
     },
     {
       "rid": "RFC2865-1.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected",
+      "unit-sha": "d8bd7c2307a6474e",
+      "claim-sha": "1952b3e3d8bf2250",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
+      "producer-sha": "a747657dd105aaec",
+      "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-1.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored",
+      "unit-sha": "c1ee398572c205e8",
+      "claim-sha": "60c365f0883d97a2",
+      "route": "revert",
+      "producer": "internal/component/radius/attr.go::AcceptedFramedProtocol",
+      "producer-sha": "95902c9bf44a0afa",
+      "break": "body of AcceptedFramedProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-1.1-2",
       "polarity": "positive",
       "unit": "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted",
       "unit-sha": "42f4e9e8596ac752",
@@ -288,6 +310,28 @@
       "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2865-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/radius/client_test.go::TestClientAuthenticatorVerify",
+      "unit-sha": "50cc8dd965fedcfb",
+      "claim-sha": "c2b67845c2f97046",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
+      "producer-sha": "d3ec3b01205d9529",
+      "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/client_test.go::TestClientAuthenticatorVerify",
+      "unit-sha": "50cc8dd965fedcfb",
+      "claim-sha": "032161a3dbd75058",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
+      "producer-sha": "d3ec3b01205d9529",
+      "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2865-4.4-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject",
@@ -497,6 +541,28 @@
       "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2865-5-9",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865OneOctetStringIsSent",
+      "unit-sha": "7528e841df74ac5b",
+      "claim-sha": "287260e083a85dc9",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::EncodeTo",
+      "producer-sha": "39536cf0cd7bb7e7",
+      "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-5-9",
+      "polarity": "positive",
+      "unit": "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865ZeroLengthStringIsOmitted",
+      "unit-sha": "6aa76079bcbaec1f",
+      "claim-sha": "c8c8967ef40ef4b6",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::EncodeTo",
+      "producer-sha": "39536cf0cd7bb7e7",
+      "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2865-5.11-1",
       "polarity": "positive",
       "unit": "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessAccept",
@@ -561,6 +627,28 @@
       "producer": "internal/component/radius/authenticator.go::Authenticate",
       "producer-sha": "8e8ef436829e6a5a",
       "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-5.6-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored",
+      "unit-sha": "2b1df06358b99173",
+      "claim-sha": "a669d7b54b2b0107",
+      "route": "revert",
+      "producer": "internal/component/radius/attr.go::AcceptedServiceType",
+      "producer-sha": "9558e45866cb1b84",
+      "break": "body of AcceptedServiceType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-5.6-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection",
+      "unit-sha": "dcb4ae45bbaffe88",
+      "claim-sha": "474e7a119fb62905",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
+      "producer-sha": "a747657dd105aaec",
+      "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

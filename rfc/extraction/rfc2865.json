@@ -7,7 +7,7 @@
   "signed-off": "2026-09-27",
   "reviewer": "claude",
   "register-reason": "Standards Track, with an RFC 2119 key-words paragraph at section 1.1 and capitalised MUST-level keywords across sections 1.1 to 9. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade.",
-  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains. Narrowing audit 2026-09-30: site 5.6:1 moves from excluded (duplicate-of RFC2865-1.1-2) to mapped RFC2865-5.6-1, a new row carrying the Service-Type sentence the row RFC2865-1.1-2 had dropped (rfc/corrections/rfc2865.md). Main-thread ruling R11 (2026-09-29, applied 2026-09-30): site 4.2:2 binds the RADIUS server that writes the Response Authenticator, so it moves from mapped RFC2865-3-4 to excluded as binds-another-role, row RFC2865-3-4 is retired, and section 4.2 declares RFC2865-4.2-1 (the client's silent discard) unsourced. Site 5:7, the string-type twin of the text-type sentence, moves from excluded (duplicate-of RFC2865-5-8) to mapped RFC2865-5-9, the row the narrowing audit called dropped. Site 4.4:2, the Access-Challenge twin of 4.2:2, stays excluded but changes kind from duplicate-of RFC2865-3-4 to binds-another-role, because the row it duplicated is retired and the sentence binds the same server. The exclusion count falls by one: 5.6:1 and 5:7 left the excluded set and 4.2:2 entered it. Every other site keeps its decision.",
   "sections": [
     {
       "id": "front",
@@ -103,7 +103,10 @@
       "id": "4.2",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Access-Accept. Two sites: the server's obligation to transmit it, and the receiver's obligation to check the Response Authenticator against the pending request."
+      "reason": "Access-Accept. Two sites, both binding the RADIUS server: its obligation to transmit the Access-Accept, and the Response Authenticator it writes, which MUST contain the correct response for the pending Access-Request. The client's side of the paragraph is the indicative 'Invalid packets are silently discarded', which carries no keyword and so no site; RFC2865-4.2-1 quotes it and is declared unsourced here.",
+      "unsourced-ids": [
+        "RFC2865-4.2-1"
+      ]
     },
     {
       "id": "4.3",
@@ -713,8 +716,9 @@
     {
       "id": "4.2:2",
       "quote": "The Response Authenticator field MUST contain the correct response for the pending Access-Request.",
-      "disposition": "mapped",
-      "mapped-to": "RFC2865-3-4"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server, the party that writes the Response Authenticator of the Access-Accept it transmits (the paragraph before: 'If all Attribute values received in an Access-Request are acceptable then the RADIUS implementation MUST transmit a packet with the Code field set to 2 (Access-Accept).', which the party judging the Access-Request performs). ze runs no RADIUS authentication server: radius/client.go sends Access-Requests and matches the replies, and the one listener ze runs (authradius/coa.go) takes RFC 5176 requests only. ze's verification of the field, dispatchResponse calling VerifyResponseAuth, is the client's reading of the indicative 'Invalid packets are silently discarded', row RFC2865-4.2-1. RFC2865-3-4 was retired on 2026-09-30 under ruling R11 (rfc/corrections/rfc2865.md), consistent with RFC2866-4.2-1."
     },
     {
       "id": "4.3:1",
@@ -734,9 +738,8 @@
       "id": "4.4:2",
       "quote": "Additionally, the Response Authenticator field MUST contain the correct response for the pending Access-Request.",
       "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats for an Access-Challenge what Section 4.2 states for an Access-Accept. RFC2865-3-4 carries it and site 4.2:2 maps it.",
-      "mapped-to": "RFC2865-3-4"
+      "excluded-kind": "binds-another-role",
+      "reason": "Section 4.4 repeats for an Access-Challenge what Section 4.2 states for an Access-Accept, and binds the same party: the RADIUS server that writes the Response Authenticator of the Access-Challenge it transmits. ze runs no RADIUS authentication server (see site 4.2:2). The client's silent discard of an invalid reply is RFC2865-4.2-1. RFC2865-3-4, which this site named as a duplicate, was retired on 2026-09-30 under ruling R11."
     },
     {
       "id": "4.4:3",
@@ -792,10 +795,8 @@
     {
       "id": "5:7",
       "quote": "Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "The String paragraph repeating the Text paragraph's sentence word for word. RFC2865-5-8 covers both and site 5:6 maps it.",
-      "mapped-to": "RFC2865-5-8"
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-9"
     },
     {
       "id": "5.1:1",
@@ -828,10 +829,8 @@
     {
       "id": "5.6:1",
       "quote": "A NAS is not required to implement all of these service types, and MUST treat unknown or unsupported Service-Types as though an Access-Reject had been received instead.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "The Service-Type section stating for one attribute what Section 1.1 states in general. RFC2865-1.1-2 names both sections and site 1.1:3 maps it.",
-      "mapped-to": "RFC2865-1.1-2"
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5.6-1"
     },
     {
       "id": "5.11:1",

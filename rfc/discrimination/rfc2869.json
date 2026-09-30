@@ -44,6 +44,17 @@
       "producer": "internal/component/radius/client.go::oneCredentialType",
       "producer-sha": "63edc854432edf23",
       "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2869-x-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/acct_test.go::TestBuildAcctPacketGigawords",
+      "unit-sha": "7237929f4fcd5754",
+      "claim-sha": "1d2c992c7080179e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::splitGigawords",
+      "producer-sha": "a9f69038475b05ba",
+      "break": "body of splitGigawords replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

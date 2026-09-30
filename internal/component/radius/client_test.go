@@ -381,12 +381,12 @@ func TestClientAuthenticatorVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// RFC requirement: RFC2865-3-4 positive -- the client trusts and returns the response
+	// RFC requirement: RFC2865-4.2-1 positive -- the client trusts and returns the response
 	// whose Response Authenticator verifies against the shared secret.
 	if resp.Code != CodeAccessAccept {
 		t.Errorf("got code %d, want %d", resp.Code, CodeAccessAccept)
 	}
-	// RFC requirement: RFC2865-3-4 negative -- the first reply, signed with the wrong secret,
+	// RFC requirement: RFC2865-4.2-1 negative -- the first reply, signed with the wrong secret,
 	// fails Response Authenticator verification and is silently discarded, so the client must
 	// retransmit (>= 2 attempts) before it accepts the correctly signed reply.
 	if attempts.Load() < 2 {

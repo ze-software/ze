@@ -186,6 +186,29 @@ func AcceptedServiceType(resp *Packet, offered uint32) bool {
 	return serviceType == offered
 }
 
+// AcceptedFramedProtocol reports whether an Access-Accept authorizes framed
+// access over a framing this NAS provides. offered names the one
+// Framed-Protocol the caller carries.
+//
+// RFC 2865 Section 5.7: "This Attribute indicates the framing to be used for
+// framed access." An Access-Accept naming another framing authorizes a service
+// the NAS cannot bring up, so the caller treats it as a reject.
+//
+// An Access-Accept carrying no Framed-Protocol leaves the framing to the NAS,
+// so it is accepted. A Framed-Protocol that is not four octets names no framing
+// the NAS can identify, so the Access-Accept is refused.
+func AcceptedFramedProtocol(resp *Packet, offered uint32) bool {
+	value := resp.FindAttr(AttrFramedProtocol)
+	if value == nil {
+		return true
+	}
+	framing, err := decodeUint32(value)
+	if err != nil {
+		return false
+	}
+	return framing == offered
+}
+
 // decodeUint32 decodes a 4-byte attribute value as uint32.
 func decodeUint32(data []byte) (uint32, error) {
 	if len(data) != 4 {

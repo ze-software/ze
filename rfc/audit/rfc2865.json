@@ -1,15 +1,20 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2865-1.1-2": {
-      "note": "Forbidden: honouring an Access-Accept that authorizes a service the NAS does not provide. The tagged units drive only Service-Type (admin: Framed and NAS-Prompt rejected, Login accepted; L2TP: Login and NAS-Prompt rejected, Framed accepted). No tagged unit drives an Accept authorizing an unavailable service through another attribute, for example Framed-User with Framed-Protocol SLIP on the L2TP LNS, so that clause has no assertion.",
-      "requirement_sha": "1af735b73cfc0de9",
+      "note": "Re-judged 2026-09-30 after D-8. The recorded weak verdict named the missing clause: an Accept authorizing an unavailable service through an attribute other than Service-Type, for example Framed-User over Framed-Protocol SLIP on the L2TP LNS. That clause is now asserted: TestRFC2865AcceptForAFramingTheLNSLacksIsRejected sends Framed-User with Framed-Protocol 2, 3, 4, 5, 6 (every RFC 2865 Section 5.7 framing but PPP) and 255, and fails if the session comes up; TestRFC2865AcceptForPPPFramingIsHonored sends Framed-User over PPP and fails if it is refused. Service-Type is Framed-User in both, so only the framing varies. Producer: doRADIUS refuses unless radius.AcceptedFramedProtocol(resp, FramedProtocolPPP); an absent Framed-Protocol is accepted (TestRFC2865SupportedServiceTypeIsHonored carries none and is honored, so no regression). The author observed the negative red at Framed-Protocol 2 before the fix; the gate records are panic breaks on AcceptedFramedProtocol (positive) and doRADIUS (negative). The Service-Type units on the admin and L2TP paths are unchanged and still cover the Service-Type route. Service and framing are the two attributes RFC 2865 uses to authorize a service (Section 1.1 names ARAP, a framing, as its example), so both routes are now enforced.",
+      "requirement_sha": "0036411a83f6e156",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected": "8224881faa2f1c00",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored": "8224881faa2f1c00",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "ae06d1fa559aa47c",
@@ -22,6 +27,8 @@
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "61b075ba7ce4bffe",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "61b075ba7ce4bffe",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "61b075ba7ce4bffe",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected": "faf9b8d184ceb86c",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored": "56fc15493ff3027e",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "f99329e0abe38972",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "f99329e0abe38972",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "f99329e0abe38972",
@@ -29,13 +36,13 @@
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "215da72a4421735b",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "70631ff196ec4f0d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-2.5-1": {
       "note": "TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort drives a real retransmit through Client.Exchange (first datagram unanswered), asserts the attribute octets unchanged first, then byte-compares the Identifier, all 16 Request Authenticator octets and the source addr:port of every retransmit against the first. A client that re-encoded with a new ID or authenticator, or opened a new socket, goes red. The {single-polarity: positive} annotation holds: a same-ID MUST has no inbound input to refuse. TestClientRetransmit remains a floor assertion.",
       "requirement_sha": "5c737904eded8aeb",
       "tests": {
-        "internal/component/radius/client_test.go::TestClientRetransmit": "112d7f170f64c378",
+        "internal/component/radius/client_test.go::TestClientRetransmit": "adb68f6dd9fd6bc5",
         "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "4d524a15dfa67b83"
       },
       "units": {
@@ -99,19 +106,6 @@
       },
       "verdict": "enforced"
     },
-    "RFC2865-3-4": {
-      "note": "Forbidden: trusting a reply whose Response Authenticator is wrong. TestClientAuthenticatorVerify answers the first attempt signed with the wrong secret; the attempts >= 2 assertion goes red if the client accepts it instead of discarding it, and the Code assertion proves the correctly signed reply is accepted.",
-      "requirement_sha": "c08491b27c89db2c",
-      "tests": {
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "112d7f170f64c378",
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "112d7f170f64c378"
-      },
-      "units": {
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "85271fb250ca6523",
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "85271fb250ca6523"
-      },
-      "verdict": "enforced"
-    },
     "RFC2865-3-7": {
       "note": "Forbidden: accepting a packet shorter than its Length field. TestDecodeRefusesAPacketShorterThanItsLengthField sets Length to len+1 and requires Decode to error; the positive decodes an exact-length packet.",
       "requirement_sha": "aa727fbc9d9838ec",
@@ -164,6 +158,19 @@
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential": "57cd0545b0228b2f"
       },
       "verdict": "weak"
+    },
+    "RFC2865-4.2-1": {
+      "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts >= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.",
+      "requirement_sha": "a38aa7d3cc34b4fd",
+      "tests": {
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "adb68f6dd9fd6bc5",
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "adb68f6dd9fd6bc5"
+      },
+      "units": {
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "1df35557f2a6d0d8",
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "1df35557f2a6d0d8"
+      },
+      "verdict": "enforced"
     },
     "RFC2865-4.4-1": {
       "note": "The L2TP half is now proven at authradius handler.go doRADIUS: an Access-Challenge (State + Reply-Message) to PAP and CHAP-MD5 subscriber logins is refused with exactly one answer to PPP, and the same logins with an Access-Accept (Framed-User) are admitted, so the refusal is specific to the Challenge code. The admin PAP half was already enforced (ErrAuthRejected, chain stops).",
@@ -269,6 +276,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC2865-5-9": {
+      "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1383-1385, Section 5, string data type). Forbidden: a string-typed attribute of zero octets on the wire. TestRFC2865ZeroLengthStringIsOmitted encodes State, Class, Proxy-State and CHAP-Challenge with empty values beside a User-Name through Packet.EncodeTo, decodes the wire and fails if the attribute is present or the attribute count is not 1. TestRFC2865OneOctetStringIsSent is the boundary control: the one-octet string 00 must reach the wire byte-equal, so an encoder that dropped every string, or every 0x00-valued one, goes red; it is labelled negative but is a conforming input, which is the only other polarity an emit-side MUST NOT has. Producer packet.go::EncodeTo omits any zero-length value at the wire boundary. Records observed red on both units.",
+      "requirement_sha": "7effe390a47b50e6",
+      "tests": {
+        "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865OneOctetStringIsSent": "903c959e05a985e6",
+        "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865ZeroLengthStringIsOmitted": "903c959e05a985e6"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865OneOctetStringIsSent": "2d3fdc4d2c456f06",
+        "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865ZeroLengthStringIsOmitted": "bb9688abff00a503"
+      },
+      "verdict": "enforced"
+    },
     "RFC2865-5.11-1": {
       "note": "Quote is the Filter-Id sentence of 5.11. Forbidden: Filter-Id content changing protocol operation. TestCarrierAttributesDoNotAffectAnAccessReject asserts a Reject carrying Filter-Id stays a rejection; TestCarrierAttributesDoNotAffectAnAccessAccept asserts an Accept carrying it stays an accept. Question reported: ze uses Filter-Id as its admin profile carrier.",
       "requirement_sha": "d552a6de5744c495",
@@ -343,6 +363,19 @@
         "internal/component/radius/authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "69d87dcd0d82a4ce",
         "internal/component/radius/config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "f0443cd162a54321",
         "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "8316f2355177ac64"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5.6-1": {
+      "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1693-1696, Section 5.6). Forbidden: honouring an Access-Accept whose Service-Type the NAS does not implement or does not know. On the L2TP LNS, TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection drives both halves of 'unknown or unsupported': Login-User 1 and Callback-Framed-User 4 (defined, not implemented) and 65535 (undefined), each alone in the Accept, and fails if the session comes up; the producer is doRADIUS calling radius.AcceptedServiceType(resp, ServiceTypeFramed) and answering respond(false). TestRFC2865SupportedServiceTypeIsHonored is the conforming input (Framed-User) and fails if a supported Service-Type is refused, ruling out a check that rejects every Accept. Buffers isolated: only Service-Type varies. Records: positive against AcceptedServiceType, negative against doRADIUS, both observed red (panic breaks, which prove reachability; the discriminating assertion is the per-value accept flag).",
+      "requirement_sha": "287278e46fbb3424",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored": "8224881faa2f1c00",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection": "8224881faa2f1c00"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored": "43336354960bea9b",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection": "2123a4228f220e43"
       },
       "verdict": "enforced"
     }
