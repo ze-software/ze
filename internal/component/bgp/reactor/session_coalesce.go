@@ -84,7 +84,10 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
 		s.resetCoalesce()
+		// RFC 4271 Section 6.1 and Section 8.2.2 (Event 21)
+		s.notifyHeaderErr(conn, buf.Buf[:message.HeaderLen], err)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
+		s.closeConn()
 		return fmt.Errorf("parse header: %w", err)
 	}
 

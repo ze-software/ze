@@ -97,7 +97,10 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
+		// RFC 4271 Section 6.1 and Section 8.2.2 (Event 21)
+		s.notifyHeaderErr(conn, buf.Buf[:message.HeaderLen], err)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
+		s.closeConn()
 		return fmt.Errorf("parse header: %w", err)
 	}
 
@@ -143,6 +146,37 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 	processErr, kept = s.processMessage(&hdr, buf.Buf[message.HeaderLen:hdr.Length], buf)
 
 	return processErr
+}
+
+// notifyHeaderErr sends the NOTIFICATION for a message header that ParseHeader
+// refused. header is the 19 octets read from the wire. Both read paths
+// (readAndProcessMessage and the coalescing reader) call it before they fire
+// Event 21 and close the connection, in every state that reads a header.
+//
+// RFC 4271 Section 6.1: "All errors detected while processing the Message
+// Header MUST be indicated by sending the NOTIFICATION message with the Error
+// Code Message Header Error."
+// RFC 4271 Section 8.2.2 (OpenSent, Event 21): "sends a NOTIFICATION message
+// with the appropriate error code".
+func (s *Session) notifyHeaderErr(conn net.Conn, header []byte, err error) {
+	if errors.Is(err, message.ErrInvalidMarker) {
+		// RFC 4271 Section 6.1: "If the Marker field of the message header is
+		// not as expected, then a synchronization error has occurred and the
+		// Error Subcode MUST be set to Connection Not Synchronized."
+		s.logNotifyErr(conn, message.NotifyMessageHeader, message.NotifyHeaderConnectionNotSync, nil)
+		return
+	}
+	if errors.Is(err, message.ErrInvalidLength) {
+		// RFC 4271 Section 6.1: "if the Length field of the message header is
+		// less than 19 ... then the Error Subcode MUST be set to Bad Message
+		// Length. The Data field MUST contain the erroneous Length field."
+		s.logNotifyErr(conn, message.NotifyMessageHeader, message.NotifyHeaderBadLength, header[16:18])
+		return
+	}
+	// ParseHeader returns no other error for a full 19-octet header. Should it
+	// gain one, the peer is still told: RFC 4271 Section 6: "If no Error Subcode
+	// is specified, then a zero MUST be used."
+	s.logNotifyErr(conn, message.NotifyMessageHeader, 0, nil)
 }
 
 // processMessage handles a received BGP message.

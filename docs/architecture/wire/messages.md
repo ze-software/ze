@@ -440,8 +440,17 @@ func ParseHeader(data []byte) (Header, error) {
 }
 ```
 
+ParseHeader only reports which check failed. Both session read paths
+(`readAndProcessMessage` and the coalescing reader) answer its error with
+`Session.notifyHeaderErr`, which sends the RFC 4271 Section 6.1 NOTIFICATION
+before Event 21 fires and the connection closes: `ErrInvalidMarker` becomes 1/1
+(Connection Not Synchronized) with no Data, and `ErrInvalidLength` becomes 1/2
+(Bad Message Length) whose Data is the received Length field. Every FSM state
+that reads a message header goes through one of those two paths.
+
 <!-- source: internal/component/bgp/message/message.go -- Message interface, writeHeader -->
 <!-- source: internal/component/bgp/message/header.go -- ParseHeader, Header struct -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- notifyHeaderErr -->
 <!-- source: internal/core/bgp/context/context.go -- WireWriter interface -->
 
 ---

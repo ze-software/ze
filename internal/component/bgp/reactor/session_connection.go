@@ -449,11 +449,28 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 		s.logNotifyErr(conn, code, subcode, nil)
 	}
 
+	// RFC 4271 Section 8.2.2 (OpenSent, Event 23): "releases all BGP resources".
+	// The reason is set BEFORE closeConn, as teardown does: a Run loop that
+	// finds s.conn nil between two reads reads it as "waiting for Accept" and
+	// sleeps until a close reason appears, so without one the session (and the
+	// Peer's hold on it) outlives its connection forever. The errChan signal
+	// wakes Run's cancel goroutine the same way.
+	s.setCloseReason(ErrCollisionDump)
 	s.closeConn()
 	s.logFSMEvent(fsm.EventOpenCollisionDump)
 
+	select {
+	case s.errChan <- ErrCollisionDump:
+	default: // errChan full: the cancel goroutine already holds a signal
+	}
+
 	return nil
 }
+
+// ErrCollisionDump is the close reason of a session that collision resolution
+// chose to close (CloseWithNotification, RFC 4271 Event 23). Unlike ErrTeardown
+// it takes the ordinary reconnect backoff: the connection was a failed attempt.
+var ErrCollisionDump = errors.New("session closed by collision resolution")
 
 // Teardown sends a Cease NOTIFICATION with the given subcode and closes.
 // RFC 4486 defines Cease subcodes: 1=MaxPrefixes, 2=AdminShutdown, 3=PeerDeconfigured,
