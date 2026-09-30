@@ -533,8 +533,7 @@
       "verdict": "enforced"
     },
     "RFC4301-5.1-1": {
-      "code": {},
-      "note": "The quote obliges IPsec to perform the Section 5.1 outbound steps (a list the quote points to). The kernel performs them; the tagged units assert one outbound SPD entry Ze installs (out dir, selector, ESP tunnel template, priority) and the refusal of a partial port mask. No assertion ties to the individual steps (cache lookup, SPD-S/O/I selection, DISCARD, the SA-less PROTECT case), so a Ze install that broke any step other than this entry's shape stays green. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
+      "note": "Lead-in \"IPsec MUST perform the following steps when processing outbound packets:\". Re-judged 2026-09-30 (pass 7): the steps now have rows of their own, RFC4301-5.1-4/-5/-6 enforced by engine/rfc4301_outbound_steps_linux_test.go and RFC4301-5.1-7 a gap (no XFRM acquire). This row's own tags are unchanged: the two dataplane boundary units assert one outbound SPD entry's shape (dir, selector, ESP tunnel template, priority) and a partial port mask refusal, which ties to no step, so a Ze install that broke a step stays green under these tags. Verdict stays weak; the steps' proof lives on the split rows.",
       "requirement_sha": "cbc5f71034d9ab53",
       "tests": {
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "1503e480ae546d14",
@@ -545,6 +544,67 @@
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96"
       },
       "verdict": "weak"
+    },
+    "RFC4301-5.1-4": {
+      "note": "Step 2 (match the outbound packet headers against the SPD). Linux keeps no SPD cache, so the match is the kernel SPD lookup over the entries Ze installs through createFirstChildSA, installSPDPolicies and installUnmatched. Positive: from one source, a datagram to 10.1.0.5 meets the Child SA PROTECT entry (ESP at the tunnel endpoint under child.OutboundSPI, XfrmOutNoStates unchanged) and one to 10.3.0.5:7001 meets the operator BYPASS entry (delivered clear, no ESP). Negative: 10.3.0.5 on port 7009, differing from the BYPASS entry only by port, is not bypassed: EPERM, XfrmOutPolBlock +1, not delivered, so the match reads the headers, not the destination alone. Judge ran both units in their own user+net namespace: PASS, not skipped. Records: xfrmPolicyFromParams panic revert red both polarities; author's manual overlays (bypass->BLOCK reddens the positive, discard->ALLOW reddens the negative, scratch p7-ov-*.log) confirm each polarity reads the disposition.",
+      "requirement_sha": "928a43c75aa0ee39",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "1f1129b613aeb812",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "1f1129b613aeb812"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.1-5": {
+      "note": "Step 3a: process as the matching entry says, BYPASS, DISCARD or PROTECT. PROTECT: the datagram reaches the remote endpoint as ESP carrying the Child SA outbound SPI, no XfrmOutNoStates. BYPASS: delivered in the clear, and no ESP copy on the raw socket. DISCARD: operator DISCARD entry refuses the write with EPERM, XfrmOutPolBlock +1, not delivered. All three dispositions asserted on kernel counters and delivery; AH is not installed by IKE (ESP only), so the PROTECT case is ESP. Records: producer revert red both polarities; overlays discard->ALLOW and bypass->BLOCK each redden exactly the unit that asserts that disposition.",
+      "requirement_sha": "3e509f5a715e6822",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "1f1129b613aeb812",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "1f1129b613aeb812"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.1-6": {
+      "note": "Step 3b SPD search. With no kernel SPD cache every packet, including the first of a flow, is looked up in the SPD (SPD-S: the Child SA PROTECT entry; SPD-O: operator BYPASS/DISCARD and the catch-all). Positive: first packets on the PROTECT and BYPASS entries take those entries' dispositions. Negative: a packet selecting no operator entry takes the catch-all's discard (EPERM, XfrmOutPolBlock +1), not a neighbouring entry's bypass. Claims name the cache absence rather than proving a cache. Records as 5.1-4.",
+      "requirement_sha": "61a00d3b97e3843a",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "1f1129b613aeb812",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "1f1129b613aeb812"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
+        "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.1-7": {
+      "code": {
+        "internal/component/ike/engine/child.go::installChildSA": "f8b8735e1db49d69",
+        "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy": "9591a4573e493268"
+      },
+      "note": "Step 3b PROTECT case: key management invoked by a packet. Checked at the producer: a PROTECT policy is installed only by installChildSA (engine/child.go, childPolicyParams) after both SAs of a negotiated Child SA are in the SAD; parseSPDPolicy (ipsec/spd_policy.go) refuses an operator protect entry; no Ze code subscribes to XFRM acquire (XfrmMonitor and XFRMNLGRP_ACQUIRE appear only in vendor/, the only NETLINK_XFRM users are request/response in xfrm_migrate_linux.go and kernelcap). So no outbound packet starts IKEv2. Gap disclosed on the row and in Support remaining; no spec schedules traffic-triggered SA creation.",
+      "requirement_sha": "fd7074473f3565e7",
+      "verdict": "unimplemented"
+    },
+    "RFC4301-5.2-10": {
+      "note": "Step 4 first sentence: ESP processing with the SAD entry step 3a selected. Positive: the packet on the Child SA SPI is decrypted with that SA's key and delivered, XfrmInStateProtoError unchanged. Negative: right SPI, fresh sequence number, sealed with a zero key: ICV fails, XfrmInStateProtoError +1, not delivered, so processing uses the selected SA's key and not a pass-through. Judge ran both: PASS. Records: xfrmStateFromParams revert red both. AH processing (OSPFv3) not probed here.",
+      "requirement_sha": "72d27927ab4b6176",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "1a6d52ebd601a7b8",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "1a6d52ebd601a7b8"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPFailingIntegrityIsDiscarded": "824920b3c07d7595",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541"
+      },
+      "verdict": "enforced"
     },
     "RFC4301-5.2-2": {
       "code": {},
@@ -565,8 +625,7 @@
       "verdict": "enforced"
     },
     "RFC4301-5.2-3": {
-      "code": {},
-      "note": "The quote obliges IPsec to perform the Section 5.2 inbound steps (a list the quote points to). The tagged units assert one inbound SPD entry Ze installs (in dir, same selector, template) and the refusal of a partial port mask; no assertion ties to the individual steps (SPI demux to the SAD, the SPD-I bypass/discard lookup, the post-decapsulation selector check), so the steps are not proven by what Ze installs here. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
+      "note": "Lead-in \"IPsec MUST perform the following steps:\" (inbound). Re-judged 2026-09-30 (pass 7): the steps now have rows of their own, RFC4301-5.2-6/-7/-8/-10 enforced by engine/rfc4301_inbound_steps_linux_test.go, RFC4301-5.2-9 a gap (R27 deviation), with 5.2-2 and 5.2-4 carrying steps 4-5 and 2. This row's own tags are unchanged: the two dataplane boundary units assert one inbound SPD entry's shape and a partial port mask refusal, which ties to no step. Verdict stays weak; the steps' proof lives on the split rows.",
       "requirement_sha": "731cebcd74dee2e8",
       "tests": {
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "1503e480ae546d14",
@@ -577,6 +636,54 @@
         "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96"
       },
       "verdict": "weak"
+    },
+    "RFC4301-5.2-6": {
+      "note": "Step 3a SAD lookup of an ESP packet addressed to Ze. Positive: ESP on the Child SA inbound SPI, sealed with the kernel key around an inner packet inside the selectors, is delivered with XfrmInNoStates and XfrmInStateProtoError unchanged. Negative: the same packet under SPI^0x5a5a5a5a finds nothing (XfrmInNoStates +1, not delivered), so the lookup is keyed on the SPI. Judge ran both: PASS in own namespace. Records: xfrmStateFromParams panic revert red both polarities. Scope: ESP, unicast; the AH case (OSPFv3 manual SAs) is the same kernel lookup and is not probed here.",
+      "requirement_sha": "c3bf609ab746a61f",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "1a6d52ebd601a7b8",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "1a6d52ebd601a7b8"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "f126d36ce8eab474"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.2-7": {
+      "note": "Step 3a no-match discard. Negative: an ESP packet on an SPI no SA holds is counted XfrmInNoStates +1 and never delivered. Positive: the same packet on the installed SPI is delivered, so the discard is the SAD miss and not a blanket drop. Unicast probed here; the multicast lookup miss (SPI+group) is proven under RFC4301-4.1-6 (ospf rfc4301_multicast_sa_linux_test.go) as a kernel SAD lookup, not a delivered-packet probe. Records: xfrmStateFromParams revert red both polarities.",
+      "requirement_sha": "aeea63df9335d748",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "1a6d52ebd601a7b8",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "1a6d52ebd601a7b8"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "f126d36ce8eab474"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.2-8": {
+      "note": "Step 3b SPD-I lookup of a clear packet addressed to Ze. Positive: UDP from 10.3.0.5 to local port 7101 matches the operator in-BYPASS entry ranked ahead of a DISCARD catch-all: delivered, no XfrmInPolBlock. Negative: to port 7102 on the operator in-DISCARD entry with a BYPASS catch-all: XfrmInPolBlock +1, not delivered, so only the matched entry can have dropped it. Each unit isolates its disposition by the opposite catch-all. Judge ran both: PASS. Records: xfrmPolicyFromParams revert red both; overlays bypass->BLOCK / discard->ALLOW redden exactly the matching polarity (scratch p7-ovin-*.log). Not-addressed-to-device (forwarded) packets are not probed; the SPD-I lookup is the same fwd/in policy check.",
+      "requirement_sha": "7bcc19079e0f3e4d",
+      "tests": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "1a6d52ebd601a7b8",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches": "1a6d52ebd601a7b8"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "25be6287a16d5d03",
+        "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches": "84e0cda72627104f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.2-9": {
+      "code": {
+        "internal/component/ike/engine/unmatched.go::installUnmatched": "1837830eeeca011b",
+        "internal/component/ike/ipsec/config.go::parseUnmatched": "ce574002482b65f2"
+      },
+      "note": "Step 3b no-match discard. The entry a packet matching no other SPD-I entry meets is the catch-all installUnmatched installs, with the action parseUnmatched returns; an absent `unmatched` leaf gives SPActionBypass, so by default such a packet is delivered. Same disclosed deviation as RFC4301-4.4.1-3 (ruling R27, owner gate pending), not counted conformant. `unmatched discard` gives the RFC behaviour: untagged TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf (discard: XfrmInPolBlock +1, not delivered; bypass: delivered), judge ran it: PASS. Disclosed on the row and Support remaining.",
+      "requirement_sha": "85de5f441399996b",
+      "verdict": "unimplemented"
     },
     "RFC4301-7.1-2": {
       "note": "Forbidden: a protocol-scoped SA carrying traffic without regard to ports whose installed selector constrains a port. TestRFC4301ProtocolScopedSASpecifiesPortsAsAny asserts, in both directions, UpperProto == 17 and SrcPort.IsAny() && DstPort.IsAny() on childPolicyParams output, red if either port is narrowed. TestRFC4301AnyPortFormNeverLeaksAPortNumber asserts no ExactPortMatch(8080/9090/0) under the ANY form, red if a stray Port value or a zero reaches the policy.",

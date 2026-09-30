@@ -6,7 +6,7 @@
   "source-sha": "263fd9a78175c888",
   "signed-off": "2026-09-30",
   "reviewer": "claude",
-  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Re-walked 2026-09-30 for site 4.4:1 (ruling R22): a framing sentence whose observable characteristics are each a section 4.4.x row, excluded as not-a-requirement, row RFC4301-4.4-1 retired. Exclusions rise from 15 to 16. Site 4.1:4 was excluded as feature-out-of-scope earlier the same day on the reading that Ze has no multicast SAs; ruling R24 found that wrong (the OSPFv3 RFC 4552 installer, buildIPsecInterfaceSAs in internal/plugins/ospf/ipsec_install.go, keys manual SAs to ff02::5 and ff02::6, and section 4.4.2 states \"The SAD can support multicast SAs, if manually configured.\"), so the site is mapped again, to RFC4301-4.1-12, the row that restores retired RFC4301-4.1-8 under the next free ordinal (rfc/corrections/rfc4301.md). Exclusions stay at 16. Site 4.4.1.2:1 now maps to RFC4301-4.4.1.2-2, the MUST NOT on users moved under a new id with {feature-declined} (Ze's SPD entry holds one selector set); RFC4301-4.4.1.2-1 now quotes the keyword-less structure item \"One to N selector sets\" and is declared unsourced for section 4.4.1.2 (rfc/corrections/rfc4301.md). Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
+  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Re-walked 2026-09-30 for site 4.4:1 (ruling R22): a framing sentence whose observable characteristics are each a section 4.4.x row, excluded as not-a-requirement, row RFC4301-4.4-1 retired. Exclusions rise from 15 to 16. Site 4.1:4 was excluded as feature-out-of-scope earlier the same day on the reading that Ze has no multicast SAs; ruling R24 found that wrong (the OSPFv3 RFC 4552 installer, buildIPsecInterfaceSAs in internal/plugins/ospf/ipsec_install.go, keys manual SAs to ff02::5 and ff02::6, and section 4.4.2 states \"The SAD can support multicast SAs, if manually configured.\"), so the site is mapped again, to RFC4301-4.1-12, the row that restores retired RFC4301-4.1-8 under the next free ordinal (rfc/corrections/rfc4301.md). Exclusions stay at 16. Site 4.4.1.2:1 now maps to RFC4301-4.4.1.2-2, the MUST NOT on users moved under a new id with {feature-declined} (Ze's SPD entry holds one selector set); RFC4301-4.4.1.2-1 now quotes the keyword-less structure item \"One to N selector sets\" and is declared unsourced for section 4.4.1.2 (rfc/corrections/rfc4301.md). Site 5.1:1, the lead-in \"IPsec MUST perform the following steps when processing outbound packets:\", stays mapped to RFC4301-5.1-1; the keyword-less steps its MUST binds are declared unsourced for section 5.1 as RFC4301-5.1-4 (step 2), RFC4301-5.1-5 (step 3a), RFC4301-5.1-6 (step 3b, the SPD search) and RFC4301-5.1-7 (step 3b, the PROTECT case, a gap) (rfc/corrections/rfc4301.md). Site 5.2:1, the lead-in \"IPsec MUST perform the following steps:\", stays mapped to RFC4301-5.2-3; the keyword-less inbound steps are declared unsourced for section 5.2 as RFC4301-5.2-6 and RFC4301-5.2-7 (step 3a, the SAD lookup and its no-match discard), RFC4301-5.2-8 (step 3b, the SPD-I lookup), RFC4301-5.2-9 (step 3b, the no-match discard, a gap under the RFC4301-4.4.1-3 deviation) and RFC4301-5.2-10 (step 4, ESP processing with the selected SA) (rfc/corrections/rfc4301.md). Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
   "sections": [
     {
       "id": "front",
@@ -222,7 +222,13 @@
     {
       "id": "5.1",
       "sites": 3,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4301-5.1-4",
+        "RFC4301-5.1-5",
+        "RFC4301-5.1-6",
+        "RFC4301-5.1-7"
+      ]
     },
     {
       "id": "5.1.1",
@@ -247,7 +253,14 @@
     {
       "id": "5.2",
       "sites": 4,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4301-5.2-6",
+        "RFC4301-5.2-7",
+        "RFC4301-5.2-8",
+        "RFC4301-5.2-9",
+        "RFC4301-5.2-10"
+      ]
     },
     {
       "id": "6",
