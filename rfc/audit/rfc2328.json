@@ -258,32 +258,40 @@
       "verdict": "weak"
     },
     "RFC2328-13.3-1": {
-      "note": "Unit change re-read: TestOSPFRetransmitTimer's age assertion moved 1 -> 7 because RetransmitTick now sends the held database copy aged while on the list (Section 14) plus InfTransDelay; that is a correct, stricter pin and does not touch 13.3-1's clauses. Clauses: flooded LSAs go on the adjacency retransmission list (TestOSPFFloodOutOtherInterfaces, TestOSPFFloodQueuesExchangeAndLoadingNeighbors: eth1/Exchange/Loading queued, 2-Way and receiving neighbor not); retransmitted until acknowledged every RxmtInterval (TestOSPFRetransmitTimer: none at t=0, one at t=6s, list cleared on ack; revert record on RetransmitTick observed red). Still not proven: only one retransmission happens before the ack, so a producer that retransmits once and gives up stays green; and the 5 s interval is the default, never a configured per-interface value, so a hard-coded 5 s stays green. The two flood-list units carry no discrimination record.",
+      "note": "Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.",
       "requirement_sha": "d6a44568dd86b581",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "5f02a64139f8d93a"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "5f02a64139f8d93a",
+        "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "84c49eaebde9a3c9",
+        "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "84c49eaebde9a3c9"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "83ee1dc511a59967",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "eaf3259d54925587"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "eaf3259d54925587",
+        "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "7725a0719db8fdf5",
+        "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "7725a0719db8fdf5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13.3-2": {
-      "note": "Increment and MaxAge cap proven: TestRFC2328FloodIncrementsAgeByInfTransDelay asserts the normal flood out eth1 (InfTransDelay 7) carries stored age 10 + 7 = 17 exactly, the retransmission 5 s later 22 (held age + one increment, not queue-time 17 nor double-counted 29), and an LSA at MaxAge-3 leaves at MaxAge, never past; revert records on lsdb/flooding.go::floodCopy (+/-) observed red. Producer read: floodCopy bumps an owned copy by firstNonZero(delay,1) via LSAge.Add (caps at MaxAge), used by floodExcept and floodLink; RetransmitTick sends held.Raw(now, delay). Missing: the '(which must be > 0)' clause has no 13.3-2 assertion. validateConfigAF refuses transmit-delay 0 (ErrTransmitDelayZero) and floodCopy floors 0 to 1, but no unit tagged 13.3-2 shows either (the refusal is tagged only on RFC5340-C.3-2 for the v6 family). Fix: tag an OSPFv2 transmit-delay 0 refusal (+ accept 1) on 13.3-2, or assert floodCopy with an unset delay still bumps by 1.",
+      "note": "Clauses: LS age incremented by InfTransDelay and capped at MaxAge: TestRFC2328FloodIncrementsAgeByInfTransDelay (unchanged; records on floodCopy). The '(which must be > 0)' clause: TestRFC2328TransmitDelayMustBePositive + an OSPFv2 interface with transmit-delay 1 accepted by validateConfig, - transmit-delay 0 refused with ErrTransmitDelayZero (the config.go validateConfigAF check that production reaches through register.go validateConfig); each case its own single-interface config, so the refusal is this rule's and no other. Records on validateConfigAF observed red for both polarities.",
       "requirement_sha": "5e012251c30276a2",
       "tests": {
         "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay": "2d72e9edeec0fdd0",
-        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "2d72e9edeec0fdd0"
+        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "2d72e9edeec0fdd0",
+        "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive": "352cc8955720705e",
+        "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive#2": "352cc8955720705e"
       },
       "units": {
         "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay": "c394c255f2172405",
-        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "c394c255f2172405"
+        "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "c394c255f2172405",
+        "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive": "17a0a17139506794",
+        "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive#2": "17a0a17139506794"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13.3-3": {
       "note": "Forbidden: on a non-broadcast network, flooding by multicast or omitting a unicast to an adjacent (Exchange or greater) neighbor. Red: TestRFC2328NBMAUnicastsToEachAdjacency fails unless exactly one LS Update goes to each of 10.0.0.2 (Full) and 10.0.0.3 (Exchange); TestRFC2328NBMANeverMulticastsNorReachesTwoWay fails on any send to AllSPFRouters or AllDRouters, or to the 2-Way neighbor 10.0.0.4. Both polarities over floodExcept, the flooding producer.",

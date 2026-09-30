@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7684-2.1-1": {
@@ -42,23 +42,27 @@
       "verdict": "weak"
     },
     "RFC7684-5-1": {
-      "note": "Forbidden behaviour: a malformed TLV or sub-TLV permutation that goes undetected or crashes the process. TestExtPrefixMalformedCounted asserts a top-level TLV overrun of an Extended Prefix body is counted and stores nothing, and the two decode tests pin that valid bodies decode. Detection of a sub-TLV overrun, and of any malformed Extended Link body, has no 5-1 tagged assertion: FuzzOSPFExtPrefixBody and FuzzOSPFExtLinkBody discard err and assert only no panic, over three seeds each under go test, so a decoder that silently accepted an overrunning sub-TLV stays green.",
+      "note": "Forbidden: a malformed TLV/sub-TLV permutation that goes undetected or crashes. TestRFC7684MalformedPermutationsDetected runs every body through DecodeExtPrefixLSA/DecodeExtLinkLSA AND ValidateExtLSABody with panic converted to t.Fatalf. + a valid Extended Prefix body and a valid Extended Link body (one sub-TLV each) accepted by both paths; - nine permutations, each one malformation with the rest padded to aligned lengths so only that fault can trip (checked against the iterator's padding rule): prefix and link sub-TLV overrun, truncated sub-TLV header, TLV shorter than its fixed fields, top-level TLV overrunning the body, and a malformed duplicate Extended Link TLV (validateExtTLV on the duplicate path); each must return an error from BOTH paths. Closes the earlier gap (sub-TLV overrun and every Extended Link malformation were unasserted). Records on DecodeExtPrefixLSA (+) and decodeExtSubTLVs (-) observed red; the older supplementary tags (TestExtPrefixMalformedCounted, the decode and fuzz units) carry no record and are not relied on for this verdict.",
       "requirement_sha": "6500d989d77c9033",
       "tests": {
         "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "bff8c9d8444d0ccc",
         "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
         "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",
         "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "b02a6265fe53ccd9",
-        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "b02a6265fe53ccd9"
+        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "b02a6265fe53ccd9",
+        "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected": "d6b47c34d8e9252f",
+        "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected#2": "d6b47c34d8e9252f"
       },
       "units": {
         "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "d90a3664e595060f",
         "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "304b858afdc04282",
         "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "02b1ff221be93aed",
         "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "6bf39fe85a060f65",
-        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "aad0e21f86dcf6a7"
+        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "aad0e21f86dcf6a7",
+        "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected": "0b94eb0bed2c0602",
+        "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected#2": "0b94eb0bed2c0602"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7684-5-3": {
       "note": "Forbidden behaviour: a malformed Extended Prefix or Extended Link LSA stored, acknowledged, or reflooded. TestExtIngressMalformedDiscard drives both opaque types in link, area and AS scope through the router ingress with a TLV overrun, trailing data shorter than a TLV header, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated input, and fails on any LSDB lookup hit (stored) or any send after RetransmitTick (acknowledged or reflooded), so each of the three clauses goes red. TestExtIngressValidCarriage is the positive: valid bodies are stored byte-for-byte, acknowledged and flooded to the expected interfaces.",

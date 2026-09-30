@@ -224,9 +224,53 @@
     {
       "rid": "RFC2328-13.3-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces",
+      "unit-sha": "0ea9ce5fba41d272",
+      "claim-sha": "f58a08498c4cce1a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::queueRetransmit",
+      "producer-sha": "af0357850d236f6e",
+      "break": "body of queueRetransmit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors",
+      "unit-sha": "f94af9bf302249b8",
+      "claim-sha": "44ad10207f26b57d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::isFloodEligibleNeighborState",
+      "producer-sha": "14a79f337c0d4e4c",
+      "break": "body of isFloodEligibleNeighborState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer",
       "unit-sha": "e383e3967aa6fb2b",
       "claim-sha": "4b96c0d3b4016776",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::RetransmitTick",
+      "producer-sha": "fd5005739eef5e38",
+      "break": "body of RetransmitTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval",
+      "unit-sha": "c2cc8bfff51a0283",
+      "claim-sha": "9be53fed5ec50124",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::RetransmitTick",
+      "producer-sha": "fd5005739eef5e38",
+      "break": "body of RetransmitTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval",
+      "unit-sha": "c2cc8bfff51a0283",
+      "claim-sha": "45b03848619ae4b2",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/flooding.go::RetransmitTick",
       "producer-sha": "fd5005739eef5e38",
@@ -255,6 +299,28 @@
       "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-13.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive",
+      "unit-sha": "cb2e9a370b4cafc3",
+      "claim-sha": "d024deb1f9b9e7e6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+      "producer-sha": "f0d03a69269f9ba3",
+      "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive",
+      "unit-sha": "cb2e9a370b4cafc3",
+      "claim-sha": "5c3c52751a115440",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+      "producer-sha": "f0d03a69269f9ba3",
+      "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-13.3-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMANeverMulticastsNorReachesTwoWay",
@@ -273,7 +339,7 @@
       "claim-sha": "cdc4b9a8ef8065ab",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/flooding.go::floodExcept",
-      "producer-sha": "de676f5e5468f028",
+      "producer-sha": "d265e5f9c9afa49d",
       "break": "body of floodExcept replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

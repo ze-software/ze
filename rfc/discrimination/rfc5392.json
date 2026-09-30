@@ -2,6 +2,28 @@
   "rfc": "rfc5392",
   "records": [
     {
+      "rid": "RFC5392-3.2.1-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy",
+      "unit-sha": "02da0175fbe84c4c",
+      "claim-sha": "8efba38f7f537c73",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/te_originate.go::buildInterASTELink",
+      "producer-sha": "9107a9796118522c",
+      "break": "body of buildInterASTELink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5392-3.2.1-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/te_test.go::TestTEReceiveType6MissingRemoteASSkipped",
+      "unit-sha": "45485e93a892fb38",
+      "claim-sha": "fc04f367b8114227",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/te.go::validateReceivedTELink",
+      "producer-sha": "77cedaf11610fad8",
+      "break": "body of validateReceivedTELink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5392-4-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive",

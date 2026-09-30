@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-09-30",
   "requirements": {
     "RFC5392-3.2.1-1": {
       "note": "Forbidden: a Type-6 Inter-AS-TE-v2 Link TLV that carries the Link ID sub-TLV (type 2). Red on it: TestInterAsTEOriginateScopePolicy asserts `if l.HasLinkID { t.Fatalf }` on the Link TLV teOriginateType6 emits, for both area and AS scope. Negative polarity: TestTEReceiveMalformedNoEntry feeds a type-6 Link TLV that is otherwise valid (Link Type, Remote AS, IPv4 Remote ASBR ID) plus a Link ID and asserts no TED entry (validateReceivedTELink rejects l.HasLinkID for InterAsTEOpaqueType).",
@@ -15,8 +15,8 @@
       "verdict": "enforced"
     },
     "RFC5392-3.2.1-4": {
-      "note": "The quoted sentence has two clauses: the Remote-AS-Number sub-TLV MUST be in the Link TLV of the Inter-AS-TE-v2 LSA, and of the Inter-AS-TE-v3 LSA. v2 clause: forbidden is a type-6 Link TLV without sub-TLV 21; TestInterAsTEOriginateScopePolicy asserts `!l.HasRemoteAS || l.RemoteAS != 65001` fatal, and TestTEReceiveType6MissingRemoteASSkipped asserts reception stores no TED link without it. v3 clause: ze originates no Inter-AS-TE-v3 LSA (function code 13 unimplemented, internal/plugins/ospf/te.go:88-91), so no assertion goes red on a v3 Link TLV lacking sub-TLV 21. One clause unproven, so weak; the v3 clause is a gap like RFC5392-3.2.1-2 and wants its own row.",
-      "requirement_sha": "6dc573bfc92d522b",
+      "note": "Row now quotes the verbatim span ending at 'the Inter-AS-TE-v2 LSA' (R3 split; the v3 clause is RFC5392-3.2.1-5, verified against rfc/full/rfc5392.txt lines 528-529). The obligation binds the originator: + TestInterAsTEOriginateScopePolicy fails unless every originated Inter-AS-TE-v2 Link TLV carries sub-TLV 21 with the configured AS 65001 (record on buildInterASTELink observed red); - per owner ruling 2, the handling of a peer's Link TLV lacking it: TestTEReceiveType6MissingRemoteASSkipped encodes an otherwise well-formed type-6 Link TLV (Link Type, IPv4 Remote ASBR ID) without sub-TLV 21 and asserts no TED link is stored (validateReceivedTELink's !HasRemoteAS branch; record observed red). Buffer isolated: Link Type present and no Link ID, so only the missing sub-TLV 21 can trip.",
+      "requirement_sha": "957e941a8b9d883b",
       "tests": {
         "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
         "internal/plugins/ospf/te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "42473d2278067787"
@@ -25,7 +25,16 @@
         "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
         "internal/plugins/ospf/te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "d7cb7e9d567c1705"
       },
-      "verdict": "weak"
+      "upgrade_reason": "The units are unchanged; the row changed. The earlier weak verdict rested only on the unproven Inter-AS-TE-v3 clause, which the R3 split moved to the new gap row RFC5392-3.2.1-5. Re-read both tagged units against the new v2-only span: both polarities of the v2 clause are proven and each now carries an observed-red discrimination record.",
+      "verdict": "enforced"
+    },
+    "RFC5392-3.2.1-5": {
+      "code": {
+        "internal/plugins/ospf/te.go::registerTEConsumer": "85ec6fe6e10157bc"
+      },
+      "note": "The Inter-AS-TE-v3 clause of the \u00a73.2.1 sentence: ze registers inter-AS TE only as the OSPFv2 Opaque type-6 consumer (registerTEConsumer, te.go) and implements no OSPFv3 Inter-AS-TE-v3 LSA (function code 13), so there is no v3 inter-AS Link TLV in which to include sub-TLV 21. Absent feature, recorded as a {gap}; the v2 clause is RFC5392-3.2.1-4. Disclosed on the Support remaining text (Five MUST gaps).",
+      "requirement_sha": "64397456d6c0596f",
+      "verdict": "unimplemented"
     },
     "RFC5392-3.3.1-1": {
       "note": "Forbidden: a 2-octet AS number encoded with non-zero high-order octets in the 4-octet Remote AS Number field. Red on it: TestInterAsTERemoteAsTLV (packet/te_interas_test.go) encodes RemoteAS 65001 and asserts `body[8] != 0x00 || body[9] != 0x00` fatal on the wire bytes. Positive only, covered by the row's {single-polarity: positive} marker (uint32 big-endian encode cannot set the high octets for a 2-byte ASN).",

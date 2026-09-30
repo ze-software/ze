@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7684",
+  "records": [
+    {
+      "rid": "RFC7684-5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected",
+      "unit-sha": "88895448d6ccdb72",
+      "claim-sha": "bda8a2116d1c60b6",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/ext_prefix.go::DecodeExtPrefixLSA",
+      "producer-sha": "ef5916c9baf60d30",
+      "break": "body of DecodeExtPrefixLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7684-5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected",
+      "unit-sha": "88895448d6ccdb72",
+      "claim-sha": "efd36c7c658223c4",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/ext_prefix.go::decodeExtSubTLVs",
+      "producer-sha": "c1f4f769d8775a8d",
+      "break": "body of decodeExtSubTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
