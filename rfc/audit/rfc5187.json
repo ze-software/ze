@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5187-2.2-1": {
       "note": "Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4), originated or accepted. TestGraceLSARoundTrip asserts the EncodeGraceLSA body length equals period(4)+reason(1)+addr(4) TLVs and round-trips GracePeriod; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA rejects a Reason-only body. Neither reads the type octets: encode and decode both use GraceTLVPeriod, so a wrong type number (the TLV absent on the wire as Type 1) stays green. The tagged units are the shared codec; the OSPFv3 origination path (gr_restarter.go, LS type 0x000B) is not driven.",
@@ -33,8 +34,8 @@
       "tests": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "a256e089d6594d44",
         "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44",
-        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "4479d40f0e00419e",
-        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "4479d40f0e00419e"
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "359378d55bcff4c3",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "359378d55bcff4c3"
       },
       "units": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "ec65e669bd98b456",
@@ -45,21 +46,21 @@
       "verdict": "enforced"
     },
     "RFC5187-3.2-1": {
-      "note": "Re-judged 2026-09-30 (independent judge, c11). Positive proven: TestRFC5187InterfaceIDPreservedAcrossRestart +, A holds Interface ID 1041 for gr-test, prepareRestart; B's lsdbTopology announces 1041; an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making restoreInterfaceIDs a no-op turns it red (announces 0). The tagged negative is vacuous: it asserts grInterfaceID(gr-test) differs from the transport index 41, but production grInterfaceID falls back to interfaceIndex(name) (kernel ifindex, 0 for this fake interface), never the transport index; judge probe under the no-op restore mutant: transport=41, resolved=0, so the negative stays green when the ID is NOT preserved. Its recorded red (captureInterfaceIDs) is a panic stub through the shared fixture. Missing: a negative that goes red when a non-preserved ID is used (e.g. compare against what grInterfaceID answers without the preserved map, or assert the Hello/Link-LSA Interface ID is not the fallback), or a {single-polarity} annotation the row does not carry. Old gr_nvs_test.go tags remain, unproven.",
+      "note": "Re-judged 2026-09-30 (independent judge, c12). Section 3.2: 'the OSPFv3 Interface ID ... MUST be preserved by the restarting router across restarts.' The c11 vacuous negative is replaced: TestRFC5187InterfaceIDPreservedAcrossRestart runs on lo, whose kernel ifindex is the Interface ID a fresh start takes (grInterfaceID falls back to interfaceIndex, gr_preserve.go). - neither grInterfaceID(lo) nor the announced topology ID is the kernel ifindex; + the resumed engine announces the preserved 1041. Author overlay making restoreInterfaceIDs' maps.Copy a no-op reds the negative line ('lo resolves to its fresh-start Interface ID 1'), judge read the diff and the log. Records +/- revert on restoreInterfaceIDs observed. The unit needs a host lo interface (Linux naming) and Fatalf's without it. gr_nvs_test.go tags are supplementary (NVS round-trip).",
       "requirement_sha": "61418cc467731ed5",
       "tests": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "a256e089d6594d44",
         "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44",
-        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "4479d40f0e00419e",
-        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "4479d40f0e00419e"
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "359378d55bcff4c3",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "359378d55bcff4c3"
       },
       "units": {
         "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "ec65e669bd98b456",
         "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9",
-        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "7b31a118187f1ceb",
-        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "7b31a118187f1ceb"
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "3feaa5f0cf34753a",
+        "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "3feaa5f0cf34753a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5187"

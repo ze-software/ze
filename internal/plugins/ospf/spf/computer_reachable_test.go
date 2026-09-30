@@ -1,7 +1,7 @@
-// VALIDATES: computer.go RouterReachable (RFC 5250 Section 5 Type-11 opaque
-// reachability gate), the BorderRouterSnapshot method render, spf.go
+// VALIDATES: computer.go ASBRReachable (RFC 5250 Section 5 Type-11 opaque
+// reachability gate: an ASBR routing table entry, not bare SPF reachability), the BorderRouterSnapshot method render, spf.go
 // compareVertexID ordering, and Trigger arming a throttled backbone SPF run.
-// PREVENTS: honoring an unreachable originator's opaque LSAs, a mis-rendered
+// PREVENTS: honoring the opaque LSAs of an unreachable or non-ASBR originator, a mis-rendered
 // border-router row, an unstable vertex tie-break, and a Trigger that never runs.
 package spf
 
@@ -11,21 +11,26 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
-func TestRouterReachable(t *testing.T) {
+func TestASBRReachable(t *testing.T) {
 	area := testArea()
 	root, peer := testRID(t, "1.1.1.1"), testRID(t, "2.2.2.2")
+	internal := testRID(t, "4.4.4.4")
 	disconnected := testRID(t, "3.3.3.3")
+	asbr := routerLSA(t, "2.2.2.2", p2pLink(t, "1.1.1.1", "10.0.0.2", 10))
+	asbr.Router.Flags = packet.RouterFlagE
 	db := testSource(t, area,
-		routerLSA(t, "1.1.1.1", p2pLink(t, "2.2.2.2", "10.0.0.1", 10)),
-		routerLSA(t, "2.2.2.2", p2pLink(t, "1.1.1.1", "10.0.0.2", 10)),
+		routerLSA(t, "1.1.1.1", p2pLink(t, "2.2.2.2", "10.0.0.1", 10), p2pLink(t, "4.4.4.4", "10.0.4.1", 10)),
+		asbr,
+		routerLSA(t, "4.4.4.4", p2pLink(t, "1.1.1.1", "10.0.4.4", 10)),
 		routerLSA(t, "3.3.3.3"),
 	)
 	c := NewComputer(Config{Source: db, Root: root, Areas: []types.AreaID{area}})
 	t.Cleanup(c.Stop)
-	if c.RouterReachable(peer) {
+	if c.ASBRReachable(peer) {
 		t.Fatal("remote origin reachable before SPF completed")
 	}
 	c.Run()
@@ -36,18 +41,19 @@ func TestRouterReachable(t *testing.T) {
 		{types.RouterID{}, false},
 		{root, true},
 		{peer, true},
+		{internal, false},
 		{disconnected, false},
 		{testRID(t, "8.8.8.8"), false},
 	} {
-		if got := c.RouterReachable(tc.id); got != tc.want {
-			t.Fatalf("RouterReachable(%s) = %v, want %v", tc.id, got, tc.want)
+		if got := c.ASBRReachable(tc.id); got != tc.want {
+			t.Fatalf("ASBRReachable(%s) = %v, want %v", tc.id, got, tc.want)
 		}
 	}
 	if len(c.Routes()) != 0 {
 		t.Fatal("fixture must establish reachability without IP prefixes")
 	}
 	c.SetAreas(nil)
-	if c.RouterReachable(peer) {
+	if c.ASBRReachable(peer) {
 		t.Fatal("removed area's old SPF still permits its opaque originator")
 	}
 }

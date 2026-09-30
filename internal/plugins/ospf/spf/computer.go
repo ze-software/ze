@@ -591,10 +591,10 @@ func (c *Computer) Routes() []RouteEntry {
 	return append([]RouteEntry(nil), c.last...)
 }
 
-// RouterReachable reports native router reachability for the RFC 5250 Section 5
-// Type-11 opaque-LSA gate. A router can be reachable without originating a
-// selected IP prefix, so this uses the completed SPF graph and ASBR paths.
-func (c *Computer) RouterReachable(id types.RouterID) bool {
+// ASBRReachable reports whether the completed run holds an AS boundary router routing
+// table entry for id, the RFC 5250 Section 5 Type-11 opaque-LSA gate. The calculating
+// router itself is always usable: it keeps no routing table entry for itself.
+func (c *Computer) ASBRReachable(id types.RouterID) bool {
 	if id == (types.RouterID{}) {
 		return false
 	}
@@ -603,7 +603,12 @@ func (c *Computer) RouterReachable(id types.RouterID) bool {
 	if id == c.root {
 		return true
 	}
-	return c.reachability.generation == c.configGeneration && c.reachability.RouterReachableAny(id)
+	if c.reachability.generation != c.configGeneration {
+		return false
+	}
+	// RFC 5250 Section 5: "the router MUST look up the routing table entries (potentially
+	// one per attached area) for the ASBR that originated the LSA."
+	return c.reachability.ASBRReachable(id)
 }
 
 // Snapshot returns the `show ospf route` snapshot.

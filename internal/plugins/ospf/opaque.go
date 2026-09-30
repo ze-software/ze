@@ -238,12 +238,14 @@ func (e *engine) routerReachable(id types.RouterID) bool {
 	return e.opaqueReachableFn(id)
 }
 
-// spfRouterReachable is the production §5 reachability source: a router is reachable when
-// the SPF computer reports it reachable (reusing the ASBR reachability already computed
-// for Type-5 AS-External LSAs, RFC 5250 §5).
-func (e *engine) spfRouterReachable(id types.RouterID) bool {
+// spfASBRReachable is the production §5 reachability source: the originator is usable when
+// the last SPF run computed an AS boundary router routing table entry for it, the same
+// entries the Type-5 AS-External calculation uses. A router SPF reaches without the E-bit
+// has no such entry, so its Type-11 LSAs are not usable.
+func (e *engine) spfASBRReachable(id types.RouterID) bool {
 	if e.spf == nil {
 		return false
 	}
-	return e.spf.RouterReachable(id)
+	// RFC 5250 Section 5
+	return e.spf.ASBRReachable(id)
 }

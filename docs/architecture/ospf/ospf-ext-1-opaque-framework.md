@@ -29,8 +29,11 @@ never becomes an SPF vertex (RFC 5250 Section 3).
 - **The O-bit is a Database Description signal only**, and not part of the Hello
   E-bit and N-bit match, so an adjacency with a non-opaque peer is unaffected
   (RFC 5250 Section 3.1).
-- **Type 11 reachability reads the SPF route table**, reusing the Type 5 ASBR
-  reachability. Types 9 and 10 are always reachable.
+- **Type 11 reachability looks up the originator's ASBR routing table entry**
+  (RFC 5250 Section 5), the same entries the Type 5 calculation uses: a
+  router SPF reaches without the Router-LSA E-bit has none, so its Type 11 LSAs
+  are not usable. Types 9 and 10 are always reachable.
+  <!-- source: internal/plugins/ospf/opaque.go -- spfASBRReachable -->
 - **A consumer judges Type 11 usability when it reads an entry, never when the
   LSA arrives.** RFC 5250 Section 5 requires discontinuing every Opaque LSA of an
   originator once it is detected unreachable, and no new LSA arrives to say so.

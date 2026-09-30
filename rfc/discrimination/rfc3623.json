@@ -4,6 +4,17 @@
     {
       "rid": "RFC3623-2.1-1",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3623_gr_install_wiring_test.go::TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes",
+      "unit-sha": "e72e4d858ee7b344",
+      "claim-sha": "e0d1a12871e5c81e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf_wiring.go::initSPF",
+      "producer-sha": "d24d92fa4a67402b",
+      "break": "body of initSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-2.1-1",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc3623_prepare_fib_test.go::TestRFC3623PrepareInstallsPendingSPFAndKeepsIt",
       "unit-sha": "b7def25de5830dcb",
       "claim-sha": "8477b856abd5e6fa",

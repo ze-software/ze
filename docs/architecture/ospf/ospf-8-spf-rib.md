@@ -40,9 +40,15 @@
   New LSAs do not become negative reachability evidence merely because they
   arrived after the captured native input.
   <!-- source: internal/plugins/ospf/spf/reachability.go -- ReachabilitySnapshot, Reachability -->
-  `RouterReachable()` uses this view for Type-11 opaque processing too, so a
-  prefixless reachable originator is accepted and removed areas invalidate it.
-  <!-- source: internal/plugins/ospf/spf/computer.go -- RouterReachable -->
+  `ASBRReachable()` uses this view for Type-11 opaque processing (RFC 5250
+  Section 5): an originator is usable only when the run holds an AS boundary
+  router entry for it, meaning an intra-area Router-LSA with the E-bit or an
+  inter-area ASBR from a Type-4 summary, with a finite cost and a next hop. A
+  prefixless ASBR is accepted, a router SPF reaches without the E-bit is not,
+  and removed areas invalidate the entry. The calculating router's own
+  Type-11 LSAs are always usable.
+  <!-- source: internal/plugins/ospf/spf/computer.go -- ASBRReachable -->
+  <!-- source: internal/plugins/ospf/spf/reachability.go -- ASBRReachable -->
 - **Publication rejects obsolete computations.** Monotonic run tokens keep an
   earlier-started calculation from replacing a later published result.
   Root, area, area-policy and virtual-link configuration changes invalidate

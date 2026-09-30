@@ -48,6 +48,28 @@
     {
       "rid": "RFC8666-6-7",
       "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing",
+      "unit-sha": "7e665e708a8833e9",
+      "claim-sha": "e6c68eb44d0f0916",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
+      "producer-sha": "b525d416a3d32786",
+      "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-6-7",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing",
+      "unit-sha": "7e665e708a8833e9",
+      "claim-sha": "873ad2e98cdf7a4d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
+      "producer-sha": "b525d416a3d32786",
+      "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8666-6-7",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm",
       "unit-sha": "4857a460f7bbeb76",
       "claim-sha": "e91bbd8b860afc4a",

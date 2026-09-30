@@ -212,25 +212,25 @@
       "verdict": "enforced"
     },
     "RFC8666-6-7": {
-      "code": {
-        "internal/plugins/ospf/sr_malformed.go::add": "a34575fa9cf375ab",
-        "internal/plugins/ospf/sr_malformed.go::resolve": "99df496e869c4403"
-      },
-      "note": "RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8666 Section 6 (rfc8666.txt:380-381): 'If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.' Proven clauses: one router's repeated Prefix-SID, equal (TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored positive, two sub-TLVs and two LSAs) or differing (TestRFC8666PrefixSIDsKeyedByAlgorithm positive), each asserting rs.Duplicate; scope limits prefix, algorithm, router and area kept in the negative cases. Topology: the RFC 8666 Prefix-SID sub-TLV carries Flags, Algorithm, Reserved and SID only (s6 figure), so there is no second topology value to test. Weak because no tagged unit proves the consequence 'ignored': every assertion stops at the Duplicate marker. Removing `|| rs.Duplicate` from the installer (sr_install.go:80) leaves every RFC8666-6-7 unit green (only the RFC8665-tagged TestRFC8665DuplicatePrefixSIDsAllIgnored goes red), and removing it from srTILFAResolver.PrefixSIDLabel (sr_tilfa.go:40) leaves them green too (work/agents/RA-OSPF2/mutation.log). The cross-router tests TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored and TestOSPFv3ReceptionSameSIDNotDuplicate no longer carry this tag, correctly: they prove Ze policy.",
+      "note": "Re-judged 2026-09-30 (independent judge, c12). Section 6: 'If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.' The consequence gap (every unit asserted rs.Duplicate at the detector, none that nothing is installed) is closed: TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing feeds real LSAs through srRemotePrefixSIDsV6 into installRoutes: - one Prefix-SID from 5.5.5.5 installs a forwarding entry (scope limit, same fixture); + the same Prefix-SID repeated in two LSAs installs none. Author overlay removing '|| rs.Duplicate' from sr_install.go reds it ('installed 1 forwarding entries, want none'); judge read the diff and the log. Records +/- revert on installRoutes observed. Detector-level units (TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored, TestRFC8666PrefixSIDsKeyedByAlgorithm) keep their tags.",
       "requirement_sha": "1a6a08384a2674eb",
       "tests": {
+        "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing": "b4f3bcaf3b78ad36",
+        "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing#2": "b4f3bcaf3b78ad36",
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm": "b49f5c425b220588",
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm#2": "b49f5c425b220588",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored": "4dc005b115e8b238",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored#2": "4dc005b115e8b238"
       },
       "units": {
+        "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing": "5a969911a206e5e9",
+        "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing#2": "5a969911a206e5e9",
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm": "9a2f6b6f1b6aab8e",
         "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm#2": "9a2f6b6f1b6aab8e",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored": "513f8a5f1e46c181",
         "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored#2": "513f8a5f1e46c181"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8666-6-8": {
       "note": "Re-judged 2026-09-30 (continuation 5). Positive: new TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel, next hop = SID advertiser, four flag settings each give the Section 6 outcome: NP clear -> no push and PHP pop of 18009; NP -> push 16009; NP+E -> push IPv6 Explicit NULL; M+E with NP clear -> push 16009 (M makes NP and E ignored, distinguishable from the NP-clear pop). Negative: TestRFC8666TransitHopIgnoresOriginatorPHPFlags, a non-advertising next hop does not apply the originator's NP=0; judge overlay applying the flags unconditionally in forwarding (sr_install.go) reds it. Revert record on forwarding observed red for the positive. TestRFC8666OutgoingLabelUsesNextHopRouter stays tagged as supplementary (next hop's SRGB).",

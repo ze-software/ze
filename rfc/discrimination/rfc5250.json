@@ -69,25 +69,25 @@
     },
     {
       "rid": "RFC5250-5-1",
-      "polarity": "positive",
+      "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry",
-      "unit-sha": "35e80becf41f25f6",
-      "claim-sha": "dae5b79ecb7f3802",
+      "unit-sha": "2b1609bcfdc8fb2f",
+      "claim-sha": "d80ef8c0e705726f",
       "route": "revert",
-      "producer": "internal/plugins/ospf/opaque.go::spfRouterReachable",
-      "producer-sha": "ec2940b8b43f67e3",
-      "break": "body of spfRouterReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/spf/reachability.go::ASBRReachable",
+      "producer-sha": "5d648bc4cf0b6777",
+      "break": "body of ASBRReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5250-5-1",
-      "polarity": "negative",
+      "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry",
-      "unit-sha": "35e80becf41f25f6",
-      "claim-sha": "df19f47d6aab2392",
+      "unit-sha": "2b1609bcfdc8fb2f",
+      "claim-sha": "32d1f0883cd8381d",
       "route": "revert",
-      "producer": "internal/plugins/ospf/opaque.go::spfRouterReachable",
-      "producer-sha": "ec2940b8b43f67e3",
-      "break": "body of spfRouterReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/spf/reachability.go::ASBRReachable",
+      "producer-sha": "5d648bc4cf0b6777",
+      "break": "body of ASBRReachable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5250-5-2",

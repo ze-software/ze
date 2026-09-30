@@ -2,17 +2,19 @@
   "audited": "2026-09-30",
   "requirements": {
     "RFC3623-2.1-1": {
-      "note": "Re-judged 2026-09-30 (independent judge, c10). D-8 fixed for the 'up-to-date' clause: prepareRestart now calls grRefreshFIB (gr_restarter.go, RFC quote above e.spf.Run()) before gracefulStop is raised. TestRFC3623PrepareInstallsPendingSPFAndKeepsIt + (1h back-off, route pending, setup asserts nothing installed) sees the route in locrib after prepareRestart; an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) deleting e.spf.Run() from grRefreshFIB turns it red with 'not installed before the graceful stop' (the recorded red is the panic stub on grRefreshFIB; prepareRestart could not be broken by the tool, journal row filed). Still weak on the 'will remain in place across the restart' clause at the product: the unit rebuilds e.spf itself and calls SetInstallSuppress(e.gr.suppressInstall), so the production wiring spf_wiring.go initSPF `e.spf.SetInstallSuppress(e.gr.suppressInstall)` is in no tagged unit. Mutant evidence: with that line removed, `go test ./internal/plugins/ospf/` is fully green, i.e. an engine whose graceful stop ran RemoveAll and withdrew the FIB stays green. TestPrepareRestartRetainsFIB asserts only suppressInstall()==true and has no discrimination record. Missing: a unit that builds the SPF computer through initSPF (production wiring), prepares the restart and stops the engine, asserting the route stays in the Loc-RIB.",
+      "note": "Re-judged 2026-09-30 (independent judge, c12). Section 2.1: 'Router X must ensure that its forwarding table(s) is/are up-to-date and will remain in place across the restart.' Up-to-date clause: TestRFC3623PrepareInstallsPendingSPFAndKeepsIt (c10, grRefreshFIB). Remain-in-place clause, the c11 gap (initSPF SetInstallSuppress wiring unproven): TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes drives the e.spf newEngine built through initSPF (not rebuilt), SPF installs 203.0.113.128/26, prepareRestart, the peer re-originates without the stub, Run: the route stays in the Loc-RIB. Author overlay removing only e.spf.SetInstallSuppress(e.gr.suppressInstall) from spf_wiring.go turns it red ('withdrew a route from the retained forwarding table'; judge read the overlay diff and the log) while the c10 unit stays green. Recorded red is the initSPF revert halt. {single-polarity: positive} kept: the requirement forbids nothing beyond failing to retain.",
       "requirement_sha": "755aed265a063b15",
       "tests": {
+        "internal/plugins/ospf/rfc3623_gr_install_wiring_test.go::TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes": "046410a22dcca1eb",
         "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestPrepareRestartRetainsFIB": "14aadc44b2fc97ad",
         "internal/plugins/ospf/rfc3623_prepare_fib_test.go::TestRFC3623PrepareInstallsPendingSPFAndKeepsIt": "c09f2e816f0c2af1"
       },
       "units": {
+        "internal/plugins/ospf/rfc3623_gr_install_wiring_test.go::TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes": "fddef2f384f04849",
         "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestPrepareRestartRetainsFIB": "4dbc176dc9a45e69",
         "internal/plugins/ospf/rfc3623_prepare_fib_test.go::TestRFC3623PrepareInstallsPendingSPFAndKeepsIt": "2e64bc0ef8f95b35"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3623-5-1": {
       "note": "Re-judged 2026-09-29 (independent judge). The operator surface is now driven: TestRFC3623OperatorTurnsUnplannedRecoveryOff parses 'graceful-restart restarter support' from configuration text and runs maybeUnplannedRestart: planned-and-unplanned enters in-restart, planned and disabled do not. A parser mapping every value to planned-and-unplanned reddens the negative (revert records on parseGRSupport).",

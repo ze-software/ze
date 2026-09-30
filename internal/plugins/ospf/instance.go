@@ -120,7 +120,7 @@ type engine struct {
 	teLSAsGauge      *gaugeVecTracker
 	teDBLinksGauge   *gaugeVecTracker
 	// opaqueReachableFn is the RFC 5250 §5 originator-reachability seam for Type-11
-	// opaque LSAs; set to spfRouterReachable in newEngine, overridable in tests.
+	// opaque LSAs; set to spfASBRReachable in newEngine, overridable in tests.
 	opaqueReachableFn func(types.RouterID) bool
 	// nssaReachabilityFn is the RFC 3101 §3.1 translator-list reachability seam; set to
 	// spfReachability in newEngine, overridable in tests.
@@ -276,7 +276,7 @@ func newEngineWithCodecAF(t Transport, codec Codec, af addressFamily) *engine {
 	e.dispatch.onInstanceMismatch = e.recordInstanceMismatch
 	e.installStubHandlers()
 	e.installAuthHooks()
-	e.opaqueReachableFn = e.spfRouterReachable
+	e.opaqueReachableFn = e.spfASBRReachable
 	e.nssaReachabilityFn = e.spfReachability
 	e.ted = newTED()
 	// RFC 5250 sec 5: the TED consults live SPF reachability so a Type-11 inter-AS entry

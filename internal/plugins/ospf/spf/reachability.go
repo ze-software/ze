@@ -114,6 +114,26 @@ func (r ReachabilitySnapshot) RouterReachableAny(id types.RouterID) bool {
 	return false
 }
 
+// ASBRReachable reports whether the completed run holds an AS boundary router routing table
+// entry for id: an intra-area router whose Router-LSA sets the E-bit, or an inter-area ASBR
+// learned from a Type-4 summary, with a finite cost and a next hop. A router SPF reaches
+// without the E-bit has no such entry (RFC 2328 Section 11: "Router entries are kept for area
+// border routers and AS boundary routers.").
+func (r ReachabilitySnapshot) ASBRReachable(id types.RouterID) bool {
+	if !r.Ready() || id == (types.RouterID{}) {
+		return false
+	}
+	for _, entry := range r.border {
+		if entry.Kind != BorderRouterASBR || entry.RouterID != id {
+			continue
+		}
+		if entry.Metric < LSInfinity && len(entry.NextHops) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // NetworkReachable resolves a transit-network pseudonode in its own area.
 // Both families retain the advertising DR identity: OSPFv2 additionally keys
 // by Network-LSA ID, while OSPFv3 uses the DR Interface ID instead of the graph's

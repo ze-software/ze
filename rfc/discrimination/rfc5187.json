@@ -27,7 +27,7 @@
       "rid": "RFC5187-3.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
-      "unit-sha": "ab7bde0333672172",
+      "unit-sha": "26cbec28fc27c6c1",
       "claim-sha": "44b433c664929fde",
       "route": "revert",
       "producer": "internal/plugins/ospf/gr_preserve.go::restoreInterfaceIDs",
@@ -38,12 +38,12 @@
       "rid": "RFC5187-3.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart",
-      "unit-sha": "ab7bde0333672172",
-      "claim-sha": "c78ecbf79ccf5df3",
+      "unit-sha": "26cbec28fc27c6c1",
+      "claim-sha": "b51dbc47e353ee82",
       "route": "revert",
-      "producer": "internal/plugins/ospf/gr_preserve.go::captureInterfaceIDs",
-      "producer-sha": "c2dfb859741a4e08",
-      "break": "body of captureInterfaceIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/gr_preserve.go::restoreInterfaceIDs",
+      "producer-sha": "1685335bd18d3c5f",
+      "break": "body of restoreInterfaceIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

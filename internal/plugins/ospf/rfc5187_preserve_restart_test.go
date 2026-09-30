@@ -20,14 +20,21 @@ import (
 
 const rfc5187Iface = "gr-test"
 
-// rfc5187RestartPair runs the restart: the first engine redistributes one IPv6 prefix, holds
-// Interface ID 1041 for its interface, and prepares a graceful restart; the second engine,
-// configured the same way over the same store, opens its interfaces and so resumes. It
-// returns the second engine, its backend, the prefix, and the LSA ID the first engine used.
+// rfc5187RestartPair runs rfc5187RestartPairOn over rfc5187Iface, an interface the kernel
+// does not hold.
 func rfc5187RestartPair(t *testing.T) (*engine, *fakeV6Backend, netip.Prefix, uint32) {
 	t.Helper()
+	return rfc5187RestartPairOn(t, rfc5187Iface)
+}
+
+// rfc5187RestartPairOn runs the restart: the first engine redistributes one IPv6 prefix, holds
+// Interface ID 1041 for iface, and prepares a graceful restart; the second engine, configured
+// the same way over the same store, opens its interfaces and so resumes. It returns the second
+// engine, its backend, the prefix, and the LSA ID the first engine used.
+func rfc5187RestartPairOn(t *testing.T, iface string) (*engine, *fakeV6Backend, netip.Prefix, uint32) {
+	t.Helper()
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},`+
-		`"interfaces":{"interface":{"gr-test":{"area":"0","network-type":"point-to-point"}}}}}`), nil)
+		`"interfaces":{"interface":{"`+iface+`":{"area":"0","network-type":"point-to-point"}}}}}`), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
@@ -40,7 +47,7 @@ func rfc5187RestartPair(t *testing.T) (*engine, *fakeV6Backend, netip.Prefix, ui
 	before.setConfig(cfg)
 	before.gr.configure(grTestConfig())
 	before.gr.mu.Lock()
-	before.gr.preservedIfaceIDs = map[string]uint32{rfc5187Iface: 1041}
+	before.gr.preservedIfaceIDs = map[string]uint32{iface: 1041}
 	before.gr.mu.Unlock()
 	if err := before.openInterfaces(); err != nil {
 		t.Fatalf("first engine openInterfaces: %v", err)
@@ -108,37 +115,46 @@ func TestRFC5187LSAIDToPrefixPreservedAcrossRestart(t *testing.T) {
 }
 
 // TestRFC5187InterfaceIDPreservedAcrossRestart: after the restart the interface carries the
-// Interface ID it had before, not the index the new transport handed out.
+// Interface ID it had before, not the ID a fresh start would take. The unit runs on lo: its
+// kernel ifindex is the default OSPFv3 Interface ID (interfaceIndex), so it is exactly the ID a
+// restart that failed to restore the preserved one would announce.
 func TestRFC5187InterfaceIDPreservedAcrossRestart(t *testing.T) {
-	after, backend, _, _ := rfc5187RestartPair(t)
+	const iface = "lo"
+	after, _, _, _ := rfc5187RestartPairOn(t, iface)
+	// Asked after the engines opened their interfaces, which loads the interface backend
+	// interfaceIndex reads.
+	kernelID := interfaceIndex(iface)
+	if kernelID == 0 {
+		t.Fatalf("the host has no %s interface; the unit needs its kernel ifindex", iface)
+	}
+	if kernelID == 1041 {
+		t.Fatalf("%s has kernel ifindex 1041, the preserved ID; the unit cannot tell them apart", iface)
+	}
+	announced := func() uint32 {
+		t.Helper()
+		for _, info := range after.lsdbTopology() {
+			if info.Name == iface {
+				return info.InterfaceID
+			}
+		}
+		t.Fatalf("the resumed engine's topology has no %s", iface)
+		return 0
+	}
+
+	// RFC requirement: RFC5187-3.2-1 negative -- the restarted router does not take a new
+	// Interface ID for the interface: neither the ID the engine resolves for it nor the one its
+	// topology announces is the kernel ifindex a fresh start assigns by default.
+	if resolved := after.grInterfaceID(iface); resolved == kernelID {
+		t.Fatalf("%s resolves to its fresh-start Interface ID %d (kernel ifindex), not the preserved one", iface, resolved)
+	}
+	if got := announced(); got == kernelID {
+		t.Fatalf("%s announces its fresh-start Interface ID %d (kernel ifindex) after the restart", iface, got)
+	}
 
 	// RFC requirement: RFC5187-3.2-1 positive -- the OSPFv3 Interface ID is preserved across
 	// the restart: the interface the first engine announced as Interface ID 1041 carries 1041
 	// in the resumed engine's LSDB topology.
-	var announced uint32
-	found := false
-	for _, info := range after.lsdbTopology() {
-		if info.Name == rfc5187Iface {
-			announced, found = info.InterfaceID, true
-		}
-	}
-	if !found {
-		t.Fatalf("the resumed engine's topology has no %s", rfc5187Iface)
-	}
-	if announced != 1041 {
-		t.Fatalf("%s announces Interface ID %d after the restart, want the preserved 1041", rfc5187Iface, announced)
-	}
-
-	// RFC requirement: RFC5187-3.2-1 negative -- the restarted router does not take a new
-	// Interface ID for the interface: the index the restarted transport assigned to it
-	// differs from 1041, and the ID the engine resolves for the interface is not that index.
-	backend.mu.Lock()
-	kernelID := uint32(backend.handles[rfc5187Iface].ifindex)
-	backend.mu.Unlock()
-	if kernelID == 1041 {
-		t.Fatal("fixture must give the restarted transport an index other than 1041")
-	}
-	if resolved := after.grInterfaceID(rfc5187Iface); resolved == kernelID {
-		t.Fatalf("%s resolves to the new transport index %d, not the preserved Interface ID", rfc5187Iface, resolved)
+	if got := announced(); got != 1041 {
+		t.Fatalf("%s announces Interface ID %d after the restart, want the preserved 1041", iface, got)
 	}
 }
