@@ -673,6 +673,50 @@
       "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.23-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads",
+      "unit-sha": "4ea7c16fc765e4e0",
+      "claim-sha": "eb483c2502e7c1e3",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::handleSAInitResponse",
+      "producer-sha": "47460ef70b808606",
+      "break": "body of handleSAInitResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorChecksEachNATDetectionPayload",
+      "unit-sha": "848ef112c2075d50",
+      "claim-sha": "d1609bf5adea1d5d",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::handleSAInitResponse",
+      "producer-sha": "47460ef70b808606",
+      "break": "body of handleSAInitResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-12",
+      "polarity": "positive",
+      "unit": "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP",
+      "unit-sha": "38a1b49bdb918ac2",
+      "claim-sha": "bf38f38d4bc59c71",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+      "producer-sha": "20b949de8627ad06",
+      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-12",
+      "polarity": "negative",
+      "unit": "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateRefusesSPIZero",
+      "unit-sha": "d8c6586b41e3ab21",
+      "claim-sha": "599cfcc39b93f5a0",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+      "producer-sha": "20b949de8627ad06",
+      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-2.23-12",
       "polarity": "positive",
       "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarker",
@@ -748,6 +792,28 @@
       "producer": "internal/component/ike/engine/child.go::installChildSA",
       "producer-sha": "00d35a0a4eb4f737",
       "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort4500CarriesTheZeroMarker",
+      "unit-sha": "aeba5e91a2aa0ce5",
+      "claim-sha": "d5659635d43217b1",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/established.go::sendRaw",
+      "producer-sha": "648ef87c55227820",
+      "break": "body of sendRaw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker",
+      "unit-sha": "8bd0c0d697a9fb84",
+      "claim-sha": "40a11c1da944dea5",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/established.go::sendRaw",
+      "producer-sha": "648ef87c55227820",
+      "break": "body of sendRaw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.23-8",

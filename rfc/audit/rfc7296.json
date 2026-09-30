@@ -395,17 +395,21 @@
       "verdict": "unimplemented"
     },
     "RFC7296-2.23-1": {
-      "note": "TestNATDetectionPresent/Absent call DetectNAT on hand-built hashes; no tagged unit shows the initiator checks the received NAT_DETECTION payloads during IKE_SA_INIT, so the tests stay green if the engine stopped calling DetectNAT",
+      "note": "Rejudged 2026-09-30 (ike-eap judge). TestRFC7296InitiatorChecksEachNATDetectionPayload drives handleSAInitResponse over a real encoded IKE_SA_INIT response: a SOURCE_IP mismatch alone sets NATDetected+PeerBehindNAT and floats to 4500, a DESTINATION_IP mismatch alone sets NATDetected+BehindNAT and floats, so ignoring either payload goes red. TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads (both present, both matching: no NAT, not floated) goes red if presence alone were taken as a NAT, i.e. if the payloads were not checked. Both carry observed-red records on fsm.go handleSAInitResponse. HEAD tags on transport TestNATDetectionPresent/Absent (DetectNAT in isolation) are supplementary and hold no record.",
       "requirement_sha": "bbd53970fb7dbb3a",
       "tests": {
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads": "3a4d8f90e5724d15",
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorChecksEachNATDetectionPayload": "3a4d8f90e5724d15",
         "internal/component/ike/transport/nat_test.go::TestNATDetectionAbsent": "5e9bb9c1bf045ab6",
         "internal/component/ike/transport/nat_test.go::TestNATDetectionPresent": "5e9bb9c1bf045ab6"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorCheckFindsNoNATOnMatchingPayloads": "fdf8cd0cb003eb8b",
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296InitiatorChecksEachNATDetectionPayload": "66114a6b61fec466",
         "internal/component/ike/transport/nat_test.go::TestNATDetectionAbsent": "1def2ef48b085e7c",
         "internal/component/ike/transport/nat_test.go::TestNATDetectionPresent": "1bf700762d664b80"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.23-10": {
       "note": "every Child SA accepts both ESP forms inbound (AcceptBothESPForms) and both forms are programmable; kernel behavior measured by the cited QEMU tests",
@@ -421,17 +425,21 @@
       "verdict": "enforced"
     },
     "RFC7296-2.23-12": {
-      "note": "Second sentence enforced: TestNonESPMarker fails ('StripNonESPMarker returned false for valid IKE packet') when a zero-marked packet is not recognised as IKE, and TestNonESPMarkerESPPacket fails ('ESP packet should not be recognized as IKE') when a non-zero SPI is taken for IKE. First sentence unproven: no tagged unit asserts that a UDP-encapsulated ESP packet Ze sends carries the ESP header immediately after the UDP header (the kernel XFRM encapsulation Ze configures).",
+      "note": "Rejudged 2026-09-30 (ike-eap judge). Sentence 1: Linux performs ESP-in-UDP, so the proof is the state Ze installs: TestRFC7296ESPInUDPStateHasESPRightAfterUDP asserts xfrmStateFromParams builds an encapsulated 4500/4500 SA with Encap.Type XFRM_ENCAP_ESPINUDP (the RFC 3948 form, ESP header right after UDP, not ESPINUDP_NON_IKE) and the SA's SPI. Sentence 2: TestRFC7296ESPInUDPStateRefusesSPIZero forces SPI 0 on an encapsulated SA and requires a refusal with no state; judge mutation (SPI==0 check disabled in xfrmStateFromParams) turned it red, so it is not vacuous. Both carry records. Receive-side distinction stays on transport TestNonESPMarker/TestNonESPMarkerESPPacket (recorded). No netns wire capture (needs root); the template Ze installs is the boundary Ze owns.",
       "requirement_sha": "e077b34274e6e8cd",
       "tests": {
+        "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP": "f83a0fa9161dca61",
+        "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateRefusesSPIZero": "f83a0fa9161dca61",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "5e9bb9c1bf045ab6",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "5e9bb9c1bf045ab6"
       },
       "units": {
+        "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP": "dd55a262508f2271",
+        "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateRefusesSPIZero": "7798543f9133b74a",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.23-13": {
       "note": "Row is verbatim \u00a72.23. Positive TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA: responder not behind a NAT and without MOBIKE; a second validated request from a new port moves peerEndpoint and remoteUDPAddr (what every send and retransmission reads), and the response is read on the new socket. Negatives each violate one bound of the sentence against adoptAuthenticatedEndpoint: behind a NAT (\u00a72.23 'A host behind a NAT SHOULD NOT do this type of dynamic address update') and MOBIKE keep the stored endpoint (TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow); a packet with an in-window Message ID whose integrity check fails, from a new endpoint, moves nothing (TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint). Each guard in the producer has a case that reddens without it. The 'new packet' replay bound is a separate lowercase-should sentence, not this row.",
@@ -462,17 +470,21 @@
       "verdict": "weak"
     },
     "RFC7296-2.23-3": {
-      "note": "Re-read 2026-09-27 after the RFC3948-2.2-1 tags were deleted and the RFC3948-2.1-3 tags moved to RFC7296-2.23-12 in these units (comment lines only; bodies unchanged). Forbidden behaviour: an IKE message sent on UDP port 4500 without the four zero octets prepended, or not immediately after the UDP header. TestNonESPMarker exercises AddNonESPMarker/StripNonESPMarker in isolation and TestNonESPMarkerESPPacket shows a non-zero SPI is not stripped; no tagged unit shows an IKE message Ze sends on port 4500 carries the four zero octets",
+      "note": "Rejudged 2026-09-30 (ike-eap judge). TestRFC7296IKEOnPort4500CarriesTheZeroMarker sends through sendRaw (the shared post-establishment send path) on an SA floated to 4500 and reads the raw UDP payload at the peer: exactly 00000000 followed by the IKE message byte for byte, so a missing marker or anything between the UDP header and the marker goes red. TestRFC7296IKEOnPort500CarriesNoMarker shows the same send on port 500 carries the message unchanged, so the zeros are conditional on 4500. Both carry observed-red records on established.go sendRaw. HEAD tags on transport TestNonESPMarker/TestNonESPMarkerESPPacket (helpers in isolation) are supplementary and hold no record.",
       "requirement_sha": "1132d646ea62c03e",
       "tests": {
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort4500CarriesTheZeroMarker": "3a4d8f90e5724d15",
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker": "3a4d8f90e5724d15",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "5e9bb9c1bf045ab6",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "5e9bb9c1bf045ab6"
       },
       "units": {
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort4500CarriesTheZeroMarker": "899c4f68c3fbea8c",
+        "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker": "aaf5c6c364165e6f",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
         "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7296-2.24-1": {
       "note": "installed Child SAs are tunnel mode with no ECN-disabling field (engine and XFRM scans); VPP InstallSA sets ENCAP/DECAP_COPY_ECN. Negatives are non-vacuity checks rather than violating inputs",

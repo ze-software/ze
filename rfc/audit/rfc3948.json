@@ -101,21 +101,29 @@
       "verdict": "enforced"
     },
     "RFC3948-4-1": {
-      "note": "Rejudged 2026-09-30 (transport judge). The M-second clause is now proven: TestRFC3948KeepaliveIdleWindowNeverExceedsM (M=80ms, three keepalives, every gap <= M+50ms, so no idle window to the peer exceeds M; a free-running ticker at M satisfies 'no other packet sent in M seconds') and TestRFC3948UnsetKeepaliveIntervalFallsBackToM (interval 0 and -1s, on which time.NewTicker would panic and no keepalive would be sent, fall back to DefaultKeepaliveInterval, asserted 20s); both carry observed-red revert records (keepalive.go Run, NewKeepalive). STILL WEAK: the clause 'if a need for it is detected according to [RFC3947]' is unproven: the gates are engine established.go startKeepalive (sa.NATDetected && !mobike) and mobike.go serviceMobike (sa.NATDetected), and no tagged unit goes red if keepalives start without a detected NAT or fail to start with one. TestKeepaliveDefaultInterval's claim ('well under a typical NAT UDP binding lifetime, so keepalives refresh the mapping before it can expire') states more than its body, which reads a constant and checks 0 < DefaultKeepaliveInterval <= 20s; it proves the RFC3948-4-2 default, not this row, and holds no record. TestNATKeepalive proves one 0xFF is emitted on the timer.",
+      "note": "Rejudged 2026-09-30 (ike-eap judge). Need clause now proven at both gates Ze has: the non-MOBIKE gate, extracted unchanged from runEstablished into startNATKeepalive (established.go; interval passed by the caller as DefaultKeepaliveInterval, Stop still deferred by runEstablished), is held by TestRFC3948KeepaliveStartsWhenNATDetected (NATDetected: keepalive returned running, raw peer receives >=2 0xFF at 40ms) and TestRFC3948NoKeepaliveWithoutDetectedNAT (no NAT: nil, 0 datagrams in 400ms); the MOBIKE gate in serviceMobike by TestRFC3948MobikeKeepaliveWhenNATDetected (exactly one 0xFF per owner tick) and TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT (0). Each reads the peer socket, so dropping either gate or making it unconditional goes red; all four carry observed-red records. M-second clause stays proven by the transport window units (TestRFC3948KeepaliveIdleWindowNeverExceedsM, TestRFC3948UnsetKeepaliveIntervalFallsBackToM, recorded). Supplementary HEAD tags on transport TestNATKeepalive and TestKeepaliveDefaultInterval hold no record; TestKeepaliveDefaultInterval's prose still claims more than its constant check (author rewording owed, the verdict does not rest on it).",
       "requirement_sha": "7a70244ce37ee3c6",
       "tests": {
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948KeepaliveStartsWhenNATDetected": "5d3f2966bcedeea9",
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected": "5d3f2966bcedeea9",
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT": "5d3f2966bcedeea9",
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT": "5d3f2966bcedeea9",
         "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "953e0984234cb434",
         "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "2c1dae638cc540d2",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "2c1dae638cc540d2"
       },
       "units": {
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948KeepaliveStartsWhenNATDetected": "9468b2c9f00fe174",
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected": "f0e85ce81a7d1d4e",
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT": "1dc4fec68dce7cbe",
+        "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT": "4da9d6250fe0f55c",
         "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "1b40e58f60aec171",
         "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "02f299727c51f363",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "0f102284c2310616"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3948-5.1-1": {
       "code": {

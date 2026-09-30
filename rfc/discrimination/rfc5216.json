@@ -519,6 +519,28 @@
       "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5216-2.4-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216DataCipherComesFromTheESPProposal",
+      "unit-sha": "b2da04dbee9bd367",
+      "claim-sha": "7c98a7a4f61028f8",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
+      "producer-sha": "aa48c8aac651e8dd",
+      "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5216-2.4-4",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216TLSSessionDoesNotChooseTheDataCipher",
+      "unit-sha": "0ae2eba9577d841b",
+      "claim-sha": "9fa3d54796d3c39e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
+      "producer-sha": "aa48c8aac651e8dd",
+      "break": "body of createFirstChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5216-3-3",
       "polarity": "positive",
       "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest",

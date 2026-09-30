@@ -169,6 +169,50 @@
     {
       "rid": "RFC3948-4-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948KeepaliveStartsWhenNATDetected",
+      "unit-sha": "378013842573411c",
+      "claim-sha": "6d78b026e2bd3942",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/established.go::startNATKeepalive",
+      "producer-sha": "3bf275ef27b70529",
+      "break": "body of startNATKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected",
+      "unit-sha": "c6cf7b9165a87741",
+      "claim-sha": "9f2a1aaaaa31aa6e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::serviceMobike",
+      "producer-sha": "5053deedc2c8fc88",
+      "break": "body of serviceMobike replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT",
+      "unit-sha": "1b9fee62f16a21c5",
+      "claim-sha": "66163532fba23052",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::serviceMobike",
+      "producer-sha": "5053deedc2c8fc88",
+      "break": "body of serviceMobike replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT",
+      "unit-sha": "60ab9e5767ae3c70",
+      "claim-sha": "af9b141154d734f4",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/established.go::startNATKeepalive",
+      "producer-sha": "3bf275ef27b70529",
+      "break": "body of startNATKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-4-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM",
       "unit-sha": "add25e347fd23d69",
       "claim-sha": "b8c412eb5d67bbb2",

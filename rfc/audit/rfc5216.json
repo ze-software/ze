@@ -392,15 +392,19 @@
       "verdict": "enforced"
     },
     "RFC5216-2.4-4": {
-      "note": "Unchanged: the assertion is a 64-octet equal non-zero MSK; it cannot fail if the TLS ciphersuite were used to choose the IKE/ESP data ciphers. The missing proof (proposal selection independent of the TLS suite) belongs in internal/component/ike/engine (queued under R6).",
+      "note": "Rejudged 2026-09-30 (ike-eap judge, R6). The {single-polarity} marker is removed and a genuine negative is held in internal/component/ike/engine: TestRFC5216DataCipherComesFromTheESPProposal runs a real EAP-TLS exchange (Ze as authenticator, TLS 1.3 by Go's default, whose suites are all AEAD), sets EAPSession/EAPMSK on the IKE SA as responder_eap.go does, and createFirstChildSA installs the ESP proposal's aes256/sha256 non-AEAD transform; TestRFC5216TLSSessionDoesNotChooseTheDataCipher has one TLS session authenticate two IKE SAs with different ESP proposals and requires the installed transforms to differ and follow each proposal (aes128/sha512 on the second), so data ciphers taken from or pinned by the TLS session go red. Both carry records on child.go createFirstChildSA. The negotiated TLS version/suite is not asserted in the body (the fixture relies on Go's TLS 1.3 default). HEAD tag on eap TestEAPTLSMutualAuthHandshakeSucceeds is supplementary, holds no record, and its prose ('not reused as the lower-layer key') claims more than its 64-octet-MSK body: rewording is author work; the verdict does not rest on it.",
       "requirement_sha": "b74d63a88039b56f",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "6124c76d4158f4b1"
+        "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216DataCipherComesFromTheESPProposal": "8b1c5a0f0f5861e6",
+        "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216TLSSessionDoesNotChooseTheDataCipher": "8b1c5a0f0f5861e6",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130"
       },
       "units": {
+        "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216DataCipherComesFromTheESPProposal": "b29a8419a5842319",
+        "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216TLSSessionDoesNotChooseTheDataCipher": "8ad0f28315528624",
         "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5216-3-1": {
       "note": "positive: first fragment of a multi-fragment message carries L and the 4-octet length; the negative asserts L clear on middle and last fragments, which RFC 5216 does not state (the tag prose calls it a MUST NOT)",

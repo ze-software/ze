@@ -554,6 +554,9 @@ func (ps *PeerSession) serviceMobike(sa *SA, tr *transport.UDPTransport, now tim
 			mobikeFatal(sa, err, log)
 		}
 	}
+	// RFC 3948 Section 4: "A peer SHOULD send a NAT-keepalive packet if a need for
+	// it is detected according to [RFC3947] and if no other packet to the peer has
+	// been sent in M seconds." The need is the NAT that NAT detection found.
 	if sa.NATDetected && now.Sub(sa.mobike.lastKeepalive) >= transport.DefaultKeepaliveInterval {
 		out, _ := sa.sendPath(tr)
 		if out != nil {

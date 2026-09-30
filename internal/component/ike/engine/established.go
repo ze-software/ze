@@ -143,27 +143,9 @@ func (ps *PeerSession) runEstablished(
 	sa.certRecheck = startServerCertRecheck(sa, ocspClient(), log)
 	defer sa.certRecheck.stop()
 
-	// RFC 3948 Section 2.3: start NAT keepalive when NAT is detected.
-	//
-	// The keepalive holds the NAT binding open, so it MUST leave from the same port
-	// the SA's traffic leaves from. RFC 7296 Section 2.23 puts that at 4500. A
-	// keepalive from port 500 refreshes a mapping no traffic uses.
-	//
-	// The destination is the SA's stored endpoint. The keepalive is self-initiated,
-	// so no request corroborates any observation of its own.
-	if sa.NATDetected && !sa.mobike.enabled {
-		out, _ := sa.sendPath(tr)
-		remote := sa.remoteUDPAddr()
-		switch {
-		case out == nil || remote == nil:
-			log.Warn("ike: NAT detected but no keepalive path, the NAT binding will expire",
-				"peer", ps.peerName, "local-port", sa.localPort)
-		default:
-			ka := transport.NewKeepalive(out, sa.localSendAddr(out), remote, transport.DefaultKeepaliveInterval, log)
-			go ka.Run()
-			defer ka.Stop()
-			log.Info("ike: NAT keepalive started", "peer", ps.peerName, "remote", remote)
-		}
+	// RFC 3948 Section 4
+	if ka := ps.startNATKeepalive(sa, tr, transport.DefaultKeepaliveInterval, log); ka != nil {
+		defer ka.Stop()
 	}
 
 	dpd := newDPDState(ikeGroup.DPD)
@@ -171,6 +153,40 @@ func (ps *PeerSession) runEstablished(
 	ikeLT := newLifetimeState(ikeGroup.Lifetime)
 
 	return ps.maintainSA(sa, dpd, childLT, ikeLT, ikeGroup, table, dp, tr, bus, log)
+}
+
+// startNATKeepalive starts the NAT keepalive of an SA whose IKE_SA_INIT detected a
+// NAT, and returns it running. The caller MUST Stop it when the SA ends. It returns
+// nil when no keepalive runs: no NAT was detected, MOBIKE owns the keepalive
+// (serviceMobike sends it from the owner tick), or the SA has no path to the peer.
+//
+// The keepalive holds the NAT binding open, so it MUST leave from the same port
+// the SA's traffic leaves from. RFC 7296 Section 2.23 puts that at 4500. A
+// keepalive from port 500 refreshes a mapping no traffic uses.
+//
+// The destination is the SA's stored endpoint. The keepalive is self-initiated,
+// so no request corroborates any observation of its own.
+func (ps *PeerSession) startNATKeepalive(sa *SA, tr *transport.UDPTransport, interval time.Duration, log *slog.Logger) *transport.Keepalive {
+	// RFC 3948 Section 4: "A peer SHOULD send a NAT-keepalive packet if a need for
+	// it is detected according to [RFC3947] and if no other packet to the peer has
+	// been sent in M seconds." The need is the NAT that NAT detection found.
+	if !sa.NATDetected {
+		return nil
+	}
+	if sa.mobike.enabled {
+		return nil
+	}
+	out, _ := sa.sendPath(tr)
+	remote := sa.remoteUDPAddr()
+	if out == nil || remote == nil {
+		log.Warn("ike: NAT detected but no keepalive path, the NAT binding will expire",
+			"peer", ps.peerName, "local-port", sa.localPort)
+		return nil
+	}
+	ka := transport.NewKeepalive(out, sa.localSendAddr(out), remote, interval, log)
+	go ka.Run()
+	log.Info("ike: NAT keepalive started", "peer", ps.peerName, "remote", remote)
+	return ka
 }
 
 // maintainSA runs the DPD + rekey loop until stopped or peer dies.
