@@ -157,14 +157,20 @@ func TestRFC8669UnknownTLVPropagatedAcrossANextHopChange(t *testing.T) {
 	}
 }
 
-// TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange relays a Prefix-SID whose only
-// TLVs are SRv6 Service TLVs with next-hop-self.
+// TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange relays, over both relay rails, a
+// Prefix-SID whose only TLVs are SRv6 Service TLVs with next-hop-self. The L3 Service TLV
+// carries an unrecognized Sub-TLV (0xF0) and an unrecognized Sub-Sub-TLV (0xEE)
+// (rfc9252ReservedServiceTLV).
 //
 // VALIDATES: when removing the Service TLVs leaves no TLV, the attribute is not sent at
-// all (an empty Prefix-SID is not a valid attribute), and the route itself still arrives.
-// PREVENTS: an empty attribute 40 on the wire, or the route being withheld.
+// all (an empty Prefix-SID is not a valid attribute), so none of their Sub-TLVs or
+// Sub-Sub-TLVs, recognized or not, reaches the wire, and the route itself still arrives.
+// PREVENTS: an empty attribute 40 on the wire, the route being withheld, or a handler
+// that ignores the removal and relays the Service TLVs after the next hop changed.
+//
+// RFC requirement: RFC9252-3.3-2 positive -- relayed with next-hop-self on the general and the route-server rail, the Service TLVs, with their unrecognized Sub-TLV and Sub-Sub-TLV, are gone from the wire (attribute 40 absent, since Ze allocates no local SRv6 SID to rebuild them with), while the route arrives with the new next hop.
 func TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange(t *testing.T) {
-	serviceOnly := slices.Concat(rfc8669ServiceTLV(5), rfc8669ServiceTLV(6))
+	serviceOnly := slices.Concat(rfc9252ReservedServiceTLV(5), rfc8669ServiceTLV(6))
 	for _, routeServer := range []bool{false, true} {
 		body := rfc8669Relay(t, routeServer, NextHopSelf, serviceOnly)
 		attrs := decodeBodyAttrs(t, body)

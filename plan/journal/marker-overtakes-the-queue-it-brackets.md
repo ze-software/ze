@@ -1,3 +1,3 @@
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-09-30 | spec-rfc-verdict-fix-bgp | rib `handleRefresh` vs reactor `sendRouteRefresh` and `peer.shouldQueue()` | SUSPECTED: BoRR/EoRR go out raw at once while the refresh's routes queue in `opQueue` during initial sync, so the EoRR can precede them (RFC 7313 §4 purge) | not fixed; next: whole-Peer test, refresh during initial sync, read wire order |
+| 2026-09-30 | spec-rfc-verdict-fix-bgp | rib `handleRefresh` vs reactor `sendRouteRefresh` and `peer.shouldQueue()` | CONFIRMED (wire was BoRR, EoRR, route): BoRR/EoRR go out raw at once while the refresh's routes queue in `opQueue` during initial sync, so the EoRR can precede them (RFC 7313 §4 purge) | fixed 2026-09-30: markers join the opQueue when shouldQueue (`Peer.sendRefreshMarker`, peer_send.go; both drains write them in place). Test: reactor rfc7313_refresh_order_test.go TestRFC7313EoRRFollowsTheRoutesItCloses |

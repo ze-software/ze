@@ -1554,6 +1554,13 @@ plugin-injected route belongs to that update.
     server) is suppressed while `shouldQueue()` OR `initialSyncEOROwed` is true.
     The caller is told the marker was handled, the suppression is logged, and
     the peer's own `sendInitialRoutes` marker covers the family.
+11. **Route refresh markers queue with the routes:** a BoRR or EoRR sent while
+    `shouldQueue()` is true joins the opQueue (`sendRefreshMarker`) instead of
+    leaving at once, and both drains write it in its place. A route refresh
+    answered during the sync therefore reaches the wire as BoRR, the routes,
+    EoRR, so the peer never purges a route that was still queued (RFC 7313
+    Section 4). A queued marker is counted in `PeerStats.RefreshSent` when it
+    is written, and one left from an earlier session is dropped.
 The declaration in step 2 is VOLUNTARY (owner directive, 2026-09-02). A plugin
 declares it when its routes belong to the peer's initial routing update and it
 reports when they are out. A plugin that pushes routes on its own schedule

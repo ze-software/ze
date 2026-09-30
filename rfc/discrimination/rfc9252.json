@@ -92,6 +92,17 @@
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9252-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged",
+      "unit-sha": "e83b9cef57d53aa6",
+      "claim-sha": "9a6a9a403c50e1ac",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "0423c2f64a7c38ca",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9252-3.3-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
@@ -112,6 +123,17 @@
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
       "producer-sha": "0423c2f64a7c38ca",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange",
+      "unit-sha": "16fc1137ec80b067",
+      "claim-sha": "570dfdee2bb0c122",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler",
+      "producer-sha": "bd514d1db85a0ca1",
+      "break": "body of prefixSIDNextHopHandler replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9252-7-1",

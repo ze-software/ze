@@ -124,30 +124,34 @@
       "verdict": "enforced"
     },
     "RFC9252-3.3-1": {
-      "note": "TestPrefixSIDPropagationNextHop (re-scoped) asserts only the recorded operations: no code-40 op with the next hop unchanged, one Remove{5,6} when it changes. Nothing tagged to this row reads attribute 40 on the wire, so a forward rail that re-encoded the Service TLVs and zeroed their Reserved fields stays green. The wire test TestRFC8669UnknownTLVPropagatedAcrossANextHopChange (untagged here) does compare bytes, but every Reserved octet of its Service TLVs is 0x00, so it cannot see a zeroing either. Missing: a wire-level tag with non-zero Reserved octets in the TLV, Sub-TLV and Sub-Sub-TLV, next hop unchanged, byte-identical.",
+      "note": "The missing wire tag is now present: TestRFC9252ReservedFieldsPropagatedUnchanged relays, with the next hop unchanged, on the general and route-server rails, L3 and L2 Service TLVs with TLV RESERVED 0xA5, SID Information Sub-TLV RESERVED1 0x5A and RESERVED2 0xC3 (layout checked against rfc9252.txt Section 2, 3.1, 3.2.1; the SID Structure Sub-Sub-TLV has no Reserved field), an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 byte-identical plus the source next hop; a zeroing or dropping rail goes red. Observed red with applyFactsNextHop broken. Negative stays on TestPrefixSIDPropagationNextHop: the propagation is conditional, and with the next hop changed the Service TLVs are named for removal (observed red).",
       "requirement_sha": "a14cd59919a27569",
       "tests": {
         "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "91d588c10fec0c6e",
-        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e"
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e",
+        "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged": "1e5dc6de8905bcd3"
       },
       "units": {
         "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "29df0bd665ea969c",
-        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c"
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c",
+        "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged": "104fdfe95b708141"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9252-3.3-2": {
-      "note": "Downgraded from enforced. At HEAD the op was Suppress, whose effect (whole attribute dropped) the generic handler makes trivially true. It is now Remove{5,6}, whose effect depends on the new prefixSIDNextHopHandler, and the tagged unit TestPrefixSIDPropagationNextHop exercises only applyFactsNextHop: a handler that ignored the Remove (KeepAll) would forward the Service TLVs and their unrecognized Sub-TLVs after a next-hop change and nothing tagged to this row turns red. The code is right (TestRFC8669UnknownTLVPropagatedAcrossANextHopChange and TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange read the wire), but neither carries this row's tag. Fix: tag one of them RFC9252-3.3-2 positive and record against prefixSIDNextHopHandler. The SHOULD half (rebuild with a local SID) is not done: Ze allocates none.",
+      "note": "The wire tag the previous note asked for is present: TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange, now tagged +, relays with next-hop-self on both rails a Prefix-SID whose L3 Service TLV carries an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 absent while the route arrives with the new next hop and its NLRI; a handler ignoring the Remove (the KeepAll the old note named) would put attribute 40 on the wire and go red. Observed red with prefixSIDNextHopHandler broken. Negative on TestPrefixSIDPropagationNextHop (next hop unchanged: no removal op). The SHOULD half (rebuild with a locally allocated SID) is not done: Ze allocates none; the MUST (unrecognized removed) is met by removing the whole Service TLVs.",
       "requirement_sha": "332f8de9d0c327f1",
       "tests": {
         "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "91d588c10fec0c6e",
-        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e"
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "c845a4b49b1894c0"
       },
       "units": {
         "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "29df0bd665ea969c",
-        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c"
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "2214ed49b4ee3c25"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9252-3.4-1": {
       "note": "Section 7 lists the malformed cases. Asserted to give treat-as-withdraw: trailing bytes after the last Sub-TLV (TestValidateSRv6ServiceTLV_TrailingBytes) and a SID Information Sub-TLV under 21 octets (TestValidateSRv6ServiceTLV_SIDInfoTooShort). Not asserted by any tagged unit: TLV Length less than 1, and TLV Length inconsistent with the Prefix-SID attribute length. The second one gives the wrong action: validatePrefixSIDAttr answers RFC7606ActionAttributeDiscard for a type 5 or 6 TLV that overruns the attribute, not treat-as-withdraw.",

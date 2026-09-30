@@ -221,6 +221,24 @@ func (p *Peer) sendInitialRoutes() {
 			p.mu.Lock()
 			processed++
 			continue
+
+		case PeerOpRefreshMarker:
+			// RFC 7313 Section 4: the BoRR or EoRR leaves in its place among
+			// the refresh's routes (sendRefreshMarker, peer_send.go).
+			session := p.session
+			processed++
+			if op.MarkerSession != session {
+				routesLogger().Debug("dropping a route refresh marker of an earlier session", "peer", addr)
+				continue
+			}
+			p.mu.Unlock()
+			sendErr := p.sendQueuedRefreshMarker(op.Marker, session)
+			p.mu.Lock()
+			if sendErr != nil {
+				routesLogger().Debug("send error for a queued route refresh marker", "peer", addr, "error", sendErr)
+				connError = true
+			}
+			continue
 		}
 
 		// If we get here, it was a teardown - break out of loop
@@ -514,6 +532,23 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			}
 			p.mu.Lock()
 			finalProcessed++
+
+		case PeerOpRefreshMarker:
+			// RFC 7313 Section 4: in its place among the refresh's routes, as in
+			// the main drain.
+			session := p.session
+			finalProcessed++
+			if op.MarkerSession != session {
+				routesLogger().Debug("dropping a route refresh marker of an earlier session", "peer", addr)
+				continue
+			}
+			p.mu.Unlock()
+			sendErr := p.sendQueuedRefreshMarker(op.Marker, session)
+			p.mu.Lock()
+			if sendErr != nil {
+				// Attempted to the end, for the reason the announce case states.
+				routesLogger().Debug("send error for a queued route refresh marker", "peer", addr, "error", sendErr)
+			}
 
 		case PeerOpTeardown:
 			// Teardown should not appear here — teardown is handled in the main

@@ -127,6 +127,55 @@ func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
 	return session.SendRawMessage(msgType, payload)
 }
 
+// sendRefreshMarker writes a BoRR or EoRR ROUTE-REFRESH message, marker, in
+// its place among the routes of the refresh it brackets, and counts it once it
+// reaches the socket.
+//
+// RFC 7313 Section 4: "After the speaker completes the re-advertisement of the
+// entire Adj-RIB-Out to the peer, it MUST send an EoRR message." While the
+// initial sync holds the queueing gate, the refresh's routes wait in opQueue
+// (shouldQueue), so a marker written at once would reach the wire before them,
+// and the peer would purge those routes as stale on the EoRR. The marker joins
+// the same queue instead, and the drain writes it in order. The gate is read and
+// the marker appended under one p.mu hold, as the drains read and clear them, so
+// no drain can finish between the two.
+//
+// Returns ErrOpQueueFull when the queue is at its cap and the marker was not
+// queued. Safe for concurrent use.
+func (p *Peer) sendRefreshMarker(marker []byte) error {
+	p.mu.Lock()
+	if p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0 {
+		if len(p.opQueue) >= p.opQueueMax {
+			size := len(p.opQueue)
+			p.mu.Unlock()
+			routesLogger().Warn("opQueue full, dropping route refresh marker", "peer", p.settings.Address, "queueSize", size)
+			p.raiseOpQueueFull(size)
+			return ErrOpQueueFull
+		}
+		p.opQueue = append(p.opQueue, peerOp{Type: PeerOpRefreshMarker, Marker: marker, MarkerSession: p.session})
+		p.mu.Unlock()
+		return nil
+	}
+	session := p.session
+	p.mu.Unlock()
+
+	return p.sendQueuedRefreshMarker(marker, session)
+}
+
+// sendQueuedRefreshMarker writes marker on session and counts it. A nil session
+// is ErrNotConnected. Called with p.mu NOT held: the drains release it around
+// every send.
+func (p *Peer) sendQueuedRefreshMarker(marker []byte, session *Session) error {
+	if session == nil {
+		return ErrNotConnected
+	}
+	if err := session.SendRawMessage(0, marker); err != nil {
+		return err
+	}
+	p.incrRefreshSent()
+	return nil
+}
+
 // sendUpdateWithSplit sends an UPDATE, splitting via Splitter.Split when it
 // exceeds maxSize. The addPath parameter must match the encoding used to build
 // the UPDATE's NLRIs. Returns nil on success, the first error encountered

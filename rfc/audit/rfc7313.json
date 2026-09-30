@@ -20,21 +20,25 @@
       "verdict": "enforced"
     },
     "RFC7313-4-2": {
-      "note": "Single-polarity positive, marker accepted (same reasoning as 4-1). Proven at the RIB: TestRFC7313BoRRRoutesEoRRInOneSequence asserts on both rails that the EoRR is the last entry, after both IPv4 unicast routes of the family's Adj-RIB-Out, with the IPv6 route absent; observed red with sendRoutes broken. Missing: the order on the wire. The EoRR leaves through reactorAPIAdapter.sendRouteRefresh -> Peer.SendRawMessage immediately, while each re-advertised route goes through the announce path, which diverts it into the peer's opQueue while peer.shouldQueue() holds (initial-sync window). A refresh answered in that window would put the EoRR ahead of the routes; suspected, not reproduced (plan/journal/marker-overtakes-the-queue-it-brackets.md). Needs a whole-Peer test reading the wire order for a refresh during initial sync.",
+      "note": "Re-judged after the D-8 fix: BoRR/EoRR now ride the peer's opQueue as PeerOpRefreshMarker (Peer.sendRefreshMarker, gate read and append under one p.mu hold, same predicate as shouldQueue minus the state check sendRouteRefresh already makes); both drains write the marker in place, count RefreshSent on send, and drop a marker whose session is no longer the peer's. Order at the rib (sendRoutes then EoRR) stays proven by TestRFC7313BoRRRoutesEoRRInOneSequence (observed red). Order on the wire now proven by TestRFC7313EoRRFollowsTheRoutesItCloses through reactorAPIAdapter SendBoRR/AnnounceNLRIBatch/SendEoRR on a recording socket: + outside the sync [eor, borr, route, eorr], - during the sync (inputs forced toward the violation: route held in the queue) nothing leaves early and after the drain [borr, route, eorr, eor]; both counters asserted. Author's red-first log showed [borr eorr route eor] before the fix; records observed on sendQueuedRefreshMarker (+) and sendRefreshMarker (-). {single-polarity} marker correctly removed (R1 route b). Not covered by a test: the stale-session drop branch (a guard, logged).",
       "requirement_sha": "6584db627c7f1be9",
       "tests": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
         "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "fe77d48f0e1fa729",
         "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
-        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "bf7992ea6a608871"
+        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "bf7992ea6a608871",
+        "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "f0ac57160e665611",
+        "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "f0ac57160e665611"
       },
       "units": {
         "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
         "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "e976b5455ae2814b",
         "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
-        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "364103f5f9c61a8f"
+        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "364103f5f9c61a8f",
+        "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "7b476fe3aa2ac203",
+        "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "7b476fe3aa2ac203"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7313-4-3": {
       "note": "(a) forbidden: handling a ROUTE-REFRESH without reading its subtype (every subtype treated alike); (b) no tagged assertion goes red on it. TestHandleRouteRefreshBoRR, TestHandleRouteRefreshEoRR, TestHandleRouteRefreshUnknown and TestHandleRouteRefresh_UnknownSubtype all assert only NoError and Established, the same outcome for every subtype, so a subtype-blind handler passes all of them. The differentiated action (only subtype 0 starts a refresh) lives in rib_structured.go and rs parseStructuredRefresh and is asserted only by an untagged rib test for subtype 1.",

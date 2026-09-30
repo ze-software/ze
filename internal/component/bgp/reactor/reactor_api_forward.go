@@ -304,6 +304,14 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 			}
 		}
 
+		// RFC 7313 Section 4: a BoRR or EoRR takes its place among the routes of
+		// the refresh it brackets (sendRefreshMarker), and is counted when sent.
+		if requiresEnhancedRR {
+			if err := peer.sendRefreshMarker(data); err != nil {
+				errs = append(errs, err)
+			}
+			continue
+		}
 		if err := peer.SendRawMessage(0, data); err != nil {
 			errs = append(errs, err)
 		} else {

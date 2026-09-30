@@ -141,9 +141,11 @@ const (
 	PeerOpAnnounce PeerOpType = iota
 	PeerOpWithdraw
 	PeerOpTeardown
+	PeerOpRefreshMarker
 )
 
-// peerOp represents a queued operation (announce, withdraw, or teardown).
+// peerOp represents a queued operation (announce, withdraw, teardown, or an
+// Enhanced Route Refresh marker).
 type peerOp struct {
 	Type        PeerOpType
 	Route       *rib.Route // For PeerOpAnnounce
@@ -158,6 +160,13 @@ type peerOp struct {
 	// events differ on the ConnectRetryCounter (§8.2.2), and a teardown that
 	// waited for End-of-RIB is not thereby an operator's decision.
 	Automatic bool // For PeerOpTeardown
+
+	// Marker is a whole BoRR or EoRR ROUTE-REFRESH message, and MarkerSession
+	// the session it was answered on. The queue outlives a session, and a
+	// marker belongs to the refresh of the session that asked for it, so the
+	// drain drops one whose session is no longer the peer's.
+	Marker        []byte   // For PeerOpRefreshMarker
+	MarkerSession *Session // For PeerOpRefreshMarker
 }
 
 // sessionTeardown routes a teardown to the Session method whose RFC 4271 stop

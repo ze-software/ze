@@ -24,6 +24,28 @@
       "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7313-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses",
+      "unit-sha": "6035e6e895b32c80",
+      "claim-sha": "20a59950b506f43a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_send.go::sendQueuedRefreshMarker",
+      "producer-sha": "143cefd3bdff747c",
+      "break": "body of sendQueuedRefreshMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses",
+      "unit-sha": "6035e6e895b32c80",
+      "claim-sha": "b649b515fbbe256b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_send.go::sendRefreshMarker",
+      "producer-sha": "207cdb8f69de086c",
+      "break": "body of sendRefreshMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7313-5-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",
