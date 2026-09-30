@@ -5,9 +5,11 @@
 // VALIDATES: the SID/Label sub-TLV 1161 Ze originates inside the SR
 // Capabilities TLV 1034 carries a 3-octet label whose 4 leftmost bits are 0,
 // as RFC 9085 Section 2.1.1 requires, whatever the IS-IS source carried in
-// those bits.
+// those bits. The SR Capabilities TLV 1034 and SR Local Block TLV 1036 it
+// originates carry a Reserved octet of 0 (RFC 9085 Sections 2.1.2, 2.1.4).
 // PREVENTS: a source's high-order label bits reaching a collector, which then
-// reads a label outside the 20-bit label space.
+// reads a label outside the 20-bit label space, and native octets reaching the
+// Reserved octet.
 package isis
 
 import (
@@ -37,6 +39,74 @@ func originatedSRGBLabel(t *testing.T, label [3]byte) [][]byte {
 		t.Fatalf("nodes = %+v", builder.snapshot.Nodes)
 	}
 	return rfc9514Attributes(builder.snapshot.Nodes[0].Attributes, 1034)
+}
+
+// originatedCapabilityRanges stores one LSP whose Router Capability (TLV 242)
+// carries an SR-Capabilities sub-TLV 2 and an SRLB sub-TLV 22, each with the
+// given native flags octet and one range of the given size starting at label
+// 16000, and returns the TLV 1034 and TLV 1036 values the BGP-LS builder
+// originates.
+func originatedCapabilityRanges(t *testing.T, flags byte, size [3]byte) (srgb, srlb []byte) {
+	t.Helper()
+	eng := newEngine(transport.New(&fakeBackend{}))
+	t.Cleanup(eng.shutdown)
+	id := types.LSPID{0, 0, 0, 0, 0, 2, 0, 0}
+	block := []byte{flags, size[0], size[1], size[2], 1, 3, 0x00, 0x3e, 0x80}
+	capabilities := []byte{192, 0, 2, 2, 0}
+	capabilities = append(capabilities, 2, byte(len(block)))
+	capabilities = append(capabilities, block...)
+	capabilities = append(capabilities, 22, byte(len(block)))
+	capabilities = append(capabilities, block...)
+	bgplsStoreLSP(t, eng, lsdb.Level1, id, 1, 1200, []packet.TLV{{Type: 242, Value: capabilities}})
+	var builder bgplsBuilder
+	builder.build(eng.lsdb.RawSnapshot(lsdb.Level1))
+	if len(builder.snapshot.Nodes) != 1 {
+		t.Fatalf("nodes = %+v", builder.snapshot.Nodes)
+	}
+	global := rfc9514Attributes(builder.snapshot.Nodes[0].Attributes, 1034)
+	local := rfc9514Attributes(builder.snapshot.Nodes[0].Attributes, 1036)
+	if len(global) != 1 || len(local) != 1 {
+		t.Fatalf("TLV 1034 = %x, TLV 1036 = %x, want one of each", global, local)
+	}
+	return global[0], local[0]
+}
+
+// TestRFC9085ISISOriginatedCapabilitiesReservedZero originates an ordinary
+// IS-IS SRGB (I flag set) and SRLB and compares the exact TLV 1034 and 1036
+// values, whose second octet is the Reserved octet.
+//
+// RFC requirement: RFC9085-2.1.2-2 positive -- the SR Capabilities TLV 1034 Ze originates from an IS-IS SR-Capabilities sub-TLV has Reserved octet 0 (§2.1.2).
+// RFC requirement: RFC9085-2.1.2-3 positive -- the SR Capabilities TLV 1034 Ze originates from an IS-IS SR-Capabilities sub-TLV has Reserved octet 0 (§2.1.2).
+// RFC requirement: RFC9085-2.1.4-2 positive -- the SR Local Block TLV 1036 Ze originates from an IS-IS SRLB sub-TLV has Reserved octet 0 (§2.1.4).
+func TestRFC9085ISISOriginatedCapabilitiesReservedZero(t *testing.T) {
+	srgb, srlb := originatedCapabilityRanges(t, 0x80, [3]byte{0, 0, 100})
+	wantSRGB := []byte{0x80, 0, 0, 0, 100, 0x04, 0x89, 0, 3, 0x00, 0x3e, 0x80}
+	wantSRLB := []byte{0, 0, 0, 0, 100, 0x04, 0x89, 0, 3, 0x00, 0x3e, 0x80}
+	if !bytes.Equal(srgb, wantSRGB) {
+		t.Fatalf("TLV 1034 = %x, want %x", srgb, wantSRGB)
+	}
+	if !bytes.Equal(srlb, wantSRLB) {
+		t.Fatalf("TLV 1036 = %x, want %x", srlb, wantSRLB)
+	}
+}
+
+// TestRFC9085ISISAllOnesSourceNeverReachesReserved hands the producer native
+// flags ff and a range size ff ff ff, the octets that land in the Reserved
+// octet if the producer shifts or copies the native header.
+//
+// RFC requirement: RFC9085-2.1.2-2 negative -- an IS-IS SR-Capabilities sub-TLV with flags ff and range ffffff is originated as TLV 1034 with Reserved octet 0 (§2.1.2).
+// RFC requirement: RFC9085-2.1.2-3 negative -- an IS-IS SR-Capabilities sub-TLV with flags ff and range ffffff is originated as TLV 1034 with Reserved octet 0 (§2.1.2).
+// RFC requirement: RFC9085-2.1.4-2 negative -- an IS-IS SRLB sub-TLV with flags ff and range ffffff is originated as TLV 1036 with Reserved octet 0 (§2.1.4).
+func TestRFC9085ISISAllOnesSourceNeverReachesReserved(t *testing.T) {
+	srgb, srlb := originatedCapabilityRanges(t, 0xff, [3]byte{0xff, 0xff, 0xff})
+	wantSRGB := []byte{0xc0, 0, 0xff, 0xff, 0xff, 0x04, 0x89, 0, 3, 0x00, 0x3e, 0x80}
+	wantSRLB := []byte{0, 0, 0xff, 0xff, 0xff, 0x04, 0x89, 0, 3, 0x00, 0x3e, 0x80}
+	if !bytes.Equal(srgb, wantSRGB) {
+		t.Fatalf("TLV 1034 = %x, want %x", srgb, wantSRGB)
+	}
+	if !bytes.Equal(srlb, wantSRLB) {
+		t.Fatalf("TLV 1036 = %x, want %x", srlb, wantSRLB)
+	}
 }
 
 // TestRFC9085OriginatedSRGBLabelTwentyBits originates an ordinary label.

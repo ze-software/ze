@@ -1,13 +1,14 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9085-2.1.1-1": {
       "note": "rejudge 2026-09-30: defect fixed (D-8): isis srBlock copied the 3-octet SID/Label verbatim into sub-TLV 1161; it now clears the 4 leftmost bits. isis TestRFC9085OriginatedSRGBLabelTwentyBits (+: 003e80 -> 003e80) and TestRFC9085OriginatedSRGBLabelHighBitsCleared (-: f03e80 -> 003e80) assert the exact TLV 1034; judge break (mask removed) turns the negative red. Receipt: nlri/ls TestRFC9085SIDLabelMasksLeftmostFourBits (0xF12345 -> 0x12345). Marker removed.",
       "requirement_sha": "ff5636b73afaacaf",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "38b7a68c47518d20",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "19ae8123cdd77b60",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "19ae8123cdd77b60"
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "b5b8fa0d528c57f4",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "b5b8fa0d528c57f4"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "fad54ea38f86fce1",
@@ -16,25 +17,161 @@
       },
       "verdict": "enforced"
     },
-    "RFC9085-2.1.2-3": {
-      "note": "The quoted sentence is \"Reserved: 1 octet that MUST be set to 0 and ignored on receipt.\" Ignored on receipt: TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags sets the octet to 0xFF and require.NoError plus Range 1000 / FirstSID 16000 go red if it is rejected or consumed. Set to 0: no tagged unit asserts the transmitted octet (that duty is RFC9085-2.1.2-2, a gap). The row also claims five other sections' reserved fields (split needed), none exercised here.",
-      "requirement_sha": "c8caa35ed95ab7d2",
+    "RFC9085-2.1.2-1": {
+      "note": "judge 2026-09-30 (independent): false gap removed: ospf routerInformation originates TLV 1034 with Flags 0. Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff); judge targeted break (Flags <- native reserved octet) turns the negative red while the positive stays green. Ignored on receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved (Flags ff, Reserved ff decode to range 1000 at 16000; single-polarity by nature, any received value is conforming). IS-IS 1034 flags are RFC 8667 flags, outside this OSPF clause.",
+      "requirement_sha": "a74bf0b7fa9ba99b",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "38b7a68c47518d20"
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "97a7b52abc84d371",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "3fd9e4cf8f6ec31a",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "3fd9e4cf8f6ec31a"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "8a1fdef8c1334ebd"
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "e3df1100ef507862",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "a50ab88a91cc29e3",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "aeb2bb9dc6e63c0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.1.2-2": {
+      "note": "judge 2026-09-30 (independent): false gap removed: both exporters originate TLV 1034 with Reserved 0 (ospf routerInformation literal, isis srBlock zeroed arena). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-, flags ff, range ffffff); judge targeted breaks (ospf Reserved <- native reserved; isis Reserved <- native flags) turn each negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved (Flags ff, Reserved ff decode to range 1000 at 16000; single-polarity by nature, any received value is conforming); judge break (reject Reserved != 0 in decodeSRCapabilities) turns it red.",
+      "requirement_sha": "c8caa35ed95ab7d2",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "97a7b52abc84d371",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "b5b8fa0d528c57f4",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "b5b8fa0d528c57f4",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "3fd9e4cf8f6ec31a",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "3fd9e4cf8f6ec31a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "e3df1100ef507862",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "b1158521122917cc",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "5fb8a858c347cf8f",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "a50ab88a91cc29e3",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "aeb2bb9dc6e63c0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.1.2-3": {
+      "note": "judge 2026-09-30 (independent): re-judged from weak: the set-0 clause, missing before, is now proven for both exporters: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-, flags ff, range ffffff); judge targeted breaks turn each negative red. Receipt: nlri/ls TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (Reserved ff skipped), judge break red. Single-polarity marker removed. Row duplicates RFC9085-2.1.2-2's quote: D-2 merge owed (judge decision).",
+      "requirement_sha": "c8caa35ed95ab7d2",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "38b7a68c47518d20",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "b5b8fa0d528c57f4",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "b5b8fa0d528c57f4",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "3fd9e4cf8f6ec31a",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "3fd9e4cf8f6ec31a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "8a1fdef8c1334ebd",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "b1158521122917cc",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "5fb8a858c347cf8f",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "a50ab88a91cc29e3",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "aeb2bb9dc6e63c0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.1.2-4": {
+      "note": "judge 2026-09-30 (independent): re-judged from weak: the set-0 clause is now proven: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff); judge targeted break (Flags <- native reserved) turns the negative red. Receipt: nlri/ls TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (undefined flag 0x02 kept). Marker removed. Row duplicates RFC9085-2.1.2-1's quote: D-2 merge owed (judge decision).",
+      "requirement_sha": "a74bf0b7fa9ba99b",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "38b7a68c47518d20",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "3fd9e4cf8f6ec31a",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "3fd9e4cf8f6ec31a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "8a1fdef8c1334ebd",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "a50ab88a91cc29e3",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "aeb2bb9dc6e63c0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.1.4-1": {
+      "note": "judge 2026-09-30 (independent): false gap removed: ospf routerInformation originates TLV 1036 with Flags 0 (isis zeroes it too). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff) on the SRLB; judge targeted break (Flags <- native reserved) turns the negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved (Flags ff, Reserved ff decode to range 1000 at 16000; single-polarity by nature, any received value is conforming); judge break (reject Flags != 0 in decodeSRLocalBlock) turns it red.",
+      "requirement_sha": "d7c8d3012bbde2ec",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "97a7b52abc84d371",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "3fd9e4cf8f6ec31a",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "3fd9e4cf8f6ec31a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "e3df1100ef507862",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "a50ab88a91cc29e3",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "aeb2bb9dc6e63c0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.1.4-2": {
+      "note": "judge 2026-09-30 (independent): false gap removed: both exporters originate TLV 1036 with Reserved 0. Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-, flags ff, range ffffff) on the SRLB. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved (Flags ff, Reserved ff decode to range 1000 at 16000; single-polarity by nature, any received value is conforming).",
+      "requirement_sha": "43633a398d13876c",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "97a7b52abc84d371",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "b5b8fa0d528c57f4",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "b5b8fa0d528c57f4",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "3fd9e4cf8f6ec31a",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "3fd9e4cf8f6ec31a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "e3df1100ef507862",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "b1158521122917cc",
+        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "5fb8a858c347cf8f",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "a50ab88a91cc29e3",
+        "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "aeb2bb9dc6e63c0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9085-2.2.1-1": {
+      "note": "judge 2026-09-30 (independent): false gap removed: isis sidValue and ospf bgplsAdjAttribute both originate TLV 1099. Proven: IS-IS set-0 by isis TestRFC9085ISISOriginatedSIDReservedZero (+, exact 1099 bytes) / TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved (-, all-ones native), judge break (Reserved <- native flag bits in sidValue) red; receipt by nlri/ls TestRFC9085SIDReceiptIgnoresReserved (Reserved ffff kept), judge break (reject Reserved) red. MISSING: the OSPF producer bgplsAdjAttribute originates 1099 with no test, so it could stop zeroing Reserved with every tag green. Owed: an ospf +/- origination test of TLV 1099 Reserved.",
+      "requirement_sha": "f88e23b533efe593",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "97a7b52abc84d371",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "be6bfcb7bd35f639",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513"
       },
       "verdict": "weak"
     },
-    "RFC9085-2.1.2-4": {
-      "note": "The quoted sentence is \"The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt.\" Ignored on receipt: the same test sets undefined bit 0x02 and require.NoError plus the I-flag assertion go red if the TLV is rejected or the meaningful flag disturbed. Set to 0: no tagged unit asserts transmitted flags (RFC9085-2.1.2-1, a gap). The row also claims \u00a72.1.4 SRLB flags (split needed), not exercised by this unit.",
-      "requirement_sha": "a74bf0b7fa9ba99b",
+    "RFC9085-2.2.2-1": {
+      "note": "judge 2026-09-30 (independent): false gap removed: isis sidValue and ospf bgplsAdjAttribute (IsLAN) originate TLV 1100. Proven: IS-IS set-0 by the isis SID units (+ exact 1100 bytes, - all-ones native), judge break red. MISSING: (1) OSPF LAN Adjacency SID origination untested; (2) 'ignored on receipt' untested: nlri/ls registers no decoder for 1100 and carries it unparsed, which ignores Reserved by construction but no test asserts a received 1100 with Reserved ffff is kept. Owed: an ospf +/- 1100 origination test and an nlri/ls receipt test.",
+      "requirement_sha": "80dd5f1d9cbd2988",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "38b7a68c47518d20"
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "8a1fdef8c1334ebd"
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513"
+      },
+      "verdict": "weak"
+    },
+    "RFC9085-2.3.1-1": {
+      "note": "judge 2026-09-30 (independent): false gap removed: isis sidValue and ospf bgplsPrefixAttribute originate TLV 1158. Proven: IS-IS set-0 by the isis SID units (+ exact 1158 bytes, - all-ones native), judge break red; receipt by nlri/ls TestRFC9085SIDReceiptIgnoresReserved (decodePrefixSID, Reserved ffff kept). MISSING: the OSPF producer bgplsPrefixAttribute (and the 1158 inside ospf prefixRange) untested. Owed: an ospf +/- origination test of TLV 1158 Reserved.",
+      "requirement_sha": "f25b19666ede48dc",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "97a7b52abc84d371",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "be6bfcb7bd35f639",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513"
+      },
+      "verdict": "weak"
+    },
+    "RFC9085-2.3.5-1": {
+      "note": "judge 2026-09-30 (independent): false gap removed: isis binding and ospf prefixRange originate TLV 1159. Proven: IS-IS set-0 by the isis SID units (+ exact 1159 bytes; - native TLV 149 reserved ff -> 0), judge targeted break (Range Reserved <- native reserved in binding) turns the negative red. MISSING: (1) OSPF prefixRange untested; (2) receipt: nlri/ls carries 1159 unparsed, no test asserts a received 1159 with Reserved ff is kept. Owed: an ospf +/- 1159 origination test and an nlri/ls receipt test.",
+      "requirement_sha": "cc23fc2a346a97a5",
+      "tests": {
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523"
+      },
+      "units": {
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513"
       },
       "verdict": "weak"
     }
