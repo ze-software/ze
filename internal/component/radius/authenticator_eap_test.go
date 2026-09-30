@@ -109,6 +109,17 @@ type eapMockServer struct {
 	// the shape eap.DecodePacket refuses as "invalid length". Zero never
 	// corrupts; round 1 is the first challenge.
 	corruptEAPFrom int
+	// challengeEAPCode, when rewriteChallengeEAPCode is set, overwrites the Code
+	// octet of the EAP packet inside every Access-Challenge. RFC 3579 Section 2.2
+	// makes the NAS check "the Code (1)" of such a packet, so any other value is
+	// the violation a test injects. Length, Identifier and Type are left as the
+	// method wrote them, so the Code is the only field that can refuse the
+	// packet. The switch is separate because Code 0 is itself a value to inject.
+	challengeEAPCode        uint8
+	rewriteChallengeEAPCode bool
+	// sentEAP holds, in order, the encapsulated EAP packet of every reply the
+	// server sent, as the octets it put on the wire.
+	sentEAP [][]byte
 	// notifyBeforeMethodReply sends one EAP Notification Request (Type 2) in
 	// place of the round that would carry the method's reply. The peer's method
 	// Response is stashed rather than dropped, so the method resumes on the next
@@ -279,6 +290,12 @@ func (s *eapMockServer) answer(t *testing.T, req, secret []byte, session *eap.Se
 		// thing that can reject this packet is the EAP header validation.
 		binary.BigEndian.PutUint16(encodedNext[2:4], uint16(len(encodedNext)+8))
 	}
+	s.mu.Lock()
+	if replyCode == CodeAccessChallenge && s.rewriteChallengeEAPCode {
+		encodedNext[0] = s.challengeEAPCode
+	}
+	s.sentEAP = append(s.sentEAP, append([]byte{}, encodedNext...))
+	s.mu.Unlock()
 	attrs, err := appendEAPMessage(nil, encodedNext)
 	require.NoError(t, err)
 	if concluded {

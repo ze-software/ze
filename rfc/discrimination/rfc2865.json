@@ -235,6 +235,17 @@
     {
       "rid": "RFC2865-4.1-3",
       "polarity": "positive",
+      "unit": "internal/component/radius/rfc2865_eap_credential_test.go::TestRFC2865EAPAccessRequestCarriesTheExtensionCredential",
+      "unit-sha": "b27d98f28f969d4a",
+      "claim-sha": "5303da1f0a4a28b1",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
+      "producer-sha": "127159291cffa17d",
+      "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-4.1-3",
+      "polarity": "positive",
       "unit": "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential",
       "unit-sha": "04b5e842921632ff",
       "claim-sha": "f67bc05364b986e2",

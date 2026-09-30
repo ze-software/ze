@@ -1,6 +1,8 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -135,8 +137,8 @@
       "verdict": "enforced"
     },
     "RFC2865-4.1-3": {
-      "note": "Judge 2026-09-29. The PAP, CHAP and admin units assert the credential attribute on the wire, and the AuthMethodNone and short MS-CHAPv2 units assert no request is sent. New: TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential proves a full MS-CHAPv2 Access-Request carries the RFC 2548 MS-CHAP2-Response and neither User-Password nor CHAP-Password, which RFC 2865 Section 4.1 itself permits: 'the attribute for that can be used in an Access-Request instead of User-Password or CHAP-Password.' Still weak: (1) the row quotes only the MUST sentence and omits that relief, so the MS-CHAPv2 unit proves a request the row as written forbids; the row needs the 'If future extensions allow' sentence (row decision open); (2) the EAP Access-Request path (RFC 3579 EAP-Message) has no tagged unit.",
-      "requirement_sha": "fe2a7a49820343bb",
+      "note": "Judge 2026-09-30 (cont 5/6). Both points of the 2026-09-29 weak verdict are closed. (1) The row now quotes the whole Section 4.1 span through 'If future extensions allow other kinds of authentication information to be conveyed, the attribute for that can be used in an Access-Request instead of User-Password or CHAP-Password.', verbatim, so the MS-CHAPv2 unit (MS-CHAP2-Response, no User-Password/CHAP-Password) proves a request the row permits. The middle 'MUST NOT contain both' sentence rides in the span; TestAdminAccessRequestCarriesExactlyOneCredential (tagged here and 4.1-4) and the MS-CHAPv2 and EAP units each assert neither RFC 2865 credential beside the one sent. (2) TestRFC2865EAPAccessRequestCarriesTheExtensionCredential drives a full EAP-MSCHAPv2 admin login against the mock server and asserts, per captured Access-Request, EAP-Message present, no User-Password, no CHAP-Password, and exactly one State on every request after the first; recorded red on eapCredential. Positives: PAP User-Password, CHAP CHAP-Password, admin one-credential, MS-CHAPv2 and EAP extension credentials. Negatives: AuthMethodNone and a short MS-CHAPv2 response each put no Access-Request on the wire (no credential, no request), which is the refusal this MUST can have.",
+      "requirement_sha": "fd9d2856b36e5ca2",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestCredentialBearingMethodStillReachesTheServer": "c2434105197a4ccd",
         "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestNoAuthIsAdmittedWithARADIUSClientConfigured": "c2434105197a4ccd",
@@ -145,6 +147,7 @@
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#2": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#3": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#4": "d914f47d88bb0d8f",
+        "internal/component/radius/rfc2865_eap_credential_test.go::TestRFC2865EAPAccessRequestCarriesTheExtensionCredential": "610e4ff2776155a6",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential": "a3f1d9fa74292a7a"
       },
       "units": {
@@ -155,9 +158,10 @@
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#2": "c714cc1090804910",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#3": "c714cc1090804910",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#4": "c714cc1090804910",
+        "internal/component/radius/rfc2865_eap_credential_test.go::TestRFC2865EAPAccessRequestCarriesTheExtensionCredential": "f33228d2d61a411a",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential": "57cd0545b0228b2f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2865-4.2-1": {
       "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts >= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.",
@@ -353,7 +357,7 @@
       "note": "Quote is the Class sentence of 5.25. Forbidden: interpreting Class locally. TestRadiusClassIsNotInterpretedLocally asserts an Accept whose only carrier is Class yields no profile and ErrAuthRejected; TestExtractRadiusConfigProfileAttrNeverClass asserts no configuration selects Class. Two tagged units (TestStateIsNotInterpretedLocally, TestRadiusAdminEapChallengeLoopCarriesState) prove the State rule of 5.24 instead, reported.",
       "requirement_sha": "b7a324d0806e58ab",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "5d43c530ca8f23a3",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "a9761b3871efeaf7",
         "internal/component/radius/authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "6555a5ee0756e17c",
         "internal/component/radius/config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "71b1f7958ca13a1b",
         "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "a3f1d9fa74292a7a"

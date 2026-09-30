@@ -147,10 +147,12 @@ func (a *radiusAuthenticator) authenticateEAP(ctx context.Context, request aaa.A
 //
 // RFC 3579 Section 2.2: "the NAS MUST validate the EAP header fields (Code,
 // Identifier, Length) prior to forwarding an EAP packet to or from the RADIUS
-// server." eap.DecodePacket is that validation: it refuses a packet shorter
-// than four octets, a Length below four, a Length past the octets received, and
-// a Request or Response too short to carry its Type field. A packet that fails
-// it never reaches the peer.
+// server." Three checks make it. eap.DecodePacket refuses a packet shorter than
+// four octets, a Length below four, a Length past the octets received, and a
+// Request or Response too short to carry its Type field. An Access-Challenge
+// whose packet is not a Request is refused next. A packet that fails either
+// never reaches the peer. The peer's Response is then held to the Request's
+// Identifier by checkEAPResponseHeader before it can be forwarded.
 func (a *radiusAuthenticator) processEAPMessage(session *eap.PeerSession, resp *Packet) (eap.PeerResult, bool, error) {
 	encoded, err := eapPacketFrom(resp)
 	if err != nil {
@@ -163,9 +165,24 @@ func (a *radiusAuthenticator) processEAPMessage(session *eap.PeerSession, resp *
 	if err != nil {
 		return eap.PeerResult{}, false, fmt.Errorf("radius: EAP header from the server: %w", err)
 	}
+	if resp.Code == CodeAccessChallenge {
+		// RFC 3579 Section 2.2: "On receiving an EAP packet from the RADIUS
+		// server (encapsulated within an Access-Challenge), the NAS checks the
+		// Code (1) and Length fields, then updates the current Identifier value."
+		// An Access-Accept or Access-Reject may carry a Success or a Failure, so
+		// the Code is pinned for a challenge only.
+		if packet.Code != eap.CodeRequest {
+			return eap.PeerResult{}, false, fmt.Errorf("radius: EAP header from the server: code %d in an Access-Challenge is not a Request", packet.Code)
+		}
+	}
 	result := session.Process(packet)
 	if result.Err != nil {
 		return eap.PeerResult{}, true, fmt.Errorf("radius: EAP exchange: %w", result.Err)
+	}
+	if result.Response != nil {
+		if err := checkEAPResponseHeader(packet, result.Response); err != nil {
+			return eap.PeerResult{}, true, err
+		}
 	}
 	if result.Notified {
 		// RFC 3579 Section 1.2: a displayable message "MUST NOT affect operation of
@@ -174,6 +191,29 @@ func (a *radiusAuthenticator) processEAPMessage(session *eap.PeerSession, resp *
 		a.logger.Info("RADIUS admin EAP notification", "message", result.Notification)
 	}
 	return result, true, nil
+}
+
+// checkEAPResponseHeader validates the peer's answer to request before it is
+// forwarded to the server. The peer runs in this process and echoes the
+// Identifier by construction, so this is the paired check: a peer defect that
+// broke the echo would otherwise reach a server that cannot match it.
+//
+// RFC 3579 Section 2.2: "On receiving an EAP packet from the peer, the NAS
+// checks the Code (2) and Length fields, and matches the Identifier value
+// against the current Identifier, supplied by the RADIUS server in the most
+// recently validated EAP-Request." and "Pending EAP Responses that do not
+// match the current Identifier value are silently discarded by the NAS." The
+// Length is the one Encode writes, so the Code and the Identifier are what can
+// be wrong here.
+func checkEAPResponseHeader(request, response *eap.Packet) error {
+	if response.Code != eap.CodeResponse {
+		return fmt.Errorf("radius: EAP header to the server: code %d is not a Response", response.Code)
+	}
+	if response.Identifier != request.Identifier {
+		return fmt.Errorf("radius: EAP header to the server: identifier %d does not match the current Request's %d",
+			response.Identifier, request.Identifier)
+	}
+	return nil
 }
 
 // eapCredential builds the credential attributes of one EAP Access-Request:

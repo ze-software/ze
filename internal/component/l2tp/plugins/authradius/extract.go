@@ -34,6 +34,16 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 
 	if raw := resp.FindAttr(radius.AttrFramedIPAddress); len(raw) == 4 {
 		addr := netip.AddrFrom4([4]byte(raw))
+		// RFC 2865 Section 5.8: "The value 0xFFFFFFFE indicates that the NAS
+		// should select an address for the user (e.g. Assigned from a pool of
+		// addresses kept by the NAS)." It names no address, so FramedIP stays
+		// unset and the pool chooses. RFC 2866 Section 4.1 then requires the
+		// Accounting-Request to "contain the actual IP address assigned", which
+		// the pinned 255.255.255.254 would have replaced. 0xFFFFFFFF, the
+		// negotiate value, is refused below as limited broadcast.
+		if addr == framedIPNASSelects {
+			addr = netip.Addr{}
+		}
 		if isValidSubscriberIP(addr) {
 			meta.FramedIP = addr
 			found = true
@@ -159,6 +169,10 @@ func parseFramedRoute(text string) (l2tp.FramedRoute, bool) {
 	}
 	return l2tp.FramedRoute{Prefix: prefix, Metric: metric}, true
 }
+
+// framedIPNASSelects is the RFC 2865 Section 5.8 Framed-IP-Address value that
+// asks the NAS to select the address.
+var framedIPNASSelects = netip.AddrFrom4([4]byte{0xff, 0xff, 0xff, 0xfe})
 
 // isValidSubscriberIP checks that an address is suitable for
 // assignment to a subscriber: valid, unicast, globally routable IPv4.

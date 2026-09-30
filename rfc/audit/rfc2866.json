@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-09-30",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2866-3-2": {
@@ -48,7 +48,7 @@
       "verdict": "enforced"
     },
     "RFC2866-4.1-1": {
-      "note": "Clause 1, the attribute holds the user's address: TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS and test/l2tp/radius-acct-wire.ci go red on a wrong or NAS address. Clause 2, where the Access-Accept used the special assign/negotiate values the attribute MUST carry the address actually assigned or negotiated: no tagged unit feeds an Access-Accept carrying Framed-IP-Address 255.255.255.254 or 255.255.255.255 and checks that the special value never reaches the Accounting-Request. The units build from acctSession.peerAddr directly.",
+      "note": "Judge 2026-09-30 (cont 5). Clause 1 (the attribute holds the user's address): TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS, the unset/IPv6 negative and test/l2tp/radius-acct-wire.ci, unchanged. Clause 2, the gap of the prior weak verdict, is now proven and was a real defect: extractAuthMetadata took Framed-IP-Address 255.255.255.254 as a unicast address, the pool pinned it and accounting reported it. Fix (extract.go framedIPNASSelects) leaves FramedIP unset for 0xFFFFFFFE, and 0xFFFFFFFF stays refused by isValidSubscriberIP (limited broadcast), so the pool assigns; RFC 2865 Section 5.8 text checked; 0.0.0.0 is refused as unspecified. Positive TestRFC2866AccountingReportsTheAddressTheNASAssigned: both special values with a Framed-Pool keep the pool and leave FramedIP unset, and Start/Interim/Stop each carry exactly one Framed-IP-Address equal to the assigned 100.64.0.9. Negative TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress: neither value, alone or beside Session-Timeout, becomes the subscriber address. Both recorded red on extractAuthMetadata. The pool step between extraction and the accounting session (session-ip-assigned) is not driven by these units; the .ci covers IPCP-to-accounting end to end. Note: 0xFFFFFFFF ('the NAS Should allow the user to select') is handled as NAS-selects, journaled in plan/journal/field-carries-two-meanings.md; not this row's clause.",
       "requirement_sha": "02f34df8cc8334e7",
       "tests": {
         "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS": "dca57788321e73c5",
@@ -56,6 +56,8 @@
         "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressPresent": "dca57788321e73c5",
         "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID": "dca57788321e73c5",
         "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime": "2345908f88b1d056",
+        "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866AccountingReportsTheAddressTheNASAssigned": "04b9b08652ca37d7",
+        "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress": "04b9b08652ca37d7",
         "test/l2tp/radius-acct-wire.ci": "461a530655edbd79"
       },
       "units": {
@@ -64,9 +66,11 @@
         "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressPresent": "adef200920d2a3e8",
         "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID": "3ab6115408ee5465",
         "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime": "cbeb73b3fc920670",
+        "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866AccountingReportsTheAddressTheNASAssigned": "8cab260b261340a1",
+        "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress": "4c5b79b41d694594",
         "test/l2tp/radius-acct-wire.ci": "461a530655edbd79"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2866-4.1-2": {
       "note": "Forbidden behaviour: User-Password, CHAP-Password, Reply-Message or State in an Accounting-Request. TestRFC2866AcctForbiddenAttributesAbsent checks each of the four (and CHAP-Challenge) on Start, Interim-Update and Stop from buildAcctPacket; the negative shows the packet still carries User-Name, Acct-Session-Id and Acct-Status-Type, so an empty builder cannot pass. The permissive first clause obliges the sender nothing.",
@@ -112,17 +116,21 @@
       "verdict": "enforced"
     },
     "RFC2866-5-1": {
-      "note": "The row's quote is the Section 5.13 table span from '1 Acct-Status-Type' to the legend, because no shorter verbatim text names the attribute and the MUST. The Acct-Status-Type clause is proven: TestRFC2866AcctStatusTypePresent fails on a count other than 1 or a wrong value for Start, Stop and Interim-Update. The other entries of the span (Acct-Session-Id 1, CHAP-Challenge 0, Note 1, the 0-1 cardinalities) have no assertion in a unit tagged with this id, and the negative TestRFC2866AcctStatusTypeNeverOmitted repeats the positive's presence check.",
-      "requirement_sha": "8501bc5ffa44e668",
+      "note": "Judge 2026-09-30 (cont 6). Row corrected under R5 to the Section 5.13 legend line '1 Exactly one instance of this attribute MUST be present.' (verbatim), binding Acct-Status-Type and Acct-Session-Id; id kept because internal/le/rfc/quote_backfill_test.go pins it and the HEAD tags stay valid, which is honest: the id names the obligation the old span carried, narrowed. Positives: TestRFC2866AcctStatusTypePresent (count 1, right value, per status) and TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute (Start/Interim/Stop encoded and decoded: exactly one non-empty Acct-Status-Type and Acct-Session-Id, same session id). Negative TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute is genuine: the operator's attributes-exclude control is the only input that could drop either attribute; it refuses both names, and excluding every accepted name (derived from excludableAttributes) still leaves each exactly once. Recorded red on buildAcctPacket and parseAttributeExclusions. TestRFC2866AcctStatusTypeNeverOmitted still repeats the positive's presence check; the pair no longer depends on it.",
+      "requirement_sha": "fbb5d50733489929",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "fd8927de3c58fb86",
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "fd8927de3c58fb86"
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "fd8927de3c58fb86",
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute": "31a5e844ce599efa",
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute": "31a5e844ce599efa"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "f36995f057ab8d85",
-        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "dd4c3cca0784f0a3"
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "dd4c3cca0784f0a3",
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute": "8f2ae68c59e77b9b",
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute": "042fbc81ced9bbe8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2866-5-2": {
       "note": "Forbidden behaviour: a null octet read as a terminator. TestRFC2866EmbeddedNullsSurviveTheWire round-trips a value with interior nulls through EncodeTo and Decode and compares bytes; TestRFC2866AllNullValueKeepsItsLength fails if an all-null value loses length. A strcpy-style cut goes red in both.",
@@ -149,6 +157,19 @@
         "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctZeroLengthTextOmitted": "8a97db8f1a0d5355"
       },
       "verdict": "enforced"
+    },
+    "RFC2866-5.13-1": {
+      "note": "Judge 2026-09-30, first verdict. Row '0 This attribute MUST NOT be present' is verbatim Section 5.13 (unsourced-ids in section 5.13; site 5.13:2 stays on 5-1, since one site maps to one row). Positive TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute is sound: Start/Interim/Stop, encoded and decoded, carry none of User-Password, CHAP-Password, Reply-Message, State, CHAP-Challenge, and are non-empty. WEAK because the negative TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute proves a TLV-framing property of Packet.EncodeTo/Decode (a length-prefixed value cannot be read as a sibling attribute), which any correct encoder satisfies whatever the builder does; no input of it holds a source of a 0-marked attribute. The violation this row forbids is copying the session's credentials (a CHAP challenge/password, a PAP password) or the Access-Accept's State or Reply-Message into accounting, and nothing drives a CHAP-authenticated session whose Accept carried State and Reply-Message through to the Accounting-Request. Missing: that negative over the real path, or, if acctSession structurally holds no such input (it holds none today: acct.go acctSession), a {single-polarity: positive} annotation naming that fact.",
+      "requirement_sha": "fac5236866d9dded",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute": "31a5e844ce599efa",
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "31a5e844ce599efa"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute": "2d034aa93d45795f",
+        "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute": "759c6d3891deeca7"
+      },
+      "verdict": "weak"
     },
     "RFC2866-5.5-1": {
       "note": "Forbidden behaviour: two sessions whose records carry the same Acct-Session-Id in the log. TestRFC2866AcctSessionIDUnique (1600 concurrent ids) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey prove uniqueness within one process lifetime. genSessionID (authradius/acct.go) is tunnel-session-counter with a counter that restarts at 1 on every start, and no tagged unit covers a restart; the RFC's own example reserves digits for the reboot count because the log outlives a reboot.",

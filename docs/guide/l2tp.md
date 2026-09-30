@@ -723,6 +723,10 @@ Address allocation prefers RADIUS metadata when present. `Framed-Pool`
 selects a named pool for gateway and DNS values; an unknown named pool rejects
 the IPCP request. `Framed-IP-Address` then bypasses bitmap allocation and uses
 the selected pool's gateway and DNS with the RADIUS-assigned peer address.
+The two special values of RFC 2865 Section 5.8 name no address:
+`255.255.255.254` ("the NAS should select an address for the user") and
+`255.255.255.255` (the user selects) leave the choice to the pool, so the
+accounting records report the address the pool gave (RFC 2866 Section 4.1).
 `Framed-IP-Netmask` is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.
 

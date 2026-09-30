@@ -6,7 +6,7 @@
   "source-sha": "928686054877a829",
   "signed-off": "2026-09-29",
   "reviewer": "claude",
-  "resign-reason": "Main-thread ruling R2 (2026-09-29): site 4.2:2 binds the RADIUS accounting server, which writes the Response Authenticator of the Accounting-Response it transmits, and Ze runs no accounting server, so the site moves from mapped to excluded as binds-another-role and row RFC2866-4.2-1 is retired (rfc/corrections/rfc2866.md). Every other site keeps its decision.",
+  "resign-reason": "Main-thread ruling R2 (2026-09-29): site 4.2:2 binds the RADIUS accounting server, which writes the Response Authenticator of the Accounting-Response it transmits, and Ze runs no accounting server, so the site moves from mapped to excluded as binds-another-role and row RFC2866-4.2-1 is retired (rfc/corrections/rfc2866.md). Every other site keeps its decision. Main-thread ruling R5 (2026-09-30): row RFC2866-5-1 quoted the whole Section 5.13 table and legend, and is split per legend line that states an obligation: RFC2866-5-1 now quotes the 1 line and site 5.13:2 stays mapped to it, and the 0 line is new row RFC2866-5.13-1, declared in section 5.13 unsourced-ids because the legend is one site (rfc/corrections/rfc2866.md). No site count or other decision changes.",
   "sections": [
     {
       "id": "front",
@@ -157,7 +157,10 @@
       "id": "5.13",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Table of Attributes. The table itself, Note 1, and the legend that defines the 0, 0+, 0-1 and 1 symbols. The two capitalised sites are Note 1 and the legend."
+      "reason": "Table of Attributes. The table itself, Note 1, and the legend that defines the 0, 0+, 0-1 and 1 symbols. The two capitalised sites are Note 1 and the legend. The legend's 1 line is RFC2866-5-1 (site 5.13:2); its 0 line states a second obligation in the same site and is RFC2866-5.13-1, declared here as unsourced because a site maps to one row.",
+      "unsourced-ids": [
+        "RFC2866-5.13-1"
+      ]
     },
     {
       "id": "6",
@@ -370,7 +373,7 @@
       "quote": "0 This attribute MUST NOT be present 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present.",
       "disposition": "mapped",
       "mapped-to": "RFC2866-5-1",
-      "reason": "The legend that defines the Table of Attributes notation. Its '1' symbol is what makes Acct-Status-Type mandatory in an Accounting-Request, which is the row RFC2866-5-1 declares and which the section number in that row already points at; the table's other '1' row is Acct-Session-Id, carried by RFC2866-5.5-3 from Section 5.5. Its '0' symbol forbids User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge: the first four are RFC2866-4.1-2, and TestRFC2866AcctForbiddenAttributesAbsent asserts the absence of all five, so the table adds no untested obligation."
+      "reason": "The legend that defines the Table of Attributes notation. Its '1' line makes Acct-Status-Type and Acct-Session-Id each appear exactly once in an Accounting-Request, which is the row RFC2866-5-1 quotes. Its '0' line forbids User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge, which is row RFC2866-5.13-1 (declared unsourced in section 5.13, since this one site cannot map to two rows); the first four are also RFC2866-4.1-2 from Section 4.1. The '0+' and '0-1' lines are MAY permissions and carry no row."
     }
   ]
 }

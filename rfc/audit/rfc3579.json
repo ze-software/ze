@@ -1,5 +1,9 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3579-1-1": {
@@ -59,24 +63,30 @@
       "verdict": "enforced"
     },
     "RFC3579-2.2-1": {
-      "note": "only the Length field is validated under test (corruptEAPFrom declares a Length past the octets). Nothing forwards a server EAP packet with a wrong Code (not 1) or observes Identifier validation; the positive's Identifier-echo assertion is peer behaviour, not validation. Two of the three named fields unproven",
+      "note": "Judge 2026-09-30 (cont 5). The prior weak (Code and Identifier unproven) is closed and was a real defect: an Access-Challenge carrying EAP Code 0 was handed to the peer and answered. Fix in processEAPMessage pins Code 1 for an Access-Challenge only (Accept/Reject may carry Success/Failure), and new checkEAPResponseHeader requires Code 2 and the current Request's Identifier before forwarding; RFC 3579 Section 2.2 quotes above both, text checked. Length: the existing corruptEAPFrom pair. Code, server side: negative TestRFC3579NASRefusesANonRequestCodeInAChallenge rewrites only the Code octet (0,2,3,4,5,255) and asserts the infrastructure error naming the server's EAP header, not ErrAuthRejected, and exactly one Access-Request (nothing forwarded). Code+Identifier, peer side: positive TestRFC3579NASForwardsTheCurrentIdentifierBothWays pairs every Challenge's Request with the next Access-Request's Response (Code 2, same Identifier) over a full EAP-MSCHAPv2 login and the check admits a matching pair; negative TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier drives checkEAPResponseHeader directly (Identifier 6/8 vs 7, Code 1, Code 4), since the in-process peer echoes the Identifier and cannot be driven off it. Ze ends the login on a mismatched Response rather than silently discarding it; with an in-process peer no other Response can arrive, so nothing is forwarded either way. Valid EAP-TLS/MSCHAPv2 flows stay green (race run 2026-09-30). All units recorded red.",
       "requirement_sha": "6b571411bc1dddb1",
       "tests": {
+        "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays": "ba130494c53d027a",
+        "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesANonRequestCodeInAChallenge": "ba130494c53d027a",
+        "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier": "ba130494c53d027a",
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "fdb8524d78824d96",
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "fdb8524d78824d96"
       },
       "units": {
+        "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays": "e5d29f7a85187c66",
+        "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesANonRequestCodeInAChallenge": "6475cbfce57704fc",
+        "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier": "bcc7ac7abee39814",
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "3fec42f133d29080",
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "07ea035486926073"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3579-2.6.3-1": {
       "note": "Access-Reject carrying EAP-Success denies (TestRadiusAdminEapDecisionFollowsTheRadiusCode) and Access-Accept carrying EAP-Failure at the identity round grants (TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes); both directions, fixture chosen so an early return on eapErr would go red",
       "requirement_sha": "d82d09a6968a78a8",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "5d43c530ca8f23a3",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode": "5d43c530ca8f23a3"
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "a9761b3871efeaf7",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode": "a9761b3871efeaf7"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "bf9c5d11822f4409",
@@ -88,8 +98,8 @@
       "note": "same pair as 2.6.3-1 read from the prohibition side: EAP content contradicting the code in either direction does not change the decision",
       "requirement_sha": "4503a71857456ae5",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "5d43c530ca8f23a3",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode": "5d43c530ca8f23a3"
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "a9761b3871efeaf7",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode": "a9761b3871efeaf7"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "bf9c5d11822f4409",
@@ -152,7 +162,7 @@
       "note": "every sent Access-Request's EAP Length equals the whole run's octets, so a second packet riding along goes red; decoder refuses two separated runs in an Access-Challenge",
       "requirement_sha": "edb670188ff13459",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket": "5d43c530ca8f23a3",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket": "a9761b3871efeaf7",
         "internal/component/radius/eap_test.go::TestEAPMessageRefusesASecondRun": "2f94d35bf256e7de"
       },
       "units": {
@@ -165,8 +175,8 @@
       "note": "every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server",
       "requirement_sha": "fb1f30d5bcff9900",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "5d43c530ca8f23a3",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "5d43c530ca8f23a3"
+        "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "a9761b3871efeaf7",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "a9761b3871efeaf7"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "39b71ec75cb78e50",
@@ -178,8 +188,8 @@
       "note": "a forged challenge is discarded (retransmission observed, error is not a rejection); a verified challenge advances the conversation to a different second request",
       "requirement_sha": "487fd77a823c79f6",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge": "5d43c530ca8f23a3",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted": "5d43c530ca8f23a3"
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge": "a9761b3871efeaf7",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted": "a9761b3871efeaf7"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge": "24a572c521c349c7",
@@ -204,8 +214,8 @@
       "note": "encodeRequest refuses an Accounting-Request carrying EAP-Message or Message-Authenticator, and the control without either encodes",
       "requirement_sha": "4ad96cf16988c264",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes": "5d43c530ca8f23a3",
-        "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes#2": "5d43c530ca8f23a3"
+        "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes": "a9761b3871efeaf7",
+        "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes#2": "a9761b3871efeaf7"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes": "bccb8cf1ef665451",
@@ -217,8 +227,8 @@
       "note": "negative covers EAP-Message beside User-Password and beside CHAP-Password only. User-Password beside CHAP-Password is not tested, and ARAP-Password is in no pair: client.go oneCredentialType omits ARAP-Password (70) from its map, so an EAP-Message plus ARAP-Password Access-Request would encode",
       "requirement_sha": "0842807ab6c82ff7",
       "tests": {
-        "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "5d43c530ca8f23a3",
-        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "5d43c530ca8f23a3"
+        "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "a9761b3871efeaf7",
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "a9761b3871efeaf7"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestAccessRequestRefusesTwoCredentialTypes": "b8df4bf83b8245d0",

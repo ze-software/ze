@@ -51,7 +51,7 @@
       "claim-sha": "9545ac5023f9b8be",
       "route": "revert",
       "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
-      "producer-sha": "16defd1b624c9f97",
+      "producer-sha": "c7d38f123ca41ea0",
       "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -62,7 +62,7 @@
       "claim-sha": "b7a9dbf859dc862b",
       "route": "revert",
       "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
-      "producer-sha": "16defd1b624c9f97",
+      "producer-sha": "c7d38f123ca41ea0",
       "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -112,12 +112,45 @@
     {
       "rid": "RFC3579-2.2-1",
       "polarity": "positive",
+      "unit": "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays",
+      "unit-sha": "16fd99ceca92e3b9",
+      "claim-sha": "b43fb8409e3edd38",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
+      "producer-sha": "c7d38f123ca41ea0",
+      "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesANonRequestCodeInAChallenge",
+      "unit-sha": "9b44e484817d0274",
+      "claim-sha": "f91f5cbe44d78015",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
+      "producer-sha": "c7d38f123ca41ea0",
+      "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier",
+      "unit-sha": "e6f8368aa2bcc0ad",
+      "claim-sha": "446ae2232d80f2c1",
+      "route": "revert",
+      "producer": "internal/component/radius/authenticator_eap.go::checkEAPResponseHeader",
+      "producer-sha": "cae59fb2baefdb99",
+      "break": "body of checkEAPResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3579-2.2-1",
+      "polarity": "positive",
       "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields",
       "unit-sha": "c861ca424f5caf66",
       "claim-sha": "613862395784cc40",
       "route": "revert",
       "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
-      "producer-sha": "16defd1b624c9f97",
+      "producer-sha": "c7d38f123ca41ea0",
       "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -128,7 +161,7 @@
       "claim-sha": "417064e354f300ca",
       "route": "revert",
       "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
-      "producer-sha": "16defd1b624c9f97",
+      "producer-sha": "c7d38f123ca41ea0",
       "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
