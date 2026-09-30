@@ -68,7 +68,6 @@ func boundaryPolicy(t *testing.T, mode uint8, dir SADir, port PortMatch) SPParam
 
 // RFC requirement: RFC4301-4-1 positive -- the SAD entry Ze installs carries the SPI, the destination address and the security protocol the kernel looks an inbound packet up by.
 // RFC requirement: RFC4301-4.1-9 positive -- two SAs with the same selector and different SPIs build two distinct SAD entries, each carrying its own SPI.
-// RFC requirement: RFC4301-4.4.2.1-1 positive -- the SAD entry carries the SPI, the mode, the protocol, the encryption and integrity transforms with their keys, and the anti-replay window.
 // RFC requirement: RFC4301-4.4.2.1-3 positive -- the SAD entry carries the anti-replay window Ze negotiated, which is what lets the kernel accept a sequence number ahead of or behind its own counter.
 func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
 	first, err := xfrmStateFromParams(boundarySA(0x1000))
@@ -111,7 +110,6 @@ func TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp(t *testing.T) {
 
 // RFC requirement: RFC4301-4-1 negative -- an SA whose mode the kernel cannot hold is refused and no SAD entry is built.
 // RFC requirement: RFC4301-4.1-9 negative -- an SA the kernel cannot hold builds no entry, so no second SA is ever shadowed by a malformed one.
-// RFC requirement: RFC4301-4.4.2.1-1 negative -- an SA naming an integrity transform the kernel has no name for is refused rather than installed without it.
 // RFC requirement: RFC4301-4.4.2.1-3 negative -- an SA that cannot be built carries no replay window, because no SAD entry is built at all.
 func TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong(t *testing.T) {
 	unknownMode := boundarySA(0x1000)
@@ -127,7 +125,6 @@ func TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong(t *testing.T) 
 }
 
 // RFC requirement: RFC4301-3.1-1 positive -- a tunnel mode entry (gateway) and a transport mode entry (host) each build with the mode the kernel applies.
-// RFC requirement: RFC4301-4.4-1 positive -- the SPD entry Ze installs carries a selector, a disposition, a direction and an order, the externally observable fields of the Section 4.4 model.
 // RFC requirement: RFC4301-4.4.1-10 positive -- the entry carries the priority the kernel's ordered search reads.
 // RFC requirement: RFC4301-4.4.1.1-3 positive -- an entry requiring one port carries that exact port, so a fragment without ports cannot match it.
 // RFC requirement: RFC4301-5.1-1 positive -- the outbound entry carries the out direction, the selector and the ESP tunnel template the kernel's outbound steps read.
@@ -189,7 +186,6 @@ func TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate(t *test
 }
 
 // RFC requirement: RFC4301-3.1-1 negative -- an entry whose mode is neither tunnel nor transport is refused and no policy is built.
-// RFC requirement: RFC4301-4.4-1 negative -- an entry whose selector the kernel cannot express is refused rather than installed widened.
 // RFC requirement: RFC4301-4.4.1-10 negative -- a refused entry never reaches the kernel's ordered search at any priority.
 // RFC requirement: RFC4301-4.4.1.1-3 negative -- a port mask the selector cannot carry exactly is refused rather than widened to any port, so no entry that would admit a portless fragment is built.
 // RFC requirement: RFC4301-5.1-1 negative -- an outbound entry with a port mask the selector cannot express is refused.

@@ -6,7 +6,7 @@
   "source-sha": "263fd9a78175c888",
   "signed-off": "2026-09-30",
   "reviewer": "claude",
-  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Re-walked 2026-09-30 for site 4.1:4 as well: the indication of source and destination address matching exists only inside the section 4.1 multicast de-multiplexing algorithm, which \"Implementations that support only unicast traffic need not implement\"; Ze negotiates unicast SAs only, so the site is excluded as feature-out-of-scope and row RFC4301-4.1-8 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 15 to 16. Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
+  "resign-reason": "Re-walked 2026-09-30 for site 4.4.1:10 only: the sentence binds only an SPD entry that is decorrelated, and section 4.4.1 states \"This RFC does not require a compliant implementation to make use of decorrelation.\" Ze keeps an ordered SPD and never decorrelates it, so the site is excluded as feature-out-of-scope and row RFC4301-4.4.1-9 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 14 to 15. Re-walked 2026-09-30 for site 4.1:4 as well: the indication of source and destination address matching exists only inside the section 4.1 multicast de-multiplexing algorithm, which \"Implementations that support only unicast traffic need not implement\"; Ze negotiates unicast SAs only, so the site is excluded as feature-out-of-scope and row RFC4301-4.1-8 is retired (rfc/corrections/rfc4301.md). Exclusions rise from 15 to 16. Re-walked 2026-09-30 for site 4.4:1 (ruling R22): a framing sentence whose observable characteristics are each a section 4.4.x row, excluded as not-a-requirement, row RFC4301-4.4-1 retired. Exclusions rise from 16 to 17. Every other decision is carried forward unchanged from the 2026-09-29 walk, whose re-sign reason stays in the git history of this file.",
   "sections": [
     {
       "id": "front",
@@ -136,7 +136,25 @@
     {
       "id": "4.4.2.1",
       "sites": 3,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Site 4.4.2.1:1, \"The following data items MUST be in the SAD:\", is a lead-in to sixteen bulleted items that carry no keyword of their own, so the extractor sees one site for sixteen obligations. RFC4301-4.4.2.1-1 keeps the site and quotes the first item (the SPI); the other fifteen items are rows of their own, each quoting its item, and have no site: they are recorded unsourced (2026-09-30, rfc/corrections/rfc4301.md).",
+      "unsourced-ids": [
+        "RFC4301-4.4.2.1-4",
+        "RFC4301-4.4.2.1-5",
+        "RFC4301-4.4.2.1-6",
+        "RFC4301-4.4.2.1-7",
+        "RFC4301-4.4.2.1-8",
+        "RFC4301-4.4.2.1-9",
+        "RFC4301-4.4.2.1-10",
+        "RFC4301-4.4.2.1-11",
+        "RFC4301-4.4.2.1-12",
+        "RFC4301-4.4.2.1-13",
+        "RFC4301-4.4.2.1-14",
+        "RFC4301-4.4.2.1-15",
+        "RFC4301-4.4.2.1-16",
+        "RFC4301-4.4.2.1-17",
+        "RFC4301-4.4.2.1-18"
+      ]
     },
     {
       "id": "4.4.2.2",
@@ -532,8 +550,9 @@
     {
       "id": "4.4:1",
       "quote": "The model described below is nominal; implementations need not match details of this model as presented, but the external behavior of implementations MUST correspond to the externally observable characteristics of this model in order to be compliant.",
-      "disposition": "mapped",
-      "mapped-to": "RFC4301-4.4-1"
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A framing sentence: it states that the Section 4.4 model is nominal and that compliance is judged by its externally observable characteristics, each of which is an obligation of its own in the Section 4.4.x rows. The SPD characteristics are RFC4301-4.4.1-1, 4.4.1-4, 4.4.1-10, 4.4.1-11, 4.4.1-12 and the 4.4.1.1 selector rows; the SAD characteristics are RFC4301-4.4.2-1 and the 4.4.2.1 data item rows; the PAD characteristics are the 4.4.3.x rows. No behavior belongs to this sentence that those rows do not already state, so a row for it only restates them. Row RFC4301-4.4-1 retired 2026-09-30 (rfc/corrections/rfc4301.md, ruling R22)."
     },
     {
       "id": "4.4.1:1",

@@ -143,6 +143,19 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 		return nil, fmt.Errorf("xfrm: state add spi=%d: unknown mode %d, want ModeTransport (%d) or ModeTunnel (%d)",
 			p.SPI, p.Mode, ModeTransport, ModeTunnel)
 	}
+	// RFC 4301 Section 4.4.2.1: "Security Parameter Index (SPI): a 32-bit value
+	// selected by the receiving end of an SA to uniquely identify the SA."
+	// RFC 4303 Section 2.1: "The SPI value of zero (0) is reserved for local,
+	// implementation-specific use and MUST NOT be sent on the wire." A peer's
+	// proposal or a caller can hand over zero; no SAD entry is built for it.
+	if p.SPI == 0 {
+		return nil, errors.New("xfrm: state add: spi 0 is reserved and identifies no SA")
+	}
+	// RFC 4301 Section 4.4.2.1: "Tunnel header IP source and destination address --
+	// both addresses must be either IPv4 or IPv6 addresses."
+	if p.Mode == ModeTunnel && p.Src != nil && p.Dst != nil && (p.Src.To4() == nil) != (p.Dst.To4() == nil) {
+		return nil, fmt.Errorf("xfrm: state add spi=%d: tunnel header %s -> %s mixes IPv4 and IPv6", p.SPI, p.Src, p.Dst)
+	}
 	state := &netlink.XfrmState{
 		Src:   p.Src,
 		Dst:   p.Dst,

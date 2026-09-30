@@ -53,17 +53,18 @@
       "verdict": "enforced"
     },
     "RFC4301-4.1-9": {
-      "note": "The sentence: the receiver processes packets from parallel SAs (same selectors) without prejudice (RFC 4301 section 4.1). Positive is genuine at the stack: engine TestRFC4301ParallelSAsWithOneSelectorAreEachReceived installs two Child SAs through createFirstChildSA on one selector pair over real XFRM in a rootless netns and sends an in-selector packet on SA1, SA2, then SA1 again; each is decrypted and delivered, so a per-SA template/reqid mismatch or a shared replay state that dropped the sibling's packets goes red. The negative (TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy) sends an out-of-selector inner source on each SA and asserts XfrmInNoPols +1 per SA and no delivery: that is the post-decryption SPD check (RFC4301-4.4.1-10), a neighbour, not a packet processed with prejudice; no receive-side injection of prejudiced processing exists. The HEAD boundary units (two distinct SAD entries; a refused SA builds none) prove the RFC4301-4.1-5 permission. Weak: the negative polarity is not genuine (R1 fallback, owner gate). Re-judged 2026-09-30 (pass 2): the two SAD boundary units changed only by the deleted RFC4301-4.1-8 tag lines (row retired, multicast de-multiplexing is optional and Ze has no multicast SAs); bodies identical, verdict unchanged.",
+      "code": {},
+      "note": "The sentence: the receiver processes packets from parallel SAs (same selectors) without prejudice (RFC 4301 section 4.1). Positive is genuine at the stack: engine TestRFC4301ParallelSAsWithOneSelectorAreEachReceived installs two Child SAs through createFirstChildSA on one selector pair over real XFRM in a rootless netns and sends an in-selector packet on SA1, SA2, then SA1 again; each is decrypted and delivered, so a per-SA template/reqid mismatch or a shared replay state that dropped the sibling's packets goes red. The negative (TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy) sends an out-of-selector inner source on each SA and asserts XfrmInNoPols +1 per SA and no delivery: that is the post-decryption SPD check (RFC4301-4.4.1-10), a neighbour, not a packet processed with prejudice; no receive-side injection of prejudiced processing exists. The HEAD boundary units (two distinct SAD entries; a refused SA builds none) prove the RFC4301-4.1-5 permission. Weak: the negative polarity is not genuine (R1 fallback, owner gate). Re-judged 2026-09-30 (pass 2): the two SAD boundary units changed only by the deleted RFC4301-4.1-8 tag lines (row retired, multicast de-multiplexing is optional and Ze has no multicast SAs); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "9155c82e5e69deae",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "933cb2c36ad043d7",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "7748407055b58528",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "4c7d6435e335e97b",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "4c7d6435e335e97b"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "ad47af8d2f85b95c",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "147a2d404a77360f",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "871036a600e23a2c",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "071b186b3f6afa42",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "f17abddffa400d24",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "fe81deb1bdb10c45"
       },
@@ -82,19 +83,6 @@
       },
       "verdict": "weak"
     },
-    "RFC4301-4.4-1": {
-      "note": "one policy-builder unit cannot prove whole-model conformance; positive asserts the fields of one SPD entry, negative a selector-expressibility refusal Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged.",
-      "requirement_sha": "0b90a2a10dd6d485",
-      "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "933cb2c36ad043d7"
-      },
-      "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4bb87f4791587887",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "2a689db764a4bea3"
-      },
-      "verdict": "weak"
-    },
     "RFC4301-4.4.1-1": {
       "note": "Child SA install asserts two PROTECT policies reach the SPD; single-polarity annotated",
       "requirement_sha": "b61c14781b5c08a0",
@@ -107,19 +95,20 @@
       "verdict": "enforced"
     },
     "RFC4301-4.4.1-10": {
-      "note": "Ordered search proven at the stack, both ways, over real XFRM in a rootless netns with two overlapping inbound entries whose kernel priorities the tests read back. Positive TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry: Child SA entry (priority 2000, allow) over the inbound catch-all DISCARD (2^32-1, block); an in-selector packet on the SA is delivered with XfrmInPolBlock +0, an out-of-selector packet meets only the catch-all and is dropped (+1). Negative TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard: an operator inbound DISCARD (spdPolicyParams, order 1000, read back as 1000 block) covering the Child SA selector drops an in-selector packet on the SA (XfrmInPolBlock +1, not delivered) although the later PROTECT template matches. Also: TestRFC4301ParallelSAs* (verification after decryption, XfrmInNoPols) and the SPD boundary units (priority carried). Minor: orderedInboundPriority returns the first kernel policy with the src/dst strings, which in the negative could be the Child SA entry; the Fatalf then fails loud, never passes wrongly.",
+      "code": {},
+      "note": "Ordered search proven at the stack, both ways, over real XFRM in a rootless netns with two overlapping inbound entries whose kernel priorities the tests read back. Positive TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry: Child SA entry (priority 2000, allow) over the inbound catch-all DISCARD (2^32-1, block); an in-selector packet on the SA is delivered with XfrmInPolBlock +0, an out-of-selector packet meets only the catch-all and is dropped (+1). Negative TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard: an operator inbound DISCARD (spdPolicyParams, order 1000, read back as 1000 block) covering the Child SA selector drops an in-selector packet on the SA (XfrmInPolBlock +1, not delivered) although the later PROTECT template matches. Also: TestRFC4301ParallelSAs* (verification after decryption, XfrmInNoPols) and the SPD boundary units (priority carried). Minor: orderedInboundPriority returns the first kernel policy with the src/dst strings, which in the negative could be the Child SA entry; the Fatalf then fails loud, never passes wrongly. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "51a733585f5e8506",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "933cb2c36ad043d7",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "7748407055b58528",
         "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry": "fed6bcce08b1525f",
         "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard": "fed6bcce08b1525f",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "4c7d6435e335e97b",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "4c7d6435e335e97b"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4bb87f4791587887",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "2a689db764a4bea3",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "727f23f7d9163859",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96",
         "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry": "80acdccd340cea1a",
         "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard": "9498b018fe98ab8c",
         "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "f17abddffa400d24",
@@ -199,23 +188,24 @@
       "verdict": "weak"
     },
     "RFC4301-4.4.2-1": {
-      "note": "Judged at the whole stack (R21). Transport: installChildSA now sets the inbound SAParams.Sel from childPolicyParams(child, SADirIn) (src=TSr, dst=TSi, proto, sport/dport, direction checked with asymmetric ports 179/any in TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors), mapped to x->sel by xfrmStateFromParams. Tunnel: the inbound require-policy carries the same five. Kernel probes in rfc4301_sad_selector_linux_test.go (user+net namespace, real XFRM) assert delivery inside and exact +1 on XfrmInNoPols (tunnel: outside by source, port, protocol) or XfrmInStateMismatch (transport: port, protocol) with no delivery. Judge re-observed red under two overlays: transport Sel block disabled -> port 6000 delivered, counters 0; inbound tunnel policy widened -> all three outside cases delivered, NoPols 0. The multi-pair 'or values' half is the gap RFC4301-4.4.2-2.",
+      "code": {},
+      "note": "Judged at the whole stack (R21). Transport: installChildSA now sets the inbound SAParams.Sel from childPolicyParams(child, SADirIn) (src=TSr, dst=TSi, proto, sport/dport, direction checked with asymmetric ports 179/any in TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors), mapped to x->sel by xfrmStateFromParams. Tunnel: the inbound require-policy carries the same five. Kernel probes in rfc4301_sad_selector_linux_test.go (user+net namespace, real XFRM) assert delivery inside and exact +1 on XfrmInNoPols (tunnel: outside by source, port, protocol) or XfrmInStateMismatch (transport: port, protocol) with no delivery. Judge re-observed red under two overlays: transport Sel block disabled -> port 6000 delivered, counters 0; inbound tunnel policy widened -> all three outside cases delivered, NoPols 0. The multi-pair 'or values' half is the gap RFC4301-4.4.2-2. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "e3911738ce979efb",
       "tests": {
         "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c602227a7107a32",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "ab409e08cee0cc52",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "ab409e08cee0cc52",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "ab409e08cee0cc52",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "ab409e08cee0cc52",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "d0849a2d44763916",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "d0849a2d44763916",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "d0849a2d44763916",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "d0849a2d44763916",
         "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors": "fc51f7049086d591",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "7ec56b7d86f07a26"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "93a9bdfaf157d80d",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "f6873d810c3aed6f",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "f6873d810c3aed6f",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "6dfaf8ca9b5fb709",
-        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "6dfaf8ca9b5fb709",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "7d08653f3b7fd580",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "7d08653f3b7fd580",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "49a2c1af0af816c9",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "49a2c1af0af816c9",
         "internal/component/ike/engine/rfc4301_sad_selector_test.go::TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors": "f41391cd200c6306",
         "internal/component/ike/engine/ts_narrow_test.go::TestNarrowedSelectorsReachTheInstalledPolicy": "8bec75558534acf9"
       },
@@ -233,30 +223,140 @@
       "verdict": "unimplemented"
     },
     "RFC4301-4.4.2.1-1": {
-      "note": "asserts SPI, mode, protocol, transforms, keys and replay window; the sequence counter, overflow flag, lifetime, PMTU and the DF/DSCP bypass items of the list are not asserted Re-judged 2026-09-30 (pass 2): the two SAD boundary units changed only by the deleted RFC4301-4.1-8 tag lines (row retired, multicast de-multiplexing is optional and Ze has no multicast SAs); bodies identical, verdict unchanged.",
-      "requirement_sha": "f64691f92a0d950b",
+      "code": {},
+      "note": "Row now quotes the SPI item alone (split, Correction 2026-09-30). Positive TestRFC4301SADItemSPIIsTheNegotiatedValue: inbound and outbound SAD entries carry the SPI given, unchanged. Negative TestRFC4301SADItemZeroSPIIsRefused: SPI 0 (RFC 4303 section 2.1: reserved, MUST NOT be sent on the wire, so it identifies no SA) builds no state; the refusal is the D-8 fix in xfrmStateFromParams. Unit-level over the builder; both records observed red.",
+      "requirement_sha": "19a226ed8c32a5c9",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "933cb2c36ad043d7"
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemZeroSPIIsRefused": "9a445c5290c8f113"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "ad47af8d2f85b95c",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "147a2d404a77360f"
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue": "397afe2385b59336",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemZeroSPIIsRefused": "b5cbfb81785dff1c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-10": {
+      "code": {},
+      "note": "Positive: AES-GCM entry carries the AEAD algorithm, ICV 128 and key, and neither separate transform. Negative: unknown combined-mode algorithm refused, no state. Builder-level.",
+      "requirement_sha": "73bc4145e86764f6",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemCombinedModeCarriesOneAEADTransform": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownCombinedModeIsRefused": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemCombinedModeCarriesOneAEADTransform": "7184be9bae6c61e2",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownCombinedModeIsRefused": "5c4c0d7d5dd862fe"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-12": {
+      "code": {},
+      "note": "Positive: tunnel and transport each installed as their own kernel mode. Negative: a mode that is neither refused, no state. Builder-level.",
+      "requirement_sha": "7b9d4a6bcf9b8cbb",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemModeIsInstalled": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownModeIsRefused": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemModeIsInstalled": "a6b7994c026c428a",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownModeIsRefused": "58411f9ff067fe90"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-18": {
+      "code": {},
+      "note": "Positive: IPv4 and IPv6 tunnel header pairs read back unchanged. Negative: IPv4 source with IPv6 destination refused, no state (D-8 fix in xfrmStateFromParams). No legitimate caller builds a mixed pair: engine SAs use the IKE endpoints, OSPF SAs are transport. Builder-level.",
+      "requirement_sha": "ae2e0aeafcf5bfe0",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemMixedFamilyTunnelHeaderIsRefused": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemTunnelHeaderAddressesAreInstalled": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemMixedFamilyTunnelHeaderIsRefused": "398964ec841792f6",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemTunnelHeaderAddressesAreInstalled": "c3392751085381f3"
+      },
+      "verdict": "enforced"
     },
     "RFC4301-4.4.2.1-3": {
-      "note": "the sentence concerns byte-count LIFETIME counters at the two ends getting out of synch (4.4.2.1 lifetime item (a)); the units assert the anti-replay window, a different mechanism Re-judged 2026-09-30 (pass 2): the two SAD boundary units changed only by the deleted RFC4301-4.1-8 tag lines (row retired, multicast de-multiplexing is optional and Ze has no multicast SAs); bodies identical, verdict unchanged.",
+      "code": {},
+      "note": "the sentence concerns byte-count LIFETIME counters at the two ends getting out of synch (4.4.2.1 lifetime item (a)); the units assert the anti-replay window, a different mechanism Re-judged 2026-09-30 (pass 2): the two SAD boundary units changed only by the deleted RFC4301-4.1-8 tag lines (row retired, multicast de-multiplexing is optional and Ze has no multicast SAs); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "c34a4dddcbd80efb",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "933cb2c36ad043d7"
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "7748407055b58528"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "ad47af8d2f85b95c",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "147a2d404a77360f"
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "871036a600e23a2c",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "071b186b3f6afa42"
       },
       "verdict": "wrong"
+    },
+    "RFC4301-4.4.2.1-4": {
+      "code": {},
+      "note": "Single-polarity positive (justified: Ze negotiates ESN 'not extended' only, which the item permits 'if negotiated', so no input selects another width). The SAD entry carries no ESN flag and no preset replay state. Builder-level.",
+      "requirement_sha": "7b0889a97f7d21e4",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSequenceCounterIsThe32BitCounterNegotiated": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSequenceCounterIsThe32BitCounterNegotiated": "0e4a64f6701941f1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-6": {
+      "code": {},
+      "note": "Single-polarity positive (justified: every window is installed as given, zero included, nothing to refuse). Windows 32 and 64 read back from the SAD entry. Builder-level; zero is not asserted.",
+      "requirement_sha": "c3a0d2406dfe86ff",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAntiReplayWindowIsInstalled": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAntiReplayWindowIsInstalled": "9ea45688870c590a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-7": {
+      "code": {},
+      "note": "AH in scope (OSPFv3, RFC 4552). Positive: AH entry carries integrity algorithm, 128-bit truncation, the given key, no crypt/aead. Negative: unknown integrity algorithm refused, no state. Builder-level.",
+      "requirement_sha": "551e6a5876045ddb",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAHCarriesItsIntegrityAlgorithmAndKey": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAHUnknownIntegrityIsRefused": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAHCarriesItsIntegrityAlgorithmAndKey": "8be05eaeb4737390",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAHUnknownIntegrityIsRefused": "0f356dd69e8dacfa"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-8": {
+      "code": {},
+      "note": "Positive: ESP entry carries the encryption algorithm and the given key (distinct from the integrity key). Negative: unknown encryption algorithm refused, no state. Builder-level.",
+      "requirement_sha": "2eee246d8843c004",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemESPTransformsCarryAlgorithmAndKey": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownESPTransformIsRefused": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemESPTransformsCarryAlgorithmAndKey": "b5478fef45f6fa0a",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownESPTransformIsRefused": "5df50fbb0bed7737"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-4.4.2.1-9": {
+      "code": {},
+      "note": "Positive: ESP entry carries the integrity algorithm, truncation and the given key. Negative: unknown integrity algorithm refused, no state. Builder-level.",
+      "requirement_sha": "eaad8a6180412e13",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemESPTransformsCarryAlgorithmAndKey": "9a445c5290c8f113",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownESPTransformIsRefused": "9a445c5290c8f113"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemESPTransformsCarryAlgorithmAndKey": "b5478fef45f6fa0a",
+        "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownESPTransformIsRefused": "5df50fbb0bed7737"
+      },
+      "verdict": "enforced"
     },
     "RFC4301-4.4.3.1-1": {
       "note": "sub-tree entries admit DNS, RFC 822 and DN peers beneath them and refuse near misses, apex and outside peers; certificate binding kept",
@@ -358,28 +458,48 @@
       "verdict": "enforced"
     },
     "RFC4301-5.1-1": {
-      "note": "The quote obliges IPsec to perform the Section 5.1 outbound steps (a list the quote points to). The kernel performs them; the tagged units assert one outbound SPD entry Ze installs (out dir, selector, ESP tunnel template, priority) and the refusal of a partial port mask. No assertion ties to the individual steps (cache lookup, SPD-S/O/I selection, DISCARD, the SA-less PROTECT case), so a Ze install that broke any step other than this entry's shape stays green. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged.",
+      "code": {},
+      "note": "The quote obliges IPsec to perform the Section 5.1 outbound steps (a list the quote points to). The kernel performs them; the tagged units assert one outbound SPD entry Ze installs (out dir, selector, ESP tunnel template, priority) and the refusal of a partial port mask. No assertion ties to the individual steps (cache lookup, SPD-S/O/I selection, DISCARD, the SA-less PROTECT case), so a Ze install that broke any step other than this entry's shape stays green. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "cbc5f71034d9ab53",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "933cb2c36ad043d7"
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "7748407055b58528"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4bb87f4791587887",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "2a689db764a4bea3"
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "727f23f7d9163859",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96"
       },
       "verdict": "weak"
     },
-    "RFC4301-5.2-3": {
-      "note": "The quote obliges IPsec to perform the Section 5.2 inbound steps (a list the quote points to). The tagged units assert one inbound SPD entry Ze installs (in dir, same selector, template) and the refusal of a partial port mask; no assertion ties to the individual steps (SPI demux to the SAD, the SPD-I bypass/discard lookup, the post-decapsulation selector check), so the steps are not proven by what Ze installs here. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged.",
-      "requirement_sha": "731cebcd74dee2e8",
+    "RFC4301-5.2-2": {
+      "code": {},
+      "note": "Whole stack over real XFRM in a rootless netns (R23: the kernel performs the check on the state and policy Ze installs). Tunnel: an inner packet inside the negotiated selectors is delivered; outside by source, port or protocol each moves XfrmInNoPols by 1 and is not delivered. Transport: inside delivered; outside by port or protocol each moves XfrmInStateMismatch by 1. Records observed red on childPolicyParams and installChildSA.",
+      "requirement_sha": "94eb5a2239326989",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "933cb2c36ad043d7"
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "d0849a2d44763916",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "d0849a2d44763916",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "d0849a2d44763916",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "d0849a2d44763916"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4bb87f4791587887",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "2a689db764a4bea3"
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "7d08653f3b7fd580",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "7d08653f3b7fd580",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "49a2c1af0af816c9",
+        "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "49a2c1af0af816c9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4301-5.2-3": {
+      "code": {},
+      "note": "The quote obliges IPsec to perform the Section 5.2 inbound steps (a list the quote points to). The tagged units assert one inbound SPD entry Ze installs (in dir, same selector, template) and the refusal of a partial port mask; no assertion ties to the individual steps (SPI demux to the SAD, the SPD-I bypass/discard lookup, the post-decapsulation selector check), so the steps are not proven by what Ze installs here. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
+      "requirement_sha": "731cebcd74dee2e8",
+      "tests": {
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "7748407055b58528"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "727f23f7d9163859",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96"
       },
       "verdict": "weak"
     },
@@ -410,30 +530,32 @@
       "verdict": "wrong"
     },
     "RFC4301-7.3-4": {
-      "note": "Forbidden: accepting a non-initial fragment on an SA with non-trivial port selectors (Ze has no NON_FIRST_FRAGMENTS_ALSO negotiation). Ze's boundary is the inbound XFRM policy the kernel checks; Linux decodes no ports for a non-initial fragment, so an exact port selector refuses it. TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate asserts in.SrcPort == 443 on the inbound entry, red if the selector is widened to ANY. TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened asserts a partial mask (0x00ff) is refused for SADirIn and SADirOut, red if it is installed widened. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged.",
+      "code": {},
+      "note": "Forbidden: accepting a non-initial fragment on an SA with non-trivial port selectors (Ze has no NON_FIRST_FRAGMENTS_ALSO negotiation). Ze's boundary is the inbound XFRM policy the kernel checks; Linux decodes no ports for a non-initial fragment, so an exact port selector refuses it. TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate asserts in.SrcPort == 443 on the inbound entry, red if the selector is widened to ANY. TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened asserts a partial mask (0x00ff) is refused for SADirIn and SADirOut, red if it is installed widened. Re-judged 2026-09-30: the two SPD boundary units changed only by the deleted RFC4301-4.4.1-9 tag lines (row retired, decorrelation is optional and Ze never decorrelates); bodies identical, verdict unchanged. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "f74395f420479b0e",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "933cb2c36ad043d7"
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "7748407055b58528"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4bb87f4791587887",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "2a689db764a4bea3"
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "727f23f7d9163859",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96"
       },
       "verdict": "enforced"
     },
     "RFC4301-7.3-5": {
-      "note": "Whole stack over real XFRM in a rootless netns, tunnel-mode Child SA on UDP 10.1.0.0/16 -> 10.2.0.0/16 port 5000. Positive TestRFC4301FragmentsOfACompliantPacketAreDelivered: an in-selector inner packet split into initial and non-initial fragments, each in its own ESP packet, non-initial first: reassembled and delivered, XfrmInNoPols +0. Negative TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded: same with inner source outside the selector: the non-initial fragment is discarded with the packet (XfrmInNoPols +1, nothing delivered). Linux reassembles before the inbound policy check, so the discard is the stack acting on the require-policy Ze installs. The violating dimension is the source address, which the fragment itself carries; a port-only violation (the fragment-specific hazard) is covered by RFC4301-7.3-4. The SPD boundary tags stay as supplementary; their negative (bypass carries no template) proves a neighbour.",
+      "code": {},
+      "note": "Whole stack over real XFRM in a rootless netns, tunnel-mode Child SA on UDP 10.1.0.0/16 -> 10.2.0.0/16 port 5000. Positive TestRFC4301FragmentsOfACompliantPacketAreDelivered: an in-selector inner packet split into initial and non-initial fragments, each in its own ESP packet, non-initial first: reassembled and delivered, XfrmInNoPols +0. Negative TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded: same with inner source outside the selector: the non-initial fragment is discarded with the packet (XfrmInNoPols +1, nothing delivered). Linux reassembles before the inbound policy check, so the discard is the stack acting on the require-policy Ze installs. The violating dimension is the source address, which the fragment itself carries; a port-only violation (the fragment-specific hazard) is covered by RFC4301-7.3-4. The SPD boundary tags stay as supplementary; their negative (bypass carries no template) proves a neighbour. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "23bf396c1537abbc",
       "tests": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "933cb2c36ad043d7",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "933cb2c36ad043d7",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "7748407055b58528",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "7748407055b58528",
         "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfACompliantPacketAreDelivered": "994a81ef61acb049",
         "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded": "994a81ef61acb049"
       },
       "units": {
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4bb87f4791587887",
-        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "2a689db764a4bea3",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "727f23f7d9163859",
+        "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "d5db7f6b99e38f96",
         "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfACompliantPacketAreDelivered": "b048944de1e26485",
         "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded": "0ae92b5976d2746b"
       },

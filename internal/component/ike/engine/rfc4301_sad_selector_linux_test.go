@@ -348,6 +348,11 @@ func TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy(t *testi
 	// RFC requirement: RFC4301-4.4.2-1 negative -- a tunnel-mode inbound packet outside the
 	// negotiated selectors by inner source address, destination port or protocol is dropped
 	// by the kernel (XfrmInNoPols) and never delivered.
+	// RFC requirement: RFC4301-5.2-2 positive -- after ESP processing on the tunnel-mode SA,
+	// an inner packet matching the SA's inbound selectors is delivered.
+	// RFC requirement: RFC4301-5.2-2 negative -- after ESP processing on the tunnel-mode SA,
+	// an inner packet not matching the SA's inbound selectors by source address, destination
+	// port or protocol is dropped (XfrmInNoPols) and never delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}
@@ -398,6 +403,11 @@ func TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors(t *t
 	// RFC requirement: RFC4301-4.4.2-1 negative -- a transport-mode inbound packet on another
 	// destination port or another protocol is dropped by the inbound SAD entry's selector
 	// (XfrmInStateMismatch) and never delivered.
+	// RFC requirement: RFC4301-5.2-2 positive -- after ESP processing on the transport-mode
+	// SA, a packet matching the SA's inbound selectors is delivered.
+	// RFC requirement: RFC4301-5.2-2 negative -- after ESP processing on the transport-mode
+	// SA, a packet not matching the SA's inbound selectors by destination port or protocol is
+	// dropped (XfrmInStateMismatch) and never delivered.
 	if !sadSelOwnNamespace(t) {
 		return
 	}

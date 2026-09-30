@@ -76,6 +76,14 @@ migration refuses a non-tunnel template), and it carries the old state selector
 unchanged. The kernel probes are in
 `internal/component/ike/engine/rfc4301_sad_selector_linux_test.go`.
 
+**Two SAs are refused before they reach the kernel.** `xfrmStateFromParams` builds no
+state for an SPI of zero, which RFC 4303 Section 2.1 reserves and forbids on the wire,
+so a peer that proposes SPI 0 fails the Child SA install rather than getting an
+outbound SA that sends it. It also refuses a tunnel-mode SA whose tunnel header
+addresses mix IPv4 and IPv6 (RFC 4301 Section 4.4.2.1). Each RFC 4301 Section 4.4.2.1
+SAD data item Ze installs is asserted one item at a time in
+`internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go`.
+
 <!-- source: internal/component/ike/engine/child.go -- installChildSA -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams -->
 
