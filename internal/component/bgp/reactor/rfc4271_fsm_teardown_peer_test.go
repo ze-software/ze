@@ -52,7 +52,6 @@ func requireReleased(t *testing.T, n *openSentNeighbor, want [][2]byte, counter 
 // counts the stop as a failed attempt.
 //
 // RFC requirement: RFC4271-8.2.2-8 positive -- ManualStop (shutdownNotify) on a running Peer in OpenSent at ConnectRetryCounter 3 writes one NOTIFICATION 6/2 (Cease), closes the TCP connection, stops the HoldTimer, KeepaliveTimer and ConnectRetryTimer, drops the session, and sets the counter to 0.
-// RFC requirement: RFC4271-8.2.2-18 positive -- ManualStop (shutdownNotify) on a running Peer in OpenSent writes one NOTIFICATION 6/2 (Cease), closes the TCP connection, stops the HoldTimer, KeepaliveTimer and ConnectRetryTimer, and drops the session.
 func TestRFC4271OpenSentManualStopReleasesTheConnection(t *testing.T) {
 	n := startOpenSentNeighbor(t)
 	for range 3 {
@@ -152,7 +151,7 @@ func startOpenConfirmNeighbor(t *testing.T) *openSentNeighbor {
 // PREVENTS: an OpenConfirm that keeps its timers or its socket after the peer said
 // goodbye, or that does not count the failed attempt.
 //
-// RFC requirement: RFC4271-8.2.2-11 positive -- a running Peer in OpenConfirm that receives a NOTIFICATION (Event 25) or loses its TCP connection (Event 18) writes no NOTIFICATION, closes the TCP connection (EOF at the far end for Event 25), stops the HoldTimer, KeepaliveTimer and ConnectRetryTimer, drops the session, and moves the ConnectRetryCounter from 0 to 1.func TestRFC4271OpenConfirmNotificationOrTCPFailureReleasesTheConnection(t *testing.T) {
+// RFC requirement: RFC4271-8.2.2-11 positive -- a running Peer in OpenConfirm that receives a NOTIFICATION (Event 25) or loses its TCP connection (Event 18) writes no NOTIFICATION, closes the TCP connection (EOF at the far end for Event 25), stops the HoldTimer, KeepaliveTimer and ConnectRetryTimer, drops the session, and moves the ConnectRetryCounter from 0 to 1.
 func TestRFC4271OpenConfirmNotificationOrTCPFailureReleasesTheConnection(t *testing.T) {
 	t.Run("Event 25 NOTIFICATION", func(t *testing.T) {
 		n := startOpenConfirmNeighbor(t)
@@ -298,7 +297,7 @@ func TestRFC4271ManualStartZeroesTheCounterAndDials(t *testing.T) {
 	var lc net.ListenConfig
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
+	t.Cleanup(func() { assert.NoError(t, ln.Close()) })
 	addr, ok := ln.Addr().(*net.TCPAddr)
 	require.True(t, ok, "listener address must be TCP")
 
@@ -320,7 +319,7 @@ func TestRFC4271ManualStartZeroesTheCounterAndDials(t *testing.T) {
 	require.NoError(t, tcpListener.SetDeadline(time.Now().Add(5*time.Second)))
 	conn, err := ln.Accept()
 	require.NoError(t, err, "the started Peer never dialed")
-	t.Cleanup(func() { conn.Close() }) //nolint:errcheck // test cleanup
+	t.Cleanup(func() { assert.NoError(t, conn.Close()) })
 	buf := make([]byte, 4096)
 	require.NoError(t, conn.SetReadDeadline(time.Now().Add(5*time.Second)))
 	n, err := conn.Read(buf)

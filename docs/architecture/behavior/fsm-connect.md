@@ -44,7 +44,7 @@ Idle).
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after successful `dialer.DialContext` | log transition | OPEN sent immediately after transition | `OpenSent` |
 | `EventTCPConnectionFails` | `Session.Connect` dial error path | cleanup in caller | none | `Idle` |
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
-| any other event | unexpected | log transition | none | `Idle` |
+| any other event (RFC 4271 lists 8, 10-11, 13, 19, 23, 25-28; Ze declares no Event 13) | unexpected | log transition; **increments ConnectRetryCounter** | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleConnect -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — Connect error path calls logFSMEvent(EventTCPConnectionFails) -->
@@ -124,6 +124,16 @@ Idle).
   tests covering `EventTCPConnectionConfirmed`, `EventTCPConnectionFails`,
   `EventManualStop`, and the error event cluster.
   <!-- source: internal/component/bgp/fsm/fsm_test.go -->
+- `internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go` --
+  every declared event of the "any other event" list, in Connect and in
+  Active, increments the ConnectRetryCounter and leaves Idle; the start
+  events and Event 9 leave the state and the counter alone.
+  <!-- source: internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go -->
+- `internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go`
+  -- the same list at peer level: an AutomaticStop on a passive Peer in
+  Active counts the attempt, stops the timers, drops the session and refuses
+  a later TCP connection on it.
+  <!-- source: internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go -->
 - `internal/component/bgp/reactor/session_test.go` — end-to-end tests
   that dial to a test peer, verify the Connect -> OpenSent handoff, and
   exercise dial failures.

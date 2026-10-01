@@ -195,7 +195,6 @@ func wellFormedOpen() []byte {
 //
 // RFC requirement: RFC4271-8.2.2-10 negative -- a running Peer in OpenSent that reads a well-formed OPEN (version 4, AS4 capability) writes no NOTIFICATION within 500 ms, keeps the TCP connection open, keeps the same session, and leaves its ConnectRetryCounter at 3.
 // RFC requirement: RFC4271-8.2.2-8 negative -- with no ManualStop, a Peer in OpenSent at ConnectRetryCounter 3 that reads a well-formed OPEN sends no Cease, keeps the connection and session, and leaves the counter at 3 (not zeroed).
-// RFC requirement: RFC4271-8.2.2-18 negative -- with no ManualStop, a Peer in OpenSent that reads a well-formed OPEN sends no Cease and keeps the TCP connection and the session.
 // RFC requirement: RFC4271-8.2.2-9 negative -- a Peer in OpenSent whose peer answers before the HoldTimer expires sends no Hold Timer Expired NOTIFICATION, keeps the connection and session, and leaves the counter at 3.
 // RFC requirement: RFC4271-8.2.2-16 negative -- with no AutomaticStop, a Peer in OpenSent that reads a well-formed OPEN sends no Cease, keeps the connection and session, and leaves the counter at 3.
 // RFC requirement: RFC4271-6.1-1 negative -- a header with an all-ones marker and a valid Length (a well-formed OPEN) draws no Message Header Error, and no NOTIFICATION at all, within 500 ms.

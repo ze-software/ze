@@ -4,7 +4,7 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc4271.txt",
   "source-sha": "d5034568e80da453",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-10-01",
   "reviewer": "claude",
   "sections": [
     {
@@ -309,7 +309,7 @@
         "RFC4271-8.2.2-15",
         "RFC4271-8.2.2-16",
         "RFC4271-8.2.2-17",
-        "RFC4271-8.2.2-18"
+        "RFC4271-8.2.2-20"
       ]
     },
     {

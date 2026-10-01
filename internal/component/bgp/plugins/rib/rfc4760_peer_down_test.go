@@ -48,6 +48,14 @@ func receiveIPv4Route(t *testing.T, r *RIBManager, remote string, id uint64, pre
 // RFC requirement: RFC4760-7-1 positive -- on the peer-down raised by the session reset,
 // RIBManager.handleStructuredState (rib.go) deletes all routes received from that neighbor
 // in the attribute's AFI/SAFI, and only that neighbor's.
+// RFC requirement: RFC4271-8.2.2-12 positive -- on the peer-down state event the reactor
+// raises when an Established session ends (reactor TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection),
+// RIBManager.handleStructuredState deletes every route received from that neighbor and
+// keeps another neighbor's.
+// RFC requirement: RFC4271-8.2.2-14 positive -- on the peer-down state event the reactor
+// raises after an UPDATE error resets an Established session (reactor
+// TestRFC4271EstablishedUpdateErrorReleasesTheConnection), RIBManager.handleStructuredState
+// deletes every route received from that neighbor and keeps another neighbor's.
 func TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes(t *testing.T) {
 	r := newTestRIBManager(t)
 	offender := netip.MustParseAddr("10.0.0.1")

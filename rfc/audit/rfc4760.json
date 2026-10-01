@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-01",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -82,12 +82,12 @@
       "verdict": "enforced"
     },
     "RFC4760-7-1": {
-      "note": "The link the earlier weak verdict named is now asserted end to end. Reactor: TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB runs a whole Peer over TCP, sends an MP_REACH_NLRI whose NLRI overruns the attribute, and asserts the run loop reports THAT peer closed to its lifecycle observers (the apiStateObserver feed that becomes the SessionStateDown event), NOTIFICATION code 3 on the wire, and no consumer dispatch; observed red with notifyPeerClosed broken. Negative TestRFC4760CorrectMPReachRaisesNoPeerDown: the well-formed attribute is dispatched, no peer-down, still Established (red with enforceRFC7606 broken). RIB: TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes drives handleStructuredState down and asserts the offender's Adj-RIB-In is gone while a bystander's IPv4 unicast route stays (red with handleStructuredState broken); TestHandleState_PeerDown covers the JSON rail. Session and message units pin the SessionReset trigger for bad MP_REACH next-hop length and short MP_UNREACH. Ze deletes all AFI/SAFIs of the neighbor via session reset (RFC 7606 3(j)), a superset of the MUST. Not asserted: the plugin dispatcher's translation of OnPeerStateChange into the RIB's structured state event, which is the shared peer-state path every plugin uses.",
+      "note": "Re-read 2026-10-01 (c8 judge): the RIB unit changed only by two added RFC4271-8.2.2-12/-14 tag comments; body and assertions unchanged. The link the earlier weak verdict named is now asserted end to end. Reactor: TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB runs a whole Peer over TCP, sends an MP_REACH_NLRI whose NLRI overruns the attribute, and asserts the run loop reports THAT peer closed to its lifecycle observers (the apiStateObserver feed that becomes the SessionStateDown event), NOTIFICATION code 3 on the wire, and no consumer dispatch; observed red with notifyPeerClosed broken. Negative TestRFC4760CorrectMPReachRaisesNoPeerDown: the well-formed attribute is dispatched, no peer-down, still Established (red with enforceRFC7606 broken). RIB: TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes drives handleStructuredState down and asserts the offender's Adj-RIB-In is gone while a bystander's IPv4 unicast route stays (red with handleStructuredState broken); TestHandleState_PeerDown covers the JSON rail. Session and message units pin the SessionReset trigger for bad MP_REACH next-hop length and short MP_UNREACH. Ze deletes all AFI/SAFIs of the neighbor via session reset (RFC 7606 3(j)), a superset of the MUST. Not asserted: the plugin dispatcher's translation of OnPeerStateChange into the RIB's structured state event, which is the shared peer-state path every plugin uses.",
       "requirement_sha": "dbfbd3ffc825a942",
       "tests": {
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "3b372d5656a15e2d",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "3b372d5656a15e2d",
-        "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e14c2d15874bf42",
+        "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
         "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "67323a140596dd23",
         "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown": "c7a9a0b59e5e3b02",
         "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB": "c7a9a0b59e5e3b02",
@@ -98,7 +98,7 @@
       "units": {
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "cae654db47c17b85",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "cae654db47c17b85",
-        "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "16f255da763faf00",
+        "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "85629bc873b9317c",
         "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "2b64b74db58b8189",
         "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown": "ea688bcd8765c19a",
         "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB": "73585c4cf823dfef",

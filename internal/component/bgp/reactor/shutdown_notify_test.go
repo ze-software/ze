@@ -171,7 +171,7 @@ func TestReactorStopSendsAdminShutdownBeforeCancel(t *testing.T) {
 	_ = r.Wait(waitCtx)
 }
 
-// RFC requirement: RFC4271-8.2.2-18 positive -- ManualStop (Event 2) sends the
+// RFC requirement: RFC4271-8.2.2-8 positive -- ManualStop (Event 2) sends the
 // Cease NOTIFICATION in every state that holds a connection. OpenSent writes
 // "sends the NOTIFICATION with a Cease" and OpenConfirm and Established write
 // "sends the NOTIFICATION message with a Cease"; the wording differs, the
@@ -204,7 +204,7 @@ func TestShutdownNotifySendsCeaseFromEveryConnectedState(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC4271-8.2.2-18 negative -- the Cease belongs to the STOP,
+// TestRFC4271NoCeaseWithoutAManualStop: the Cease belongs to the STOP,
 // not to a session that merely exists. A reactor nobody has stopped has raised
 // no ManualStop, so its peer must be told nothing: a speaker that writes Cease
 // while the FSM is sitting in Established would end a session RFC 4271 Section
@@ -1254,7 +1254,7 @@ func TestSealedSessionRefusesAnAcceptWithoutClosingTheCallersConn(t *testing.T) 
 //
 // The sentinel is matched by its message rather than with errors.Is: importing
 // io here would move every line below this file's import block, and two of them
-// are cited by line in rfc/requirements/rfc4271.md for the RFC4271-8.2.2-18
+// are cited by line in rfc/requirements/rfc4271.md for the RFC4271-8.2.2-8
 // tags. io.EOF's text is fixed, and the failure it has to be told from reads
 // "i/o timeout".
 func TestSealedSessionConnectClosesTheConnItDialed(t *testing.T) {

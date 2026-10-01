@@ -3,7 +3,7 @@
 # Expected: daemon shuts down cleanly, and the peer is TOLD WHY before the
 # socket goes.
 #
-# This file carries no RFC requirement tag. RFC4271-8.2.2-18 is proven in
+# This file carries no RFC requirement tag. RFC4271-8.2.2-8 is proven in
 # test/reload/signal-stop-cease.ci, which carries both the tag and the seq=3 wire
 # expectation. One subject per file: this file tests the shutdown signal, the
 # sibling tests the NOTIFICATION.

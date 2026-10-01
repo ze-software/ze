@@ -1,6 +1,6 @@
 # Test: SIGTERM tells the peer WHY before the socket goes
 #
-# RFC requirement: RFC4271-8.2.2-18 positive -- ManualStop (Event 2) sends the
+# RFC requirement: RFC4271-8.2.2-8 positive -- ManualStop (Event 2) sends the
 # NOTIFICATION message with a Cease before the TCP connection is dropped. The
 # whole-daemon proof: a real SIGTERM to a real ze holding a real Established
 # session, asserted as the bytes the peer reads off the wire, not as a log line.
