@@ -364,16 +364,15 @@ func TestRFC4271ThirdPartyNextHopCanBeDisabled(t *testing.T) {
 // TestRFC4271ThirdPartyNextHopDisableFailsClosed verifies the disable does not silently
 // degrade when it cannot be honored.
 //
-// VALIDATES: NextHopSelf without a local address arms no rewrite, and the per-route
-// resolver reports ErrNextHopSelfNoLocal instead of producing an address.
+// VALIDATES: NextHopSelf with neither a configured local address nor a connected
+// endpoint arms the withhold guard the forward rails read (nhSelfWithheld) and no
+// rewrite, and the per-route resolver reports ErrNextHopSelfNoLocal instead of
+// producing an address. A satisfiable next-hop self arms no guard.
 //
-// PREVENTS: A misconfigured next-hop-self quietly advertising a third-party next hop as if
-// the disable were in force.
+// PREVENTS: A next-hop-self that cannot be honored quietly advertising a third-party
+// next hop as if the disable were in force.
 //
-// RFC requirement: RFC4271-5.1.3-3 negative -- a next-hop-self that cannot be satisfied is
-// refused rather than approximated: precomputeNextHop leaves the mode at none
-// (internal/component/bgp/reactor/peer_forward_facts.go:157-161) and resolveNextHop
-// returns ErrNextHopSelfNoLocal (internal/component/bgp/reactor/peer.go:670-674).
+// RFC requirement: RFC4271-5.1.3-3 negative -- a next-hop-self with no local address is refused rather than approximated: precomputeNextHop sets nhSelfWithheld with no rewrite armed, and resolveNextHop with no session returns ErrNextHopSelfNoLocal.
 func TestRFC4271ThirdPartyNextHopDisableFailsClosed(t *testing.T) {
 	s := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	s.NextHopMode = NextHopSelf // LocalAddress deliberately unset
@@ -381,6 +380,12 @@ func TestRFC4271ThirdPartyNextHopDisableFailsClosed(t *testing.T) {
 	facts := &peerForwardFacts{}
 	precomputeNextHop(s, facts)
 	assert.Equal(t, nhModeNone, facts.nhMode, "no rewrite armed without a local address")
+	assert.True(t, facts.nhSelfWithheld, "the forward rails are told to withhold the route")
+
+	satisfied := &peerForwardFacts{connectedLocal: netip.MustParseAddr("198.51.100.9")}
+	precomputeNextHop(s, satisfied)
+	assert.False(t, satisfied.nhSelfWithheld, "a connected endpoint satisfies next-hop self")
+	assert.Equal(t, nhModeSelf4, satisfied.nhMode)
 
 	p := &Peer{settings: s}
 	_, err := p.resolveNextHop(nil, bgptypes.NewNextHopSelf(), family.IPv4Unicast)

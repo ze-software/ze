@@ -458,6 +458,28 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, destBaseWire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
+		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
+		// disabling advertisement of third party NEXT_HOP attributes in order to
+		// handle imperfectly bridged media." A next-hop-self destination with no
+		// address of this speaker to send is withheld the announcement rather
+		// than passed the third-party NEXT_HOP. The general rail
+		// (reactor_api_forward.go) carries the reasoning; the two rails MUST
+		// answer this the same way.
+		if facts.nhSelfWithheld {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+			}
+			fwdLogger().Warn("withholding route: next-hop self is configured and the session has no local address",
+				"peer", facts.addrStr, "src", sourcePeerAddr,
+				"rfc", "RFC 4271 Section 5.1.3",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				continue
+			}
+			destBaseWire = srcWithdrawOnly
+		}
+
 		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
 		// be advertised to a peer using an address of that peer as NEXT_HOP."
 		//

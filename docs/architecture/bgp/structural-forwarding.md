@@ -182,6 +182,28 @@ grouping key, so a self route cannot borrow an explicit route's attributes.
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendPluginRoutesVia, pluginRouteGroupKey -->
 <!-- source: internal/component/bgp/reactor/peer_static_routes.go -- toPluginParams -->
 
+## Forwarded routes and next-hop self
+
+RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the disabling
+advertisement of third party NEXT_HOP attributes in order to handle imperfectly
+bridged media." A peer's `next-hop self` is that disabling for the routes Ze
+forwards. Both forward rails, the general one and the route-server fast path,
+rewrite the next hop to the address the peer reaches Ze on: the local endpoint
+of the established session's TCP connection. That is the address the announce
+rail sends for a `next-hop self` route, so the rails agree. It is also the only
+answer under `connection > local > ip auto`, which configures no local address.
+The configured local address is read only when the session holds no endpoint,
+and the socket is bound to it, so the two never differ.
+
+When no address of Ze exists for the destination, the announcement is withheld
+from it, the withdrawals in the same UPDATE still go, and a warning names the
+peer: "withholding route: next-hop self is configured and the session has no
+local address". The received third-party next hop is never sent in its place.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectedLocalAddress -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
+
 ## What bucketing excludes, and why
 
 Bucket merge handles an item with exactly one `rawBodies` entry, no parsed

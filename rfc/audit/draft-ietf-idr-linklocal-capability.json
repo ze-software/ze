@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-10-01",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1": {
       "note": "Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).",
@@ -54,7 +55,7 @@
       "verdict": "weak"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3": {
-      "note": "Forbidden: announcing to a one-hop internal peer a route that is directly connected (or whose next router is that peer) without the speaker's own Link-Local address. TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker asserts the own Link-Local is in nhGlobalLL[16:], but its input is the PEER's next-hop-self setting, not a route: neither condition of the sentence (route directly connected; next router's interface address is the internal peer's address) is an input of the tagged unit, so a directly connected route announced on a next-hop-unchanged session without the own Link-Local would leave both units green.",
+      "note": "Forbidden: announcing to a one-hop internal peer a route that is directly connected (or whose next router is that peer) without the speaker's own Link-Local address. TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker asserts the own Link-Local is in nhGlobalLL[16:], but its input is the PEER's next-hop-self setting, not a route: neither condition of the sentence (route directly connected; next router's interface address is the internal peer's address) is an input of the tagged unit, so a directly connected route announced on a next-hop-unchanged session without the own Link-Local would leave both units green. Re-judged 2026-10-01 (BGP c16 judge), still weak: the c16 R54 change builds next-hop self from the session's connected endpoint (precomputeNextHop), but applyLinkLocalNextHop (link_scope.go) still reads s.LocalAddress as the global, so under `local ip auto` (LocalAddress unset) no own Link-Local is appended even where the configured-address case appends one; no unit covers that configuration. The re-recorded negative record on precomputeNextHop was observed red.",
       "requirement_sha": "0edf8c5e4a281906",
       "tests": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "b65c3edba82c454e",
@@ -158,6 +159,5 @@
       "verdict": "enforced"
     }
   },
-  "rfc": "draft-ietf-idr-linklocal-capability",
-  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  "rfc": "draft-ietf-idr-linklocal-capability"
 }

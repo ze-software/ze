@@ -8,6 +8,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -18,8 +19,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "38282f2e0ee2bbfa",
         "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault": "38282f2e0ee2bbfa",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "d4263f469fe08add",
@@ -99,7 +100,7 @@
       "tests": {
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "ab16100811ce8d90",
         "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "66f289216a7a1fef",
         "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "7de877eade9fefb8",
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "7de877eade9fefb8"
@@ -211,8 +212,8 @@
       "note": "attribute walk (both header forms), live receive path enforceRFC7606 and the .ci assert 0xC0 -> 0xE0 on an unrecognized optional transitive; negatives assert well-known, optional non-transitive and recognized optional transitive untouched",
       "requirement_sha": "2dab45ab8a6541f7",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional": "66f289216a7a1fef",
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "7de877eade9fefb8",
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialStampedOnUnrecognizedTransitive": "7de877eade9fefb8",
         "test/plugin/rfc4271-partial-unknown-transitive.ci": "99cc85f58206cec1"
@@ -232,7 +233,7 @@
       "tests": {
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "ab16100811ce8d90",
         "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "ab16100811ce8d90",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "66f289216a7a1fef",
         "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "7de877eade9fefb8"
       },
       "units": {
@@ -293,8 +294,8 @@
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "9a11af33ccbe070c",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
@@ -376,17 +377,23 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.3-3": {
-      "note": "Units assert only internal state: precomputeNextHop arms nhModeSelf4 for NextHopSelf and resolveNextHop errors without a local address. No unit shows a configured next-hop self replacing a third-party NEXT_HOP on the forward rail wire, and the 'fails closed' negative leaves nhMode none, which on the forward rail passes the third-party next hop through unchanged; no operator-config path is exercised.",
+      "note": "Re-judged 2026-10-01 (BGP c16 judge, R54 fix). Positive: TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint configures next-hop self with `local ip auto` (LocalAddress unset), session TCP local endpoint 10.0.0.77, and on the general AND route-server forward rails asserts the next-hop-self destination is sent NEXT_HOP 10.0.0.77 while a default internal destination in the same fan-out is sent the third-party 192.0.2.254; resolveNextHop answers the same 10.0.0.77 for that session, so announce and forward rails agree (both read connectedLocalAddress). HEAD TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire keeps the configured-address wire case. Negative: TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute (no local address at all) asserts on both rails the destination receives the UPDATE's withdrawal and neither MP_REACH nor NLRI, the default destination still the announcement; TestRFC4271ThirdPartyNextHopDisableFailsClosed (D-15 corrected under R54: the old claim described the defect) asserts nhSelfWithheld with no rewrite, a connected endpoint arms nhModeSelf4 with no guard, resolveNextHop(nil) ErrNextHopSelfNoLocal. Discrimination: records on connectedLocalAddress (+) and precomputeNextHop (-, two units) observed red; author semantic overlays (precomputeNextHop ignores connectedLocal and never sets the guard; RS gate disabled) and the judge's overlay (general-rail gate disabled: rs=false withhold subtest red, scratch/j16-ov-gen.log) each redden the expected unit. Quote verbatim (RFC 4271 Section 5.1.3, lines 1527-1529). Residuals: the WARN line is not asserted; the HEAD unit TestRFC4271ThirdPartyNextHopCanBeDisabled carries no record; the test helper detaches the session after the facts snapshot is built (documented, matches the snapshot semantics). A link-local connected endpoint is not gated by linkLocalOnlyNextHopPermitted on the forward rail as resolveNextHop gates it on the announce rail (reached only if a session runs over a link-local address).",
       "requirement_sha": "ac57a94e38f7101a",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire": "d86ee67716966cfd",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint": "d86ee67716966cfd",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute": "d86ee67716966cfd"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled": "e883fd90a83729ef",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed": "1ffd3e23a870fdd6"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed": "2f8ba2f2c055f98e",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire": "85ede27ec9fd4b8a",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint": "aeab072e0cde73fe",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute": "6c8e54a913902ad4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5.1.4-1": {
       "note": "forward_med_test and med-not-propagated-across-as.ci assert attribute 4 stripped toward a plain eBGP peer; negatives keep it toward iBGP, RS clients and for a locally originated metric (med-locally-set-reaches-peer.ci)",
@@ -446,7 +453,7 @@
       "note": "TestRFC4271MEDAlterationHappensAtIngress asserts only that safeIngressFilter returns the rewritten payload. That the rewritten MED is what phases 1 and 2 see (installed before dispatch to the RIB, reactor_notify.go) is stated in the comment, not asserted.",
       "requirement_sha": "39b6d1281fba91ed",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress": "34d0862d7f22517b"
@@ -461,8 +468,8 @@
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
@@ -482,8 +489,8 @@
         "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
         "internal/component/bgp/reactor/forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "33e3a14230a4a91e",
         "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "66f289216a7a1fef",
         "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f04334a58fd00e7c",
         "test/plugin/local-pref-strip-ebgp.ci": "5a4fff5cffb8e210",
         "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
@@ -626,8 +633,8 @@
       "requirement_sha": "bd0d71516e86fc07",
       "tests": {
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "66f289216a7a1fef",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
       },
@@ -869,7 +876,7 @@
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "56ab87e3b9f2067a",
         "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "66f289216a7a1fef",
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire": "56ded9ff159b946a",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "193b8ed8407bdf7f"
       },
@@ -925,8 +932,8 @@
       "note": "Forbidden: hold expiry with no Hold Timer Expired NOTIFICATION. TestRFC4271HoldTimerExpirySendsNotification reads the production hold-expiry write and asserts 21 octets, type NOTIFICATION, code 4, subcode 0; it is red on a bare close or another code. Negative: at 1ms before expiry nothing is written, red on a NOTIFICATION sent early. deadpeer-holddown.ci is byte-exact.",
       "requirement_sha": "0fcc2a581de2f547",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification": "71e9a5e9a3b36017",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification": "66f289216a7a1fef",
         "test/plugin/deadpeer-holddown.ci": "387298137fcf4127"
       },
       "units": {
@@ -1081,8 +1088,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
@@ -1219,8 +1226,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
@@ -1236,8 +1243,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
@@ -1253,8 +1260,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
@@ -1398,8 +1405,8 @@
       "note": "rfc4271Announce builds a locally originated route with no policy; the asserted LOCAL_PREF 100 is the default, so a hard-coded 100 passes. No external-learned route with a policy-computed preference is readvertised to iBGP. The negative (no LOCAL_PREF to eBGP) is RFC4271-5.1.5-2's rule.",
       "requirement_sha": "a1b8e0c8297d0ee1",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
@@ -1529,8 +1536,8 @@
       "requirement_sha": "406f1f4d7c98a952",
       "tests": {
         "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "f0a1c3da5aa3beae",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "60940c41b58dcc6e",
@@ -1556,8 +1563,8 @@
       "note": "units call the encoders writeAnnounceUpdate and writeWithdrawUpdate directly and check UPDATE layout; no unit shows a change to a locally originated destination causing an UPDATE to be sent to a peer",
       "requirement_sha": "d4f8378b727d117d",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised": "71e9a5e9a3b36017",
-        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised": "71e9a5e9a3b36017"
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised": "66f289216a7a1fef",
+        "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised": "66f289216a7a1fef"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised": "3491b3a1766681b6",

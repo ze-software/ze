@@ -617,6 +617,33 @@ type sessionTransport struct {
 	localPort, remotePort uint16
 }
 
+// connectedLocalAddress answers the local endpoint of session's TCP connection,
+// the address the peer reaches this speaker on, when a next hop can carry it.
+// It answers the zero Addr, which every caller tests with IsValid, for a nil
+// session, a session not yet connected, and an unspecified or multicast
+// endpoint. Next-hop self reads it on the announce rail (resolveNextHop) and
+// on both forward rails (precomputeNextHop), so the rails send one address.
+func connectedLocalAddress(session *Session) netip.Addr {
+	if session == nil {
+		return netip.Addr{}
+	}
+	transport := session.transport.Load()
+	if transport == nil {
+		return netip.Addr{}
+	}
+	local := transport.local
+	if !local.IsValid() {
+		return netip.Addr{}
+	}
+	if local.IsUnspecified() {
+		return netip.Addr{}
+	}
+	if local.IsMulticast() {
+		return netip.Addr{}
+	}
+	return local
+}
+
 func connectedTransport(conn net.Conn) *sessionTransport {
 	endpoints := &sessionTransport{}
 	if addr, ok := conn.LocalAddr().(*net.TCPAddr); ok {

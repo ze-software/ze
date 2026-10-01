@@ -79,6 +79,17 @@ type peerForwardFacts struct {
 
 	secondaryAS uint32
 
+	// connectedLocal is the local endpoint of the established session's TCP
+	// connection, the address the peer reaches this speaker on, or the zero
+	// Addr when the session holds none a next hop can carry
+	// (connectedLocalAddress). precomputeNextHop builds next-hop self from it.
+	connectedLocal netip.Addr
+	// nhSelfWithheld is a GUARD: next-hop self is configured and no local
+	// address exists to put in the received next hop's place, so both forward
+	// rails withhold the announcement toward this peer rather than pass the
+	// third-party NEXT_HOP the operator disabled (RFC 4271 Section 5.1.3).
+	nhSelfWithheld bool
+
 	nhMode     uint8
 	nhLegacy   [4]byte
 	nhMapped   [16]byte
@@ -154,6 +165,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	if p.session != nil {
 		localScope = &p.session.nextHopScope
 	}
+	connectedLocal := connectedLocalAddress(p.session)
 	sendCtxID := p.sendCtxID
 	exportFilters := s.ExportFilters
 	peerAS := s.PeerAS
@@ -218,6 +230,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 
 	facts.secondaryAS = secondaryPrependAS(s)
 
+	facts.connectedLocal = connectedLocal
 	precomputeNextHop(s, facts)
 	applyLinkLocalNextHop(s, facts, p.llScope.Load())
 	precomputeSendCommunity(s, facts)
@@ -330,19 +343,37 @@ func (p localASPrepend) prependTo(path *attribute.ASPath) {
 }
 
 // precomputeNextHop fixes the next-hop wire form this peer will send, from
-// config alone. An IPv6 next hop lands on the single-address form here;
-// applyLinkLocalNextHop then decides whether RFC 2545 Section 3 puts a second
-// address beside it.
+// config and the session's connected local endpoint (f.connectedLocal). An
+// IPv6 next hop lands on the single-address form here; applyLinkLocalNextHop
+// then decides whether RFC 2545 Section 3 puts a second address beside it.
 func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
 	switch s.NextHopMode {
 	case NextHopAuto, NextHopUnchanged:
 		f.nhMode = nhModeNone
 	case NextHopSelf:
-		if !s.LocalAddress.IsValid() {
+		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
+		// disabling advertisement of third party NEXT_HOP attributes in order to
+		// handle imperfectly bridged media."
+		//
+		// Next-hop self is that disabling, so it is built from the address the
+		// peer reaches this speaker on: the connected endpoint, which is also
+		// what the announce rail sends (resolveNextHop). `local ip auto` leaves
+		// LocalAddress unset, and the endpoint is the only answer there. The
+		// configured address is read only when the session holds no endpoint;
+		// the socket is bound to it, so the two agree whenever both exist.
+		local := f.connectedLocal
+		if !local.IsValid() {
+			local = s.LocalAddress.Unmap()
+		}
+		if !local.IsValid() {
+			// No address of this speaker exists to put in the received next
+			// hop's place. Arming no rewrite would pass the third-party NEXT_HOP
+			// the operator disabled, so the forward rails withhold the
+			// announcement instead (nhSelfWithheld).
 			f.nhMode = nhModeNone
+			f.nhSelfWithheld = true
 			return
 		}
-		local := s.LocalAddress.Unmap()
 		switch {
 		case local.Is4():
 			f.nhMode = nhModeSelf4

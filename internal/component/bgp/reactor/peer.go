@@ -116,9 +116,10 @@ var (
 	// ErrNextHopUnset is returned when RouteNextHop has zero-value policy.
 	ErrNextHopUnset = errors.New("next-hop policy not set")
 
-	// ErrNextHopSelfNoLocal is returned when Self policy is used but
-	// LocalAddress is not configured in peer settings.
-	ErrNextHopSelfNoLocal = errors.New("next-hop self: no local address configured")
+	// ErrNextHopSelfNoLocal is returned when Self policy is used but the
+	// session holds no connected local endpoint a next hop can carry
+	// (connectedLocalAddress).
+	ErrNextHopSelfNoLocal = errors.New("next-hop self: the session has no local address")
 
 	// ErrNextHopIncompatible is returned when Self address is incompatible
 	// with the NLRI family and Extended Next Hop is not negotiated.
@@ -1503,15 +1504,10 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 			return netip.Addr{}, ErrNextHopIncompatible
 		}
 	case bgptypes.NextHopSelf:
-		if session == nil {
+		addr = connectedLocalAddress(session)
+		if !addr.IsValid() {
 			return netip.Addr{}, ErrNextHopSelfNoLocal
 		}
-		transport := session.transport.Load()
-		if transport == nil || !transport.local.IsValid() ||
-			transport.local.IsUnspecified() || transport.local.IsMulticast() {
-			return netip.Addr{}, ErrNextHopSelfNoLocal
-		}
-		addr = transport.local
 		if !p.canUseNextHopFor(addr, fam) {
 			return netip.Addr{}, ErrNextHopIncompatible
 		}
