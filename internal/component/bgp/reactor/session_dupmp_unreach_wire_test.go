@@ -28,6 +28,8 @@ import (
 )
 
 // RFC requirement: RFC7606-3.g-1 negative -- a second MP_UNREACH_NLRI puts a NOTIFICATION carrying code 3 subcode 1 on the wire, read back as a peer would receive it rather than inferred from the shared reset helper.
+// RFC requirement: RFC4271-6.3-15 positive -- an UPDATE carrying MP_UNREACH_NLRI twice is answered on the wire with a NOTIFICATION whose Error Subcode is 1 (Malformed Attribute List) under Error Code 3.
+// RFC requirement: RFC4271-6.3-1 positive -- the UPDATE error of a duplicate MP_UNREACH_NLRI is indicated by a NOTIFICATION on the wire whose Error Code is 3 (UPDATE Message Error).
 func TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire(t *testing.T) {
 	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
 	defer cleanup()

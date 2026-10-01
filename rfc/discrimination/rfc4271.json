@@ -411,6 +411,17 @@
     {
       "rid": "RFC4271-6.1-3",
       "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go::TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted",
+      "unit-sha": "1bd3a4de523a3b6b",
+      "claim-sha": "e1b6e7912ddd2b66",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+      "producer-sha": "cf11b57952aab385",
+      "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.1-3",
+      "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted",
       "unit-sha": "4ccc996a2a1c8aea",
       "claim-sha": "02a7e5b37c36b032",
@@ -563,6 +574,39 @@
       "break": "body of validateOpenIdentifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-6.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection",
+      "unit-sha": "c9c6d3b7b88457e2",
+      "claim-sha": "7df393a5f8f1d1c8",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606ResetNotification",
+      "producer-sha": "5aecf1d6840adbce",
+      "break": "body of rfc7606ResetNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications",
+      "unit-sha": "1378e88f502866aa",
+      "claim-sha": "8e96f3a469bf15a7",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606ResetNotification",
+      "producer-sha": "5aecf1d6840adbce",
+      "break": "body of rfc7606ResetNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire",
+      "unit-sha": "a4d6dc143c98a5d2",
+      "claim-sha": "75142b3336a7cdfc",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606ResetNotification",
+      "producer-sha": "5aecf1d6840adbce",
+      "break": "body of rfc7606ResetNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-6.3-13",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath",
@@ -605,6 +649,17 @@
       "producer": "internal/component/bgp/message/rfc7606.go::validateCommunityAttr",
       "producer-sha": "5f6851f4c47d3328",
       "break": "body of validateCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-15",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire",
+      "unit-sha": "a4d6dc143c98a5d2",
+      "claim-sha": "b570629e4fc30447",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "a849014cbf9f2df5",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-6.3-15",
@@ -759,6 +814,28 @@
       "producer": "internal/component/bgp/message/rfc7606.go::validateNextHopAttr",
       "producer-sha": "9be9cba53edf248c",
       "break": "body of validateNextHopAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.7-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease",
+      "unit-sha": "1448456242c71469",
+      "claim-sha": "b3a50cb3a38d1cb9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_prefix.go::checkPrefixLimits",
+      "producer-sha": "f50d487c8a694b8b",
+      "break": "body of checkPrefixLimits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.7-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease",
+      "unit-sha": "9fd564337f83f938",
+      "claim-sha": "e81d1c921eefc18e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_prefix.go::checkPrefixLimits",
+      "producer-sha": "f50d487c8a694b8b",
+      "break": "body of checkPrefixLimits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-6.8-1",
@@ -959,6 +1036,28 @@
       "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-8.2.2-15",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer",
+      "unit-sha": "43da36b31207e7cb",
+      "claim-sha": "e6ec9a4bfba69970",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_connection.go::Connect",
+      "producer-sha": "1e9d5cfd6b3548c7",
+      "break": "body of Connect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-15",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectDuplicateStartDuringTheDialKeepsThePeer",
+      "unit-sha": "f0cdbfa8936d97a0",
+      "claim-sha": "dc9885aa3a8c98d4",
+      "route": "revert",
+      "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
+      "producer-sha": "b983e2fff9638360",
+      "break": "body of handleConnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-8.2.2-16",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentAutomaticStopReleasesTheConnection",
@@ -1023,6 +1122,106 @@
       "producer": "internal/component/bgp/fsm/timer.go::ResetHoldTimer",
       "producer-sha": "870bb55e4ee29c6f",
       "break": "body of ResetHoldTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-21",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer",
+      "unit-sha": "a708fa551614abbc",
+      "claim-sha": "2dd7d719b5236da9",
+      "route": "revert",
+      "producer": "internal/component/bgp/fsm/fsm.go::handleActive",
+      "producer-sha": "69ede43f83770769",
+      "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-21",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer",
+      "unit-sha": "4409825a237c4774",
+      "claim-sha": "85aea8b655158ef6",
+      "route": "revert",
+      "producer": "internal/component/bgp/fsm/fsm.go::handleActive",
+      "producer-sha": "69ede43f83770769",
+      "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-22",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection",
+      "unit-sha": "183d84bfb5937f46",
+      "claim-sha": "e736ee9e9e5e8b37",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+      "producer-sha": "7a38d0a2625b7d2d",
+      "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-22",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection",
+      "unit-sha": "9d9b248ac85bbc63",
+      "claim-sha": "033c1568bb6cb47d",
+      "route": "revert",
+      "producer": "internal/component/bgp/fsm/fsm.go::handleOpenConfirm",
+      "producer-sha": "480bc4688e5489c4",
+      "break": "body of handleOpenConfirm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-22",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+      "unit-sha": "9ecf268c07e1e1a6",
+      "claim-sha": "1aabc441c8784661",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+      "producer-sha": "7a38d0a2625b7d2d",
+      "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-23",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection",
+      "unit-sha": "774572a98527e45f",
+      "claim-sha": "3ab77e71c24bcbe3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+      "producer-sha": "7a38d0a2625b7d2d",
+      "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-23",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection",
+      "unit-sha": "4a291f7c0b69ac65",
+      "claim-sha": "d8d9d5a5436c1922",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_handlers.go::handleKeepalive",
+      "producer-sha": "60599b769eea86e0",
+      "break": "body of handleKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-23",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+      "unit-sha": "9ecf268c07e1e1a6",
+      "claim-sha": "b30b8aef684287e2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+      "producer-sha": "7a38d0a2625b7d2d",
+      "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-8.2.2-23",
+      "polarity": "positive",
+      "unit": "test/reload/signal-stop-cease.ci",
+      "unit-sha": "8039b0eceaa475f9",
+      "claim-sha": "f95ecca2e78a1583",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+      "producer-sha": "7a38d0a2625b7d2d",
+      "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E"
     },
     {
       "rid": "RFC4271-8.2.2-3",

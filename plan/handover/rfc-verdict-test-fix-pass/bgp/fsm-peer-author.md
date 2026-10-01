@@ -102,3 +102,60 @@ OWED (main thread): golangci-lint on fsm + reactor (new test files), ./le rfc ch
 | 6.1-2, 8.2.2-9, -10, -16, -17, RFC4760-7-1 | enforced (re-judged) | only a tag line changed |
 
 Findings, no rows added: the Section 8.2.2 Active "any other event" sentence, and the Established and OpenConfirm ManualStop sentences, have no rows.
+
+# Continuation 9 (2026-10-01, BGP c9 author)
+
+No commit, no stamp. Records under flock ledger-rfc4271.lock; logs scratch/children/bgp/c9-*.
+
+| id | resolution | + / - units | records | expected verdict | notes |
+|----|-----------|-------------|---------|------------------|-------|
+| RFC4271-8.2.2-15 | tests (judge's owed Connect proof) | + NEW reactor/rfc4271_connect_any_other_event_peer_test.go TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer (dial-only Peer held inside Session.Connect by a heldDialer after the TCP handshake; teardownAutomatic = Event 8: Idle, counter 3->4; dial released: far end reads 0 octets + EOF, session.Conn nil, Peer drops session, 3 timers stopped, counter stays 4 for 300 ms); - NEW TestRFC4271ConnectDuplicateStartDuringTheDialKeepsThePeer (Session.Start = Event 1 during the dial: Connect, counter 3; dial released: far end reads an OPEN, same unsealed session held) | c9-rec1.log: + revert session_connection.go::Connect, - revert fsm.go::handleConnect, both observed red | enforced | -race -count=3 green (c9-conn.log). Docs: fsm-connect.md AutomaticStop row (no Cease during the dial; seal refuses and Connect closes the dialed socket) + test bullet |
+| RFC4271-8.2.2-21 (NEW row, R47(b)) | row added + retag | Active "any other event" sentence (verbatim, to "increments the ConnectRetryCounter by one"). + TestRFC4271ActiveAutomaticStopReleasesThePeer, - TestRFC4271ActiveDuplicateStartKeepsThePeer (8b units, which the c8 judge said prove the Active sentence; 8.2.2-15 tags kept beside, D-15 approvals recorded) | c9-rec2.log: +/- revert fsm.go::handleActive, observed red | enforced (new, unjudged) | "drops the TCP connection": Ze's Active holds no TCP; the unit proves a later TCP connection is refused and never held (judge's call) |
+| RFC4271-8.2.2-22 (NEW row) | row added + tests | OpenConfirm ManualStop sentence. + NEW reactor/rfc4271_manualstop_peer_test.go TestRFC4271OpenConfirmManualStopReleasesTheConnection (counter 3, shutdownNotify: exactly one 6/2, EOF, 3 timers stopped, session dropped, Idle, counter 0); + supplementary tag on TestShutdownNotifySendsCeaseFromEveryConnectedState (Cease octets from OpenConfirm; approval); - NEW TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection (counter 3, KEEPALIVE: no NOTIFICATION, conn, session, Established, counter 3) | c9-rec2.log: + revert peer.go::shutdownNotify (both units), - revert fsm.go::handleOpenConfirm, observed red | enforced (new) | |
+| RFC4271-8.2.2-23 (NEW row) | row added + tests + retag | Established ManualStop sentence. + NEW TestRFC4271EstablishedManualStopReleasesTheConnection (startMPLinkNeighbor, counter 3, shutdownNotify: peer-down for the neighbor (routes clause, same RIB unit as 8.2.2-12), exactly one 6/2 then EOF, session dropped, 3 timers stopped, counter 0); + test/reload/signal-stop-cease.ci tagged (whole-daemon SIGTERM, seq=3 Cease expect line); + every-state unit tagged; - NEW TestRFC4271EstablishedWithoutManualStopKeepsTheConnection (counter 3, KEEPALIVE: no peer-down, no EOF, Established, same session, timers run, counter 3) | c9-rec2.log (+ shutdownNotify for the new unit and the every-state unit; - revert session_handlers.go::handleKeepalive), c9-rec3.log (.ci, revert shutdownNotify, citation = seq=3 expect line), all observed red | enforced (new) | Rows: rfc/short/rfc4271.md (3 rows after 8.2.2-17; Support coverage cites 8.2.2-22/-23; gap count unchanged, Twelve); rfc/extraction/rfc4271.json §8.2.2 unsourced-ids +21/22/23 (judge re-signs); rfc/corrections/rfc4271.md one Correction paragraph. ids allocated above the 8.2.2 high-water mark 20 |
+| RFC4271-6.1-3 | tests (exact-bound negative) | - NEW reactor/rfc4271_header_bounds_peer_test.go TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted (UPDATE of exactly 4096 in Established: no NOTIFICATION, conn up, Established; OPEN of exactly 29 in OpenSent: OpenConfirm, no NOTIFICATION, conn up; NOTIFICATION of exactly 21 in OpenSent: closed with no answer) | c9-rec3.log: revert message/header.go::ValidateLengthWithMax, observed red | enforced (re-judge) | closes the judge's bound-precision note |
+| RFC4271-6.3-15 | retag | + tag on reactor TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire (duplicate MP_UNREACH_NLRI -> 3/1 on the wire), the unit the audit note named; approval | c9-rec3.log: revert message/rfc7606.go::ValidateUpdateRFC7606AddPath, observed red | enforced | MP_UNREACH clause now tagged |
+| RFC4271-6.3-1 | retag | + tags on TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire (3/1), TestSessionRFC4271RetainedUpdateNotifications (3/2 unknown well-known, 3/10 NLRI impossible length, NLRI truncated, withdrawn truncated), TestRFC4271EstablishedUpdateErrorReleasesTheConnection (peer-level code 3); approvals | c9-rec3.log: revert session_validation.go::rfc7606ResetNotification (3 records) | enforced | every class Ze still answers by session reset (RFC 7606) is now tagged; the HEAD negative stays |
+| RFC4271-6.7-4 | tests | + NEW reactor/rfc4271_prefix_limit_cease_peer_test.go TestRFC4271PrefixLimitTeardownSendsCease (running Peer Established, ipv4/unicast maximum 2, teardown default, 3 prefixes -> exactly one 6/1 on the wire, then EOF); - NEW TestRFC4271PrefixLimitWithoutTeardownSendsNoCease (teardown false: no NOTIFICATION 500 ms, conn up, Established) | c9-rec4.log: +/- revert session_prefix.go::checkPrefixLimits | enforced | closes "the send to the neighbor is not exercised". HEAD units stay supplementary |
+
+Records (c9): c9-rec1 2/2, c9-rec2 8/9 (the .ci first attempt refused citation-gone: functional records need `citation <expect line>`), c9-rec3 .ci + 6.1-3 + 6.3-15 + 6.3-1 (dupmp, retained) observed red; and the third 6.3-1 record (EstablishedUpdateError) observed red: c9-rec3 6/6. c9-rec4 2/2. No defect (D-8) found.
+
+Files changed (c9):
+- internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go (new)
+- internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go (new)
+- internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go (new)
+- internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go (new)
+- internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go (two 8.2.2-21 tag lines)
+- internal/component/bgp/reactor/shutdown_notify_test.go (8.2.2-22/-23 tag lines)
+- internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go (6.3-15, 6.3-1 tag lines)
+- internal/component/bgp/reactor/session_core4271_test.go (6.3-1 tag line)
+- internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go (6.3-1 tag line)
+- test/reload/signal-stop-cease.ci (8.2.2-23 tag paragraph)
+- rfc/short/rfc4271.md (rows 8.2.2-21/22/23; Support coverage cite)
+- rfc/extraction/rfc4271.json (§8.2.2 unsourced-ids)
+- rfc/corrections/rfc4271.md (Correction paragraph for the three rows)
+- docs/architecture/behavior/fsm-connect.md (AutomaticStop row, test bullet)
+- rfc/discrimination/rfc4271.json (records)
+Approvals (P-1, D-15) recorded via ./le rfc approve for: reactor.TestShutdownNotifySendsCeaseFromEveryConnectedState, TestRFC4271ActiveAutomaticStopReleasesThePeer, TestRFC4271ActiveDuplicateStartKeepsThePeer, TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire, TestSessionRFC4271RetainedUpdateNotifications, TestRFC4271EstablishedUpdateErrorReleasesTheConnection. The .ci edit passed the hook with no approve row (approve takes only <pkg>.<Test>).
+
+Gates (c9): scoped -race on every new unit green (c9-conn -count=3, c9-ms -count=3, c9-bounds -count=2, c9-pfx -count=2); go vet reactor ok; gofmt clean.
+OWED (main thread): full reactor -race, golangci-lint on reactor, ./le rfc check rfc4271 (new rows, new tags, extraction re-sign for 8.2.2-21..23), judge: 8.2.2-15, -21, -22, -23, 6.1-3, 6.3-1, 6.3-15, 6.7-4; docs/features/rfc-status.md and rfc/requirements regenerate at index-update.
+
+Not started (c9): RFC4271-8.2.2-13 (Active Event 18: ConnectRetryTimer restart / DelayOpenTimer clauses Ze does not have; a peer-level Active Event 18 harness, or an R3/D-2 call), 10-1 (operator config path parsePeerFromTree for hold-time), 5.1.2-2, 5.1.2-3, 5.1.3-3 (forward-rail wire proof of next-hop self), 5.1.4-3, 5.1.5-5, 6.3-2, 6.7-1 (header/OPEN/hold/FSM errors not Cease: tag the existing peer-level header/hold units as negatives), 6.8-2 (collision through a received OPEN), 9.1.1-2, 9.1.2.1-1 (wrong), 9.1.2.2-3, 9.2-4, 9.2-6, 9.2-7, 9.2-9, Security-1 (TCP_MD5SIG on listener/dial socket). 4.3-3/4.3-4 are Blocked by spec-bgp-update-propagation-rfc-defects.
+
+## Continuation 9 judge (2026-10-01, independent)
+
+| id | old -> new | note |
+|----|-----------|------|
+| RFC4271-8.2.2-15 | weak -> enforced | Connect dial peer test closes release + TCP drop; the Active peer units keep 8.2.2-15 tags as supplementary (they prove 8.2.2-21) |
+| RFC4271-8.2.2-21 | new -> enforced | Event 8 only at peer level; "drops the TCP connection" proven as a refused later connection (Active holds none) |
+| RFC4271-8.2.2-22 | new -> enforced | every clause at peer level |
+| RFC4271-8.2.2-23 | new -> enforced | routes clause via peer-down (same caveat as 8.2.2-12/-14); the negative does not assert no NOTIFICATION without EOF |
+| RFC4271-6.1-3 | enforced -> enforced | upper-bound residual closed |
+| RFC4271-6.3-15 | weak -> enforced | MP_UNREACH clause tagged |
+| RFC4271-6.3-1 | weak -> enforced | 7 reset classes tagged; every reset path funnels Error Code 3 |
+| RFC4271-6.7-4 | weak -> enforced | wire send exercised |
+| RFC4271-8.2.2-8, -14, 6.3-8, 6.3-16, RFC7606-3.g-1 | enforced, re-judged | stale only from added tag comment lines |
+| RFC4271-8.2.2-12, 6.3-5/6/7/9/10/11/12/14 | resealed | shifted |
+
+Verbatim spans of the three new rows checked against rfc/full/rfc4271.txt (Active line 3479, OpenConfirm 3715, Established 3940); `./le rfc check` raises no quote or extraction refusal for rfc4271. Extraction sign-off stands (signed-off 2026-10-01; the three ids are §8.2.2 unsourced-ids, the sentences carry no RFC 2119 keyword). Full reactor -race green. Remaining rfc4271 check violations: the two RFC4271-5-8 producer-changed records (not this change). No defect found.

@@ -5,6 +5,10 @@
 # whole-daemon proof: a real SIGTERM to a real ze holding a real Established
 # session, asserted as the bytes the peer reads off the wire, not as a log line.
 #
+# RFC requirement: RFC4271-8.2.2-23 positive -- ManualStop (Event 2, a SIGTERM
+# to the daemon) on an Established session sends the NOTIFICATION message with a
+# Cease (6/2, the seq=3 expect line) before the TCP connection is dropped.
+#
 # WHY THIS IS A SEPARATE FILE FROM signal-stop.ci, AND WHAT TO DO ABOUT IT.
 # The assertion belongs in signal-stop.ci, which already drives the same signal
 # on the same session and asserts only the route, the EOR and a clean exit. It

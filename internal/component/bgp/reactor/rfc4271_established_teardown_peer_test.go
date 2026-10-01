@@ -127,6 +127,7 @@ func TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection(t *test
 // peer-down that clears the neighbor's routes, or without counting the failure.
 //
 // RFC requirement: RFC4271-8.2.2-14 positive -- an Established Peer that receives an UPDATE with a malformed MP_REACH_NLRI (Event 28) writes exactly one NOTIFICATION with Error Code 3, drops the TCP connection (EOF), reports the neighbor closed to its lifecycle observers (the RIB's peer-down), drops the session, stops the HoldTimer, KeepaliveTimer and ConnectRetryTimer, and moves the ConnectRetryCounter from 0 to 1.
+// RFC requirement: RFC4271-6.3-1 positive -- the UPDATE error of a malformed MP_REACH_NLRI on a running Established Peer is indicated by exactly one NOTIFICATION whose Error Code is 3 (UPDATE Message Error).
 func TestRFC4271EstablishedUpdateErrorReleasesTheConnection(t *testing.T) {
 	link := startMPLinkNeighbor(t)
 	session := link.peer.currentSession()

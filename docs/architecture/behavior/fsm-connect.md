@@ -39,7 +39,7 @@ Idle).
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startDamped()` call | ignored (RFC 4271) | none | `Connect` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
-| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | none while the dial is in progress (no connection is published yet); the teardown seals the session, so when the dial returns `connectionEstablished` refuses it and `Connect` closes the socket it dialed, sending no OPEN | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | no-op comment (reconnect handled externally) | none | `Connect` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after successful `dialer.DialContext` | log transition | OPEN sent immediately after transition | `OpenSent` |
 | `EventTCPConnectionFails` | `Session.Connect` dial error path | cleanup in caller | none | `Idle` |
@@ -134,6 +134,12 @@ Idle).
   Active counts the attempt, stops the timers, drops the session and refuses
   a later TCP connection on it.
   <!-- source: internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go -->
+- `internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go`
+  -- the same list in Connect at peer level: a dial-only Peer is held inside
+  its dial, an AutomaticStop counts the attempt and moves to Idle, and when
+  the dial returns the far end reads end of file with no OPEN and the Peer
+  drops the session; a repeated ManualStart during the dial changes nothing.
+  <!-- source: internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go -->
 - `internal/component/bgp/reactor/session_test.go` — end-to-end tests
   that dial to a test peer, verify the Connect -> OpenSent handoff, and
   exercise dial failures.

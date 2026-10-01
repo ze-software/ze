@@ -60,6 +60,7 @@ func startActivePeer(t *testing.T) (*Peer, *Session) {
 // or one that does not count the failed attempt.
 //
 // RFC requirement: RFC4271-8.2.2-15 positive -- AutomaticStop (Event 8, Session.teardownAutomatic) on a running passive Peer in Active moves its FSM to Idle and the ConnectRetryCounter from 3 to 4, stops the HoldTimer, KeepaliveTimer and ConnectRetryTimer, drops the session from the Peer, and refuses a TCP connection offered to the stopped session.
+// RFC requirement: RFC4271-8.2.2-21 positive -- AutomaticStop (Event 8, Session.teardownAutomatic) on a running passive Peer in Active leaves the ConnectRetryTimer stopped, stops the HoldTimer and KeepaliveTimer, drops the session from the Peer, refuses a TCP connection offered to the stopped session, moves the ConnectRetryCounter from 3 to 4 and the FSM to Idle.
 func TestRFC4271ActiveAutomaticStopReleasesThePeer(t *testing.T) {
 	peer, session := startActivePeer(t)
 
@@ -95,6 +96,7 @@ func TestRFC4271ActiveAutomaticStopReleasesThePeer(t *testing.T) {
 // does not name.
 //
 // RFC requirement: RFC4271-8.2.2-15 negative -- ManualStart (Event 1, Session.Start) on a running passive Peer in Active leaves the FSM in Active, the ConnectRetryCounter at 3, and the session held by the Peer and not refusing connections.
+// RFC requirement: RFC4271-8.2.2-21 negative -- ManualStart (Event 1, Session.Start), an event the Active "any other event" list does not name, on a running passive Peer in Active leaves the FSM in Active, the ConnectRetryCounter at 3, and the session held by the Peer and not sealed.
 func TestRFC4271ActiveDuplicateStartKeepsThePeer(t *testing.T) {
 	peer, session := startActivePeer(t)
 

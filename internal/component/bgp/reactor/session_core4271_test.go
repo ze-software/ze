@@ -157,6 +157,7 @@ func TestSessionRFC4271RevisedAttributeErrors(t *testing.T) {
 // RFC requirement: RFC4271-6.3-8 negative -- the same unrecognized code marked optional is accepted.
 // RFC requirement: RFC4271-6.3-16 positive -- impossible prefix length and truncated IPv4 NLRI reset with 3/10 and empty Data.
 // RFC requirement: RFC4271-6.3-16 negative -- a valid prefix remains announced over the same receive path.
+// RFC requirement: RFC4271-6.3-1 positive -- an unrecognized well-known attribute, an impossible NLRI prefix length, a truncated NLRI and a truncated Withdrawn Routes field are each indicated by a NOTIFICATION whose Error Code is 3 (UPDATE Message Error).
 func TestSessionRFC4271RetainedUpdateNotifications(t *testing.T) {
 	unknown := []byte{0x50, 250, 0, 2, 0xab, 0xcd}
 	for _, tc := range []struct {

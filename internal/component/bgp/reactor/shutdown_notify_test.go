@@ -178,6 +178,9 @@ func TestReactorStopSendsAdminShutdownBeforeCancel(t *testing.T) {
 // obligation does not, so all three are driven here rather than Established
 // alone. An operator who stops the daemon mid-handshake is owed the same reason
 // as one who stops it with the session up.
+//
+// RFC requirement: RFC4271-8.2.2-22 positive -- ManualStop (shutdownNotify) on a Peer whose session is in OpenConfirm sends the NOTIFICATION message with a Cease (6/2, the exact administrative-shutdown octets).
+// RFC requirement: RFC4271-8.2.2-23 positive -- ManualStop (shutdownNotify) on a Peer whose session is in Established sends the NOTIFICATION message with a Cease (6/2, the exact administrative-shutdown octets).
 func TestShutdownNotifySendsCeaseFromEveryConnectedState(t *testing.T) {
 	for _, state := range []fsm.State{
 		fsm.StateOpenSent, fsm.StateOpenConfirm, fsm.StateEstablished,
