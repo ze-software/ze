@@ -71,9 +71,16 @@
                             console access.
                         </p>
                         <p>
-                            The installer kernel is operator-supplied by
-                            design; Ze neither ships nor builds it. Set
-                            <code>ZE_INSTALL_KERNEL</code> to its path.
+                            The current amd64 installation ISO is under 150 MB.
+                            The <code>prod</code> build with the hardware kernel
+                            profile on October 1, 2026 produced
+                            <code>ze-20261001-142644.iso</code>: 128,933,888 bytes
+                            (128.93 MB) for the complete ISO.
+                        </p>
+                        <p>
+                            <code>ze appliance kernel</code> builds the installer
+                            kernel. Set <code>ZE_INSTALL_KERNEL</code> to its
+                            path for these QEMU tests.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
@@ -108,16 +115,16 @@
                         </div>
                         <div class="terminal-body">
                             <pre><span class="term-comment"># HTTP/PXE install chain</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test qemu install-test
 
 <span class="term-comment"># bootable ISO chain</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-iso-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test qemu install-iso-test
 
 <span class="term-comment"># Ventoy ISO-on-FAT path</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-ventoy-test
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test qemu install-ventoy-test
 
 <span class="term-comment"># fault/pin/rescue scenarios</span>
-<span class="term-prompt">$</span> <span class="term-cmd">./le</span> qemu install-scenarios-test</pre>
+<span class="term-prompt">$</span> <span class="term-cmd">./le</span> test qemu install-scenarios-test</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
@@ -130,8 +137,8 @@
                         </p>
                         <div class="link-list">
                             <a
-                                href="https://github.com/ze-software/ze/tree/main/internal/le/qemu" target="_blank" rel="noopener"
-                                >internal/le/qemu
+                                href="https://github.com/ze-software/ze/tree/main/internal/le/test/qemu" target="_blank" rel="noopener"
+                                >internal/le/test/qemu
                                 <span>native QEMU evidence</span></a
                             >
                         </div>
