@@ -893,19 +893,6 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// their handlers say so.
 		f.change(StateIdle)
 
-	case EventNotifMsg:
-		// RFC 4271 Section 8.2.2: Event 25 in OpenSent falls under "In
-		// response to any other event (Events 9, 11-13, 20, 25-28), the local
-		// system: ... increments the ConnectRetryCounter by 1 ... and changes
-		// its state to Idle."
-		//
-		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
-		// Handled explicitly rather than left to the default arm because the
-		// RFC does not call Event 25 in OpenSent a Finite State Machine Error,
-		// and ze's default arm returns ErrFSMError.
-		f.crc.Increment()
-		f.change(StateIdle)
-
 	case EventTCPConnectionFails:
 		// RFC 4271 Section 8.2.2: "If a TcpConnectionFails event (Event 18)
 		// is received, the local system: - closes the BGP connection, -
@@ -924,6 +911,10 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// 11-13, 20, 25-28), the local system: sends the NOTIFICATION with the
 		// Error Code Finite State Machine Error, ... increments the
 		// ConnectRetryCounter by 1 ... and changes its state to Idle."
+		// Event 25 (NotifMsg) lands here too, because the list names it. The
+		// FSM writes nothing on the wire: the session that fired the event
+		// (reactor Session.fsmMessageEvent) sends the NOTIFICATION when this
+		// arm answers ErrFSMError.
 		//
 		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
 		f.crc.Increment()

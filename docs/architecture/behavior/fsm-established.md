@@ -62,7 +62,7 @@ The state-change callback in `peer_run.go`:
 | `EventUpdateMsgErr` | `processMessage` / RFC 7606 session-reset path | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (Update error) in caller | `Idle` |
 | `EventBGPHeaderErr` | `readAndProcessMessage` / `handleUnknownType` | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
-| any other event | unexpected | log transition | none | `Idle` |
+| any other event (RFC 4271 lists 9, 12-13, 20-22) | a second OPEN (`EventBGPOpen`, from `handleOpen`); Ze has no Event 9, 12, 13 or 20, and Events 21 and 22 follow Section 6 (header error above, OPEN refused with Cease before parsing) | `ErrFSMError`; **increments ConnectRetryCounter** | Cease NOTIFICATION from `handleOpen`; no Finite State Machine Error NOTIFICATION is sent in this state | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleUpdate, handleNotification, handleUnknownType -->

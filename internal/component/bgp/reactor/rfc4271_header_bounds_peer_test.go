@@ -37,7 +37,7 @@ func maximumLengthWithdrawal() []byte {
 // sits exactly on a bound Section 6.1 names, where an off-by-one in the length
 // check would refuse a legal message: an UPDATE of exactly 4096 octets on an
 // Established session, an OPEN of exactly its 29-octet minimum in OpenSent, and a
-// NOTIFICATION of exactly its 21-octet minimum in OpenSent.
+// NOTIFICATION of exactly its 21-octet minimum in OpenConfirm.
 //
 // VALIDATES: no Bad Message Length and no NOTIFICATION at all from the Peer. The
 // UPDATE leaves the session Established with the connection up; the OPEN moves the
@@ -46,7 +46,7 @@ func maximumLengthWithdrawal() []byte {
 // PREVENTS: a length check that is one octet too strict at 4096, at the OPEN
 // minimum or at the NOTIFICATION minimum.
 //
-// RFC requirement: RFC4271-6.1-3 negative -- an UPDATE of exactly 4096 octets (Established), an OPEN of exactly 29 octets and a NOTIFICATION of exactly 21 octets (OpenSent) draw no Bad Message Length and no NOTIFICATION at all: the UPDATE keeps the session Established and the connection up, the OPEN reaches OpenConfirm with the connection up, and the NOTIFICATION closes the connection unanswered.
+// RFC requirement: RFC4271-6.1-3 negative -- an UPDATE of exactly 4096 octets (Established), an OPEN of exactly 29 octets (OpenSent) and a NOTIFICATION of exactly 21 octets (OpenConfirm) draw no Bad Message Length and no NOTIFICATION at all: the UPDATE keeps the session Established and the connection up, the OPEN reaches OpenConfirm with the connection up, and the NOTIFICATION closes the connection unanswered.
 func TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted(t *testing.T) {
 	t.Run("UPDATE of 4096", func(t *testing.T) {
 		n := startEstablishedNeighbor(t)
@@ -78,7 +78,10 @@ func TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted(t *testing.T) {
 	})
 
 	t.Run("NOTIFICATION of 21", func(t *testing.T) {
-		n := startOpenSentNeighbor(t)
+		// OpenConfirm, not OpenSent: OpenSent files Event 25 under "any other
+		// event" and answers it with a Finite State Machine Error, so only in
+		// OpenConfirm does a well-sized NOTIFICATION draw no NOTIFICATION at all.
+		n := startOpenConfirmNeighbor(t)
 		cease := message.PackTo(&message.Notification{ErrorCode: message.NotifyCease, ErrorSubcode: message.NotifyCeaseAdminShutdown}, nil)
 		require.Len(t, cease, message.HeaderLen+2)
 

@@ -195,3 +195,55 @@ RFC4271-8.2.2-13 (Active Event 18: ConnectRetryTimer restart / DelayOpenTimer cl
 
 ## Continuation 10: judged (2026-10-01, BGP c10 judge)
 9.1.2.1-1 wrong->enforced (caveat: a never-resolved NEXT_HOP is published raw via fibUnproved; the kernel's off-link refusal is not asserted). Security-1, 10-1, 5.1.2-3 weak->enforced. 6.7-1 weak->weak: the FSM Error class (Section 6.6) has no tagged unit; Ze's only code-5 producer (BFD-strict second OPEN) is proven by the untagged TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire, and the 8.2.2 any-other-event producer is the R48 miss. Owed: tag the code-5 units (and the R48 unit) as 6.7-1 negatives. Re-judged unchanged (tag-comment-only unit change): rfc4271 6.1-1/2/3, 6.3-1, 6.7-4, 8.2.2-2/3/4/5/10/14, 9.1.2-2; rfc2385 2.0-1/2/3/5/6, 3.0-1, 4.3-1/2. 13 shifted resealed. rfc check: rfc4271/rfc2385 clean except the two known RFC4271-5-8 producer-changed records. Scoped golangci-lint (sysrib, reactor, wireu, network, rib) 0 issues; scoped -race green.
+
+# Continuation 11 (2026-10-01, BGP c11 author)
+
+No commit, no stamp. Records under flock ledger-rfc4271.lock; script/log scratch/children/bgp/c11-rec1.{sh,log}. Approvals (D-15) via ./le rfc approve: fsm.TestRFC4271ConnectRetryCounterIncrementsOnNotification, reactor.TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted.
+
+| id | resolution | + / - units | records | expected verdict | notes |
+|----|-----------|-------------|---------|------------------|-------|
+| RFC4271-8.2.2-24 (NEW, R48) | row + D-8 fix | + NEW reactor/rfc4271_fsm_error_peer_test.go TestRFC4271OpenSentUnexpectedMessageIsAnFSMError (running Peer in OpenSent receives Cease NOTIFICATION / KEEPALIVE / empty UPDATE / UPDATE with overrunning Withdrawn Length: exactly one 5/0, EOF, 3 timers stopped, session released, counter 0->1); - NEW TestRFC4271ExpectedMessagesRaiseNoFSMError (OPEN in OpenSent -> OpenConfirm, KEEPALIVE -> Established, UPDATE + KEEPALIVE in Established: no NOTIFICATION, connection, session and counter 0 kept at each step) | c11-rec1: + and - on session_handlers.go::fsmMessageEvent (see records line below) | enforced | Failing first observed (c11-red.log: 4 subtests nil or 3/1 instead of 5/0). Subcode 0: RFC 6608 subcodes are gap rows in rfc/short/rfc6608.md, not originated (see owed) |
+| RFC4271-8.2.2-25 (NEW, R48) | row + D-8 fix | + NEW TestRFC4271OpenConfirmUpdateIsAnFSMError (running Peer in OpenConfirm receives empty UPDATE / malformed UPDATE: exactly one 5/0, EOF, timers stopped, session released, counter 0->1); - TestRFC4271ExpectedMessagesRaiseNoFSMError (KEEPALIVE in OpenConfirm, UPDATE in Established: no NOTIFICATION) | c11-rec1: + and - on session_handlers.go::updateIsUnexpected | enforced | Before the fix an UPDATE in OpenConfirm was RFC 7606-parsed and reached the plugins before the FSM refused it |
+| RFC 4271 §8.2.2 Established "any other event (Events 9, 12-13, 20-22)" | NO ROW: rung-2 conflict, stopped | none | none | n/a | Ze has no Event 9/12/13/20; the only listed events it has are 21 (header error) and 22 (OPEN error). §6.1/§6.2 give those Message Header Error / OPEN Message Error, which Ze sends (and a second OPEN in Established gets Cease before parsing, handleOpen). §8.2.2 Established says FSM Error for 21-22. MAIN THREAD: rule which section governs (row as {gap}/deviation, or exclusion citing §6.1/§6.2). Recorded in the 8.2.2-24/25 correction paragraph |
+| RFC4271-6.7-1 | retag (judge's owed code-5 negatives) | - tags added: TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire (untagged before; first wire message is NOTIFICATION code 5), and the two new positive units above (exactly one 5/0, never Cease) | c11-rec1: 3 negatives (fsmMessageEvent x2, handleOpen) | enforced | FSM Error class (§6.6) now has tagged units |
+| RFC4271-8.2.2-11 | claim fix (unit asserted a non-RFC reading) | + TestRFC4271ConnectRetryCounterIncrementsOnNotification: OpenSent+NotifMsg now asserted ErrFSMError (§8.2.2 lists Event 25 under OpenSent "any other event"), other states NoError; tag text updated | c11-rec1: + on fsm.go::handleOpenSent | unchanged (re-judge: claim changed) | approval recorded |
+| RFC4271-6.1-3 | claim fix (subtest moved) | - TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted: the 21-octet NOTIFICATION subtest moved from OpenSent to OpenConfirm (OpenSent now answers Event 25 with 5/0, OpenConfirm answers none), so "no NOTIFICATION at all" is unchanged | c11-rec1: - on message/header.go::ValidateLengthWithMax | unchanged (re-judge: claim changed) | approval recorded |
+| RFC4271-8.2.2-13 | BLOCKED: needs a ruling, no edit | none | none | weak | Analysis: the row is the Active state's Event 18 paragraph. Ze implements no DelayOpenTimer (fsm/state.go, timer.go). RFC §8.2.2 Active: on Event 16/17 "If the DelayOpen attribute is set to FALSE, the local system: - sets the ConnectRetryTimer to zero, - completes the BGP initialization, - sends the OPEN message to its peer" (to OpenSent), so with DelayOpen FALSE Active never holds a connection whose failure is Event 18. Ze's Event 18 producers: `Session.Connect` dial failure (Connect state), `handleConnectionClose`, the forward-pool congestion teardown; none fires in Active. §8.2.1.3: "If an Optional Session attribute cannot be set to TRUE, the events supporting that set of options do not have to be supported." Recommend: exclude as feature-out-of-scope quoting §8.2.1.3 (needs the owner scope decision R47(a) names), HEAD counter-clause tags stay supplementary or move; OR rule otherwise |
+
+Records: c11-rec1.log 9/9 observed red, all rc=0 (8.2.2-24 +/- fsmMessageEvent; 8.2.2-25 +/- updateIsUnexpected; 6.7-1 - x3 fsmMessageEvent x2 + handleOpen; 8.2.2-11 + handleOpenSent; 6.1-3 - ValidateLengthWithMax). Producers verified restored after the run; gofmt clean.
+
+## Continuation 11: D-8 fix (producer)
+- `Session.fsmMessageEvent` (reactor/session_handlers.go): fires the FSM event for a received message; on ErrFSMError in OpenSent/OpenConfirm/Established sends NOTIFICATION 5/0 (logNotifyErr) and closes the connection; §8.2.2 quote above the send. Used by handleKeepalive and handleNotification.
+- `processMessage` (reactor/session_read.go): an UPDATE read in OpenSent/OpenConfirm (`updateIsUnexpected`) goes to fsmMessageEvent(EventUpdateMsg) BEFORE RFC 7606 parsing and plugin delivery.
+- fsm.go handleOpenSent: removed the explicit EventNotifMsg arm (its comment said the RFC does not call Event 25 in OpenSent an FSM Error; the §8.2.2 list does), so Event 25 lands in the default arm (counter +1, Idle, ErrFSMError). BEHAVIOR CHANGE: Ze now answers a non-version NOTIFICATION received in OpenSent (e.g. a peer's OPEN rejection 2/x) with NOTIFICATION 5/0 before closing.
+- Docs: fsm-open-sent.md (any-other-event row rewritten, EventNotifMsg row removed, tests bullet), fsm-open-confirm.md (row + tests bullet), fsm-established.md (row states what Ze actually reaches there).
+
+## Continuation 11: files changed
+- internal/component/bgp/reactor/session_handlers.go, session_read.go (fix)
+- internal/component/bgp/fsm/fsm.go (OpenSent Event 25 arm removed, default-arm comment)
+- internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go (new)
+- internal/component/bgp/reactor/session_bfd_strict_test.go (6.7-1 tag line)
+- internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go (NOTIFICATION subtest to OpenConfirm, doc + tag text)
+- internal/component/bgp/fsm/rfc4271_connect_retry_test.go (OpenSent ErrFSMError branch, tag text), fsm_test.go (errorArms gains OpenSent+NotifMsg; untagged)
+- rfc/short/rfc4271.md (rows 8.2.2-24, 8.2.2-25), rfc/extraction/rfc4271.json (§8.2.2 unsourced-ids), rfc/corrections/rfc4271.md (dated correction)
+- docs/architecture/behavior/fsm-open-sent.md, fsm-open-confirm.md, fsm-established.md
+- rfc/discrimination/rfc4271.json (c11-rec1 records)
+Support/gap count unchanged (both new rows are met, not gaps).
+
+## Continuation 11: gates
+fsm package -race green (c11-fsm2.log); reactor package -race -count=1 green, full package (c11-reactor2.log, 136 s); new units -race -count=3 green (c11-green.log). go vet fsm+reactor clean.
+OWED (main thread): golangci-lint on reactor + fsm; ./le rfc check rfc4271 (verbatim-span check of the two new rows; producer-changed records on handleOpenSent / handleKeepalive / handleNotification / processMessage units likely); functional + exabgp suites (Event 25 behavior change: any .ci where the far end sends a NOTIFICATION while Ze is in OpenSent now sees a 5/0 back); judge 8.2.2-24, 8.2.2-25, 6.7-1, 8.2.2-11, 6.1-3; rulings on the Established sentence and 8.2.2-13; RFC 6608: with a code-5 producer now in place, its three {gap} MUST rows (subcodes 1/2/3 + 1-octet type) are a small change in fsmMessageEvent, owner scope call (rfc6608 stem owner).
+
+## Continuation 11: not started (no half-edits)
+5.1.2-2, 5.1.3-3, 5.1.4-3, 5.1.5-5, 6.3-2, 6.8-2, 9.1.1-2, 9.1.2.2-3, 9.2-4, 9.2-6, 9.2-7, 9.2-9 (descriptions in "Continuation 10: not started"). 8.2.2-13 analysed above, blocked on a ruling.
+
+## Continuation 11: judge (2026-10-01, BGP c11 judge)
+| id | old -> new | why |
+|----|-----------|-----|
+| RFC4271-8.2.2-24 | (new) -> weak | Peer-level positive and negative are sound and recorded, but the list is over-applied. `Session.handleNotification` fires `EventNotifMsg` (Event 25) for every NOTIFICATION it unpacks, a version error 2/1 included, and Ze never fires `EventNotifMsgVerErr` (Event 24). Since the c11 fix, a 2/1 received in OpenSent is answered with 5/0 and counts +1, while §8.2.2 OpenSent Event 24 sends nothing and does not count. DEFECT D-9 (made wire-visible by c11; the Event 24 misclassification is older). Owed: classify 2/1 as Event 24 in handleNotification; a peer-level negative (2/1 in OpenSent: no NOTIFICATION, counter 0); fix the fsm-open-sent.md EventNotifMsgVerErr row, which names handleNotification as a producer that fires no such event |
+| RFC4271-8.2.2-25 | (new) -> enforced | every listed action at peer level; KEEPALIVE-in-OpenConfirm and UPDATE-in-Established negatives |
+| RFC4271-6.7-1 | weak -> enforced | FSM Error class now tagged (two 5/0 peer units plus the BFD strict second OPEN) |
+| RFC4271-8.2.2-11 | enforced -> enforced | fsm unit claim RFC-correct (approval recorded) |
+| RFC4271-6.1-3 | enforced -> enforced | NOTIFICATION-21 subtest moved to OpenConfirm, bound unchanged (approval recorded) |
+
+Re-recorded 8 producer-changed records (handleOpenSent: 8.2.2-8/9/10/13/16/17; handleKeepalive: 8.2.2-12/23); script and log in scratch/children/bgp/c11-judge-rec.{sh,log}. Extraction sign-off stands (2026-10-01, exclusions unchanged, new ids in §8.2.2 unsourced-ids).

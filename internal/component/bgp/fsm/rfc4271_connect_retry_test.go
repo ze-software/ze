@@ -255,16 +255,26 @@ func TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors(t *testing.T) {
 // PREVENTS: A peer that answers every attempt with a NOTIFICATION reading as
 // zero attempts.
 //
+// In OpenSent, Event 25 is in the "any other event" list (Events 9, 11-13, 20,
+// 25-28), so it is answered with ErrFSMError; in every other state it is a
+// handled teardown.
+//
 // RFC requirement: RFC4271-8.2.2-11 positive -- Event 25 reaches an
 // incrementing arm in every non-Idle state: the shared error arm in
-// handleConnect and handleActive, its own arm in handleOpenSent and
-// handleOpenConfirm, and the grouped Event 24/25 arm in handleEstablished
-// (internal/component/bgp/fsm/fsm.go).
+// handleConnect and handleActive, the default (FSM Error) arm in
+// handleOpenSent, its own arm in handleOpenConfirm, and the grouped Event
+// 24/25 arm in handleEstablished (internal/component/bgp/fsm/fsm.go); each
+// moves the counter from 0 to 1 and the state to Idle.
 func TestRFC4271ConnectRetryCounterIncrementsOnNotification(t *testing.T) {
 	for _, st := range allNonIdleStates {
 		f, c := crcFSM(t, st, 0)
-		require.NoError(t, f.Event(EventNotifMsg),
-			"%s + NotifMsg is a handled teardown, not an FSM error", st)
+		err := f.Event(EventNotifMsg)
+		if st == StateOpenSent {
+			require.ErrorIs(t, err, ErrFSMError,
+				"OpenSent + NotifMsg is in the any-other-event list: an FSM error")
+		} else {
+			require.NoError(t, err, "%s + NotifMsg is a handled teardown, not an FSM error", st)
+		}
 		require.Equal(t, uint32(1), c.Load(),
 			"%s + NotifMsg must increment ConnectRetryCounter by 1", st)
 		require.Equal(t, StateIdle, f.State(), "%s + NotifMsg", st)

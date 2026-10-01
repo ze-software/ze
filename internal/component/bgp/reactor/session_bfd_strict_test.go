@@ -719,6 +719,8 @@ func TestSessionBFDStrictBfdHoldTimerTearsDownAZeroHoldTimeSession(t *testing.T)
 // And EnterBfdUpPending succeeded again, DEMOTING an
 // OpenSentConfirmedBfdUpPending sub-state back to pending, so the next BFD Up
 // would have gone to OpenConfirm against a peer that had already confirmed.
+//
+// RFC requirement: RFC4271-6.7-1 negative -- an FSM error (a second OPEN while a BFD strict pending sub-state of OpenSent is set) puts a NOTIFICATION on the wire whose Error Code is 5 (Finite State Machine Error), not Cease.
 func TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

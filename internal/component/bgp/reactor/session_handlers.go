@@ -305,7 +305,62 @@ func (s *Session) handleKeepalive() error {
 		s.startSendHoldTimer()
 	}
 
-	return s.fsm.Event(fsm.EventKeepaliveMsg)
+	return s.fsmMessageEvent(fsm.EventKeepaliveMsg)
+}
+
+// fsmMessageEvent fires the FSM event a received message stands for. When the
+// FSM answers it with ErrFSMError in OpenSent, OpenConfirm or Established, this
+// sends the Finite State Machine Error NOTIFICATION and closes the connection.
+// The FSM has already counted the attempt and moved to Idle, and the error it
+// returns ends the read loop, which is what releases the session.
+//
+// Connect and Active also answer ErrFSMError for their "any other event", but
+// their lists send no NOTIFICATION, and no message is read in either state.
+// The subcode is 0 (Unspecified Error): Ze does not originate the RFC 6608
+// subcodes (rfc/short/rfc6608.md records the gap).
+func (s *Session) fsmMessageEvent(event fsm.Event) error {
+	state := s.fsm.State()
+	err := s.fsm.Event(event)
+	if !errors.Is(err, fsm.ErrFSMError) {
+		return err
+	}
+	if !fsmErrorNotifies(state) {
+		return err
+	}
+
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+	// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
+	// 11-13, 20, 25-28), the local system: - sends the NOTIFICATION with the
+	// Error Code Finite State Machine Error". OpenConfirm ("Events 9, 12-13,
+	// 20, 27-28") and Established ("Events 9, 12-13, 20-22") open their lists
+	// with the same action.
+	s.logNotifyErr(conn, message.NotifyFSMError, 0, nil)
+	s.closeConn()
+	return fmt.Errorf("%w: %s received in %s", err, event, state)
+}
+
+// fsmErrorNotifies answers whether RFC 4271 Section 8.2.2 opens the "any other
+// event" list of state with a Finite State Machine Error NOTIFICATION.
+func fsmErrorNotifies(state fsm.State) bool {
+	switch state { //nolint:exhaustive // the three states whose list sends a NOTIFICATION
+	case fsm.StateOpenSent, fsm.StateOpenConfirm, fsm.StateEstablished:
+		return true
+	}
+	return false
+}
+
+// updateIsUnexpected answers whether RFC 4271 Section 8.2.2 files a received
+// UPDATE (Event 27, or Event 28 when malformed) under the "any other event"
+// list of state: OpenSent ("Events 9, 11-13, 20, 25-28") and OpenConfirm
+// ("Events 9, 12-13, 20, 27-28").
+func updateIsUnexpected(state fsm.State) bool {
+	switch state { //nolint:exhaustive // the two states that read a connection before Established
+	case fsm.StateOpenSent, fsm.StateOpenConfirm:
+		return true
+	}
+	return false
 }
 
 // handleUpdate processes a received UPDATE message.
@@ -368,7 +423,12 @@ func (s *Session) handleNotification(body []byte) error {
 	}
 
 	s.timers.StopAll()
-	s.logFSMEvent(fsm.EventNotifMsg)
+	// OpenSent files Event 25 under "any other event", so there the FSM
+	// answers with a Finite State Machine Error and fsmMessageEvent writes it.
+	if fsmErr := s.fsmMessageEvent(fsm.EventNotifMsg); fsmErr != nil {
+		sessionLogger().Warn("FSM event failed",
+			"peer", s.settings.Address, "event", fsm.EventNotifMsg, "error", fsmErr)
+	}
 	s.closeConn()
 
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())

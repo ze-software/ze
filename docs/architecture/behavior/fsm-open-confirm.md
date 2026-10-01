@@ -52,7 +52,10 @@ OPEN from a competing socket.
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` | `session_read.readAndProcessMessage` / `handleOpen` | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventKeepaliveTimerExpires` | keepalive-timer callback in `Session.newSession` | stay (FSM no-op) | KEEPALIVE sent from callback | `OpenConfirm` |
-| any other event | unexpected | log transition | none | `Idle` |
+| any other event (RFC 4271 lists 9, 12-13, 20, 27-28): an UPDATE, well formed or not (`EventUpdateMsg`) | `processMessage`, before the UPDATE is parsed or reaches a plugin, through `Session.fsmMessageEvent` | `ErrFSMError`; **increments ConnectRetryCounter** | `fsmMessageEvent` sends NOTIFICATION 5/0 (Finite State Machine Error, subcode Unspecified) and closes the connection | `Idle` |
+
+<!-- source: internal/component/bgp/reactor/session_read.go — processMessage refuses an UPDATE in OpenSent or OpenConfirm -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go — fsmMessageEvent -->
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenConfirm -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive fires EventKeepaliveMsg -->
@@ -170,6 +173,12 @@ transition.
   <!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification -->
 
 ## Tests exercising this state
+
+- `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` -- an
+  UPDATE received in OpenConfirm draws exactly one NOTIFICATION 5/0 and
+  releases the session; a KEEPALIVE moves the same Peer to Established with
+  no NOTIFICATION.
+  <!-- source: internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go -->
 
 - `internal/component/bgp/fsm/fsm_test.go` — direct state transition
   tests for OpenConfirm, including KEEPALIVE receive and error arms.

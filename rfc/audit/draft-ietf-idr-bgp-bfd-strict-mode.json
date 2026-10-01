@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-29",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Forbidden: a peer with strict-mode enabled whose BGP FSM is not enabled (stays Idle or never exchanges OPEN while BFD is not Up). TestSessionBFDStrictWithholdsKeepalive asserts, with bfd state Down and strict negotiated, session.State() == fsm.StateOpenSent after handleOpen, red on an FSM that held in Idle or refused the connection; TestSessionBFDStrictSendsKeepaliveOnBFDUp asserts the held session reaches OpenConfirm on BfdUp, so the enabled FSM is not parked in an unleavable state.",
       "requirement_sha": "547034deb9dc019f",
       "tests": {
-        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSendsKeepaliveOnBFDUp": "ac9be6f2a6f304f1",
-        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "ac9be6f2a6f304f1"
+        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSendsKeepaliveOnBFDUp": "56ded9ff159b946a",
+        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "56ded9ff159b946a"
       },
       "units": {
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSendsKeepaliveOnBFDUp": "fc196b6347846a3d",
@@ -22,8 +23,8 @@
       "note": "The sentence is about BFD hold-down procedures. Both tagged units (TestSessionBFDStrictWithholdsKeepalive, TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise) build the session through newStrictSession, which passes a hold-down of 0 to newStrictSessionOn, so no tagged case has a hold-down configured. They prove that a Down BFD session does not stop the connection and OPEN exchange; a hold-down implementation that delayed the TCP connection or OPEN until the interval elapsed would leave every tagged assertion green. TestSessionBFDStrictHoldDownDelaysEstablishment configures 400 ms but is not tagged and asserts the delay, not that the connection is made during it.",
       "requirement_sha": "147354055071d5da",
       "tests": {
-        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "ac9be6f2a6f304f1",
-        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "ac9be6f2a6f304f1"
+        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "56ded9ff159b946a",
+        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "56ded9ff159b946a"
       },
       "units": {
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "7f491a6cc1b7a834",
@@ -35,8 +36,8 @@
       "note": "Clause 1 (MUST NOT occur with BfdEnabled FALSE) is enforced: TestSessionBFDStrictConfigChangedWithBFDDisabled calls raiseBFDStrictConfigChanged on an OpenSent session with BFD.Enabled false and asserts the state stays OpenSent and no message is written; raising Event 35 would take the fsm.go OpenSent arm (crc.Reset, change to Idle, Cease/Other Configuration Change on the wire), so both assertions go red. Clause 2 (the local system triggers a BfdAdminDown instead) has no discriminating assertion: the session has no pending BFD sub-state, where handleBFDEvent treats BfdAdminDown as a no-op, so a producer that raised no event at all, or any other inert event, passes. A case with a pending sub-state (SubStateOpenSentBfdUpPending, where BfdAdminDown advances) is needed to prove the substitution.",
       "requirement_sha": "32263e0950a6fff0",
       "tests": {
-        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "ac9be6f2a6f304f1",
-        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedWithBFDDisabled": "ac9be6f2a6f304f1"
+        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "56ded9ff159b946a",
+        "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedWithBFDDisabled": "56ded9ff159b946a"
       },
       "units": {
         "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "e414b0e657401415",

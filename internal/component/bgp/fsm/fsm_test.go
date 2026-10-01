@@ -506,7 +506,7 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{StateOpenSent, EventAutomaticStartWithDampPeerOscillations},
 		{StateOpenSent, EventKeepaliveTimerExpires}, {StateOpenSent, EventTCPConnectionConfirmed},
 		{StateOpenSent, EventKeepaliveMsg}, {StateOpenSent, EventUpdateMsg},
-		{StateOpenSent, EventUpdateMsgErr},
+		{StateOpenSent, EventUpdateMsgErr}, {StateOpenSent, EventNotifMsg},
 		// OPENCONFIRM default arm
 		{StateOpenConfirm, EventManualStart}, {StateOpenConfirm, EventConnectRetryTimerExpires},
 		{StateOpenConfirm, EventAutomaticStartWithDampPeerOscillations},

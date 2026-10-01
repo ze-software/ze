@@ -187,6 +187,17 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	sourceID := s.sourceID
 	s.mu.RUnlock()
 
+	// An UPDATE read in OpenSent or OpenConfirm arrives before the session is
+	// Established: nothing is negotiated to parse it against, and it must not
+	// reach the plugins. RFC 4271 Section 8.2.2 files Event 27 and Event 28
+	// under the "any other event" list of both states, so the FSM answers it
+	// with a Finite State Machine Error, whether the UPDATE is well formed
+	// (Event 27) or not (Event 28): the action list is the same. Idle, Connect
+	// and Active hold no connection to read from.
+	if hdr.Type == msgtype.TypeUPDATE && updateIsUnexpected(s.fsm.State()) {
+		return s.fsmMessageEvent(fsm.EventUpdateMsg), false
+	}
+
 	// For UPDATE: create WireUpdate once, use for callback and handler
 	var wireUpdate *wireu.WireUpdate
 	if hdr.Type == msgtype.TypeUPDATE {
