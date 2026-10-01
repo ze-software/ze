@@ -542,17 +542,21 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.5-5": {
-      "note": "extractCandidate seeding 100 is a hard-coded default, and no unit shows a locally configured policy (import local-preference) setting the degree of preference; the clause 'include the degree of preference when advertising a route to its internal peers' is not in these units.",
+      "note": "Re-judged 2026-10-01 (BGP c18 judge). Both clauses now driven. NEW TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers: an external route received without LOCAL_PREF through notifyMessageReceiver, with an import policy answering 'local-preference 200' (modifyingFilter seam), is dispatched to the RIB carrying LOCAL_PREF 200 (calculated by locally configured policy, the value extractCandidate reads to rank it); that dispatched payload on the general forward rail reaches an internal peer with LOCAL_PREF 200 and an external peer with none. NEW TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally: no import policy, RIB handed no LOCAL_PREF (never 200), internal peer still sent the default 100, never an omitted preference. Records: + on filter_ordered.go::runIngressPolicyChain, - on forward_local_pref.go::applyFactsLocalPref; semantic overlay (applyFactsLocalPref never adds the default toward internal peers) reddens the negative (c18-ov-515.log). HEAD rib units stay as the ranking half. Residual: the policy verdict comes through the seam, not a parsed filter config.",
       "requirement_sha": "8c672a1a8f1ce19c",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "0df229125a9cf20f",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "0df229125a9cf20f"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "0df229125a9cf20f",
+        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "61fc221c9e4b9fed",
+        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "61fc221c9e4b9fed"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "5fc5f0caeaad3e50",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "500dfbdcd473b3e3"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "500dfbdcd473b3e3",
+        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "43c55f48d016d5fd",
+        "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "fdaf0e303cee56f0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-6-1": {
       "note": "Forbidden: a non-zero subcode when none is specified. TestRFC4271NotificationUnspecifiedSubcodeIsZero asserts data[HeaderLen+1]==0 on the packed NOTIFICATION and 0 after decode. The negative is a same-producer contrast (three specified subcodes packed verbatim and non-zero), which rules out an encoder that writes a constant zero, so the zero is shown to come from absence.",
@@ -1511,17 +1515,21 @@
       "verdict": "enforced"
     },
     "RFC4271-9.2-4": {
-      "note": "Tests now drive the receive path: positive, /8 and /24 from one UPDATE each get a BestChangeAdd; negative, a later overlapping route in either order causes no withdraw and both stay held. That proves 'consider both routes' under the default accept-all policy only. MISSING: 'based on the configured acceptance policy': the rib applies no import policy (filters run in reactor ingress), and no unit configures a policy that accepts one of two overlapping routes and rejects the other and shows the accepted one is still considered.",
+      "note": "Re-judged 2026-10-01 (BGP c18 judge). The MISSING clause 'based on the configured acceptance policy' is now driven: NEW TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess receives 10.0.0.0/8 then 10.1.0.0/24 from an external peer with an import filter configured through notifyMessageReceiver; the ingress policy chain (runIngressPolicyChain, policy answered through policyFilterSeam) is asked about each route and both NLRI are dispatched, in order, to the RIB consumer that runs the Decision Process. NEW TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered: the policy rejects the /24, only the /8 is dispatched, so the policy and not the overlap decides what is considered. The rib units (both accepted overlapping routes held, neither displaced, observed-red on checkBestPathChange) carry the Decision Process half. Records: + on reactor_notify.go::notifyMessageReceiver, - on filter_ordered.go::runIngressPolicyChain; semantic overlay (PolicyReject answered as accept) reddens the negative (c18-ov-924.log). Residual: the policy verdict is supplied through the seam rather than a parsed filter config, the same reactor composition accepted for 5.1.4-3.",
       "requirement_sha": "a0ad53f9cd71410a",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559"
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559",
+        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "5999a263a9f55d84",
+        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "5999a263a9f55d84"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
-        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88"
+        "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88",
+        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "7b12020ce77a6cc6",
+        "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "254fa32c6a19ea3e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.2-5": {
       "note": "Positive: a less and a more specific route with the same NEXT_HOP are both installed in the Loc-RIB (bestNextHop for /8 and /24). Negative: installing the second overlapping route, in either order, never uninstalls the first (no withdraw, first still in Loc-RIB, Adj-RIB-In holds 2), which a most-specific-wins or covering-wins process fails. Ze takes the 'install both' branch; aggregation is not used. Old storage NLRI-keying tags removed (D-15).",
@@ -1565,17 +1573,21 @@
       "verdict": "weak"
     },
     "RFC4271-9.2-9": {
-      "note": "units call the encoders writeAnnounceUpdate and writeWithdrawUpdate directly and check UPDATE layout; no unit shows a change to a locally originated destination causing an UPDATE to be sent to a peer",
+      "note": "Re-judged 2026-10-01 (BGP c18 judge). The old objection (units call the encoders only) is closed at the entry point: NEW TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers originates 10.20.0.0/24 through reactorAPIAdapter.AnnounceNLRIBatch (the API announce entry point) toward one internal and one external Established peer and parses each connection's bytes: exactly one UPDATE, Withdrawn Routes empty, attributes present, NLRI = the prefix. NEW TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers: after that announcement WithdrawNLRIBatch writes exactly one more UPDATE per peer with the prefix in Withdrawn Routes, no attributes, no NLRI, so a change that removes reachability is advertised, not left standing. Observed-red records: + on reactor_api_batch.go::AnnounceNLRIBatch, - on WithdrawNLRIBatch. The HEAD encoder units (writeAnnounceUpdate/writeWithdrawUpdate) stay as supplementary. Residual, not a clause gap: own-AS reachability changes are driven through the API rail; static-route reload and default-originate rails are not exercised by these units.",
       "requirement_sha": "d4f8378b727d117d",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers": "738aa506e62deba7",
+        "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers": "738aa506e62deba7",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised": "94aa07ebd53dcc5b"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers": "d0f068fd84f43926",
+        "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers": "22c0d62ea546f2ec",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised": "3491b3a1766681b6",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised": "d22c6e43582f1020"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-Security-1": {
       "note": "Re-judged 2026-10-01 (c10 judge). Support is proven at the boundary Ze owns and through the kernel: positive TestRFC2385MatchingKeysCarryASignedSession (RealListenerFactory and RealDialer install TCP_MD5SIG, a 256 KiB transfer crosses the signed loopback) and TestRFC2385ConfiguredKeyReachesBothSockets (operator config `md5 { password }` reaches the dialer key and the listener key set); negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession (unsigned SYN toward a keyed Ze listener dropped, dial times out), which is what shows the key is really signing (OWNER RULING 2: handling of the option's absence). Records observed red for setTCPMD5Sig (both network units) and md5PeersForListener. Linux only: darwin has no TCP_MD5SIG (md5_darwin.go). HEAD TestMD5PeersForListener units stay supplementary.",
