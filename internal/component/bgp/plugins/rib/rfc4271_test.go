@@ -122,10 +122,6 @@ func TestRFC4271DegreeOfPreferenceFollowsOwnAttributes(t *testing.T) {
 // address when the route carries neither a NEXT_HOP attribute nor an MP_REACH next hop, so
 // the immediate next hop is taken from the attribute rather than invented
 // (internal/component/bgp/plugins/rib/rib_bestchange.go:1060-1090).
-// RFC requirement: RFC4271-9.1.2.1-1 negative -- the install-time next-hop recomputation
-// yields nothing to install when the route has no advertised next hop, so the Loc-RIB Path
-// is not populated from stale or default state
-// (internal/component/bgp/plugins/rib/rib_bestchange.go:723-726,797-830).
 func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 	r := newTestRIBManager(t)
 	loc := locrib.NewRIB()

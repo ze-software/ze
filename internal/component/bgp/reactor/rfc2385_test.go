@@ -41,6 +41,9 @@ func rfc2385PeerTree(password string) map[string]any {
 // control: a peer carrying `md5 { password }` gets that key on the dialer
 // (NewSession) and in the listener's key set (md5PeersForListener), with the
 // peer's own address as the key's address.
+// RFC requirement: RFC4271-Security-1 positive -- the TCP MD5 option is reachable
+// from operator config: a peer parsed with `md5 { password }` carries the key to the
+// RealDialer it dials with and into the listener's per-peer key set.
 func TestRFC2385ConfiguredKeyReachesBothSockets(t *testing.T) {
 	const password = "rfc2385-configured-key"
 

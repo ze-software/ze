@@ -5,22 +5,27 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4271-10-1": {
-      "note": "The units set PeerSettings.ReceiveHoldTime directly and show it reaches that peer's timers and negotiation. The operator configuration path (per-peer hold-time in config, parsePeerFromTree) is not exercised, so 'allow ... to be configurable' is proven only below the entry point.",
+      "note": "Re-judged 2026-10-01 (c10 judge). The operator entry point is now exercised: TestRFC4271HoldTimeConfiguredPerPeerFromConfig parses two peer trees through parsePeerFromTree with `timer { receive-hold-time }` 30 and 240 and each NewSession's HoldTimer holds its own value; negative TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault: a third peer with no timer container keeps DefaultReceiveHoldTime (guarded against equalling a configured value) and `receive-hold-time 2` is refused. Both records observed red on parsePeerFromTree. HEAD PeerSettings-level units stay supplementary (timers + negotiation).",
       "requirement_sha": "8424ebc5318e0c09",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "38282f2e0ee2bbfa",
+        "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault": "38282f2e0ee2bbfa",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "71e9a5e9a3b36017"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "d4263f469fe08add",
+        "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault": "c7b210df52cf8f62",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "033dcddf0f0a69da",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "3c48e89ba3d21a34"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-4.1-1": {
       "note": "Sender side. TestRFC4271EveryMessageSentWithAllOnesMarker packs OPEN (classic, extended, >255), UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH into a fresh buffer and at offset 7 of a zero-filled buffer and asserts the 16 marker octets equal 0xFF each time; red if writeHeader writes any other marker. Receive-side (6.1) tags kept.",
@@ -295,13 +300,16 @@
       "verdict": "weak"
     },
     "RFC4271-5.1.2-3": {
-      "note": "Tagged units prove case 1 (leading AS_SEQUENCE gets the local AS prepended) and the advertise-only condition. Case 2 (AS_SET-led path gets a new AS_SEQUENCE) is proven by no tagged unit; case 3 (empty path) is only in TestRFC4271ASPathPrependedTowardExternalPeer, which is tagged RFC4271-5.1.2-2.",
+      "note": "Re-judged 2026-10-01 (c10 judge). Every clause now has a tagged unit: case 1 (leading AS_SEQUENCE gets the local AS) HEAD TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS and the wireu advertise units; case 1 overflow TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull (255-AS segment: new AS_SEQUENCE [65000] in front, full segment intact); case 2 TestASPathSlotPrependsBeforeALeadingASSet (AS_SET-led path gets a new AS_SEQUENCE [65000], set unchanged); case 3 TestASPathSlotInsertsWhenAbsent (absent path becomes one AS_SEQUENCE [64510]). Negatives: IBGP verbatim and withdraw-only (no advertise). The wireu units drive ASPathEdit.Record, which the reactor forward and RS paths call in production (reactor_api_forward.go, forward_rs.go); records observed red on recordPrepend. Tag lines were inserted by python: re-checked, comment-only diff.",
       "requirement_sha": "a13562e6f3b2682e",
       "tests": {
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "35bb93fe81f0bf3d",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "6da7ca3641c9fc13",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
+        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "52bf19846926dcc3",
+        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "52bf19846926dcc3",
+        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "52bf19846926dcc3",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f04334a58fd00e7c"
       },
@@ -310,10 +318,13 @@
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "15816d2dbe772dca",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "de030e26301a9b3a",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "de030e26301a9b3a",
+        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "62d51cc914f09baf",
+        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "fd860fa8f88bf938",
+        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "2f4519d040567ccb",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "cac36dd872b4096e",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "cac36dd872b4096e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5.1.3-1": {
       "note": "originated-route units (writeUpdateGated/SendAnnounce tests and originated-nexthop-peer-own.ci) assert the route naming the peer own address is withheld from that peer while other next hops are written; forward-rail units extend the refusal to relayed routes, which this sentence does not name",
@@ -514,8 +525,8 @@
       "note": "extractCandidate seeding 100 is a hard-coded default, and no unit shows a locally configured policy (import local-preference) setting the degree of preference; the clause 'include the degree of preference when advertising a route to its internal peers' is not in these units.",
       "requirement_sha": "8c672a1a8f1ce19c",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "977fed204ca1de61",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "977fed204ca1de61"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "0df229125a9cf20f",
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "0df229125a9cf20f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "5fc5f0caeaad3e50",
@@ -537,52 +548,52 @@
       "verdict": "enforced"
     },
     "RFC4271-6.1-1": {
-      "note": "Every Section 6.1 error class is now driven through a running Peer's real read path in OpenSent and each answer is asserted as exactly one NOTIFICATION with Error Code 1 before EOF: marker all zeros / one 0xFE octet (1/1), Length 18 and 0 (1/2), Length 4097 and the OPEN 28 / UPDATE 22 / KEEPALIVE 20 / NOTIFICATION 20 per-type minima (1/2), Type 99 (1/3). Negatives: a well-formed OPEN in OpenSent, and a KEEPALIVE of 19 plus an UPDATE of 23 in Established, draw no NOTIFICATION and keep the connection. Records observed red: notifyHeaderErr, ValidateLengthWithMax, handleUnknownType (positives); handleOpen, handleUpdate (negatives).",
+      "note": "Every Section 6.1 error class is now driven through a running Peer's real read path in OpenSent and each answer is asserted as exactly one NOTIFICATION with Error Code 1 before EOF: marker all zeros / one 0xFE octet (1/1), Length 18 and 0 (1/2), Length 4097 and the OPEN 28 / UPDATE 22 / KEEPALIVE 20 / NOTIFICATION 20 per-type minima (1/2), Type 99 (1/3). Negatives: a well-formed OPEN in OpenSent, and a KEEPALIVE of 19 plus an UPDATE of 23 in Established, draw no NOTIFICATION and keep the connection. Records observed red: notifyHeaderErr, ValidateLengthWithMax, handleUnknownType (positives); handleOpen, handleUpdate (negatives). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "8bf1bed74edcdf0b",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "164149dbbe2bb723",
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "b40715daad43f7f2",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "deac5b2472b36d6e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "792ce391bb1cccf3",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
       },
       "verdict": "enforced"
     },
     "RFC4271-6.1-2": {
-      "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. All-zero marker and a marker with one 0xFE octet each draw exactly one NOTIFICATION 1/1 with empty Data from a running Peer in OpenSent, then EOF; an all-ones marker (well-formed OPEN) draws no NOTIFICATION. notifyHeaderErr break observed red (positive), handleOpen break observed red (negative).",
+      "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. All-zero marker and a marker with one 0xFE octet each draw exactly one NOTIFICATION 1/1 with empty Data from a running Peer in OpenSent, then EOF; an all-ones marker (well-formed OPEN) draws no NOTIFICATION. notifyHeaderErr break observed red (positive), handleOpen break observed red (negative). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "add307d1371801d5",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "deac5b2472b36d6e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
       },
       "verdict": "enforced"
     },
     "RFC4271-6.1-3": {
-      "note": "Row corrected to the whole Section 6.1 sentence (five Length conditions) plus 'The Data field MUST contain the erroneous Length field.' Positives prove every condition with exactly one NOTIFICATION 1/2 whose Data is the received Length octets, then EOF: Length 18 and 0 (below 19), 4097 (above 4096), OPEN 28, UPDATE 22, KEEPALIVE 20, NOTIFICATION 20. Negatives: KEEPALIVE exactly 19 and UPDATE exactly 23 in Established draw no NOTIFICATION; a well-formed OPEN in OpenSent draws none. Records observed red: ValidateLengthWithMax, notifyHeaderErr (positives); handleUpdate, handleOpen (negatives). 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): the bound-precision residual is closed: TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted sends an UPDATE of exactly 4096 (814 /32 + one /16 withdrawals, Established: no NOTIFICATION, connection up, Established), an OPEN of exactly 29 (OpenSent -> OpenConfirm, no NOTIFICATION, connection up) and a NOTIFICATION of exactly 21 (OpenSent: closed with no answer, so an over-strict check would show as a 1/2 answer). ValidateLengthWithMax break observed red. Every bound is now pinned on both sides.",
+      "note": "Row corrected to the whole Section 6.1 sentence (five Length conditions) plus 'The Data field MUST contain the erroneous Length field.' Positives prove every condition with exactly one NOTIFICATION 1/2 whose Data is the received Length octets, then EOF: Length 18 and 0 (below 19), 4097 (above 4096), OPEN 28, UPDATE 22, KEEPALIVE 20, NOTIFICATION 20. Negatives: KEEPALIVE exactly 19 and UPDATE exactly 23 in Established draw no NOTIFICATION; a well-formed OPEN in OpenSent draws none. Records observed red: ValidateLengthWithMax, notifyHeaderErr (positives); handleUpdate, handleOpen (negatives). 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): the bound-precision residual is closed: TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted sends an UPDATE of exactly 4096 (814 /32 + one /16 withdrawals, Established: no NOTIFICATION, connection up, Established), an OPEN of exactly 29 (OpenSent -> OpenConfirm, no NOTIFICATION, connection up) and a NOTIFICATION of exactly 21 (OpenSent: closed with no answer, so an over-strict check would show as a 1/2 answer). ValidateLengthWithMax break observed red. Every bound is now pinned on both sides. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "8222155ddc1cdd7d",
       "tests": {
         "internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go::TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted": "b7111b20f75e9c4d",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go::TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted": "66a794ef3030e0fd",
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "164149dbbe2bb723",
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "b40715daad43f7f2",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "deac5b2472b36d6e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
       },
       "verdict": "enforced"
@@ -591,8 +602,8 @@
       "note": "Previously a false {gap} (corrected 2026-10-01). Producer read: processMessage's default arm is the only caller of handleUnknownType, with no state gate before it, and it writes Message Header Error subcode 3 (NotifyHeaderBadType) with Data []byte{type}. Positive: Type 99 through a running Peer's read path in OpenSent draws exactly one NOTIFICATION 1/3 whose Data is 0x63, then EOF (handleUnknownType break observed red). Negative: recognized Types 4 (KEEPALIVE) and 2 (UPDATE) in Established draw no NOTIFICATION within 500 ms and the session stays Established (handleUpdate break observed red).",
       "requirement_sha": "ecd0de9d10114755",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "9b684d8976ca0230",
-        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "9b684d8976ca0230"
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "fec6a921b0bf494e"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "164149dbbe2bb723",
@@ -601,17 +612,17 @@
       "verdict": "enforced"
     },
     "RFC4271-6.3-1": {
-      "note": "'All errors' that still produce a NOTIFICATION after RFC 7606 are now proven across the reset classes, each asserting Error Code 3 on the wire: duplicate MP_REACH_NLRI (TestRFC4271UpdateErrorReportedAsUpdateMessageError), duplicate MP_UNREACH_NLRI (TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire), unrecognized well-known attribute 3/2, impossible NLRI prefix length 3/10, truncated NLRI 3/10, truncated Withdrawn Routes 3/10 (TestSessionRFC4271RetainedUpdateNotifications), malformed MP_REACH_NLRI on a running Established Peer (TestRFC4271EstablishedUpdateErrorReleasesTheConnection). Producer check: every session-reset path funnels Session.rfc7606ResetNotification with NotifyUpdateMessage (rfc7606SessionReset, rfc7606NLRISyntaxAction, the 3(g) Notification in message/rfc7606.go), so the untagged 3(b) section-length and flag-conflict resets reach the same code. rfc7606ResetNotification break observed red for the three new units. Negative: a conformant UPDATE sends nothing (TestRFC4271ConformantUpdateSendsNoUpdateError). Errors RFC 7606 revises to treat-as-withdraw or attribute-discard send no NOTIFICATION by design.",
+      "note": "'All errors' that still produce a NOTIFICATION after RFC 7606 are now proven across the reset classes, each asserting Error Code 3 on the wire: duplicate MP_REACH_NLRI (TestRFC4271UpdateErrorReportedAsUpdateMessageError), duplicate MP_UNREACH_NLRI (TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire), unrecognized well-known attribute 3/2, impossible NLRI prefix length 3/10, truncated NLRI 3/10, truncated Withdrawn Routes 3/10 (TestSessionRFC4271RetainedUpdateNotifications), malformed MP_REACH_NLRI on a running Established Peer (TestRFC4271EstablishedUpdateErrorReleasesTheConnection). Producer check: every session-reset path funnels Session.rfc7606ResetNotification with NotifyUpdateMessage (rfc7606SessionReset, rfc7606NLRISyntaxAction, the 3(g) Notification in message/rfc7606.go), so the untagged 3(b) section-length and flag-conflict resets reach the same code. rfc7606ResetNotification break observed red for the three new units. Negative: a conformant UPDATE sends nothing (TestRFC4271ConformantUpdateSendsNoUpdateError). Errors RFC 7606 revises to treat-as-withdraw or attribute-discard send no NOTIFICATION by design. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "bd0d71516e86fc07",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "4779adab5c8b711f",
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "e741458510ad5950",
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "ab53111fff0e5b7d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "0a127f4f78abb98f",
         "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
@@ -830,29 +841,39 @@
       "verdict": "enforced"
     },
     "RFC4271-6.7-1": {
-      "note": "The sentence covers every fatal error of Section 6. The negative (TestRFC4271UpdateErrorReportedAsUpdateMessageError) asserts code 3 and not Cease for one UPDATE error, a duplicate MP_REACH_NLRI. No tagged unit asserts that a message header error, an OPEN error, a hold timer expiry or an FSM error is not reported as Cease, so a Cease on any of those passes. The positive calls checkPrefixLimits directly.",
+      "note": "Re-judged 2026-10-01 (c10 judge). Four of the five fatal-error classes of Section 6 are now proven at peer level never to be answered with Cease: Message Header Error (TestRFC4271MessageHeaderErrorIsReported, exactly one code 1; TestRFC4271OpenSentErrorReleasesTheConnection 1/1, 1/2), OPEN Message Error (2/1), UPDATE Message Error (TestRFC4271EstablishedUpdateErrorReleasesTheConnection exactly one code 3, plus HEAD UpdateErrorReportedAsUpdateMessageError), Hold Timer Expired (exactly one 4/0); the positive TestRFC4271PrefixLimitTeardownSendsCease shows Cease where no fatal error exists. Each has an observed-red record. Still weak: the Finite State Machine Error class (Section 6.6) is proven by no tagged unit. Ze's only code-5 producer (Session.handleOpen BFD-strict second OPEN) is proven code 5 by the UNTAGGED TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire, and the Section 8.2.2 'any other event' FSM Error producer is absent (R48 forward miss). Owed: tag the code-5 unit(s), including the R48 unit when it lands, as 6.7-1 negatives.",
       "requirement_sha": "0d1d2cb48444318c",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "56ab87e3b9f2067a",
+        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "193b8ed8407bdf7f"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
+        "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "853449b49fd69683",
+        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "132a6b151f557edb",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "0a127f4f78abb98f",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "aedcd5f0ac08ce83"
       },
       "verdict": "weak"
     },
     "RFC4271-6.7-4": {
-      "note": "Peer level: running Peer Established with ipv4/unicast maximum 2 and teardown default, far end announces 3 prefixes -> exactly one NOTIFICATION 6/1 (Cease, Maximum Number of Prefixes Reached) read off the socket, then EOF (TestRFC4271PrefixLimitTeardownSendsCease). Negative: teardown false, same 3 prefixes -> no NOTIFICATION in 500 ms, connection up, Established, so the Cease is bound to the decision to terminate. checkPrefixLimits break observed red both polarities. Closes 'the send to the neighbor is not exercised'. HEAD units TestPrefixExceedTeardown/TestPrefixExceedDrop stay supplementary (return-value level).",
+      "note": "Peer level: running Peer Established with ipv4/unicast maximum 2 and teardown default, far end announces 3 prefixes -> exactly one NOTIFICATION 6/1 (Cease, Maximum Number of Prefixes Reached) read off the socket, then EOF (TestRFC4271PrefixLimitTeardownSendsCease). Negative: teardown false, same 3 prefixes -> no NOTIFICATION in 500 ms, connection up, Established, so the Cease is bound to the decision to terminate. checkPrefixLimits break observed red both polarities. Closes 'the send to the neighbor is not exercised'. HEAD units TestPrefixExceedTeardown/TestPrefixExceedDrop stay supplementary (return-value level). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "4c4d0951b7909646",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "4731c585673c2ad3",
-        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "4731c585673c2ad3",
+        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
+        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "671526884de3c8f0",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "193b8ed8407bdf7f",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "193b8ed8407bdf7f"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "43deccc0db201422",
+        "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "132a6b151f557edb",
         "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "3f0d289b74c4d3c0",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "18016f5fdf8f3a8a",
         "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "aedcd5f0ac08ce83"
@@ -888,18 +909,18 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-10": {
-      "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. D-8 fixed (Session.notifyHeaderErr in both read paths). Peer level in OpenSent: all-zero marker -> 1/1, Length 18 -> 1/2 (Event 21), OPEN version 3 -> 2/1 (Event 22), each exactly one NOTIFICATION, EOF, three timers stopped, session dropped, counter 0 -> 1; the well-formed-OPEN negative sends nothing and keeps counter 3. notifyHeaderErr / handleOpenSent breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
+      "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. D-8 fixed (Session.notifyHeaderErr in both read paths). Peer level in OpenSent: all-zero marker -> 1/1, Length 18 -> 1/2 (Event 21), OPEN version 3 -> 2/1 (Event 22), each exactly one NOTIFICATION, EOF, three timers stopped, session dropped, counter 0 -> 1; the well-formed-OPEN negative sends nothing and keeps counter 3. notifyHeaderErr / handleOpenSent breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "256a9d664c4c5ac0",
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "9141c0262428ba08",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "56ab87e3b9f2067a",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "7d8de10d9a918ee9",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors": "0e581679a480933c",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "63f83400f4909737",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "853449b49fd69683",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
       },
       "verdict": "enforced"
@@ -910,8 +931,8 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterStepsByExactlyOnePerNotification": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmKeepaliveKeepsTheConnection": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmNotificationOrTCPFailureReleasesTheConnection": "bb8cb13bb07aa2b0"
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmKeepaliveKeepsTheConnection": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmNotificationOrTCPFailureReleasesTheConnection": "33aaf37273eacf0d"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "73f1d90f28bba6b5",
@@ -928,8 +949,8 @@
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "95aae5897386c2cc",
         "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "4779adab5c8b711f",
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection": "4779adab5c8b711f"
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "75930a8f452295fa",
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection": "75930a8f452295fa"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "85c5b0116a6b5b93",
@@ -954,21 +975,21 @@
       "verdict": "weak"
     },
     "RFC4271-8.2.2-14": {
-      "note": "Peer level in Established: an UPDATE with a malformed MP_REACH_NLRI (an error RFC 7606 still answers with a session reset, Event 28) draws exactly one NOTIFICATION with Error Code 3, EOF, the peer-down for that neighbor, the session dropped, three timers stopped, counter 0 -> 1; the RIB unit proves the routes deletion on that peer-down. Negative: a well-formed UPDATE is dispatched with no peer-down, same session Established, counter 0. Records observed red: handleEstablished (positive), handleStructuredState (rib positive), handleUpdate (negative). Subcode not asserted (the row asks for 'an Update error', the code). Not asserted end to end: the plugin dispatcher's peer-down translation into the RIB event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestRFC4271EstablishedUpdateErrorReleasesTheConnection gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged.",
+      "note": "Peer level in Established: an UPDATE with a malformed MP_REACH_NLRI (an error RFC 7606 still answers with a session reset, Event 28) draws exactly one NOTIFICATION with Error Code 3, EOF, the peer-down for that neighbor, the session dropped, three timers stopped, counter 0 -> 1; the RIB unit proves the routes deletion on that peer-down. Negative: a well-formed UPDATE is dispatched with no peer-down, same session Established, counter 0. Records observed red: handleEstablished (positive), handleStructuredState (rib positive), handleUpdate (negative). Subcode not asserted (the row asks for 'an Update error', the code). Not asserted end to end: the plugin dispatcher's peer-down translation into the RIB event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestRFC4271EstablishedUpdateErrorReleasesTheConnection gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "116a7b17f910543b",
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnGoodUpdate": "95aae5897386c2cc",
         "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "4779adab5c8b711f",
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "4779adab5c8b711f"
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "75930a8f452295fa",
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "8d5cebfdf18328b6",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnGoodUpdate": "e3749feae316617e",
         "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "85629bc873b9317c",
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "145c8f56f5d7bc2d",
-        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "e741458510ad5950"
+        "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9"
       },
       "verdict": "enforced"
     },
@@ -1003,8 +1024,8 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentAutomaticStopReleasesTheConnection": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentAutomaticStopReleasesTheConnection": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "340d047f268ec3e9",
@@ -1020,8 +1041,8 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentCollisionDumpReleasesTheConnection": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentCollisionDumpReleasesTheConnection": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "c4a93a4c6ae5bc65",
@@ -1032,16 +1053,16 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-2": {
-      "note": "Peer level: a running Established Peer whose HoldTimer expires writes exactly one 4/0 read off the wire, and its ConnectRetryTimer is stopped; the negative feeds a 400 ms HoldTimer a KEEPALIVE every 100 ms for 1.2 s and reads no NOTIFICATION off the wire. fireHold / ResetHoldTimer breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
+      "note": "Peer level: a running Established Peer whose HoldTimer expires writes exactly one 4/0 read off the wire, and its ConnectRetryTimer is stopped; the negative feeds a 400 ms HoldTimer a KEEPALIVE every 100 ms for 1.2 s and reads no NOTIFICATION off the wire. fireHold / ResetHoldTimer breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "d2a9479fad8067f8",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "bb8cb13bb07aa2b0",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "baad7dda3ed6945d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
@@ -1103,16 +1124,16 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-3": {
-      "note": "Peer level: after Event 10 in Established the session's HoldTimer and KeepaliveTimer stop and the Peer drops the session object (the per-connection BGP resources); the fed-KEEPALIVE negative keeps session and both timers. Route deletion is not in this Event 10 list (it is in the Event 18/24/25 rows). fireHold / ResetHoldTimer breaks observed red.",
+      "note": "Peer level: after Event 10 in Established the session's HoldTimer and KeepaliveTimer stop and the Peer drops the session object (the per-connection BGP resources); the fed-KEEPALIVE negative keeps session and both timers. Route deletion is not in this Event 10 list (it is in the Event 18/24/25 rows). fireHold / ResetHoldTimer breaks observed red. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "869f66e65e92a514",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "bb8cb13bb07aa2b0",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "baad7dda3ed6945d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
@@ -1120,16 +1141,16 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-4": {
-      "note": "Peer level: the far end reads 4/0 then EOF after Event 10 in Established; the fed-KEEPALIVE negative keeps the connection open for three hold times. fireHold / ResetHoldTimer breaks observed red.",
+      "note": "Peer level: the far end reads 4/0 then EOF after Event 10 in Established; the fed-KEEPALIVE negative keeps the connection open for three hold times. fireHold / ResetHoldTimer breaks observed red. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "7d60524420d74165",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "bb8cb13bb07aa2b0",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "baad7dda3ed6945d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
@@ -1137,16 +1158,16 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-5": {
-      "note": "Peer level: exactly one 4/0, the three timers stopped, the session released, EOF, the ConnectRetryCounter 0 -> 1 and the session FSM in Idle; the negative stays Established with the counter at 0. Damping is optional and not claimed. fireHold / ResetHoldTimer breaks observed red.",
+      "note": "Peer level: exactly one 4/0, the three timers stopped, the session released, EOF, the ConnectRetryCounter 0 -> 1 and the session FSM in Idle; the negative stays Established with the counter at 0. Damping is optional and not claimed. fireHold / ResetHoldTimer breaks observed red. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "80984f64cbf5d050",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "bb8cb13bb07aa2b0",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "71e9a5e9a3b36017"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "baad7dda3ed6945d",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
@@ -1159,7 +1180,7 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271ManualStartZeroesTheCounterAndDials": "bb8cb13bb07aa2b0"
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271ManualStartZeroesTheCounterAndDials": "33aaf37273eacf0d"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "de8aed85af4c5d6f",
@@ -1174,8 +1195,8 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08",
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a",
         "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "b774dd428519cc2c",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
@@ -1195,8 +1216,8 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "95aae5897386c2cc",
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic": "95aae5897386c2cc",
-        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentHoldTimerExpiryReleasesTheConnection": "bb8cb13bb07aa2b0",
-        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "9141c0262428ba08"
+        "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentHoldTimerExpiryReleasesTheConnection": "33aaf37273eacf0d",
+        "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
       "units": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "7aa8b2f695752953",
@@ -1246,8 +1267,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "db05af8962a54e75",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "db05af8962a54e75"
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
@@ -1274,8 +1295,8 @@
       "note": "The vacuous withNoise ComparePair assertion is gone. The positive now asserts SelectBest picks b for {a,b}, {b,a} and all 120 orders of {a,b}+3 unrelated routes (one ties b on LOCAL_PREF), and that b beats each member pairwise. Judge mutants 2026-09-30 (go test -overlay, tree untouched): a SelectBest that, with more than two candidates, prefers the longer AS_PATH among LOCAL_PREF ties (preference reading the existence of other routes) reddens the positive; swapping LOCAL_PREF after AS_PATH reddens both polarities.",
       "requirement_sha": "491c118a47efa4a7",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "977fed204ca1de61",
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "977fed204ca1de61"
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "0df229125a9cf20f",
+        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "0df229125a9cf20f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "7fc6613d820887bc",
@@ -1297,34 +1318,34 @@
       "verdict": "weak"
     },
     "RFC4271-9.1.2-2": {
-      "note": "Through handleReceivedStructured: positive, peer B's better route replaces peer A's as the Loc-RIB best (next hop 10.0.0.1 -> 10.0.0.2); negative, the destination's Loc-RIB group holds exactly one BGP path afterwards, peer B's, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary.",
+      "note": "Through handleReceivedStructured: positive, peer B's better route replaces peer A's as the Loc-RIB best (next hop 10.0.0.1 -> 10.0.0.2); negative, the destination's Loc-RIB group holds exactly one BGP path afterwards, peer B's, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "83f1b8937ef8d555",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "db05af8962a54e75",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "db05af8962a54e75"
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "5bffe3606413b2a8",
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "4a1294ce00fd3415",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "d0cb1c3067f8a4c5",
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "ed76a4e75e4c5e3a",
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
       },
       "verdict": "enforced"
     },
     "RFC4271-9.1.2.1-1": {
-      "note": "The tagged units (TestLocRIBMirror, TestRFC4271LocRIBNextHopComesFromNextHopAttribute) assert that the Loc-RIB NextHop is copied unresolved from the NEXT_HOP attribute. That is a neighbouring rule. No unit resolves the NEXT_HOP to an immediate, directly connected next hop before forwarding, which is what the sentence requires. The RFC4271-3.1-2 gap places resolution at FIB install.",
+      "note": "Re-judged 2026-10-01 (c10 judge). The RIB-level tags (which proved the Loc-RIB copies NEXT_HOP unresolved, RFC4271-9.1.2-3) are gone; resolution is proven where Ze performs it, in sysrib. Positive TestRFC4271BGPNextHopResolvedToTheImmediateNextHop: BGP /24 NEXT_HOP 172.16.5.5 inside an IGP /16 via 10.0.0.1 inside a connected /24 on eth1; the (system-rib, best-change) Add the FIB writer programs carries 10.0.0.1 + eth1, protocol bgp, and no entry ever carries 172.16.5.5 (resolveMember, record observed red). Negative TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB: the IGP /16 is removed, a Withdraw is published and only removes follow for 200 ms (cascadeRecompute, record observed red). Caveat: a BGP route whose NEXT_HOP was NEVER resolvable in the Loc-RIB is published with its raw gateway (fibEntry fibUnproved); the Linux FIB refuses an off-link gateway, so no packet is forwarded along it, but no unit asserts that kernel refusal.",
       "requirement_sha": "5c4d781d4a326202",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271LocRIBNextHopComesFromNextHopAttribute": "977fed204ca1de61",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "db05af8962a54e75"
+        "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPNextHopResolvedToTheImmediateNextHop": "17567be36845d627",
+        "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB": "17567be36845d627"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271LocRIBNextHopComesFromNextHopAttribute": "51a02bac156382c9",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "d0cb1c3067f8a4c5"
+        "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPNextHopResolvedToTheImmediateNextHop": "5815d8b51b33ad45",
+        "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB": "795207a6a5915d12"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC4271-9.1.2.2-1": {
       "note": "New positive TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified pits each adjacent pair a)..f) (LOCAL_PREF/AS_PATH, AS_PATH/ORIGIN, ORIGIN/MED, MED/EBGP, EBGP/IGP cost, IGP cost/BGP Identifier) with the later step favoring the other route, both argument orders, asserting result and deciding step. Judge mutants 2026-09-30 (go test -overlay, tree untouched): LOCAL_PREF after AS_PATH, ORIGIN before AS_PATH, EBGP before MED, IGP cost before EBGP, Router ID before IGP cost: every swap reddens it. HEAD negatives (f/g fall-through, MED skipped across neighbor ASes) unchanged.",
@@ -1426,8 +1447,8 @@
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
       "requirement_sha": "04f270bb5549bd27",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "db05af8962a54e75",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "db05af8962a54e75"
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
+        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
@@ -1449,17 +1470,23 @@
       "verdict": "weak"
     },
     "RFC4271-Security-1": {
-      "note": "TestMD5PeersForListener proves md5PeersForListener collects the right keys per listen port; no tagged unit shows TCP_MD5SIG installed on the listener or on the active (dial) socket, which is what Ze produces for the layer below",
+      "note": "Re-judged 2026-10-01 (c10 judge). Support is proven at the boundary Ze owns and through the kernel: positive TestRFC2385MatchingKeysCarryASignedSession (RealListenerFactory and RealDialer install TCP_MD5SIG, a 256 KiB transfer crosses the signed loopback) and TestRFC2385ConfiguredKeyReachesBothSockets (operator config `md5 { password }` reaches the dialer key and the listener key set); negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession (unsigned SYN toward a keyed Ze listener dropped, dial times out), which is what shows the key is really signing (OWNER RULING 2: handling of the option's absence). Records observed red for setTCPMD5Sig (both network units) and md5PeersForListener. Linux only: darwin has no TCP_MD5SIG (md5_darwin.go). HEAD TestMD5PeersForListener units stay supplementary.",
       "requirement_sha": "01a02f927b0178f7",
       "tests": {
         "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener": "590d9861717bf190",
-        "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener#2": "590d9861717bf190"
+        "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener#2": "590d9861717bf190",
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "c22e2f926604fcea",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "afb488dd510dfc7c",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c"
       },
       "units": {
         "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener": "a0a57186213387d0",
-        "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener#2": "a0a57186213387d0"
+        "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener#2": "a0a57186213387d0",
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "fba309906b57361a",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "c5801fb420fa5fd9",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4271"

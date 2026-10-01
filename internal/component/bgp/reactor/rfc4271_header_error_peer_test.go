@@ -29,6 +29,7 @@ import (
 // RFC requirement: RFC4271-6.1-1 positive -- every header ParseHeader refuses (all-zero marker, one 0xFE marker octet, Length 18, Length 0) is answered by exactly one NOTIFICATION with Error Code 1 (Message Header Error) before the connection closes.
 // RFC requirement: RFC4271-6.1-2 positive -- a marker of all zeros and a marker with one 0xFE octet are each answered by exactly one NOTIFICATION 1/1 (Connection Not Synchronized).
 // RFC requirement: RFC4271-6.1-3 positive -- a header Length of 18 and of 0 are each answered by exactly one NOTIFICATION 1/2 (Bad Message Length) whose Data is the received Length field (00 12, 00 00).
+// RFC requirement: RFC4271-6.7-1 negative -- a Message Header Error (all-zero marker, one 0xFE marker octet, Length 18, Length 0) on a running Peer is answered by exactly one NOTIFICATION, and its Error Code is 1, never Cease.
 func TestRFC4271MessageHeaderErrorIsReported(t *testing.T) {
 	header := func(marker byte, flip int, length uint16) []byte {
 		var h [message.HeaderLen]byte

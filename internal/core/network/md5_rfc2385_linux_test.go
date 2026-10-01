@@ -92,6 +92,10 @@ func rfc2385DialDropped(t *testing.T, dialer *RealDialer, address string) error 
 // producing segments the path could not carry.
 // RFC requirement: RFC2385-4.3-2 positive -- the handshake completes with the
 // option present, so the header and its options fit the 60 octets TCP allows.
+// RFC requirement: RFC4271-Security-1 positive -- Ze supports the TCP MD5 option on
+// both of its BGP sockets: RealListenerFactory installs TCP_MD5SIG for the peer on
+// the listening socket and RealDialer on the dialing socket, and a 256 KiB transfer
+// crosses the signed loopback connection between them.
 func TestRFC2385MatchingKeysCarryASignedSession(t *testing.T) {
 	ln := rfc2385Listener(t, rfc2385Key)
 	defer closeOrLog(t, ln)
@@ -191,6 +195,9 @@ func TestRFC2385MismatchedKeyIsDroppedWithNoResponse(t *testing.T) {
 // would leave the protection on paper only.
 // RFC requirement: RFC2385-2.0-1 negative -- a key known to only one end of the
 // connection carries no session: the unsigned dial is dropped in silence.
+// RFC requirement: RFC4271-Security-1 negative -- a peer that does not use the TCP MD5
+// option toward a Ze listener holding its key gets no connection: the listener's
+// TCP_MD5SIG drops the unsigned SYN in silence and the dial times out.
 func TestRFC2385KeyOnOneEndOnlyCarriesNoSession(t *testing.T) {
 	ln := rfc2385Listener(t, rfc2385Key)
 	defer closeOrLog(t, ln)

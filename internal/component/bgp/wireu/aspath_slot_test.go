@@ -136,6 +136,10 @@ func TestASPathSlotDualOrder(t *testing.T) {
 // complete AS_PATH attribute.
 // PREVENTS: a prepend applied to nothing emitting an empty or absent AS_PATH,
 // which RFC 4271 Section 5 makes malformed (well-known mandatory).
+//
+// RFC requirement: RFC4271-5.1.2-3 positive -- case 3: an advertising UPDATE whose
+// AS_PATH is absent (an empty path) gains an AS_PATH of one AS_SEQUENCE segment
+// holding only the prepended AS, 64510.
 func TestASPathSlotInsertsWhenAbsent(t *testing.T) {
 	attrs := probeAttr(0x40, attribute.AttrOrigin, []byte{0})
 	payload := buildProbePayload(attrs, probeAdvertisedNLRI)
@@ -354,6 +358,10 @@ func TestASPathSlotEmptyPrependIsRefused(t *testing.T) {
 // join it. A new AS_SEQUENCE is placed in front of it instead.
 // PREVENTS: inserting the local AS into an AS_SET, which would say ze is one of
 // an unordered group of transit ASes rather than the last hop.
+//
+// RFC requirement: RFC4271-5.1.2-3 positive -- case 2: an advertising UPDATE whose
+// first segment is an AS_SET {64512 64513} leaves with a new AS_SEQUENCE [65000] in
+// front of it and the AS_SET unchanged, so the local AS is never placed in the set.
 func TestASPathSlotPrependsBeforeALeadingASSet(t *testing.T) {
 	set := []byte{byte(attribute.ASSet), 2}
 	set = append(set, 0x00, 0x00, 0xFC, 0x00, 0x00, 0x00, 0xFC, 0x01) // 64512, 64513
@@ -384,6 +392,10 @@ func TestASPathSlotPrependsBeforeALeadingASSet(t *testing.T) {
 // prepend onto a full leading AS_SEQUENCE starts a new segment.
 // PREVENTS: writing a 256th AS number into a one-octet count field, which wraps
 // to 0 and truncates the whole path.
+//
+// RFC requirement: RFC4271-5.1.2-3 positive -- the case 1 overflow clause: a prepend onto
+// a leading AS_SEQUENCE that already holds 255 ASes starts a new AS_SEQUENCE [65000] in
+// front, and the full segment keeps all 255.
 func TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull(t *testing.T) {
 	full := []byte{byte(attribute.ASSequence), 255}
 	for i := range 255 {

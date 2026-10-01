@@ -1515,9 +1515,6 @@ func TestBestPathResolve(t *testing.T) {
 // RFC requirement: RFC4271-9.1.2-3 positive -- the immediate next-hop address installed with the
 // route is the one carried in the NEXT_HOP attribute
 // (internal/component/bgp/plugins/rib/rib_bestchange.go:1060-1090).
-// RFC requirement: RFC4271-9.1.2.1-1 positive -- installing the route recalculates the next-hop
-// from the winning candidate and carries it (with any equal-cost siblings) into the Loc-RIB Path
-// consumed by the routing table (internal/component/bgp/plugins/rib/rib_bestchange.go:723-745,797-830).
 // RFC requirement: RFC4271-9.2-8 positive -- once the route is no longer feasible it is removed
 // from the Loc-RIB (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782).
 func TestLocRIBMirror(t *testing.T) {

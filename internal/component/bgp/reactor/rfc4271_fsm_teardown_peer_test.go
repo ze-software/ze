@@ -236,6 +236,7 @@ func startEstablishedNeighbor(t *testing.T) *openSentNeighbor {
 // RFC requirement: RFC4271-8.2.2-3 positive -- HoldTimer expiry on a running Peer in Established writes exactly one NOTIFICATION 4/0, stops the ConnectRetryTimer, and releases the session: its HoldTimer and KeepaliveTimer stop and the Peer no longer holds it.
 // RFC requirement: RFC4271-8.2.2-4 positive -- HoldTimer expiry on a running Peer in Established writes exactly one NOTIFICATION 4/0, stops the three session timers, releases the session, and closes the TCP connection (EOF at the far end).
 // RFC requirement: RFC4271-8.2.2-5 positive -- HoldTimer expiry on a running Peer in Established writes exactly one NOTIFICATION 4/0, stops the three session timers, releases the session, closes the TCP connection, moves the ConnectRetryCounter from 0 to 1, and leaves the session's FSM in Idle.
+// RFC requirement: RFC4271-6.7-1 negative -- a Hold Timer Expired error on a running Peer in Established is answered by exactly one NOTIFICATION, 4/0, never Cease.
 func TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List(t *testing.T) {
 	n := startEstablishedNeighbor(t)
 	require.Equal(t, uint32(0), n.peer.ConnectRetryCounter())

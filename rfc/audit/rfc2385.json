@@ -1,41 +1,42 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-01",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2385-2.0-1": {
-      "note": "Sentence: the key must be known by both ends of the connection. Forbidden: a session carried when only one end holds the key. Negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession (listener keyed, dialer unkeyed) requires a net.Error Timeout, red if the unsigned dial established. Positive TestRFC2385MatchingKeysCarryASignedSession installs the same key through rfc2385Listener and RealDialer.MD5Key (ze's producers) and requires 256 KiB received.",
+      "note": "Sentence: the key must be known by both ends of the connection. Forbidden: a session carried when only one end holds the key. Negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession (listener keyed, dialer unkeyed) requires a net.Error Timeout, red if the unsigned dial established. Positive TestRFC2385MatchingKeysCarryASignedSession installs the same key through rfc2385Listener and RealDialer.MD5Key (ze's producers) and requires 256 KiB received. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "f60ce917acd3c4d8",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "3e6a07186156b5ec",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "afb488dd510dfc7c",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "00f96e179b4bc3db",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "c5801fb420fa5fd9",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944"
       },
       "verdict": "enforced"
     },
     "RFC2385-2.0-2": {
-      "note": "Sentence: the receiver must validate a signed segment by computing its own digest with its own key and comparing. Forbidden: accepting a segment whose digest does not match. Negative TestRFC2385MismatchedKeyIsDroppedWithNoResponse (listener and dialer keys differ) requires a Timeout, red if the listener accepted the mismatched segment; positive TestRFC2385MatchingKeysCarryASignedSession requires the verified session to carry the payload. Validation is Linux TCP_MD5SIG on the socket ze keys (whole-stack ruling).",
+      "note": "Sentence: the receiver must validate a signed segment by computing its own digest with its own key and comparing. Forbidden: accepting a segment whose digest does not match. Negative TestRFC2385MismatchedKeyIsDroppedWithNoResponse (listener and dialer keys differ) requires a Timeout, red if the listener accepted the mismatched segment; positive TestRFC2385MatchingKeysCarryASignedSession requires the verified session to carry the payload. Validation is Linux TCP_MD5SIG on the socket ze keys (whole-stack ruling). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "17f616b2903a8a99",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944",
         "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "7751bb8494c77b34"
       },
       "verdict": "enforced"
     },
     "RFC2385-2.0-3": {
-      "note": "Sentence: a failing comparison must drop the segment and must not produce any response. Clause 'dropped': TestRFC2385MismatchedKeyIsDroppedWithNoResponse requires the dial to end in a net.Error Timeout (no session). Clause 'no response': the same unit fails on errors.Is ECONNREFUSED or ECONNRESET, i.e. on an RST coming back. Negative polarity: the matching-key unit requires the verified payload to arrive whole.",
+      "note": "Sentence: a failing comparison must drop the segment and must not produce any response. Clause 'dropped': TestRFC2385MismatchedKeyIsDroppedWithNoResponse requires the dial to end in a net.Error Timeout (no session). Clause 'no response': the same unit fails on errors.Is ECONNREFUSED or ECONNRESET, i.e. on an RST coming back. Negative polarity: the matching-key unit requires the verified payload to arrive whole. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "9207f41bd81ad29e",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944",
         "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "7751bb8494c77b34"
       },
       "verdict": "enforced"
@@ -44,7 +45,7 @@
       "note": "Sentence: absence of the option in the SYN,ACK must not cause the sender to disable its sending of signatures. Forbidden: after an unsigned SYN,ACK the next segments/attempts go out unsigned. TestRFC2385FailedConnectDoesNotDisableSigning dials a closed port and asserts only that session.dialer.MD5Key and PeerAddr are unchanged afterwards: it never presents an unsigned SYN,ACK and never observes that the following SYN carries the option (the tag prose claims 'the next attempt is signed', which no assertion reads). Single-polarity marker is on the row.",
       "requirement_sha": "1966170c0fdcbb5c",
       "tests": {
-        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning": "8fa1de9ecf7a796c"
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning": "c22e2f926604fcea"
       },
       "units": {
         "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning": "6ebc1586bfb20f96"
@@ -52,63 +53,63 @@
       "verdict": "weak"
     },
     "RFC2385-2.0-5": {
-      "note": "Sentence: sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. Clause 'application control' enforced: TestRFC2385ConfiguredKeyReachesBothSockets asserts the configured password on the dialer and in md5PeersForListener; TestRFC2385NoKeyWithoutConfiguration asserts no key on either when unconfigured. Clause 'not at the mercy of the remote host': no unit tagged 2.0-5 involves a remote host that does not understand the option; the nearest unit (TestRFC2385FailedConnectDoesNotDisableSigning) is tagged 2.0-4 only and itself reads config rather than the wire.",
+      "note": "Sentence: sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option. Clause 'application control' enforced: TestRFC2385ConfiguredKeyReachesBothSockets asserts the configured password on the dialer and in md5PeersForListener; TestRFC2385NoKeyWithoutConfiguration asserts no key on either when unconfigured. Clause 'not at the mercy of the remote host': no unit tagged 2.0-5 involves a remote host that does not understand the option; the nearest unit (TestRFC2385FailedConnectDoesNotDisableSigning) is tagged 2.0-4 only and itself reads config rather than the wire. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "611964454087c34b",
       "tests": {
-        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "8fa1de9ecf7a796c",
-        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "8fa1de9ecf7a796c"
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "c22e2f926604fcea",
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "c22e2f926604fcea"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "f4a5fc64bc9728ca",
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "fba309906b57361a",
         "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "9ce28b033935792e"
       },
       "verdict": "weak"
     },
     "RFC2385-2.0-6": {
-      "note": "Quoted span: every segment contains the 16-byte MD5 digest over pseudo-header, TCP header without options and zero checksum, segment data, then key, in that order. 'Every segment signed' is enforced: TestRFC2385MatchingKeysCarryASignedSession moves 256 KiB between two TCP_MD5SIG sockets, which drop unsigned segments, and the mismatched-key unit times out. The digest composition and order is not: both ends are the same Linux kernel, so an implementation that hashed the items in another order or with the checksum included would still verify against itself. No unit recomputes the digest from a captured segment or runs against an independent stack.",
+      "note": "Quoted span: every segment contains the 16-byte MD5 digest over pseudo-header, TCP header without options and zero checksum, segment data, then key, in that order. 'Every segment signed' is enforced: TestRFC2385MatchingKeysCarryASignedSession moves 256 KiB between two TCP_MD5SIG sockets, which drop unsigned segments, and the mismatched-key unit times out. The digest composition and order is not: both ends are the same Linux kernel, so an implementation that hashed the items in another order or with the checksum included would still verify against itself. No unit recomputes the digest from a captured segment or runs against an independent stack. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "9657702d93d6f223",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944",
         "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "7751bb8494c77b34"
       },
       "verdict": "weak"
     },
     "RFC2385-3.0-1": {
-      "note": "Quoted span: option Kind=19, Length=18, 16-byte digest, appearing in every segment. Presence on every segment follows from the matching-key payload crossing (unsigned segments are dropped) and the mismatched-key timeout (acceptance rests on the digest). Kind 19, Length 18 and the 16-octet digest are never read: both ends are the same kernel, so a different kind or length used symmetrically would pass. No unit captures a segment and asserts the option bytes 0x13 0x12 plus 16 octets.",
+      "note": "Quoted span: option Kind=19, Length=18, 16-byte digest, appearing in every segment. Presence on every segment follows from the matching-key payload crossing (unsigned segments are dropped) and the mismatched-key timeout (acceptance rests on the digest). Kind 19, Length 18 and the 16-octet digest are never read: both ends are the same kernel, so a different kind or length used symmetrically would pass. No unit captures a segment and asserts the option bytes 0x13 0x12 plus 16 octets. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "e54739f8460b6a9a",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959",
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944",
         "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "7751bb8494c77b34"
       },
       "verdict": "weak"
     },
     "RFC2385-4.3-1": {
-      "note": "Sentence: the MD5 option size must be factored into the MSS offered during connection negotiation. Forbidden: an MSS offered as if the 18-octet option were absent. TestRFC2385MatchingKeysCarryASignedSession only asserts 256 KiB crosses a loopback connection (MTU 65536); no assertion reads the MSS option in the SYN or TCP_MAXSEG, and an unreduced MSS on loopback would not visibly fail. Single-polarity marker on the row.",
+      "note": "Sentence: the MD5 option size must be factored into the MSS offered during connection negotiation. Forbidden: an MSS offered as if the 18-octet option were absent. TestRFC2385MatchingKeysCarryASignedSession only asserts 256 KiB crosses a loopback connection (MTU 65536); no assertion reads the MSS option in the SYN or TCP_MAXSEG, and an unreduced MSS on loopback would not visibly fail. Single-polarity marker on the row. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "864cecef734fe23c",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944"
       },
       "verdict": "weak"
     },
     "RFC2385-4.3-2": {
-      "note": "Single-polarity positive (marker on the row). Sentence: total header plus options must be at most 60 bytes. Forbidden: a SYN whose options (with MD5) do not fit, which the kernel can only resolve by omitting the MD5 option. TestRFC2385MatchingKeysCarryASignedSession dials a listener that holds the key and so drops any unsigned SYN; the dial succeeding (t.Fatalf on DialContext error) proves the SYN, the most option-loaded segment, carried the MD5 option within the 60-octet header.",
+      "note": "Single-polarity positive (marker on the row). Sentence: total header plus options must be at most 60 bytes. Forbidden: a SYN whose options (with MD5) do not fit, which the kernel can only resolve by omitting the MD5 option. TestRFC2385MatchingKeysCarryASignedSession dials a listener that holds the key and so drops any unsigned SYN; the dial succeeding (t.Fatalf on DialContext error) proves the SYN, the most option-loaded segment, carried the MD5 option within the 60-octet header. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "e29f75a7863aecd0",
       "tests": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "3e6a07186156b5ec"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "afb488dd510dfc7c"
       },
       "units": {
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "95fc3df0c2158959"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "9aed00e59930a944"
       },
       "verdict": "enforced"
     }

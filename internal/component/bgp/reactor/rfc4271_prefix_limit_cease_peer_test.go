@@ -87,6 +87,7 @@ func threePrefixUpdate() []byte {
 // or that tells it with another Error Code.
 //
 // RFC requirement: RFC4271-6.7-4 positive -- a running Peer in Established with an IPv4 unicast upper bound of 2 and teardown enabled that receives an UPDATE announcing 3 prefixes writes exactly one NOTIFICATION with Error Code Cease (6/1) on the wire and then closes the TCP connection.
+// RFC requirement: RFC4271-6.7-1 positive -- a prefix-limit teardown, where no fatal error of Section 6 exists, is the case Cease is for: a running Established Peer writes exactly one NOTIFICATION 6/1 and closes the TCP connection.
 func TestRFC4271PrefixLimitTeardownSendsCease(t *testing.T) {
 	n := startLimitedEstablishedNeighbor(t, func(settings *PeerSettings) {
 		settings.PrefixMaximum = map[string]uint32{"ipv4/unicast": 2}

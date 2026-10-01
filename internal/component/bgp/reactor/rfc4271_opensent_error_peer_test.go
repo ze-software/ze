@@ -123,6 +123,7 @@ func notifications(t *testing.T, wire []byte) [][2]byte {
 // 2026-09-30).
 //
 // RFC requirement: RFC4271-8.2.2-10 positive -- a running Peer in OpenSent that reads a header with an all-zero marker, a header with Length 18, or an OPEN with version 3 writes exactly one NOTIFICATION with code/subcode 1/1, 1/2 or 2/1, closes the TCP connection, stops its HoldTimer, KeepaliveTimer and ConnectRetryTimer, drops the session, and moves its ConnectRetryCounter from 0 to 1.
+// RFC requirement: RFC4271-6.7-1 negative -- an OPEN Message Error (OPEN version 3) and a Message Header Error (all-zero marker, Length 18) on a running Peer in OpenSent are each answered by exactly one NOTIFICATION whose code/subcode is 2/1, 1/1 or 1/2, never Cease.
 func TestRFC4271OpenSentErrorReleasesTheConnection(t *testing.T) {
 	var badHeader [message.HeaderLen]byte // marker all zeros; a KEEPALIVE otherwise
 	binary.BigEndian.PutUint16(badHeader[16:18], message.HeaderLen)
