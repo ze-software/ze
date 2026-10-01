@@ -518,3 +518,16 @@ Full reactor package -race green after all edits (c17-reactor2.log, 108 s). gofm
 | RFC4271-5-8 | no verdict | records re-recorded and verify; the row holds no audit verdict, so nothing stamped |
 
 Resealed 17 shifted verdicts (rfc4271, linklocal). Gates: golangci-lint ./internal/component/bgp/reactor/... 0 issues; `./le rfc check` 18 violations, none from c17: draft-ietf-idr-linklocal-capability extraction sign-off (sites 1:1-1:3, front:1 absent; the draft text, extraction file and extractor are untouched by c17, so the red is pre-existing), plus the known producer-changed records (rfc5880, rfc9190).
+
+# Interop: next-hop self + local ip auto
+
+Scenario `bgp-nexthop-self-local-auto-frr` (2026-10-01, interop author). No commit, no stamp, no tag (operation-table checker, untagged, so manual revert route, no discriminate-record).
+Ze (65001) relays between a raw injector (65004, explicit local 172.30.0.2) and FRR (65002), FRR peer `local { ip auto; }` + `next-hop self`, general forward rail (`attach process rs`, no rs-fast-path). Own route 10.10.1.0/24 (`update` block, `next-hop self`); injector sends 10.10.0.0/24 NEXT_HOP 172.30.0.9. Assertions: FRR session; FRR `show bgp ipv4 unicast 10.10.1.0/24` and `10.10.0.0/24` each contain "172.30.0.2 from 172.30.0.2"; 10.10.0.0/24 holds no "172.30.0.9 from 172.30.0.2" (proof: the prefix + the self line); session still up.
+
+Files: test/interop/scenarios/bgp-nexthop-self-local-auto-frr/{ze.conf,frr.conf,inject.msg,inject-args}; internal/le/interoplab/bgp/checkers.go (scenarioOperations entry); internal/le/interoplab/bgp/names.go (nextHopSelfFromZe, injectorNextHopFromZe); docs/architecture/testing/interop.md (Scenario Inventory sentence). Package unit tests green (scratch/nhauto-unit.log).
+
+Evidence (scratch = tmp/session/2026-09-28-869df689-cc8f-4d78-9161-1d7c87434c8e/scratch, all runs `./le --name nhauto test integration interop`, harness-built image):
+- Green: nhauto-green1.log (1 passed), and again after restore nhauto-run-bgp-nexthop-self-local-auto-frr.log (1 passed).
+- Red: nhauto-red1.log. Overlay on precomputeNextHop only (peer_forward_facts.go: build self from s.LocalAddress alone, nhModeNone with no guard when unset, i.e. pre-R54). FAIL at assertion 3; FRR held 10.10.0.0/24 as "172.30.0.9 from 172.30.0.2". Assertion 2 (own route, announce rail resolveNextHop) passed under the overlay: that half proves acceptance of the announce rail, not R54. Restored from a byte copy (sha256 d26a5d7a... equal before and after; `git diff` on internal/component/bgp/reactor/ empty).
+- Existing scenarios (after restore): bgp-path-asn-leak-frr, bgp-policy-import-export-frr, bgp-med-ibgp-post-selection-removal-gobgp, bgp-relay-withdraw-nexthop-self-frr, bgp-self-nexthop-withheld-frr: all 1 passed (nhauto-run-<name>.log).
+Not covered: the own Link-Local under auto (IPv6) half suggested in Continuation 17 gates. OWED (main thread): scoped golangci-lint on internal/le/interoplab/bgp.

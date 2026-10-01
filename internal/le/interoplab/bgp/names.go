@@ -171,6 +171,11 @@ const (
 	gobgpLabAddress    = "172.30.0.5"
 	pmacctLabAddress   = "172.30.0.13"
 	vrrpVirtualAddress = "172.30.0.100"
+	// nextHopSelfFromZe is FRR's path line for a route Ze sent with its own
+	// address as NEXT_HOP; injectorNextHopFromZe is the same route relayed with
+	// the raw injector's (172.30.0.9) NEXT_HOP left in place.
+	nextHopSelfFromZe     = "172.30.0.2 from 172.30.0.2"
+	injectorNextHopFromZe = "172.30.0.9 from 172.30.0.2"
 	// vrrpOwnerAddress is both a real address of ze's eth0 and the virtual
 	// address of its VRRPv2 group, which makes ze the address owner. It sits
 	// above keepalived's source on purpose: see the scenario's ze.conf.

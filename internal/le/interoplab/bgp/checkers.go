@@ -387,6 +387,19 @@ var scenarioOperations = map[string][]operation{
 		{kind: opBIRDSession, argument: "ze_leak"},
 		{kind: opBIRDRoute, argument: pathASNCleanPrefix},
 	},
+	// RFC 4271 Section 5.1.3 under `local ip auto`: toward a `next-hop self`
+	// peer that configures no local address, Ze's own route and a forwarded one
+	// both carry the session's connected local endpoint, as FRR reports it. The
+	// forwarded route discriminates: with no endpoint read, the forward rail
+	// leaves the injector's NEXT_HOP 172.30.0.9 in place. FRR prints a path as
+	// "<next hop> from <peer> (<router-id>)", so the needle names the next hop.
+	"bgp-nexthop-self-local-auto-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + injectPrefixSecond}, contains: []string{injectPrefixSecond, nextHopSelfFromZe}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + injectPrefixFirst}, contains: []string{injectPrefixFirst, nextHopSelfFromZe}, timeout: 60 * time.Second},
+		{kind: opRequireAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + injectPrefixFirst}, absent: []string{injectorNextHopFromZe}, proof: []string{injectPrefixFirst, nextHopSelfFromZe}},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-policy-import-export-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opBIRDSession, argument: "ze_policy"},

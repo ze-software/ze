@@ -746,6 +746,9 @@ ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop coun
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
 (`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
+next-hop self under `local ip auto` (`bgp-nexthop-self-local-auto-frr` configures no local
+address toward FRR, and requires FRR to hold both ze's own route and a route relayed from a raw
+injector with NEXT_HOP 172.30.0.2, ze's connected endpoint, never the injector's 172.30.0.9),
 ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
 proves a receiver keeps two paths whose sources both chose one Path Identifier, and
 `bgp-addpath-rail-agreement-speaker` proves the live forward and the peer-up replay emit the same
