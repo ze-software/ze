@@ -52,7 +52,7 @@ as long as it takes the process to cross the two function boundaries.
 | `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | log transition; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) in caller | `Idle` |
 | `EventBGPHeaderErr` | `session_read.readAndProcessMessage` on header parse / length error | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventBGPOpenMsgErr` | `handleOpen` on version, hold-time, or capability validation failure | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
-| `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none | `Idle` |
+| `EventNotifMsgVerErr` | `handleNotification`, through `notificationEvent`, for a received NOTIFICATION 2/1 (OPEN Message Error, Unsupported Version Number) | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none: Event 24 is not on the "any other event" list, so no Finite State Machine Error is sent | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; ConnectRetryCounter untouched (no counter clause in this state); the peer run loop is the restarted ConnectRetryTimer and the listener keeps accepting | none | `Active` (RFC 4271 Section 8.2.2) |
 | any other event (RFC 4271 lists 9, 11-13, 20, 25-28): a received NOTIFICATION that is not a version error (`EventNotifMsg`), a KEEPALIVE outside BFD strict mode (`EventKeepaliveMsg`), an UPDATE well formed or not (`EventUpdateMsg`) | `handleNotification`, `handleKeepalive`, and `processMessage` for an UPDATE before it is parsed or reaches a plugin, each through `Session.fsmMessageEvent` | `ErrFSMError`; **increments ConnectRetryCounter** | `fsmMessageEvent` sends NOTIFICATION 5/0 (Finite State Machine Error, subcode Unspecified: Ze does not originate the RFC 6608 subcodes) and closes the connection | `Idle` |
 
@@ -62,7 +62,7 @@ as long as it takes the process to cross the two function boundaries.
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen validations and fsm.Event(EventBGPOpen) -->
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage header / length error paths -->
 <!-- source: internal/component/bgp/reactor/session_read.go — handleConnectionClose fires EventTCPConnectionFails -->
-<!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification fires EventNotifMsg -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification fires notificationEvent: EventNotifMsgVerErr for 2/1, EventNotifMsg otherwise -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires callback fires EventHoldTimerExpires -->
 
 ### What `handleOpen` actually validates before firing `EventBGPOpen`
@@ -210,12 +210,18 @@ Section 8.2.2, Event 10.
 ## Tests exercising this state
 
 - `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` -- a
-  running Peer in OpenSent that receives a NOTIFICATION, a KEEPALIVE, an
-  UPDATE or a malformed UPDATE writes exactly one NOTIFICATION 5/0, drops
-  the connection and the session, and counts the attempt; the same Peer
-  given an OPEN, then a KEEPALIVE, then an UPDATE in Established writes no
-  NOTIFICATION.
+  running Peer in OpenSent that receives a NOTIFICATION other than a
+  version error, a KEEPALIVE, an UPDATE or a malformed UPDATE writes exactly
+  one NOTIFICATION 5/0, drops the connection and the session, and counts the
+  attempt; the same Peer given an OPEN, then a KEEPALIVE, then an UPDATE in
+  Established writes no NOTIFICATION.
   <!-- source: internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go -->
+- `internal/component/bgp/reactor/rfc4271_version_error_peer_test.go` -- a
+  running Peer in OpenSent or OpenConfirm that receives NOTIFICATION 2/1
+  writes nothing back, drops the connection and the session, reaches Idle,
+  and leaves the ConnectRetryCounter alone; NOTIFICATION 2/2 takes the
+  Event 25 path instead.
+  <!-- source: internal/component/bgp/reactor/rfc4271_version_error_peer_test.go -->
 
 - `internal/component/bgp/fsm/fsm_test.go` — direct state transition
   tests for every `handleOpenSent` arm.

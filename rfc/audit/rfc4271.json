@@ -888,17 +888,21 @@
       "verdict": "enforced"
     },
     "RFC4271-6.8-2": {
-      "note": "The units call session.detectCollision directly; the obligation's trigger, receipt of an OPEN, never reaches it in a tagged unit. The negative covers Idle only.",
+      "note": "Re-judged 2026-10-01 (BGP c12 judge). The trigger (receipt of an OPEN) now reaches the examination in a tagged unit: TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection hands a second connection to Reactor.acceptOrReject, which tracks it as pending until its OPEN, then writes a complete OPEN on it; handlePendingCollision examines the session held in OpenConfirm. Both outcomes of the examination are asserted on the wire: remote Identifier 10.0.0.3 above local 10.0.0.2 -> Cease 6/7 on the OpenConfirm connection; 10.0.0.1 below -> 6/7 on the new connection, pending cleared, OpenConfirm session kept. Negative TestRFC4271ReceivedOpenWithNoOpenConfirmConnection: with no connection in OpenConfirm (session Established) an OPEN with Identifier 255.255.255.255, which would win an OpenConfirm comparison, does not close the existing session; the new connection gets 6/7 and Established stays. Records on session.go::detectCollision observed red both polarities. HEAD units in collision_test.go (direct detectCollision calls) stay supplementary. Ze holds at most one OpenConfirm connection per peer, so 'all' is that one.",
       "requirement_sha": "773b4d24b325a53b",
       "tests": {
         "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "0a5ac870c994131b",
-        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "0a5ac870c994131b"
+        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "0a5ac870c994131b",
+        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "372e002f8af791e2",
+        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "372e002f8af791e2"
       },
       "units": {
         "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "91506adb72012cab",
-        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "df55ccd9a017c407"
+        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "df55ccd9a017c407",
+        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "0917ea85f7708312",
+        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "bbe5194b30a2fa24"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-8.2.2-1": {
       "note": "Forbidden: hold expiry with no Hold Timer Expired NOTIFICATION. TestRFC4271HoldTimerExpirySendsNotification reads the production hold-expiry write and asserts 21 octets, type NOTIFICATION, code 4, subcode 0; it is red on a bare close or another code. Negative: at 1ms before expiry nothing is written, red on a NOTIFICATION sent early. deadpeer-holddown.ci is byte-exact.",
@@ -969,7 +973,7 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-13": {
-      "note": "Row corrected under D-2 to the Active-state Event 18 sentence it was extracted for (spec 'dropped' table; the old text duplicated 8.2.2-11). Only the counter clause is proven, at FSM level: handleActive's Event 18 arm increments and reaches Idle, Connect/OpenSent do not (handleOpenSent break observed red on the negative; the positive has no record). 'restarts the ConnectRetryTimer', 'stops and clears the DelayOpenTimer' and 'releases all BGP resource' have no assertion; Ze's Active is a transient dial, so a peer-level Active harness is owed.",
+      "note": "Re-judged 2026-10-01 (BGP c12 judge) under R49(b). The row (Active + TcpConnectionFails, Event 18) is reached only while a connection is held in Active, which RFC 4271 Section 8.2.2 Active allows only with DelayOpen TRUE (Events 16/17 with DelayOpen FALSE send the OPEN and go to OpenSent at once). Ze implements no DelayOpenTimer (docs/architecture/behavior/fsm.md; Section 8.2.1.3: 'If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported'), and a passive Active session never dials (Session.Connect is the only dial-failure Event 18 producer), so Event 18 never fires in Ze's Active. The DelayOpen implementation gap is disclosed on Support remaining. R49(b)'s row exclusion was NOT applied: a {feature-declined} annotation beside the HEAD tags is refused by ./le rfc check as stale (check_core.go: annotated but IS tested), and dropping those tags is refused by checkCoverageRatchet ('An annotation does not substitute for proof that was already there'); the row is stated by the RFC, so retirement is unavailable, and as an unsourced id it has no extraction site for excluded-kind feature-out-of-scope. The tagged FSM units prove handleActive's counter clause only (and its absence in Connect/OpenSent); 'restarts the ConnectRetryTimer', the DelayOpenTimer clause and 'releases all BGP resource' have no assertion, so the verdict stays weak.",
       "requirement_sha": "5d6a5d3c3f96666a",
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnTCPFailurePerState": "8ed259237718dce2",
@@ -1131,17 +1135,19 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-24": {
-      "note": "Judged 2026-10-01 (BGP c11 judge). Positive TestRFC4271OpenSentUnexpectedMessageIsAnFSMError proves the whole list at peer level for the four listed events Ze can receive in OpenSent (Cease NOTIFICATION = Event 25, KEEPALIVE 26, empty UPDATE 27, overrunning Withdrawn Length UPDATE 28): exactly one NOTIFICATION 5/0, EOF, ConnectRetry/Hold/Keepalive timers stopped, session released, counter 0->1. Negative TestRFC4271ExpectedMessagesRaiseNoFSMError: OPEN in OpenSent (Event 19) draws nothing, counter 0. Records observed red on Session.fsmMessageEvent both polarities. WEAK because the list boundary is over-applied and no unit pins it: Ze never fires Event 24. Session.handleNotification fires EventNotifMsg for every NOTIFICATION it can unpack, including a version error (2/1), so a peer's Unsupported Version Number NOTIFICATION received in OpenSent now falls into this list's default arm and is answered with 5/0, while RFC 4271 Section 8.2.2 OpenSent says 'If a NOTIFICATION message is received with a version error (Event 24), the local system: - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, and - changes its state to Idle.' (no NOTIFICATION, no counter). The negative that discriminates Event 25 from Event 24 (a 2/1 NOTIFICATION in OpenSent: no NOTIFICATION back, counter 0) is missing and would be red today. Owed: classify the received version error as EventNotifMsgVerErr in handleNotification, add that negative, and correct docs/architecture/behavior/fsm-open-sent.md (its EventNotifMsgVerErr row names handleNotification as producer, which fires no such event).",
+      "note": "Re-judged 2026-10-01 (BGP c12 judge). Positive TestRFC4271OpenSentUnexpectedMessageIsAnFSMError proves the whole list at peer level for the four listed events Ze can receive in OpenSent (Cease NOTIFICATION = Event 25, KEEPALIVE 26, empty UPDATE 27, malformed UPDATE 28): exactly one 5/0, EOF, three timers stopped, session released, counter 0->1. Negatives: TestRFC4271ExpectedMessagesRaiseNoFSMError (OPEN, Event 19, draws nothing) and the c11-owed list-boundary negative, now present: TestRFC4271VersionErrorNotificationReleasesQuietly/OPENSENT, a 2/1 NOTIFICATION (Event 24, not on the list) draws no 5/0 and leaves the counter at 3. That negative was red before the D-9 fix (handleNotification filed every NOTIFICATION as Event 25) and is green on notificationEvent; its record is observed red on Session.notificationEvent, the others on fsmMessageEvent. Events 9, 11, 12, 13, 20 do not occur in Ze's OpenSent (corrections). The c11 weak reason is resolved at the producer.",
       "requirement_sha": "1c94a60ea54dae2e",
       "tests": {
         "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "0016171daa459363",
-        "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "0016171daa459363"
+        "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "0016171daa459363",
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "306e1bb5c30d988b",
-        "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "50a2659960b1038a"
+        "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "50a2659960b1038a",
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-8.2.2-25": {
       "note": "Judged 2026-10-01 (BGP c11 judge). Positive TestRFC4271OpenConfirmUpdateIsAnFSMError: a running Peer in OpenConfirm receiving an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/0, drops TCP (EOF), stops ConnectRetry/Hold/Keepalive timers, releases the session, counter 0->1: every listed action. The producer (processMessage -> updateIsUnexpected -> fsmMessageEvent) intercepts the UPDATE before RFC 7606 parsing and plugin delivery. Negative TestRFC4271ExpectedMessagesRaiseNoFSMError: KEEPALIVE in OpenConfirm (Event 26, not listed) reaches Established with nothing written, connection/session kept, counter 0; the same UPDATE in Established draws nothing, so the state decides. Events 9, 12-13, 20 do not occur in Ze's OpenConfirm (no ConnectRetryTimer running, no DelayOpen, no IdleHoldTimer). Records observed red on updateIsUnexpected both polarities.",
@@ -1153,6 +1159,45 @@
       "units": {
         "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "306e1bb5c30d988b",
         "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "a1962ea722a87625"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4271-8.2.2-26": {
+      "note": "Judged 2026-10-01 (BGP c12 judge). Row is the OpenSent Event 24 list verbatim (RFC 4271 p.66, 'If a NOTIFICATION message is received with a version error (Event 24), the local system: - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, and - changes its state to Idle.'). Positive TestRFC4271VersionErrorNotificationReleasesQuietly/OPENSENT: a running Peer at ConnectRetryCounter 3 receives 2/1 and writes NO NOTIFICATION (exact empty list), far end reads EOF, ConnectRetry/Hold/Keepalive timers stopped, session released, FSM Idle, counter stays 3 (the list has no counter line; the start value 3 makes an increment or a reset visible). Negative TestRFC4271OtherOpenErrorNotificationIsNotAVersionError/OPENSENT: 2/2 (same code, other subcode, so not the Event 24 trigger) takes Event 25: exactly one 5/0 and counter 3->4, so a classifier keyed on the error code alone goes red. Producer: Session.notificationEvent (Event 24 only for 2/1, the Section 6.2 Unsupported Version Number) and FSM.handleOpenSent's own EventNotifMsgVerErr arm. Records observed red on notificationEvent, both polarities; the author's failing-first run showed 5/0 and 3->4 before the fix (D-9).",
+      "requirement_sha": "13ff1e662d5737d4",
+      "tests": {
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "20aa7ce5c43aad4a",
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "c7f8655b7f5daa9e",
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4271-8.2.2-27": {
+      "note": "Judged 2026-10-01 (BGP c12 judge). Row is the OpenConfirm Event 24 list verbatim (RFC 4271 Section 8.2.2, 'If the local system receives a NOTIFICATION message with a version error (NotifMsgVerErr (Event 24)), the local system: ... and - changes its state to Idle.'). Positive TestRFC4271VersionErrorNotificationReleasesQuietly/OPENCONFIRM: 2/1 at counter 3 draws no NOTIFICATION, EOF, three timers stopped, session released, Idle, counter stays 3. Negative TestRFC4271OtherOpenErrorNotificationIsNotAVersionError/OPENCONFIRM: 2/2 is Event 25 (the Event 18/25 list): no NOTIFICATION and counter 3->4, so the counter is the discriminating clause between the two lists and both directions are pinned. Records observed red on notificationEvent both polarities; before the fix the positive moved the counter to 4 (D-9). Supplementary: fsm.TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates proves the same counter half at FSM level but stays tagged RFC4271-8.2.2-12 negative (a valid state-boundary negative there).",
+      "requirement_sha": "a202c9ed1a5db311",
+      "tests": {
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "20aa7ce5c43aad4a",
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "c7f8655b7f5daa9e",
+        "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4271-8.2.2-28": {
+      "note": "Judged 2026-10-01 (BGP c12 judge) under R49(a) and the dated correction: for Event 21 the Section 6.1 Message Header Error code governs the NOTIFICATION, the Section 8.2.2 Established list governs the teardown. Events 9, 12, 13, 20 cannot occur in Ze's Established, and Event 22 does not either (handleOpen answers any OPEN in Established with a Cease before checking it), so the claim covers Event 21 only and says so. Positive TestRFC4271EstablishedHeaderErrorReleasesTheConnection, subtests Marker (all-zero Marker, isolated: Length 19, Type KEEPALIVE) and Length (all-ones Marker, Length 18): exactly one NOTIFICATION 1/1 resp. 1/2, EOF, peer-down raised to the Reactor observers (the route-deletion trigger), session released, three timers stopped, counter 0->1. Negative TestRFC4271EstablishedValidHeaderKeepsTheConnection: a well-formed KEEPALIVE (Length 19, the Section 4.1 floor) gives no peer-down, same session, Established, counter 0. Records: positive on session_read.go::notifyHeaderErr, negative on message/header.go::ParseHeader, both observed red. The routes clause is proven to the peer-down raise; the RIB's deletion on that peer-down is proven by TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes (tagged RFC4271-8.2.2-12), the same chain 8.2.2-12 is judged on. 'FSM Error' itself is not asserted, by the R49(a) reading.",
+      "requirement_sha": "6b570f914c2d84bb",
+      "tests": {
+        "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedHeaderErrorReleasesTheConnection": "d317c167d89e39e5",
+        "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedValidHeaderKeepsTheConnection": "d317c167d89e39e5"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedHeaderErrorReleasesTheConnection": "93649143097588ba",
+        "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedValidHeaderKeepsTheConnection": "56340c605eb4bf48"
       },
       "verdict": "enforced"
     },

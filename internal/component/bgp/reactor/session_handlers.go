@@ -425,13 +425,40 @@ func (s *Session) handleNotification(body []byte) error {
 	s.timers.StopAll()
 	// OpenSent files Event 25 under "any other event", so there the FSM
 	// answers with a Finite State Machine Error and fsmMessageEvent writes it.
-	if fsmErr := s.fsmMessageEvent(fsm.EventNotifMsg); fsmErr != nil {
+	// Event 24 is not on that list: OpenSent and OpenConfirm answer it with no
+	// NOTIFICATION and no ConnectRetryCounter change.
+	event := notificationEvent(notif)
+	if fsmErr := s.fsmMessageEvent(event); fsmErr != nil {
 		sessionLogger().Warn("FSM event failed",
-			"peer", s.settings.Address, "event", fsm.EventNotifMsg, "error", fsmErr)
+			"peer", s.settings.Address, "event", event, "error", fsmErr)
 	}
 	s.closeConn()
 
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())
+}
+
+// notificationEvent names the FSM event a received NOTIFICATION stands for.
+//
+// RFC 4271 Section 8.1.5: "Event 24: NotifMsgVerErr. Definition: An event is
+// generated when a NOTIFICATION message with "version error" is received." and
+// "Event 25: NotifMsg. Definition: An event is generated when a NOTIFICATION
+// message is received and the error code is anything but "version error"."
+// RFC 4271 Section 6.2 names that error: "If the version number in the Version
+// field of the received OPEN message is not supported, then the Error Subcode
+// MUST be set to Unsupported Version Number." So the version error is OPEN
+// Message Error (2) with subcode Unsupported Version Number (1), and only that.
+func notificationEvent(notif *message.Notification) fsm.Event {
+	if notif.ErrorCode != message.NotifyOpenMessage {
+		return fsm.EventNotifMsg
+	}
+	if notif.ErrorSubcode != message.NotifyOpenUnsupportedVersion {
+		return fsm.EventNotifMsg
+	}
+	// RFC 4271 Section 8.2.2, OpenSent: "If a NOTIFICATION message is received
+	// with a version error (Event 24), the local system: - sets the
+	// ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP
+	// connection, and - changes its state to Idle."
+	return fsm.EventNotifMsgVerErr
 }
 
 // The geometry of a ROUTE-REFRESH body, from the two RFCs that define it.

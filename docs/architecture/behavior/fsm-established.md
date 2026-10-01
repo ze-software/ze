@@ -60,7 +60,7 @@ The state-change callback in `peer_run.go`:
 | `EventHoldTimerExpires` | hold-timer callback | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) from the callback | `Idle` |
 | `EventNotifMsg` / `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** (Established is the one state whose Event 24 clause carries the counter line) | none | `Idle` |
 | `EventUpdateMsgErr` | `processMessage` / RFC 7606 session-reset path | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (Update error) in caller | `Idle` |
-| `EventBGPHeaderErr` | `readAndProcessMessage` / `handleUnknownType` | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventBGPHeaderErr` | `readAndProcessMessage` / `handleUnknownType` | cleanup in caller; **increments ConnectRetryCounter** | Message Header Error NOTIFICATION in caller (`notifyHeaderErr`: 1/1 for a bad Marker, 1/2 for a bad Length, 1/3 for an unknown Type), the Section 6.1 code rather than the Finite State Machine Error the "any other event" list names (rfc/corrections/rfc4271.md, `RFC4271-8.2.2-28`) | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | any other event (RFC 4271 lists 9, 12-13, 20-22) | a second OPEN (`EventBGPOpen`, from `handleOpen`); Ze has no Event 9, 12, 13 or 20, and Events 21 and 22 follow Section 6 (header error above, OPEN refused with Cease before parsing) | `ErrFSMError`; **increments ConnectRetryCounter** | Cease NOTIFICATION from `handleOpen`; no Finite State Machine Error NOTIFICATION is sent in this state | `Idle` |
 
@@ -172,7 +172,8 @@ grants no reprieve to a CPU-congested daemon.
   <!-- source: internal/component/bgp/reactor/session_handlers.go — screenRouteRefresh -->
   <!-- source: internal/component/bgp/reactor/session_handlers.go — routeRefreshSubtypeUnknown -->
 - **On receive NOTIFICATION:** `handleNotification` stops all timers,
-  fires `EventNotifMsg`, closes the connection. No response
+  fires `EventNotifMsgVerErr` for 2/1 or `EventNotifMsg` for any other
+  NOTIFICATION (`notificationEvent`), closes the connection. No response
   NOTIFICATION.
 - **On `EventKeepaliveTimerExpires`:** the callback fires the FSM event
   then calls `sendKeepalive(conn)`.
@@ -295,6 +296,11 @@ receipt events to plugins.
 
 ## Tests exercising this state
 
+- `internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go`
+  — a header with an all-zero Marker or Length 18 read in Established draws
+  exactly one NOTIFICATION 1/1 or 1/2, the peer-down, the released session and
+  timers, and a counter of 1; a well-formed KEEPALIVE keeps the session.
+  <!-- source: internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go -->
 - `internal/component/bgp/fsm/fsm_test.go` — direct state transition
   tests for `handleEstablished`, including KEEPALIVE/UPDATE no-ops and
   every error arm.

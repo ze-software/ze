@@ -47,8 +47,8 @@ OPEN from a competing socket.
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventKeepaliveMsg` | `handleKeepalive` on received KEEPALIVE | log transition | nothing additional from the FSM | `Established` |
 | `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
-| `EventNotifMsg` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
-| `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none | `Idle` |
+| `EventNotifMsg` | `handleNotification`, for every received NOTIFICATION other than 2/1 | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
+| `EventNotifMsgVerErr` | `handleNotification`, through `notificationEvent`, for a received NOTIFICATION 2/1 (OPEN Message Error, Unsupported Version Number) | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none | `Idle` |
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` | `session_read.readAndProcessMessage` / `handleOpen` | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventKeepaliveTimerExpires` | keepalive-timer callback in `Session.newSession` | stay (FSM no-op) | KEEPALIVE sent from callback | `OpenConfirm` |
@@ -59,7 +59,7 @@ OPEN from a competing socket.
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenConfirm -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive fires EventKeepaliveMsg -->
-<!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification fires EventNotifMsg -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go — handleNotification fires notificationEvent: EventNotifMsgVerErr for 2/1, EventNotifMsg otherwise -->
 <!-- source: internal/component/bgp/reactor/session.go — OnKeepaliveTimerExpires callback fires EventKeepaliveTimerExpires -->
 
 ### Subtle interaction: keepalive timer start happens in `handleKeepalive`
@@ -123,8 +123,9 @@ transition.
   `newSession` calls `logFSMEvent(EventHoldTimerExpires)` and signals
   `errChan`. The session Run loop observes the error and tears down;
   the teardown path sends a NOTIFICATION (HoldTimerExpired).
-- **On `EventNotifMsg`:** `handleNotification` calls
-  `timers.StopAll()`, fires the FSM event, and closes the connection.
+- **On `EventNotifMsg` and `EventNotifMsgVerErr`:** `handleNotification` calls
+  `timers.StopAll()`, fires the FSM event `notificationEvent` names (Event 24
+  for 2/1, Event 25 for any other NOTIFICATION), and closes the connection.
   No NOTIFICATION is sent in response to a received NOTIFICATION.
 - **On `EventKeepaliveTimerExpires`:** the callback in `newSession`
   fires the FSM event first, then calls `sendKeepalive(conn)`.
@@ -174,6 +175,17 @@ transition.
 
 ## Tests exercising this state
 
+- `internal/component/bgp/reactor/rfc4271_version_error_peer_test.go` -- a
+  NOTIFICATION 2/1 received in OpenConfirm releases the session with no
+  NOTIFICATION back and the ConnectRetryCounter unchanged; NOTIFICATION 2/2
+  releases it and counts the attempt.
+  <!-- source: internal/component/bgp/reactor/rfc4271_version_error_peer_test.go -->
+- `internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go` --
+  an OPEN on a second connection, handed to the Reactor as its listener
+  would, is resolved against the session in OpenConfirm by BGP Identifier
+  (Cease 6/7 on the losing connection); against an Established session the
+  new connection always loses.
+  <!-- source: internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go -->
 - `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` -- an
   UPDATE received in OpenConfirm draws exactly one NOTIFICATION 5/0 and
   releases the session; a KEEPALIVE moves the same Peer to Established with
