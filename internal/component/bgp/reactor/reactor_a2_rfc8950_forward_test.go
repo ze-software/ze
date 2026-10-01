@@ -25,13 +25,14 @@ var a2Announced = []byte{24, 192, 0, 2}
 var a2Withdrawn = []byte{24, 198, 51, 100}
 
 // a2Parts is what one destination was asked to write: the Withdrawn Routes field,
-// the NLRI field, and the MP_REACH_NLRI, AS_PATH and LOCAL_PREF values, each nil
-// when absent.
+// the NLRI field, and the MP_REACH_NLRI, AS_PATH, NEXT_HOP and LOCAL_PREF values,
+// each nil when absent.
 type a2Parts struct {
 	withdrawn []byte
 	nlri      []byte
 	mpReach   []byte
 	asPath    []byte
+	nextHop   []byte
 	localPref []byte
 }
 
@@ -86,6 +87,15 @@ func a2Dest(t *testing.T, addr string, peerAS uint32, explicit netip.Addr, pair 
 // absent from the map was written nothing at all.
 func a2Forward(t *testing.T, rs bool, payload []byte, dests ...*Peer) map[netip.Addr]a2Parts {
 	t.Helper()
+	return a2ForwardWith(t, rs, nil, payload, dests...)
+}
+
+// a2ForwardWith is a2Forward with a hook that configures the Reactor and the
+// general rail's source before the UPDATE is forwarded, for a test that needs a
+// policy seam, a plugin server, or an internal source. The source starts as a
+// resolved external peer. A nil configure leaves both as a2Forward builds them.
+func a2ForwardWith(t *testing.T, rs bool, configure func(*Reactor, *forwardSourceInfo), payload []byte, dests ...*Peer) map[netip.Addr]a2Parts {
+	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -118,13 +128,17 @@ func a2Forward(t *testing.T, rs bool, payload []byte, dests ...*Peer) map[netip.
 		fwdPool:             pool,
 		rsForwardingEnabled: rs,
 	}
+	source := forwardSourceInfo{resolved: true, isIBGP: false}
+	if configure != nil {
+		configure(r, &source)
+	}
 	if rs {
 		source := makeRSPeer(t, "203.0.113.9", 65009, ctx, ctxID)
 		peerMap[source.Settings().PeerKey()] = source
 		reactorForwardRS(r, update, id, source.Settings().Address, source)
 	} else {
 		adapter := &reactorAPIAdapter{r: r}
-		_ = adapter.forwardUpdateCore(update, id, dests, forwardSourceInfo{resolved: true, isIBGP: false})
+		_ = adapter.forwardUpdateCore(update, id, dests, source)
 	}
 
 	got := make(map[netip.Addr]a2Parts, len(dests))
@@ -152,6 +166,9 @@ func a2ItemParts(t *testing.T, items []fwdItem) a2Parts {
 		}
 		if _, _, value, found := attribute.AttrFind(u.PathAttributes, attribute.AttrASPath); found {
 			p.asPath = append(p.asPath, value...)
+		}
+		if _, _, value, found := attribute.AttrFind(u.PathAttributes, attribute.AttrNextHop); found {
+			p.nextHop = append(p.nextHop, value...)
 		}
 		if _, _, value, found := attribute.AttrFind(u.PathAttributes, attribute.AttrLocalPref); found {
 			p.localPref = append(p.localPref, value...)

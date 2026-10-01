@@ -4,6 +4,8 @@
 package reactor
 
 import (
+	"encoding/binary"
+	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -212,4 +214,93 @@ func TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer(t *testing.T)
 	internalImport := NewPeerSettings(mustParseAddr("192.0.2.44"), 65000, 65000, 0x01010101)
 	assert.Contains(t, dryRunWireChanges(t, internalImport, directionImport), "AS_PATH prepend",
 		"import from an internal peer: the import chain applies the prepend")
+}
+
+// asSequence4 answers an AS_PATH attribute value holding one AS_SEQUENCE of
+// four-octet ASNs.
+func asSequence4(asns ...uint32) []byte {
+	value := []byte{byte(attribute.ASSequence), byte(len(asns))}
+	for _, asn := range asns {
+		value = binary.BigEndian.AppendUint32(value, asn)
+	}
+	return value
+}
+
+// forwardWithExportEdit forwards, on the general rail (forwardUpdateCore, which
+// runs forwardUpdateSection), a route learned from an external peer whose
+// AS_PATH is [64512 64496], to an internal destination (peer AS 65000 = local
+// AS), a migration-internal one (peer AS 64999 = its configured MigrationAS)
+// and an external one (peer AS 65053). Each destination carries an export
+// filter whose answer is delta. It answers the AS_PATH each was sent.
+func forwardWithExportEdit(t *testing.T, delta string) map[netip.Addr][]byte {
+	t.Helper()
+	internal := a2Dest(t, "192.0.2.51", 65000, netip.Addr{}, false)
+	migration := a2Dest(t, "192.0.2.52", 64999, netip.Addr{}, false)
+	migration.settings.MigrationAS = 64999
+	external := a2Dest(t, "192.0.2.53", 65053, netip.Addr{}, false)
+	for _, dest := range []*Peer{internal, migration, external} {
+		dest.settings.ExportFilters = []filterapi.FilterRef{{Name: "aspath-edit"}}
+		dest.refreshForwardFacts()
+	}
+
+	received := asSequence4(64512, 64496)
+	attrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, byte(len(received))}
+	attrs = append(attrs, received...)
+	attrs = append(attrs, 0x40, 0x03, 0x04, 192, 0, 2, 254)
+
+	configure := func(r *Reactor, _ *forwardSourceInfo) {
+		r.api = &pluginserver.Server{} // non-nil: past the fail-closed r.api guard
+		r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+			return PolicyResponse{Action: PolicyModify, Delta: delta}
+		}
+		r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+	}
+	got := a2ForwardWith(t, false, configure, buildUpdatePayload(attrs, a2InlinePrefix), internal, migration, external)
+
+	paths := make(map[netip.Addr][]byte, len(got))
+	for addr, sent := range got {
+		require.Equal(t, a2InlinePrefix, sent.nlri, "%s is sent the route", addr)
+		paths[addr] = sent.asPath
+	}
+	require.Len(t, paths, 3, "every destination is owed the route")
+	return paths
+}
+
+// TestRFC4271ForwardExportASPathEditsSkipInternalPeers drives the operator
+// export edits of the AS_PATH, "as-path-prepend 2" and "remove-private strip",
+// through the general forward rail, the path a route learned from one peer
+// takes to the others. forwardUpdateSection hands the export chain the
+// destination's own internal verdict from its forwarding facts.
+//
+// VALIDATES: the internal destination and the migration-internal destination
+// (RFC 7705 Section 4.2) are both sent the received AS_PATH [64512 64496] byte
+// for byte; the external destination in the same fan-out is sent it edited:
+// prepended to [65000 65000 65000 64512 64496] (the filter's two copies, then
+// the rail's own Section 5.1.2 b) prepend), and stripped of the private AS to
+// [65000 64496].
+// PREVENTS: the forward rail passing a wrong internal verdict to the export
+// chain, which would let an operator filter modify an internal peer's AS_PATH.
+//
+// RFC requirement: RFC4271-5.1.2-2 negative -- on the general forward rail, an export as-path-prepend or remove-private toward an internal destination, or toward one internal by RFC 7705 Section 4.2, is not applied (the received AS_PATH is sent byte for byte), while the external destination in the same fan-out is sent it prepended and stripped.
+func TestRFC4271ForwardExportASPathEditsSkipInternalPeers(t *testing.T) {
+	received := asSequence4(64512, 64496)
+	for _, tc := range []struct {
+		delta    string
+		external []uint32
+	}{
+		{"as-path-prepend 2", []uint32{65000, 65000, 65000, 64512, 64496}},
+		{"remove-private strip", []uint32{65000, 64496}},
+	} {
+		t.Run(tc.delta, func(t *testing.T) {
+			paths := forwardWithExportEdit(t, tc.delta)
+			assert.Equal(t, received, paths[netip.MustParseAddr("192.0.2.51")],
+				"internal destination: the AS_PATH SHALL NOT be modified")
+			assert.Equal(t, received, paths[netip.MustParseAddr("192.0.2.52")],
+				"migration-internal destination: the AS_PATH SHALL NOT be modified")
+			path, err := attribute.ParseASPath(paths[netip.MustParseAddr("192.0.2.53")], true)
+			require.NoError(t, err)
+			assert.Equal(t, tc.external, flatASNs(path),
+				"external destination: the export edit and the rail's prepend apply")
+		})
+	}
 }

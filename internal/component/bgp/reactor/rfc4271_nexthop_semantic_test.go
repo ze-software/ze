@@ -77,3 +77,54 @@ func TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored(t *testing.T) {
 		})
 	}
 }
+
+// TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel drives the
+// same live session read with the session logger captured at Warn, the level
+// slogutil.Logger gives every subsystem when no ze.log setting names one. An
+// operator who has configured nothing must still find the error.
+//
+// VALIDATES: for a NEXT_HOP equal to the receiving speaker's address and for
+// one off the shared subnet, the route is ignored (NLRI empty, the prefix
+// withdrawn) and one WARN record names the ignored route, the peer and the
+// NEXT_HOP; a NEXT_HOP on the shared subnet is delivered and writes no record.
+// PREVENTS: the error being logged only at Debug, which the default WARN level
+// discards, so the route disappears with no trace.
+//
+// RFC requirement: RFC4271-6.3-2 positive -- with the logger at the default WARN level, a NEXT_HOP equal to the receiving speaker's address, or off the shared subnet of a one-hop EBGP session, writes a WARN record naming the peer and the NEXT_HOP, and its route is ignored (withdrawn, not delivered).
+// RFC requirement: RFC4271-6.3-2 negative -- with the logger at the default WARN level, a NEXT_HOP on the shared subnet is delivered and writes no such record.
+func TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel(t *testing.T) {
+	prefix := []byte{24, 203, 0, 113}
+	for _, tc := range []struct {
+		name    string
+		nextHop [4]byte
+		invalid bool
+	}{
+		{"receiving speaker's own address", [4]byte{192, 0, 2, 2}, true},
+		{"off the shared subnet", [4]byte{198, 51, 100, 1}, true},
+		{"on the shared subnet", [4]byte{192, 0, 2, 7}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := captureSessionLog(t, slog.LevelWarn)
+			nlri, withdrawn := receiveWithNextHop(t, tc.nextHop)
+			record := ""
+			for line := range strings.Lines(buf.String()) {
+				if strings.Contains(line, "semantically incorrect NEXT_HOP") {
+					record = line
+				}
+			}
+			if tc.invalid {
+				assert.Empty(t, nlri, "the route is ignored")
+				assert.Equal(t, prefix, withdrawn, "the ignored route is withdrawn")
+				require.NotEmpty(t, record, "the error is logged at the default level: %q", buf.String())
+				assert.Contains(t, record, "level=WARN")
+				assert.Contains(t, record, "peer=192.0.2.1")
+				nextHop := netip.AddrFrom4(tc.nextHop).String()
+				assert.Contains(t, record, "next-hop="+nextHop)
+				return
+			}
+			assert.Equal(t, prefix, nlri, "a valid NEXT_HOP is delivered")
+			assert.Empty(t, withdrawn)
+			assert.Empty(t, record, "a valid NEXT_HOP logs no error: %q", buf.String())
+		})
+	}
+}

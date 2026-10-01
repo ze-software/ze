@@ -88,6 +88,33 @@ func (s *Session) invalidReceiveNextHop(wu *wireu.WireUpdate) bool {
 	return !network.SharesSubnet(scope.addresses, nextHop)
 }
 
+// logIgnoredNextHopRoute writes the operator's record of a route ignored for a
+// semantically incorrect NEXT_HOP. It logs at Warn because ze.log defaults to
+// WARN: the RFC 7606 diagnostics line beside it is written at Debug only, so an
+// operator who configured nothing would otherwise see the route vanish with no
+// trace. Ze has no log rate limiter, so a peer that keeps sending such routes
+// writes one record per UPDATE; the hex dump stays in the Debug diagnostics.
+//
+// RFC 4271 Section 6.3: "If the NEXT_HOP attribute is semantically incorrect,
+// the error SHOULD be logged, and the route SHOULD be ignored." This function
+// performs the logging; the caller ignores the route.
+func (s *Session) logIgnoredNextHopRoute(wu *wireu.WireUpdate) {
+	const message = "route ignored: semantically incorrect NEXT_HOP"
+	lg := sessionLogger()
+	attrs, err := wu.Attrs()
+	if err != nil || attrs == nil {
+		lg.Warn(message, "peer", s.settings.Address, "next-hop", "unreadable")
+		return
+	}
+	value, err := attrs.GetRaw(attribute.AttrNextHop)
+	if err != nil || len(value) != 4 {
+		lg.Warn(message, "peer", s.settings.Address, "next-hop-octets", len(value))
+		return
+	}
+	nextHop := netip.AddrFrom4([4]byte{value[0], value[1], value[2], value[3]})
+	lg.Warn(message, "peer", s.settings.Address, "next-hop", nextHop)
+}
+
 // withdrawLegacyAnnouncements leaves explicit withdrawals and MP routes intact.
 // A semantically invalid NEXT_HOP belongs only to the legacy IPv4 announcements,
 // so it must not discard unrelated MP_REACH routes in the same UPDATE.

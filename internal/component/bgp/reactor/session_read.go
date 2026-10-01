@@ -220,9 +220,11 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		}
 
 		if action < message.RFC7606ActionTreatAsWithdraw && s.invalidReceiveNextHop(wireUpdate) {
-			// RFC 4271 Section 6.3: "the route SHOULD be ignored" and
-			// "the connection SHOULD NOT be closed". Withdraw a replaced
-			// announcement so an earlier route cannot remain usable.
+			// RFC 4271 Section 6.3: "the error SHOULD be logged", "the route
+			// SHOULD be ignored" and "the connection SHOULD NOT be closed".
+			// Withdraw a replaced announcement so an earlier route cannot
+			// remain usable.
+			s.logIgnoredNextHopRoute(wireUpdate)
 			wireUpdate = s.withdrawLegacyAnnouncements(wireUpdate)
 			s.rfc7606Diagnostics("invalid-next-hop", receivedUpdate,
 				uint8(attribute.AttrNextHop), "NEXT_HOP is local or outside the directly connected subnets")

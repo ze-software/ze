@@ -283,15 +283,16 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.2-2": {
-      "note": "Re-judged 2026-10-01 (BGP c14 judge). The c13 defect is fixed: runEgressPolicyChain/runEgressPolicyChainASN4 take destInternal, both production callers (egress_inject_filter.go::exportFilterForBody, reactor_api_forward.go::forwardUpdateSection) pass !facts.isEBGP, which peer_forward_facts.go reads as PeerSettings.IsEBGP over isIBGPWith (RFC 7705 Section 4.2 aware), and the guard is `if destInternal`; computeWireChanges takes Peer.IsIBGP (same rule, same p.mu) and drops both AS_PATH edits on an export dry-run toward an internal peer, so dry-run and runtime agree. Judge overlays (tree untouched, judge14/*.log): guard forced false reddens the internal and migration-internal assertions of TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath and TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict; exportFilterForBody passing peerAS == localAS (the old equality) reddens both migration assertions; PolicyDryRun computing internal by equality, or computeWireChanges ignoring internal, reddens TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer. Records are panic-body reverts (reach only); the semantic discrimination is these overlays and the author's c14-red1. STILL WEAK: the forwarded-route rail is unproven. An overlay making forwardUpdateSection pass false as destInternal leaves every 5.1.2-2 tagged unit green (judge14 raf), so a received route forwarded to an internal peer through an export as-path-prepend or remove-private filter could be modified with no red. Owed: a unit through forwardUpdateSection (the TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer harness with an export filter answering as-path-prepend / remove-private) asserting the internal destination's AS_PATH unchanged and the external control edited.",
+      "note": "Re-judged 2026-10-01 (BGP c15 judge). The c14 gap is closed: TestRFC4271ForwardExportASPathEditsSkipInternalPeers drives the general forward rail (forwardUpdateCore -> forwardUpdateSection) with the policy-chain egress step answering 'as-path-prepend 2' and 'remove-private strip'; the internal destination (AS 65000) and the RFC 7705 migration-internal destination (AS 64999 = MigrationAS) are sent the received AS_PATH [64512 64496] byte for byte, while the external control in the same fan-out is sent [65000 65000 65000 64512 64496] and [65000 64496]. Judge overlay (forwardUpdateSection passes false instead of !facts.isEBGP, judge j15-ov-fwd.log) reddens all four internal and migration-internal assertions, so the forward rail is now discriminated. With the c14 units (exportFilterForBody/runEgressPolicyChain guard, migration-aware verdict, policy dry-run agreement, announce rail reactor_wire, batch IBGP verbatim) every rail that edits AS_PATH toward an internal peer has a unit that reddens when it does. Judge re-recorded the two producer-changed revert records of TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer on forwardUpdateSection. rfc4271_test.go and reactor_batch_test.go tags still carry no record (reach unproven by record, semantic by c13/c14 overlays).",
       "requirement_sha": "0cfcf537b0aafcec",
       "tests": {
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "40d3d7d2452a77dd",
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "40d3d7d2452a77dd",
-        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "40d3d7d2452a77dd",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "9a11af33ccbe070c",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "9a11af33ccbe070c",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "9a11af33ccbe070c",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "71e9a5e9a3b36017"
       },
@@ -301,11 +302,12 @@
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "d2f77b2acbc479db",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "cf1b7a86f8549355",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "c7e558adc71200ee",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "39061cf70b2cf754",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "ca93d29a312a1f89",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "4aa30092bdda3e75"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-5.1.2-3": {
       "note": "Re-judged 2026-10-01 (c10 judge). Every clause now has a tagged unit: case 1 (leading AS_SEQUENCE gets the local AS) HEAD TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS and the wireu advertise units; case 1 overflow TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull (255-AS segment: new AS_SEQUENCE [65000] in front, full segment intact); case 2 TestASPathSlotPrependsBeforeALeadingASSet (AS_SET-led path gets a new AS_SEQUENCE [65000], set unchanged); case 3 TestASPathSlotInsertsWhenAbsent (absent path becomes one AS_SEQUENCE [64510]). Negatives: IBGP verbatim and withdraw-only (no advertise). The wireu units drive ASPathEdit.Record, which the reactor forward and RS paths call in production (reactor_api_forward.go, forward_rs.go); records observed red on recordPrepend. Tag lines were inserted by python: re-checked, comment-only diff.",
@@ -744,19 +746,23 @@
       "verdict": "enforced"
     },
     "RFC4271-6.3-2": {
-      "note": "Re-judged 2026-10-01 (BGP c14 judge). Gap closed for 'the route SHOULD be ignored': TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored drives a live session read over a one-hop EBGP session and asserts both semantic errors of Section 6.3 (NEXT_HOP = the receiving speaker, criterion a; NEXT_HOP off the shared subnet, criterion b) are not delivered and are moved to the withdrawn routes, while an on-subnet NEXT_HOP is delivered; author overlays forcing invalidReceiveNextHop false/true redden the matching subtests. STILL WEAK on 'the error SHOULD be logged': the only record is rfc7606Diagnostics, which returns at once unless the session logger is at Debug (session_validation.go), and the default level is Warn (ze.log default, internal/core/slogutil/slogutil.go), so at default configuration a semantically incorrect NEXT_HOP leaves no log line and no counter; the unit proves the line only after raising the logger to Debug. Owed: an operator-visible record at the default level (a rate-limited Warn per peer, or a per-peer counter exposed through metrics/show) with a test at the default level, or an owner-recorded deviation naming Section 6.3 and the per-UPDATE volume reason (which, per rfc-compliance, is then not counted conformant).",
+      "note": "Re-judged 2026-10-01 (BGP c15 judge). Both clauses proven at their producers. 'the route SHOULD be ignored': TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored and TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel drive a live session read over a one-hop EBGP session; NEXT_HOP = the receiving speaker (criterion a) and NEXT_HOP off the shared subnet (criterion b) leave NLRI empty and move 203.0.113.0/24 to the withdrawn routes, an on-subnet NEXT_HOP is delivered. 'the error SHOULD be logged' (the c14 gap, D-8 fixed): session_next_hop.go::logIgnoredNextHopRoute, called in session_read.go processMessage at the invalid-next-hop branch with the Section 6.3 quote above it, writes 'route ignored: semantically incorrect NEXT_HOP' at Warn, the slogutil default level; the new unit captures the session logger at slog.LevelWarn and asserts level=WARN, peer=192.0.2.1 and next-hop=<the NEXT_HOP> for both invalid cases, and no such record for the valid one. Records: revert on logIgnoredNextHopRoute (+) and invalidReceiveNextHop (-); the author's c15-63red shows the new unit red before the fix. Residual, not a verdict defect: there is NO rate limiting (Ze has none to reuse), so a peer repeating such routes writes one WARN per UPDATE; the RFC asks only that the error be logged. The rib unit TestRFC4271SelfNextHopRouteIsNotInstalled still has no record (unproven).",
       "requirement_sha": "45bae6d884e23135",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled": "2b58a565501daf62",
-        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored": "ac694ca407a7b17f",
-        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored#2": "ac694ca407a7b17f"
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored": "576df1bf99f227b9",
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored#2": "576df1bf99f227b9",
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel": "576df1bf99f227b9",
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel#2": "576df1bf99f227b9"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled": "c36a57823c94df7e",
         "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored": "b95266d0889b4164",
-        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored#2": "b95266d0889b4164"
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored#2": "b95266d0889b4164",
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel": "dadfd6f227b06e83",
+        "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel#2": "dadfd6f227b06e83"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-6.3-4": {
       "note": "positive drives Total Attribute Length and Withdrawn Routes Length overruns through enforceRFC7606 and asserts SessionReset plus NOTIFICATION 3/1 read off the written bytes (RFC 7606 3(b) keeps this subcode); negative: consistent lengths draw no NOTIFICATION",
@@ -984,9 +990,12 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-13": {
-      "note": "Re-judged 2026-10-01 (BGP c14 judge) under R52. The row carries {feature-declined} quoting RFC 4271 Section 8.2.1.3 ('If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported'): the Active-state Event 18 list is reached only while a connection is held in Active under DelayOpen. Ze implements no DelayOpen (no DelayOpenTimer, docs/architecture/behavior/fsm.md); fsm.go::handleActive moves Active to OpenSent on TcpConnectionConfirmed at once and no Ze producer fires Event 18 in Active (c13 judge read Session.Connect, handleConnectionClose and the congestion teardown). No unit is tagged and the three orphan records were removed. DelayOpen is disclosed as an implementation gap on Support remaining. R52 asked for unimplemented: stamped, then REFUSED by ./le rfc check (check_audit.go: an unimplemented verdict needs a {gap} or {not-applicable} annotation, and the row carries {feature-declined}, one annotation per row), so the verdict stays weak until the gate accepts {feature-declined} beside an unimplemented verdict or the main thread rules otherwise. Weak here means no test proves the row; the annotation excuses it.",
+      "code": {
+        "internal/component/bgp/fsm/fsm.go::handleActive": "647f738a09868490"
+      },
+      "note": "Re-judged 2026-10-01 (BGP c15 judge) under R53(a). The row now carries {gap}: DelayOpen is OPTIONAL (RFC 4271 Section 8.2.1.3: 'If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported') and Ze does not implement it. The Active-state Event 18 list is reached only while a connection is held in Active, which happens only with DelayOpen set; fsm.go::handleActive moves Active to OpenSent at once on EventTCPConnectionConfirmed, no DelayOpenTimer exists, and no Ze producer fires Event 18 in Active, so no layer performs this list. No unit is tagged. Counted as one of the thirteen MUST/SHALL gaps on the rfc4271 Support remaining text (FSM Active item), which can only understate conformance. Recording the gap authorizes no DelayOpen implementation.",
       "requirement_sha": "5d6a5d3c3f96666a",
-      "verdict": "weak"
+      "verdict": "unimplemented"
     },
     "RFC4271-8.2.2-14": {
       "note": "Peer level in Established: an UPDATE with a malformed MP_REACH_NLRI (an error RFC 7606 still answers with a session reset, Event 28) draws exactly one NOTIFICATION with Error Code 3, EOF, the peer-down for that neighbor, the session dropped, three timers stopped, counter 0 -> 1; the RIB unit proves the routes deletion on that peer-down. Negative: a well-formed UPDATE is dispatched with no peer-down, same session Established, counter 0. Records observed red: handleEstablished (positive), handleStructuredState (rib positive), handleUpdate (negative). Subcode not asserted (the row asks for 'an Update error', the code). Not asserted end to end: the plugin dispatcher's peer-down translation into the RIB event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestRFC4271EstablishedUpdateErrorReleasesTheConnection gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
@@ -1516,17 +1525,19 @@
       "verdict": "enforced"
     },
     "RFC4271-9.2-6": {
-      "note": "Only reactorForwardRS is exercised. The same split-horizon check on the API forward rail (reactor_api_forward.go:721) has no tagged unit. The prohibition's assertion is assert.Empty after a fixed 50ms sleep, so a dispatch slower than that passes. The Route Reflector exception is shown with a client source only, not with a client destination.",
+      "note": "Re-judged 2026-10-01 (BGP c15 judge). Both c14 gaps on the general rail closed: TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers forwards one route from an internal non-client source on forwardUpdateCore -> forwardUpdateSection to an internal non-client (sent nothing), an external peer (sent the route) and an internal route-reflector client DESTINATION (sent the route: the RR exception with a client destination). Absence is judged after the two controls of the same fan-out arrive plus a 500 ms window, not a bare sleep. Revert record on forwardUpdateSection; the author's overlay turning the !srcInfo.isRRClient && !facts.rrClient refusal into if false reddens the non-client assertion (c15-ov-sh). The route-server rail keeps TestRFC4271NoIBGPToIBGPRedistribution (absence after a fixed 50 ms sleep, no in-fan-out control; its partner TestRFC4271IBGPRedistributionAllowedForReflectorClient shows the same dispatch within 2 s) and TestRFC4271IBGPRedistributionAllowedForReflectorClient: a residual timing weakness on that rail only, and neither RS unit has a record.",
       "requirement_sha": "406f1f4d7c98a952",
       "tests": {
+        "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "f0a1c3da5aa3beae",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "71e9a5e9a3b36017"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "60940c41b58dcc6e",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "8865a9081109cf2d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "c199e070d7d0131b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.2-7": {
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
