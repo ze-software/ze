@@ -17,6 +17,18 @@ adjacency down inside the BFD detection window instead of the
   BFD plugin is absent logs a warning and opens no session. BFD is additive: a
   missing BFD plugin never blocks the protocol.
   <!-- source: internal/plugins/ospf/bfd_client.go -- startBFDSession, bfdNeighborFull -->
+- **An interface `bfd` block does not start the BFD plugin; the top-level `bfd`
+  container does.** The plugin owns the `bfd` config root, and config-path
+  auto-load matches top-level roots only, so `ospf { interfaces { interface eth0
+  { bfd { enabled true } } } }` alone leaves the service unpublished and OSPF on
+  its Hello/Dead timers. A configuration that wants OSPF BFD also carries
+  `bfd { enabled true; }`, as the `ospf-bfd-frr` interop scenario does. OSPFv3
+  also needs `bind-v6 true` in that container: it defaults to false, and without
+  it the loop holds only an IPv4 socket, so every Control packet to an IPv6
+  neighbour fails to send (`ospfv3-bfd-frr` sets both).
+  <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
+  <!-- source: internal/component/bfd/register.go -- init -->
+  <!-- source: internal/component/bfd/bfd.go -- newTransport -->
 - **One long-lived subscriber goroutine per session, never one per event.** It
   drains the state-change channel until the client stops it or the engine closes
   the subscription. This follows `ai/rules/goroutine-lifecycle.md`.
