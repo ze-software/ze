@@ -374,7 +374,14 @@ COMBINATION with Extended Next Hop Encoding (code 5): without both, the field is
 encoded as 32 octets.
 
 The llnh plugin declares the capability, from `session capability
-link-local-nexthop`, and the core parses and negotiates it. A route whose next
+link-local-nexthop`, and the core parses and negotiates it. The plugin refuses a
+peer that enables the capability with no `session link-local` address, on the
+peer or its group, both at commit (config-verify) and at startup, where the
+refusal stops ze. That leaf is Ze's only source for its own Link-Local, and
+Section 4 makes including it a MUST for a directly connected route, so a
+session negotiating the capability without it would promise a next hop Ze
+cannot send. Section 2 asks a speaker to advertise the capability only when "It
+is capable of sending IPv6 Link-Local-only next hops for a route". A route whose next
 hop is link-local is left out of the announcement on a session that did not
 negotiate what it needs, rather than encoded in a form RFC 2545 Section 3
 forbids.
@@ -384,6 +391,7 @@ link-local-only next hop is withheld from a route-reflector client that shares n
 link-layer segment with the original advertiser, unless the operator configured
 next-hop-self for that client.
 
+<!-- source: internal/component/bgp/plugins/llnh/llnh.go -- refuseLinkLocalCapabilityWithoutAddress -->
 <!-- source: internal/core/bgp/capability/capability.go -- LinkLocalNextHop, CodeLinkLocalNextHop -->
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, LinkLocalNextHop -->
 <!-- source: internal/core/bgp/attribute/nexthop_form.go -- LinkLocalOnlyNextHopPermitted -->

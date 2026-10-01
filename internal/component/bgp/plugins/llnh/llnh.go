@@ -12,6 +12,7 @@ package llnh
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -60,9 +61,18 @@ func runLLNHPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-llnh", conn)
 	defer func() { _ = p.Close() }()
 
-	// OnConfigure callback: parse bgp config, find peers with link-local-nexthop,
-	// then set capabilities for Stage 3.
+	// The same refusal at the two points a configuration arrives. config-verify
+	// runs inside the commit transaction, so the operator meets the refusal at
+	// the prompt. Stage 2 runs at startup, where the refusal stops the daemon
+	// (FatalOnConfigError, register.go).
+	p.OnConfigVerify(refuseLinkLocalCapabilityWithoutAddressSections)
+
+	// OnConfigure callback: refuse a peer that would advertise capability 77
+	// with no Link-Local address to send, then set capabilities for Stage 3.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		if err := refuseLinkLocalCapabilityWithoutAddressSections(sections); err != nil {
+			return err
+		}
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
 			if section.Root != configRootBGP {
@@ -103,9 +113,97 @@ func isLLNHEnabled(capMap map[string]any) (bool, bool) {
 	return true, true
 }
 
+// llnhEnabledFor reports whether a peer advertises capability 77: its own
+// capability container decides, and the enclosing group's applies only when the
+// peer states none. Both the advertisement and the refusal read this one answer,
+// so they cannot disagree about which peer carries the capability.
+func llnhEnabledFor(peerMap, groupMap map[string]any) bool {
+	peerHasExplicit, peerEnabled := isLLNHEnabled(configjson.GetCapability(peerMap))
+	if peerHasExplicit {
+		return peerEnabled
+	}
+	if groupMap == nil {
+		return false
+	}
+	_, groupEnabled := isLLNHEnabled(configjson.GetCapability(groupMap))
+	return groupEnabled
+}
+
+// refuseLinkLocalCapabilityWithoutAddressSections runs
+// refuseLinkLocalCapabilityWithoutAddress over every bgp section delivered.
+func refuseLinkLocalCapabilityWithoutAddressSections(sections []sdk.ConfigSection) error {
+	for _, section := range sections {
+		if section.Root != configRootBGP {
+			continue
+		}
+		if err := refuseLinkLocalCapabilityWithoutAddress(section.Data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// refuseLinkLocalCapabilityWithoutAddress returns an error naming the first peer
+// that enables capability 77 with no `session > link-local` address configured,
+// on the peer or on its group.
+//
+// draft-ietf-idr-linklocal-capability Section 2: "A BGP speaker that is willing
+// to use (send and receive) IPv6 Link-Local-only next hops SHOULD advertise the
+// Link-Local Next Hop Capability to its peers only when: 1. It is capable of
+// sending IPv6 Link-Local-only next hops for a route."
+// Section 4: "If the route is directly connected to the speaker, ... the next
+// hop MUST include its own Link-Local IPv6 address."
+// The leaf is the only source of Ze's own Link-Local on every rail
+// (linkScope.linkLocalNextHop, internal/component/bgp/reactor/link_scope.go), so
+// a peer without it would negotiate the capability and then break Section 4.
+// Deriving the address from the interface instead would make the next hop
+// depend on runtime state the configuration does not show.
+func refuseLinkLocalCapabilityWithoutAddress(jsonStr string) error {
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	if !ok {
+		return nil
+	}
+
+	var refusal error
+	configjson.ForEachPeer(bgpSubtree, func(peerName string, peerMap, groupMap map[string]any, _ configjson.PeerOrigin) {
+		if refusal != nil {
+			return
+		}
+		if !llnhEnabledFor(peerMap, groupMap) {
+			return
+		}
+		if sessionLinkLocal(peerMap) != "" {
+			return
+		}
+		if sessionLinkLocal(groupMap) != "" {
+			return
+		}
+		refusal = fmt.Errorf("peer %s: session capability link-local-nexthop requires session link-local, "+
+			"the IPv6 link-local address Ze sends after its global next hop", peerName)
+	})
+	return refusal
+}
+
+// sessionLinkLocal returns the `session > link-local` value of a peer or group
+// config map, or "" when the map states none.
+func sessionLinkLocal(m map[string]any) string {
+	if m == nil {
+		return ""
+	}
+	session, ok := m["session"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	linkLocal, _ := session["link-local"].(string)
+	return linkLocal
+}
+
 // extractLLNHCapabilities parses bgp config JSON and returns per-peer capabilities.
 // Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
 // draft-ietf-idr-linklocal-capability: capability code 77, empty payload.
+//
+// Caller MUST run refuseLinkLocalCapabilityWithoutAddress over the same section
+// first: this function declares the capability for every peer that enables it.
 func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
 	if !ok {
@@ -116,21 +214,7 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	var caps []sdk.CapabilityDecl
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
-		// Check per-peer link-local-nexthop capability first.
-		peerHasExplicit, peerEnabled := isLLNHEnabled(configjson.GetCapability(peerMap))
-
-		// Check group-level link-local-nexthop capability (fallback).
-		groupEnabled := false
-		if groupMap != nil {
-			_, groupEnabled = isLLNHEnabled(configjson.GetCapability(groupMap))
-		}
-
-		// Per-peer wins; if no per-peer config, use group default.
-		enabled := groupEnabled
-		if peerHasExplicit {
-			enabled = peerEnabled
-		}
-		if !enabled {
+		if !llnhEnabledFor(peerMap, groupMap) {
 			return
 		}
 

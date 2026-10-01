@@ -25,6 +25,8 @@ bgp {
 			}
 		}
 		session {
+			# Capability 77 is refused without the address it promises to send.
+			link-local fe80::1
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}

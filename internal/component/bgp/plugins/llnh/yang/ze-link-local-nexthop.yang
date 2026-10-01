@@ -19,7 +19,11 @@ module ze-link-local-nexthop {
             presence "Link-local next-hop capability enabled";
             description
                 "The capability advertises that ze accepts IPv6 link-local
-                 next-hops in MP_REACH_NLRI (RFC 2545 Section 3).";
+                 next-hops in MP_REACH_NLRI (RFC 2545 Section 3).
+                 Requires session link-local on the peer or its group:
+                 the configuration is refused without it, because ze must
+                 send its own link-local address once the capability is
+                 negotiated (draft-ietf-idr-linklocal-capability Section 4).";
             ze:help
                 "Link-local next-hop capability.";
         }

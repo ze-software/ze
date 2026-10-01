@@ -1,0 +1,47 @@
+# Test: capability 77 without a link-local address cannot boot
+#
+# VALIDATES: the daemon refuses a startup config whose peer enables the
+# link-local-nexthop capability (code 77) with no session link-local address:
+# the bgp-llnh plugin's Stage 2 refusal stops ze before any OPEN is sent.
+# PREVENTS: ze negotiating capability 77 and then never sending its own
+# Link-Local next hop, which draft-ietf-idr-linklocal-capability Section 4
+# requires for a directly connected route ("the next hop MUST include its own
+# Link-Local IPv6 address").
+#
+# Method: ze boots the config, the exit code and the refusal line are
+# asserted, and no peer is started. llnh-ipv6-nexthop.ci is the accepted
+# polarity: the same peer with session link-local fe80::1 sends the capability.
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				link-local-nexthop
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=peer peer1: session capability link-local-nexthop requires session link-local
+reject=stderr:contains=bgp peers started

@@ -27,7 +27,12 @@ func init() {
 		Dependencies:    []string{pluginNameBGP},
 		YANG:            llnhyang.ZeLinkLocalNexthopYANG,
 		CapabilityCodes: []uint8{77},
-		RunEngine:       runLLNHPlugin,
+		// A peer enabling capability 77 with no `session > link-local` address
+		// is REFUSED, and the refusal stops ze: running would negotiate a
+		// capability whose Link-Local Ze then never sends
+		// (refuseLinkLocalCapabilityWithoutAddress, llnh.go).
+		FatalOnConfigError: true,
+		RunEngine:          runLLNHPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLLNHLogger(slogutil.Logger(loggerName))
 		},

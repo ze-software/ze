@@ -5,6 +5,15 @@
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
+    "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2": {
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr": "61bd9af677748384",
+        "internal/component/bgp/reactor/config_nexthop_form.go::applyLinkLocal": "16cfde244a2843ee"
+      },
+      "note": "Judged 2026-10-01 (BGP c20 judge, R58(c)). Row text is a verbatim span of draft -06 Section 1 (lowercase must, ruled to bind the implementation). Gap confirmed at the producers: mpNextHopAddr (rib_bestchange.go) turns the received Next Hop octets into a bare netip.Addr with no zone and no interface, and nothing in the BGP best-change path sets one (no WithZone on that path); on the send side applyLinkLocal (config_nexthop_form.go) parses session link-local as a plain address with no tie to the session's interface. The {gap} annotation states both halves.",
+      "requirement_sha": "79bb0f7a5e2b1ea8",
+      "verdict": "unimplemented"
+    },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1": {
       "note": "Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).",
       "requirement_sha": "933e18e1df1672f1",
@@ -64,9 +73,11 @@
       "verdict": "weak"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3": {
-      "note": "Re-judged 2026-10-01 (BGP c19 judge). The second condition (next-hop router = the internal peer's address) is split to 4-15 ({not-applicable}, RFC 4271 Section 5.1.3), which clears the c18 finding. The first condition is proven both polarities on the announce rail (TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute: wire [2001:db8:1::1, fe80::1]; TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter: 16-octet global, NotContains the pair) and on the forward facts (next-hop self, local ip auto, unchanged), each re-recorded red after the producer change. Still weak, on a hole none of the units can see: every positive configures session > link-local. Ze advertises capability 77 whenever link-local-nexthop is enabled (extractLLNHCapabilities, llnh.go) with no check that the leaf is set, and linkScope.linkLocalNextHop returns the zero Addr for an unset configured address, so with the capability negotiated, a one-hop internal peer and a directly connected route, the next hop carries no own Link-Local and the MUST is broken. Missing: refuse the capability without the leaf, or derive the interface Link-Local, plus a unit for that configuration (defect reported to the main thread).",
+      "note": "Re-judged 2026-10-01 (BGP c20 judge, R58(a)). The c19 hole is closed at its producer: refuseLinkLocalCapabilityWithoutAddress (llnh.go), run by both OnConfigVerify (commit) and OnConfigure (startup, FatalOnConfigError in register.go), refuses a peer, a group member or a dynamic-group template whose capability 77 is enabled (llnhEnabledFor, the same answer extractLLNHCapabilities advertises from) with no session link-local on the peer or its group; ResolveBGPTree merges the group's session leaves into the peer, so the group case matches what the reactor's applyLinkLocal reads. So every configuration that can negotiate 77 carries the address linkScope.linkLocalNextHop appends. New units, both through the real LoadConfig + ToPluginMap lowering: negative TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress (standalone and group-inherited capability refused, error names peer1 and session link-local, the section entry refuses too); positive TestLinkLocalCapabilityAcceptedWithLinkLocalAddress (leaf on peer, group, member: accepted and the capability still declared). Both recorded red under the producer break. The wire half stays proven both polarities on the announce rail (directly connected originated route: [global, fe80::1]; route through another router: 16-octet global) and on the forward facts (next-hop self, local ip auto, unchanged), each with an observed-red record. Functional: test/plugin/llnh-refuses-without-link-local.ci (ze boot exits 1 with the refusal) passes. Residual note: the wire units do not negotiate capability 77 itself; linkLocalNextHop does not read the capability, so the same producer answers with and without it.",
       "requirement_sha": "0edf8c5e4a281906",
       "tests": {
+        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "52228b2fd5d81dde",
+        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "52228b2fd5d81dde",
         "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "f0dc1dc01992645e",
         "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "f0dc1dc01992645e",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "8b6df8728f9a616d",
@@ -74,13 +85,15 @@
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "8b6df8728f9a616d"
       },
       "units": {
+        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "9a117eec472d8b16",
+        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "67d7879a8992500a",
         "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "e601b387c8bfbd8a",
         "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "d006104036f3194f",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "71cf6e0c76b63ec2",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "951f8278ecb9412d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "889cc8ffe6f9cb44"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4": {
       "note": "Forbidden: announcing to an internal peer a route left with no IPv6 next hop after the internal-peer procedures. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer asserts assert.Nil on buildRIBRouteUpdate's internal rail for a zero netip.Addr only. 'After evaluating the above procedures' is not an input: no unit feeds a route whose Link-Local is removed toward a multihop internal peer and then leaves nothing, and the forward rail is not driven. The '(Treat-as-withdraw.)' clause, a withdrawal of a previously announced route, has no assertion.",

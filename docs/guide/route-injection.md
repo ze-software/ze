@@ -162,7 +162,11 @@ Encoding.
 On any other session the route is left out of the announcement toward that peer
 and the skip is logged, which is what Section 4 asks for when no conformant next
 hop is left: "the BGP route MUST not be advertised to its peer". Enable it with
-`session capability link-local-nexthop` on the peer or its group.
+`session capability link-local-nexthop` on the peer or its group, together with
+`session link-local <fe80::...>` on the peer or the group: ze refuses the
+capability without that address, at commit and at startup, because the draft
+requires a directly connected route's next hop to include ze's own Link-Local.
+<!-- source: internal/component/bgp/plugins/llnh/llnh.go -- refuseLinkLocalCapabilityWithoutAddress -->
 <!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopPermitted -->
 
 ### A Peer Never Receives Its Own Address as Next Hop

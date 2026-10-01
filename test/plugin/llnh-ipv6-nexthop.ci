@@ -39,6 +39,8 @@ bgp {
 				remote 1
 			}
 			router-id 1.2.3.4
+			# Capability 77 is refused without the address it promises to send.
+			link-local fe80::1
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}

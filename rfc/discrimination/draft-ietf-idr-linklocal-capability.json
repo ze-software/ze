@@ -92,6 +92,28 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress",
+      "unit-sha": "9957cbbe548a6e4d",
+      "claim-sha": "f157c9ddcb7f3026",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/llnh/llnh.go::refuseLinkLocalCapabilityWithoutAddress",
+      "producer-sha": "9292de51331844fb",
+      "break": "body of refuseLinkLocalCapabilityWithoutAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress",
+      "unit-sha": "93a359911da30e5d",
+      "claim-sha": "4b9c985045d8a275",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/llnh/llnh.go::refuseLinkLocalCapabilityWithoutAddress",
+      "producer-sha": "9292de51331844fb",
+      "break": "body of refuseLinkLocalCapabilityWithoutAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute",
       "unit-sha": "d782d91028f60f6d",
       "claim-sha": "4ce31e9e8c7bae64",
