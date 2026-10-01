@@ -44,7 +44,7 @@ AS_SET-first MED); 1e54dbbc7d c14 (RFC 7705 migration-aware export guard); 7101d
 db6e42abe2 c17 (link-local on forward rails); 6da51925b2 interop bgp-nexthop-self-local-auto-frr;
 4755e4d1f6 c18; 771fc01602 c19 (own link-local only with own global, RFC2545-3-6 gap,
 skeleton spec-bgp-rs-replacement-on-withdrawal); b926ed0894 c20 (capability 77 needs a
-link-local address); 1c21de3153 OSPF-BFD interop configs; c21 judge commit (see QUEUE.md).
+link-local address); 1c21de3153 OSPF-BFD interop configs; a9ddcd495e this handover; 20fec75f48 c21 (relay link-local cut to the global toward multihop peers, linklocal 3-2, rfc9552 5.1-4/5.1-5/8.2.2-9).
 
 Defects fixed this session (each failing test first): unknown message type claim; FSM Error
 NOTIFICATION in OpenSent/OpenConfirm; version-error NOTIFICATION as Event 24; export
@@ -81,8 +81,12 @@ internal/core/eap/rfc5216_resumption_defect_test.go (intentional reds owned by o
 - Handoff rows go in plan/handover files, never only in the session state file.
 
 ## Next queue
-1. BGP: RFC 9552 (bgp/rfc9552-author.md; 5.2.1.4-1 looks like a sender D-8), then the next
-   stems by size. Author/judge pairs, one stem at a time.
+1. BGP first: linklocal 4-8 route-server-rail unit (reactorForwardRS, forward_rs.go: deleting
+   the egressNextHopGlobalHalf call there leaves every 4-8 test green); narrow the linklocal 6-1
+   {gap} annotation to the real gap (no receive-side check of the addresses in a 32-octet
+   field; a wrong LENGTH correctly stays an RFC 7606 section 7.11 session reset), dated
+   correction. Then RFC 9552 (bgp/rfc9552-author.md; 5.2.1.4-1 is a sender D-8:
+   NodeDescriptor.WriteTo repeats sub-TLV 518), then the next stems by size. Author/judge pairs, one stem at a time.
 2. OSPF c18 onward: 57 unblocked ids.
 3. Owner: RFC2866-4.1-1 recording (NEXT-SESSION.md step 2); then access close.
 4. AC-C2 sweeps: bfd (rfc5880 stale records), routing, services, ike-eap (RFC9190); vrrp post-hoc.
