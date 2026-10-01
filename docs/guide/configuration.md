@@ -1738,7 +1738,7 @@ bgp {
 | `del/med` | empty | present | Remove MULTI_EXIT_DISC from the route |
 | `origin` | enum | igp, egp, incomplete | Set ORIGIN |
 | `next-hop` | IP address | IPv4 | Set NEXT_HOP |
-| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times. In an export filter it is not applied toward an internal peer (peer AS equals local AS): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies |
+| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times. In an export filter it is not applied toward an internal peer (peer AS equals local AS, or the configured migration AS, RFC 7705 Section 4.2): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies |
 
 `increment` and `decrement` compute from the value the route carries. When the
 route carries none, they start from `bgp { defaults { attribute { } } }`:

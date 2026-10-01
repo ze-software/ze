@@ -86,7 +86,7 @@
       "claim-sha": "b4745def98d4faee",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
-      "producer-sha": "96883a494ecdc315",
+      "producer-sha": "5555bb189a50856e",
       "break": "body of readAndProcessMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

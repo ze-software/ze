@@ -83,7 +83,7 @@ func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, o
 	// attribute-matching filter then sees no attributes, returns Accept, and the
 	// route goes out unfiltered. That is the second half of the private-ASN leak.
 	wireUpdate := wireu.NewWireUpdate(body, facts.sendCtxID)
-	res := r.runEgressPolicyChainASN4(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, wireUpdate, facts.sendASN4)
+	res := r.runEgressPolicyChainASN4(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, wireUpdate, facts.sendASN4)
 	if !res.accept {
 		return true, nil
 	}

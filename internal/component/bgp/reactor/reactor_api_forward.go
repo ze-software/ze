@@ -761,7 +761,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				step := &a.r.orderedEgressSteps[i]
 				var res egressStepResult
 				if step.policyChain {
-					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, destBaseWire)
+					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, destBaseWire)
 				} else {
 					accept, panicked := safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)
 					res = egressStepResult{accept: accept, failed: panicked}

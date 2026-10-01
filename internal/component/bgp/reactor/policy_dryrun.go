@@ -101,6 +101,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	r := a.r
 	var filterRefs []filterapi.FilterRef
 	var peerAS, localAS uint32
+	internal := false
 	found := false
 	r.mu.RLock()
 	for _, p := range r.peers {
@@ -114,6 +115,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		// r.mu.RLock).
 		peerAS = p.PeerAS()
 		localAS = s.LocalAS
+		internal = p.IsIBGP()
 		switch direction {
 		case directionImport:
 			filterRefs = append([]filterapi.FilterRef(nil), p.ImportFilters()...)
@@ -196,7 +198,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		beforeAttrs := parseFilterAttrs(textBefore)
 		afterAttrs := parseFilterAttrs(textAfter)
 		changedAttrs = computeChangedAttrs(beforeAttrs, afterAttrs)
-		wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, direction, asn4, peerAS, localAS)
+		wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, direction, asn4, peerAS, localAS, internal)
 	}
 
 	return &plugin.PolicyDryRunResult{
@@ -228,16 +230,26 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 // RFC 4271 Section 5.1.4's med-remove directive is converted on the import
 // chain alone (ExtractMEDRemoveOps, filter_delta.go). Reporting it on an export
 // dry-run would promise a removal the runtime does not perform, and omitting it
-// on an import one tells the operator the metric survives.
-func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, direction string, asn4 bool, peerAS, localAS uint32) []string {
+// on an import one tells the operator the metric survives. internal is the
+// session's own verdict (Peer.IsIBGP, migration-aware) for the same reason:
+// the export chain applies no AS_PATH edit toward an internal peer.
+func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, direction string, asn4 bool, peerAS, localAS uint32, internal bool) []string {
 	var mods filterapi.ModAccumulator
 
 	values := acquireValueScratch()
 	defer releaseValueScratch(values)
 
 	textDeltaToModOps(values, beforeAttrs, afterAttrs, &mods)
-	ExtractRemovePrivateASOps(values, afterAttrs, attrs, asn4, peerAS, &mods)
-	ExtractASPathPrependOps(values, afterAttrs, attrs, asn4, localAS, &mods)
+	// RFC 4271 Section 5.1.2: "When a given BGP speaker advertises the route
+	// to an internal peer, the advertising speaker SHALL NOT modify the
+	// AS_PATH attribute associated with the route." The export chain
+	// (runEgressPolicyChainASN4) therefore drops remove-private and
+	// as-path-prepend toward an internal peer, and the dry-run reports what
+	// the runtime does. The import chain applies both on every session.
+	if direction == directionImport || !internal {
+		ExtractRemovePrivateASOps(values, afterAttrs, attrs, asn4, peerAS, &mods)
+		ExtractASPathPrependOps(values, afterAttrs, attrs, asn4, localAS, &mods)
+	}
 	if direction == directionImport && medRemoveHasWork(afterAttrs) {
 		ExtractMEDRemoveOps(afterAttrs, &mods)
 	}

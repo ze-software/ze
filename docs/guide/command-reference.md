@@ -2606,7 +2606,7 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 
 Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4). This is what makes AS4_PATH (RFC 6793) the active path carrier.
 
-Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express).
+Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
 
 `text-before` and `text-after` name every attribute the UPDATE carries. Five of
 those names first appeared on 2026-09-04: `origin`, `med`, `local-preference`,

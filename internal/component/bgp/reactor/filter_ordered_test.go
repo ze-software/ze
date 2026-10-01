@@ -47,7 +47,7 @@ func TestRunEgressPolicyChainASN4NilAPIWithExportFiltersFailsClosed(t *testing.T
 	r := &Reactor{} // r.api == nil: the whole subject
 	filters := []filterapi.FilterRef{{Name: "reject-private-asn"}}
 
-	res := r.runEgressPolicyChainASN4(filters, "10.0.0.1", 65001, 65000, testWireUpdate([]byte{0, 0, 0, 0}), false)
+	res := r.runEgressPolicyChainASN4(filters, "10.0.0.1", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}), false)
 
 	require.False(t, res.accept,
 		"nil API server with export filters configured must suppress the route (fail closed), not accept it unfiltered")
@@ -69,7 +69,7 @@ func TestRunEgressPolicyChainNilAPIWithExportFiltersFailsClosed(t *testing.T) {
 	r := &Reactor{}
 	filters := []filterapi.FilterRef{{Name: "reject-private-asn"}}
 
-	res := r.runEgressPolicyChain(filters, "10.0.0.2", 65001, 65000, testWireUpdate([]byte{0, 0, 0, 0}))
+	res := r.runEgressPolicyChain(filters, "10.0.0.2", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.False(t, res.accept,
 		"forwarded egress path: nil API server with export filters must suppress, not accept")
@@ -88,7 +88,7 @@ func TestRunEgressPolicyChainNoExportFiltersAccepts(t *testing.T) {
 
 	r := &Reactor{}
 
-	res := r.runEgressPolicyChain(nil, "10.0.0.3", 65001, 65000, testWireUpdate([]byte{0, 0, 0, 0}))
+	res := r.runEgressPolicyChain(nil, "10.0.0.3", 65001, 65000, false, testWireUpdate([]byte{0, 0, 0, 0}))
 
 	require.True(t, res.accept,
 		"no export policy configured is a legitimate accept, not a guard miss")
@@ -241,7 +241,7 @@ func TestRunEgressPolicyChainASN4ModifyFailureFailsClosed(t *testing.T) {
 	filters := []filterapi.FilterRef{{Name: "set-local-pref"}}
 
 	body := policyChainAdvertisingBody()
-	res := r.runEgressPolicyChainASN4(filters, "10.0.0.7", 65001, 65000, testWireUpdate(body), false)
+	res := r.runEgressPolicyChainASN4(filters, "10.0.0.7", 65001, 65000, false, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
 		"an export modification that could not be applied must suppress the route, never send it unmodified")
@@ -263,7 +263,7 @@ func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
 	filters := []filterapi.FilterRef{{Name: "set-local-pref"}}
 
 	body := policyChainAdvertisingBody()
-	res := r.runEgressPolicyChain(filters, "10.0.0.8", 65001, 65000, testWireUpdate(body))
+	res := r.runEgressPolicyChain(filters, "10.0.0.8", 65001, 65000, false, testWireUpdate(body))
 
 	require.False(t, res.accept, "forwarded egress path must suppress on a modify failure")
 	require.True(t, res.failed, "a step that could not run is not a policy decision")
@@ -311,7 +311,7 @@ func TestRunEgressPolicyChainASN4ShortRawOverrideFailsClosed(t *testing.T) {
 	filters := []filterapi.FilterRef{{Name: "mp-reach-surgery"}}
 
 	body := []byte{0, 0, 0, 0}
-	res := r.runEgressPolicyChainASN4(filters, "10.0.0.11", 65001, 65000, testWireUpdate(body), false)
+	res := r.runEgressPolicyChainASN4(filters, "10.0.0.11", 65001, 65000, false, testWireUpdate(body), false)
 
 	require.False(t, res.accept,
 		"a raw override that cannot be decoded must suppress the route, never send the original unmodified")
@@ -373,7 +373,7 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 		}
 
 		res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "plain"}},
-			"10.0.0.13", 65001, 65000, testWireUpdate(body), false)
+			"10.0.0.13", 65001, 65000, false, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "a filter that asked for no raw override must still accept")
 		assert.False(t, res.failed, "no override requested is not a failure")
@@ -391,7 +391,7 @@ func TestPolicyChainRawOverrideBoundary(t *testing.T) {
 		}
 
 		res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "mp-reach-surgery"}},
-			"10.0.0.14", 65001, 65000, testWireUpdate(body), false)
+			"10.0.0.14", 65001, 65000, false, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "a decodable raw override must be accepted, not refused")
 		assert.False(t, res.failed, "an applied override is not a failure")
@@ -437,7 +437,7 @@ func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
 		}
 
 		res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "set-local-pref"}},
-			"10.0.0.10", 65001, 65000, testWireUpdate(body), false)
+			"10.0.0.10", 65001, 65000, false, testWireUpdate(body), false)
 
 		require.True(t, res.accept, "an applicable modification must not be refused")
 		assert.False(t, res.failed, "an applied modification is not a failure")
@@ -490,7 +490,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 
 	t.Run("egress", func(t *testing.T) {
 		res := newReactor().runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "set-local-pref"}},
-			"10.0.0.21", 65001, 65000, testWireUpdate(withdrawal), false)
+			"10.0.0.21", 65001, 65000, false, testWireUpdate(withdrawal), false)
 
 		require.True(t, res.accept, "a withdrawal the chain cannot decorate is still forwarded")
 		assert.False(t, res.failed, "refusing to create is not a step that could not run")
@@ -503,7 +503,7 @@ func TestPolicyChainCreatesNoAttributeOnAWithdrawal(t *testing.T) {
 	t.Run("advertising-body-still-modified", func(t *testing.T) {
 		body := policyChainAdvertisingBody()
 		res := newReactor().runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "set-local-pref"}},
-			"10.0.0.22", 65001, 65000, testWireUpdate(body), false)
+			"10.0.0.22", 65001, 65000, false, testWireUpdate(body), false)
 
 		require.True(t, res.accept)
 		require.NotNil(t, res.wireOverride, "an advertisement is still decorated")
@@ -605,7 +605,7 @@ func TestExportChainPassesItsWidthToThePrepend(t *testing.T) {
 			filters := []filterapi.FilterRef{{Name: "prepend-twice"}}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runEgressPolicyChainASN4(filters, "10.0.0.21", 65001, 65000,
+			res := r.runEgressPolicyChainASN4(filters, "10.0.0.21", 65001, 65000, false,
 				wireu.NewWireUpdate(body, ctxID), asn4)
 
 			require.True(t, res.accept, "the export chain accepted the modified route")
@@ -647,7 +647,7 @@ func TestForwardedExportChainPassesTheSourceContextWidthToThePrepend(t *testing.
 			filters := []filterapi.FilterRef{{Name: "prepend-twice"}}
 
 			body := asPathBodyAtWidth(asn4)
-			res := r.runEgressPolicyChain(filters, "10.0.0.22", 65001, 65000,
+			res := r.runEgressPolicyChain(filters, "10.0.0.22", 65001, 65000, false,
 				wireu.NewWireUpdate(body, ctxID))
 
 			require.True(t, res.accept, "the forwarded export chain accepted the modified route")

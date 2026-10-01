@@ -265,7 +265,7 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 // Teardown is import-only and never fires on export. Unlike ingress, this reads the
 // original payload: egress in-process filters defer their edits into the shared
 // ModAccumulator, so the payload is never rewritten in the egress pass.
-func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate) egressStepResult {
+func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate) egressStepResult {
 	// No chain that can execute is a legitimate accept (an absent precondition,
 	// not a guard miss). The r.api == nil MISS (with an active filter present) is
 	// handled by the shared body runEgressPolicyChainASN4, so the fail-closed
@@ -276,7 +276,7 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
 	// raw bytes are 2- or 4-octet per the source's negotiated ASN4.
 	srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
-	return r.runEgressPolicyChainASN4(exportFilters, destAddrStr, destPeerAS, destLocalAS, wireUpdate, srcCtx != nil && srcCtx.ASN4())
+	return r.runEgressPolicyChainASN4(exportFilters, destAddrStr, destPeerAS, destLocalAS, destInternal, wireUpdate, srcCtx != nil && srcCtx.ASN4())
 }
 
 // runEgressPolicyChainASN4 is the shared body of the export policy chain. It is
@@ -297,7 +297,11 @@ func (r *Reactor) runEgressPolicyChain(exportFilters []filterapi.FilterRef, dest
 // load-bearing: the two paths previously had independent copies and the
 // originated one silently dropped every FilterModify text delta, leaking
 // RFC 6996 private ASNs to EBGP peers (spec-fixit-private-asn-leak).
-func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
+//
+// destInternal is the destination session's internal verdict, which both
+// callers take from the peer's forwarding facts (!isEBGP). It decides whether
+// the AS_PATH edits of the filter's answer apply (RFC 4271 Section 5.1.2).
+func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
 	// No chain that can execute is a legitimate accept (an absent precondition,
 	// not a guard miss): a chain that is empty, or that holds only deactivated
 	// refs, runs nothing, because PolicyFilterChain skips a ref marked Inactive
@@ -372,9 +376,12 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		// route to an internal peer, the advertising speaker SHALL NOT modify
 		// the AS_PATH attribute associated with the route." The two export
 		// directives that rewrite the AS_PATH, remove-private and
-		// as-path-prepend, are therefore not applied toward an internal peer
-		// (peer AS = local AS); the rest of the filter's answer still is.
-		if destPeerAS == destLocalAS {
+		// as-path-prepend, are therefore not applied toward an internal peer;
+		// the rest of the filter's answer still is. destInternal is the
+		// session's own verdict (isIBGPWith, session_as_migration.go), not a
+		// peer AS = local AS equality: RFC 7705 Section 4.2 makes a session
+		// whose peer AS is the configured migration AS internal too.
+		if destInternal {
 			fwdLogger().Debug("export AS_PATH edits not applied toward an internal peer (RFC 4271 Section 5.1.2)",
 				"peer", destAddrStr)
 		} else {

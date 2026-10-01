@@ -493,10 +493,13 @@ of the value already in the payload, so the segment it builds is encoded at the
 width of THAT payload, and never at four octets by default.
 
 On the export chain the prepend, and the `remove-private` rewrite with it, is
-skipped when the destination is an internal peer (its AS equals the local AS),
-because RFC 4271 Section 5.1.2 says the speaker "SHALL NOT modify the AS_PATH
-attribute" of a route it advertises to one. The other operations of the same
-filter answer still apply.
+skipped when the destination is an internal peer, because RFC 4271 Section
+5.1.2 says the speaker "SHALL NOT modify the AS_PATH attribute" of a route it
+advertises to one. "Internal" is the session's own verdict (`isIBGPWith`): the
+peer AS equals the local AS, or it is the configured migration AS, which RFC
+7705 Section 4.2 makes an iBGP session too. The other operations of the same
+filter answer still apply. The `policy test peer` dry-run reports the same: an
+export dry-run toward an internal peer lists no AS_PATH operation.
 
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
 

@@ -970,7 +970,8 @@ accepted for disambiguation or advanced use.
 The plugin emits policy intent only. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
 to EBGP peers, private-AS removal runs before the normal local-AS prepend. On
-export to an IBGP peer (peer AS equals local AS) the removal is not applied:
+export to an IBGP peer (peer AS equals local AS, or equals the configured
+migration AS, which RFC 7705 Section 4.2 makes internal) the removal is not applied:
 RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to
 an internal peer, so the route leaves with its AS_PATH unchanged.
 
