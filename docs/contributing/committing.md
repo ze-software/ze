@@ -266,5 +266,12 @@ entries are unmerged: `ACTION_CONTINUE` in git's `builtin/rebase.c` checks
 `has_unstaged_changes()`. Read `git status` for the unstaged tracked files and
 stage or discard them. The message names conflicts you do not have.
 
-An agent never runs `git rebase` itself. The user starts it, and the agent may
-only resolve conflicts inside a rebase already in progress.
+Thomas's standing request, October 1, 2026:
+
+> do a git pull --rebase and make sure we do this before first edit on any new sessions
+
+An agent runs the same-branch `git pull --rebase` before its first edit under
+`ai/rules/git-safety.md`, "Pull before the first edit". That standing authorization
+does not authorize a direct `git rebase` or integrating a worktree branch. If the
+pull conflicts, stop and report it; conflict resolution requires the user's
+direction.

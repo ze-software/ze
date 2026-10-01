@@ -95,6 +95,7 @@ the owner, never forward it. A reply to the owner stays under 15 lines and puts
 its tables before its prose. Other prose follows `ai/rules/writing.md`.
 
 ## Every session
+- Before the first edit in each checkout, sync with `git pull --rebase`; the safety conditions and subagent exception are in `ai/rules/git-safety.md`, "Pull before the first edit".
 - Before your first Go edit in a session, read `docs/contributing/ze-go-style.md` in full; the pre-write hook refuses a Go edit until you have.
 - Claude Code: also `.claude/rules/session-start.md`.
 

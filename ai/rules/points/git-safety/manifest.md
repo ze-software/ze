@@ -4,6 +4,7 @@ when: before any git operation, and when writing or running a commit script
 severity: blocking
 ---
 directives ## Directives
+  pull-before-the-first-edit
   commit-only-through-the-native-command
   push-only-on-the-owners-order
   land-each-chunk-as-it-finishes
