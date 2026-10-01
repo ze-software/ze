@@ -969,8 +969,12 @@ accepted for disambiguation or advanced use.
 
 The plugin emits policy intent only. The reactor performs the wire rewrite so
 AS_SEQUENCE, AS_SET, and confederation segment structure is preserved. On export
-to EBGP peers, private-AS removal runs before the normal local-AS prepend.
+to EBGP peers, private-AS removal runs before the normal local-AS prepend. On
+export to an IBGP peer (peer AS equals local AS) the removal is not applied:
+RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to
+an internal peer, so the route leaves with its AS_PATH unchanged.
 
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
 <!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->

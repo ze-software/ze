@@ -492,6 +492,14 @@ AS-path rail. It records an operation that the AS_PATH handler splices in front
 of the value already in the payload, so the segment it builds is encoded at the
 width of THAT payload, and never at four octets by default.
 
+On the export chain the prepend, and the `remove-private` rewrite with it, is
+skipped when the destination is an internal peer (its AS equals the local AS),
+because RFC 4271 Section 5.1.2 says the speaker "SHALL NOT modify the AS_PATH
+attribute" of a route it advertises to one. The other operations of the same
+filter answer still apply.
+
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runEgressPolicyChainASN4 -->
+
 The width comes from the call site, and each one derives it from wherever the
 payload came from. The import chain and the forwarded export chain read the
 source encoding context, because those bytes are still in the sending peer's

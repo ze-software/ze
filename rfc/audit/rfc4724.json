@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4724-3-2": {
       "note": "Sender half: TestGracefulRestartEncodeReservedBits (WriteTo masks to R bit and 12-bit time). Receiver half: TestRFC4724ReceiverIgnoresReservedRestartFlags parses the nibble with reserved 0x3 set, R clear and set, and requires the result equal to the clean parse. Judge breaks: R bit read with mask 0x9000, and Restart Time read with mask 0x3FFF, each turned the test red. Only 0x3 used because RFC 8538 assigned the N bit.",
@@ -193,8 +194,8 @@
       "note": "the positive (level-1 stale with higher LOCAL_PREF beats fresh) proves non-differentiation in selection. The negative is an LLGR level-2 route losing, which is RFC 9494 behaviour and does not violate this requirement, so no genuine negative exists",
       "requirement_sha": "65b93110faa09f2e",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "7e45dd7edaf7d8c5"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "3442e94ea37f4c89"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "c09d6ba79827272a",

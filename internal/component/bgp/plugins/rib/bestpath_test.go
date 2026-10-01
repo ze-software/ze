@@ -650,13 +650,15 @@ func TestFirstASInPath(t *testing.T) {
 			want: 65001,
 		},
 		{
-			name: "first as from set",
+			// RFC 4271 Section 9.1.2.2 (c): an AS_SET is unordered, so a path
+			// that begins with one names no leftmost neighbor AS.
+			name: "path led by a set has no first as",
 			data: []byte{
 				1, 2,
 				0, 0, 0xFD, 0xEB, // 65003
 				0, 0, 0xFD, 0xEC, // 65004
 			},
-			want: 65003,
+			want: 0,
 		},
 		{
 			name: "truncated data",

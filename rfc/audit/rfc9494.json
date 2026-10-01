@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9494-3.1-1": {
       "note": "Forbidden: declaring code 71 without code 64. TestRFC9494_LLGRCapDeclaredWithGRCap fails unless extractGRCapabilities returns one code-64 declaration for the same peer as the code-71 one (require.Len grCaps 1, Code 64, same Peers). Negative: TestRFC9494_NoLLGRCapWithoutGRContainer places long-lived-stale-time outside the graceful-restart container and fails if either code 71 or code 64 is declared, so no config shape yields 71 alone.",
@@ -150,8 +151,8 @@
       "note": "TestComparePair_LLGRStale does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.",
       "requirement_sha": "1168b7e095abe221",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "7e45dd7edaf7d8c5"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "3442e94ea37f4c89"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "c09d6ba79827272a",
@@ -178,8 +179,8 @@
       "note": "Forbidden: a least-preferred route beating one that is not. TestSelectBest_LLGRStaleDepreference gives the stale candidate LOCAL_PREF 300 against 100 and fails, in both input orders, unless the normal route wins, so removing Step 0 goes red. Negative: TestSelectBest_BothLLGRStale fails unless two stale candidates fall through to LOCAL_PREF, so the rule orders only across the least-preferred boundary.",
       "requirement_sha": "a3a019491077def8",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference": "7e45dd7edaf7d8c5"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference": "3442e94ea37f4c89"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "844428dff19e287b",

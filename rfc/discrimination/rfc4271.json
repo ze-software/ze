@@ -277,6 +277,17 @@
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-5.1.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath",
+      "unit-sha": "318fd57418d27624",
+      "claim-sha": "8852d314d99ba33e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+      "producer-sha": "d76c6945332d4681",
+      "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent",
@@ -1828,6 +1839,28 @@
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
       "producer-sha": "3301692037860930",
       "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPAggregatesLedByASSetsCompareMED",
+      "unit-sha": "a82f4238aba35e46",
+      "claim-sha": "18e90ddeea9af847",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::firstASInPath",
+      "producer-sha": "122dfca7b67f3091",
+      "break": "body of firstASInPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.2.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS",
+      "unit-sha": "febbd81ba7c82a16",
+      "claim-sha": "80451a8d5a99cfce",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::firstASInPath",
+      "producer-sha": "122dfca7b67f3091",
+      "break": "body of firstASInPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9.1.2.2-3",

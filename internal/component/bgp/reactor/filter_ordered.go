@@ -368,8 +368,19 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		parseFilterAttrsInto(&origAttrs, updateText)
 		parseFilterAttrsInto(&modAttrs, res.Text)
 		textDeltaToModOps(values, &origAttrs, &modAttrs, &exportMods)
-		ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
-		ExtractASPathPrependOps(values, &modAttrs, attrsWire, asn4, destLocalAS, &exportMods)
+		// RFC 4271 Section 5.1.2: "When a given BGP speaker advertises the
+		// route to an internal peer, the advertising speaker SHALL NOT modify
+		// the AS_PATH attribute associated with the route." The two export
+		// directives that rewrite the AS_PATH, remove-private and
+		// as-path-prepend, are therefore not applied toward an internal peer
+		// (peer AS = local AS); the rest of the filter's answer still is.
+		if destPeerAS == destLocalAS {
+			fwdLogger().Debug("export AS_PATH edits not applied toward an internal peer (RFC 4271 Section 5.1.2)",
+				"peer", destAddrStr)
+		} else {
+			ExtractRemovePrivateASOps(values, &modAttrs, attrsWire, asn4, destPeerAS, &exportMods)
+			ExtractASPathPrependOps(values, &modAttrs, attrsWire, asn4, destLocalAS, &exportMods)
+		}
 		nlriOverride := extractLegacyNLRIOverride(values, updateText, res.Text)
 		if exportMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)

@@ -362,9 +362,10 @@ func TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates(t *testing.T)
 // PREVENTS: A peer whose TCP connection keeps dropping mid-session reading as
 // zero attempts.
 //
-// RFC requirement: RFC4271-8.2.2-13 positive -- handleActive,
-// handleOpenConfirm and handleEstablished each call f.crc.Increment() in their
-// EventTCPConnectionFails arm (internal/component/bgp/fsm/fsm.go).
+// Not an RFC4271-8.2.2-13 proof: the event is driven into the FSM directly,
+// and no Ze producer fires Event 18 in Active, because without the optional
+// DelayOpen Active leaves for OpenSent the moment TCP is established. The row
+// carries {feature-declined} for that reason (rfc/short/rfc4271.md).
 func TestRFC4271ConnectRetryCounterOnTCPFailurePerState(t *testing.T) {
 	for _, st := range []State{StateActive, StateOpenConfirm, StateEstablished} {
 		f, c := crcFSM(t, st, 0)
@@ -385,11 +386,12 @@ func TestRFC4271ConnectRetryCounterOnTCPFailurePerState(t *testing.T) {
 // never reached a peer twice -- once here and once when the peer-level
 // reconnect loop tries again.
 //
-// RFC requirement: RFC4271-8.2.2-13 negative -- handleConnect and
-// handleOpenSent give EventTCPConnectionFails an arm with no counter
-// mutation. Connect's §8.2.2 Event 18 text has two branches and neither
-// carries the clause; OpenSent's leaves for Active rather than tearing the
-// peering down (internal/component/bgp/fsm/fsm.go).
+// handleConnect and handleOpenSent give EventTCPConnectionFails an arm with no
+// counter mutation. Connect's §8.2.2 Event 18 text has two branches and
+// neither carries the clause; OpenSent's leaves for Active rather than tearing
+// the peering down (internal/component/bgp/fsm/fsm.go). These are other
+// paragraphs than RFC4271-8.2.2-13 (the Active list), so the unit carries no
+// tag for that row.
 func TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent(t *testing.T) {
 	// RFC 4271 Section 8.2.2 sends Connect's Event 18 (no DelayOpenTimer
 	// running) to Idle, and OpenSent's to Active.

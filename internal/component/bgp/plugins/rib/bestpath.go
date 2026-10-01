@@ -629,10 +629,20 @@ func sameNeighborAS(a, b *Candidate) bool {
 
 // firstASInPath extracts the first AS number from an AS_PATH attribute value.
 // Used for MED comparison: MED is only compared between routes from the same neighbor AS.
-// Returns 0 if the path is empty or truncated.
+// Returns 0 if the path is empty or truncated, or begins with an AS_SET.
 func firstASInPath(data []byte) uint32 {
 	// Minimum: type(1) + count(1) + one 4-byte ASN = 6 bytes.
 	if len(data) < 6 {
+		return 0
+	}
+	// RFC 4271 Section 9.1.2.2 (c): "If the route is learned via IBGP, and the
+	// other IBGP speaker ... (b) created the route by aggregation and the
+	// AS_PATH attribute of the aggregate route is either empty or begins with
+	// an AS_SET, it is the local AS." An AS_SET is unordered, so its first
+	// member names no neighbor AS: answer 0, which neighborAS turns into the
+	// local AS for an IBGP route and into "no neighbor AS" (no MED comparison)
+	// for an EBGP one.
+	if attribute.ASPathSegmentType(data[0]) == attribute.ASSet {
 		return 0
 	}
 	count := data[1]

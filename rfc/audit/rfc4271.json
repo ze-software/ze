@@ -7,6 +7,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -282,12 +283,13 @@
       "verdict": "enforced"
     },
     "RFC4271-5.1.2-2": {
-      "note": "Positive now covers the forward rail: TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer relays an eBGP-learned route on forwardUpdateCore and asserts two internal destinations receive AS_PATH [65001] byte for byte, which an eBGP prepend applied to an internal peer would turn red (records on forwardUpdateSection). Still missing: (a) no negative violates THIS rule. The as-override destination cannot tempt a modification: applyASOverride replaces the peer AS with the local AS, and for an internal peer both are 65000, so the substitution is an identity and removing the facts.isEBGP guard leaves the path unchanged; the external prepend control proves RFC4271-5.1.2-3, a neighbouring rule. A negative needs an input that would modify an internal peer's AS_PATH (for example an egress AS_PATH prepend or a local-as setting toward an internal peer). (b) the route-server rail (reactorForwardRS) toward an internal peer is not asserted.",
+      "note": "Re-judged 2026-10-01 (BGP c13 judge). Gap (a) closed: TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath drives export filters answering 'as-path-prepend 2' and 'remove-private strip' through runEgressPolicyChainASN4, the shared export body every egress rail runs, toward an internal destination (peer AS 65000 = local AS) and asserts the AS_PATH leaves unchanged ([64496], [64512 64496]); the external controls ([65000 65000 64496], [64496]) prove each filter fired. Its record breaks the producer with a panic (reach only); a judge overlay (tree untouched) forcing only the new guard false reddens both internal assertions with the prepended and stripped paths, so the unit discriminates the clause. Old gap (b), the RS rail: forward_rs.go gates its AS_PATH edit on facts.isEBGP, read at the producer, not asserted. STILL WEAK, defect in the D-8 fix: the guard is an open-coded destPeerAS == destLocalAS, not the session's one IBGP rule (PeerSettings.isIBGPWith, session_as_migration.go). An RFC 7705 migration session (peer AS = MigrationAS) is internal by RFC 7705 Section 4.2 ('MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271]'), and an export as-path-prepend or remove-private is still applied toward it, although peerForwardFacts carries the migration-aware isEBGP. Sibling: computeWireChanges (policy_dryrun.go) still reports both AS_PATH edits on an export dry-run toward an internal peer, which the runtime no longer performs. Enforced once the guard takes the session's IBGP verdict, a migration-AS internal case is asserted, and the dry-run agrees.",
       "requirement_sha": "0cfcf537b0aafcec",
       "tests": {
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "9a6d4234b6cab57e",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "71e9a5e9a3b36017",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "71e9a5e9a3b36017"
       },
@@ -295,6 +297,7 @@
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
         "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "3bda13eecdff18dc",
         "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
+        "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "cf1b7a86f8549355",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "ca93d29a312a1f89",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "4aa30092bdda3e75"
       },
@@ -513,8 +516,8 @@
       "note": "SelectBest cases: higher wins, lower loses, equal falls through to AS_PATH; an inverted comparison fails two cases",
       "requirement_sha": "348658b3349e1f64",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref#2": "7e45dd7edaf7d8c5"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref#2": "3442e94ea37f4c89"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "e03b2a69b22d9639",
@@ -923,8 +926,8 @@
       "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. D-8 fixed (Session.notifyHeaderErr in both read paths). Peer level in OpenSent: all-zero marker -> 1/1, Length 18 -> 1/2 (Event 21), OPEN version 3 -> 2/1 (Event 22), each exactly one NOTIFICATION, EOF, three timers stopped, session dropped, counter 0 -> 1; the well-formed-OPEN negative sends nothing and keeps counter 3. notifyHeaderErr / handleOpenSent breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "256a9d664c4c5ac0",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "56ab87e3b9f2067a",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
@@ -940,8 +943,8 @@
       "note": "Re-judged 2026-10-01 (BGP c11 judge) after the fsm unit's claim changed. The row is the OpenConfirm Event 18/25 list. Peer level in OpenConfirm unchanged: a Cease from the far end (Event 25) and a far-end close (Event 18) each end with no NOTIFICATION from Ze, connection dropped, three timers stopped, session dropped, counter 0 -> 1; the KEEPALIVE negative reaches Established with nothing sent and counter 0 (handleOpenConfirm records both polarities). The fsm unit TestRFC4271ConnectRetryCounterIncrementsOnNotification now asserts OpenSent + NotifMsg is ErrFSMError (Section 8.2.2 lists Event 25 under OpenSent 'any other event'), every other non-Idle state NoError, counter 1 and Idle everywhere: an RFC-correct reading (owner approval recorded), supplementary for this OpenConfirm row; re-recorded on handleOpenSent. ConnectRetryTimer clause holds by construction as before.",
       "requirement_sha": "4238b0246f50f657",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterStepsByExactlyOnePerNotification": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterStepsByExactlyOnePerNotification": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmKeepaliveKeepsTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmNotificationOrTCPFailureReleasesTheConnection": "33aaf37273eacf0d"
       },
@@ -957,8 +960,8 @@
       "note": "Peer level in Established with a Reactor observer: NOTIFICATION 2/1 (Event 24), Cease 6/2 (Event 25) and a far-end close (Event 18) each raise the peer-down for that neighbor, drop the session, stop the three timers and move the counter 0 -> 1; for 24/25 Ze writes no NOTIFICATION and the far end reads EOF. Routes clause: the RIB unit drives handleStructuredState down and asserts that neighbor's routes are deleted and a bystander's kept. Negative: KEEPALIVE plus a well-formed UPDATE are dispatched with no peer-down, same session Established, timers running, counter 0. Records observed red: notifyPeerClosed (positive; the halt's own text is in the red, followed by 'fatal error: sync: Unlock of unlocked RWMutex', a consequence of FSM.change releasing f.mu around the transition callback while Event holds a deferred Unlock, so the red is the halt reaching the producer on this path; read independently, a silent no-op notifyPeerClosed fails the unit's 5 s peer-down t.Fatal), handleStructuredState (rib positive), handleKeepalive (negative). Not asserted end to end: the plugin dispatcher's translation of the reactor peer-down into the RIB's structured state event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
       "requirement_sha": "6bfd9a1aaddd36a7",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "0988faa50fd3224e",
         "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "75930a8f452295fa",
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection": "75930a8f452295fa"
@@ -973,24 +976,16 @@
       "verdict": "enforced"
     },
     "RFC4271-8.2.2-13": {
-      "note": "Re-judged 2026-10-01 (BGP c12 judge) under R49(b). The row (Active + TcpConnectionFails, Event 18) is reached only while a connection is held in Active, which RFC 4271 Section 8.2.2 Active allows only with DelayOpen TRUE (Events 16/17 with DelayOpen FALSE send the OPEN and go to OpenSent at once). Ze implements no DelayOpenTimer (docs/architecture/behavior/fsm.md; Section 8.2.1.3: 'If the flag indicating support for an optional timer (DelayOpen or DampPeerOscillations) cannot be set to TRUE, the timers and events supporting that option do not have to be supported'), and a passive Active session never dials (Session.Connect is the only dial-failure Event 18 producer), so Event 18 never fires in Ze's Active. The DelayOpen implementation gap is disclosed on Support remaining. R49(b)'s row exclusion was NOT applied: a {feature-declined} annotation beside the HEAD tags is refused by ./le rfc check as stale (check_core.go: annotated but IS tested), and dropping those tags is refused by checkCoverageRatchet ('An annotation does not substitute for proof that was already there'); the row is stated by the RFC, so retirement is unavailable, and as an unsourced id it has no extraction site for excluded-kind feature-out-of-scope. The tagged FSM units prove handleActive's counter clause only (and its absence in Connect/OpenSent); 'restarts the ConnectRetryTimer', the DelayOpenTimer clause and 'releases all BGP resource' have no assertion, so the verdict stays weak.",
+      "note": "Re-judged 2026-10-01 (BGP c13 judge) under R50. The two HEAD tags were wrong claims and are removed with D-15 approvals: the positive drove a synthetic EventTCPConnectionFails into the FSM in Active, and the negative proved the Connect and OpenSent paragraphs, not this one. Read at the producers: Event 18 is fired only by Session.Connect on a dial failure (session_connection.go; called only when Connection.IsActive, and then Session.Start has moved the FSM Idle -> Connect, since SetPassive(!IsActive) sends a passive one to Active and it never dials), by handleConnectionClose (session_read.go; read-loop EOF on an installed connection, OpenSent or later) and by the congestion teardown (forward_pool_congestion.go, Established). An accepted connection in Active fires TcpConnectionConfirmed and fsm.go::handleActive moves to OpenSent at once (no DelayOpenTimer). So no layer performs this list, and the row now carries {feature-declined} quoting Section 8.2.1.3; the DelayOpen implementation gap is on Support remaining and fsm-active.md no longer names a producer that fires no event. No tag remains; the verdict stays weak because no test proves the row, which the annotation excuses rather than proves.",
       "requirement_sha": "5d6a5d3c3f96666a",
-      "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnTCPFailurePerState": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent": "8ed259237718dce2"
-      },
-      "units": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnTCPFailurePerState": "c67a262cb339e844",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnTCPFailureInConnectAndOpenSent": "f92bc699439ebbaa"
-      },
       "verdict": "weak"
     },
     "RFC4271-8.2.2-14": {
       "note": "Peer level in Established: an UPDATE with a malformed MP_REACH_NLRI (an error RFC 7606 still answers with a session reset, Event 28) draws exactly one NOTIFICATION with Error Code 3, EOF, the peer-down for that neighbor, the session dropped, three timers stopped, counter 0 -> 1; the RIB unit proves the routes deletion on that peer-down. Negative: a well-formed UPDATE is dispatched with no peer-down, same session Established, counter 0. Records observed red: handleEstablished (positive), handleStructuredState (rib positive), handleUpdate (negative). Subcode not asserted (the row asks for 'an Update error', the code). Not asserted end to end: the plugin dispatcher's peer-down translation into the RIB event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestRFC4271EstablishedUpdateErrorReleasesTheConnection gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
       "requirement_sha": "116a7b17f910543b",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnGoodUpdate": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnUpdateError": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnGoodUpdate": "0988faa50fd3224e",
         "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "75930a8f452295fa",
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa"
@@ -1010,8 +1005,8 @@
       "tests": {
         "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle": "e0141cd5f11999e0",
         "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveUnlistedEventKeepsTheState": "e0141cd5f11999e0",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer": "d4dd8dbabe652252",
         "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer": "d4dd8dbabe652252",
         "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer": "7c7df5698c6b8fca",
@@ -1033,8 +1028,8 @@
       "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. Peer level: teardownAutomatic (Event 8) in OpenSent writes exactly one 6/8, EOF, three timers stopped, session dropped, counter 0 -> 1; the shared negative sends no Cease and keeps counter 3. teardownAutomatic / handleOpenSent breaks observed red. Driven at the producer the BFD-down and forward-pool paths call, not through those triggers. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
       "requirement_sha": "a352498314ffa6c7",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterAutomaticStopIsNotAManualStop": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAutomaticStop": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentAutomaticStopReleasesTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
@@ -1050,8 +1045,8 @@
       "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. D-8 fixed: CloseWithNotification now sets ErrCollisionDump and signals errChan, so the Run loop no longer outlives the connection. Peer level in OpenSent: exactly one 6/7, EOF, three timers stopped, session dropped, counter exactly 1; shared negative keeps counter 3. CloseWithNotification break re-recorded after the fix, observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
       "requirement_sha": "62f4e069199f5746",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterCollisionDumpIsQuietInIdle": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnOpenCollisionDump": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentCollisionDumpReleasesTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
@@ -1256,8 +1251,8 @@
       "note": "After the R45 split the Event 3 clause is RFC4271-8.2.2-20 ({gap}); this verdict judges the ManualStart (Event 1) clause the row keeps. Positive at peer level: Peer.Start on a dial-only Peer at counter 7 builds a session, dials (the far end reads an OPEN: resources initialized) and reads counter 0; StartWithContext break observed red. Negative: TestRFC4271ConnectRetryCounterSurvivesDampedStart, Event 6 from Idle and Events 1/6 in Connect and Active leave counter 7, so the reset is not spread to other start paths; handleIdle break observed red (recorded by this judge). The row text still reads 'or an AutomaticStart event (Event 3)', which no tag claims.",
       "requirement_sha": "7942f56e0c1cc260",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271ManualStartZeroesTheCounterAndDials": "33aaf37273eacf0d"
       },
       "units": {
@@ -1271,8 +1266,8 @@
       "note": "Absorbs retired RFC4271-8.2.2-18 (its first four items). Peer level: shutdownNotify on a running Peer in OpenSent at counter 3 writes exactly one 6/2, EOF, HoldTimer/KeepaliveTimer/ConnectRetryTimer stopped, session dropped, counter 0; the shared OpenSent negative (well-formed OPEN, no stop) keeps the connection, session and counter 3. teardown / handleOpenSent breaks observed red. Moved positives: TestShutdownNotifySendsCeaseFromEveryConnectedState drives OpenSent among OpenConfirm and Established and asserts the exact 6/2 bytes (shutdownNotify break observed red); test/reload/signal-stop-cease.ci is Established-only, so it proves the Established ManualStop sentence, now row RFC4271-8.2.2-23, and is supplementary here, not evidence for the OpenSent sentence. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestShutdownNotifySendsCeaseFromEveryConnectedState gained two tag comment lines (8.2.2-22/-23) and signal-stop-cease.ci gained an 8.2.2-23 tag paragraph; no executable or expect line moved. Verdict unchanged.",
       "requirement_sha": "6cf6e6855f218ef1",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotZeroedByIdleManualStop": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a",
         "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "b774dd428519cc2c",
@@ -1292,8 +1287,8 @@
       "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. Peer level: OpenSent HoldTimer re-armed to 150 ms expires with no OPEN -> exactly one 4/0, EOF, three timers stopped, session dropped, counter 0 -> 1; the shared negative answers in time and sees no NOTIFICATION, counter 3. fireHold / handleOpenSent breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
       "requirement_sha": "b8c76b3004f9f490",
       "tests": {
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "8ed259237718dce2",
-        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic": "8ed259237718dce2",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHoldTimerExpiry": "0988faa50fd3224e",
+        "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentHoldTimerExpiryReleasesTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
       },
@@ -1429,8 +1424,8 @@
       "note": "New positive TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified pits each adjacent pair a)..f) (LOCAL_PREF/AS_PATH, AS_PATH/ORIGIN, ORIGIN/MED, MED/EBGP, EBGP/IGP cost, IGP cost/BGP Identifier) with the later step favoring the other route, both argument orders, asserting result and deciding step. Judge mutants 2026-09-30 (go test -overlay, tree untouched): LOCAL_PREF after AS_PATH, ORIGIN before AS_PATH, EBGP before MED, IGP cost before EBGP, Router ID before IGP cost: every swap reddens it. HEAD negatives (f/g fall-through, MED skipped across neighbor ASes) unchanged.",
       "requirement_sha": "25f4bd3bf4eea6fc",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "7e45dd7edaf7d8c5",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "3442e94ea37f4c89",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "b3ad2ff4c32b9353",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "b3ad2ff4c32b9353",
         "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "f906866608450971",
@@ -1449,21 +1444,25 @@
       "verdict": "enforced"
     },
     "RFC4271-9.1.2.2-3": {
-      "note": "D-8 fix read at the producer: neighborAS/sameNeighborAS (bestpath.go) make an IBGP route with an empty AS_PATH neighbor the local AS, used by comparePair, comparePairWithReason and multipathEqual; EBGP and confederation cases are unchanged (FirstAS != 0 still decides; an EBGP route with no leftmost AS and LocalASN 0 still compare no MED). Positive (two empty-AS_PATH IBGP routes, MED decides against IGP cost) was red at HEAD; negative biases every later step toward the higher MED. Judge mutants 2026-09-30 (go test -overlay, tree untouched): restoring the old FirstAS rule reddens the positive; excluding IBGP from MED reddens both. MISSING: Section 9.1.2.2 (c) clause (b), an IBGP aggregate whose AS_PATH BEGINS WITH AN AS_SET has neighbor AS = local AS; firstASInPath returns the set's first ASN (Candidate carries no segment type), so such a route skips MED against a locally originated route. Untested and unimplemented.",
+      "note": "Re-judged 2026-10-01 (BGP c13 judge). The MISSING clause (b) of Section 9.1.2.2 (c) is closed at the producer: firstASInPath answers 0 for a path that begins with an AS_SET (quote above the statement), and neighborAS turns 0 into the local AS for an IBGP route (PeerASN == LocalASN). Positive TestRFC4271IBGPAggregatesLedByASSetsCompareMED: two IBGP aggregates led by different AS_SETs share neighbor AS = local AS, MED 10 beats MED 20 at BestStepMED against IGP cost 50 vs 5, and SelectBest agrees. Negative TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS: an AS_SEQUENCE-led IBGP route keeps neighbor AS 65010 against an aggregate led by AS_SET {65010, 65020}, MED is skipped and the IGP cost decides, so the local-AS rule is not over-applied. Both build candidates from wire bytes through firstASInPath and asPathLength, the calls extractCandidate (rib_commands.go) makes. Their records break the producer with a panic (reach only); a judge overlay (tree untouched) removing only the AS_SET check reddens both units and TestFirstASInPath, whose wrong expectation (65003, the set's first member) was corrected to 0 under D-15, so the clause is discriminated. HEAD units unchanged: empty-AS_PATH IBGP positive and the later-steps negative (2026-09-30 judge mutants). Side effect read: an EBGP route led by an AS_SET now compares no MED (route-selection.md); such a path breaks Section 5.1.2 b) at its sender, and MED is owed only between routes of one known neighbor AS, so not comparing it stays conformant. Residual outside this row's RFC 4271 reading: the RIB classifies IBGP by PeerASN == LocalASN, not the reactor's RFC 7705-aware rule (journal helper-bypassed-by-an-open-coded-copy.md).",
       "requirement_sha": "fdfea00e26b43b37",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "7e45dd7edaf7d8c5",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "7e45dd7edaf7d8c5",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "3442e94ea37f4c89",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPAggregatesLedByASSetsCompareMED": "9ddf979a7afb0b01",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS": "9ddf979a7afb0b01",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPLocallyOriginatedRoutesCompareMED": "cda8464969d77ee0",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPMEDIsNotSkippedWhenLaterStepsDisagree": "cda8464969d77ee0"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "6bf15b9f3232cdc2",
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "6bf15b9f3232cdc2",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPAggregatesLedByASSetsCompareMED": "e420f43ecc649ead",
+        "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS": "4e2d509f9d1a4409",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPLocallyOriginatedRoutesCompareMED": "75a4f6c68f66169c",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPMEDIsNotSkippedWhenLaterStepsDisagree": "a699ab40381d9431"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4271-9.2-10": {
       "note": "New unit TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld drives the relay rail buildFwdBody (the path the old weak note named as unproven) toward a 4096-octet destination. Positive: one route with 900 communities fits and is relayed as one raw body byte-identical to the received. Negative: one route with 1100 communities cannot fit; buildFwdBody returns ok=false with no raw body and no parsed update, and both callers (forward_rs.go, reactor_api_forward.go) skip the destination on !ok (read at the producer). Observed-red records: + revert forward_body.go::buildFwdBody, - revert wireu/split.go::buildCombinedUpdates. The message Splitter units stay as supplementary proof of the originate rail.",

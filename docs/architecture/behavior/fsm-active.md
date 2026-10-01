@@ -44,7 +44,7 @@ be called from the reactor's inbound connection plumbing. Accept runs
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | log transition | OPEN sent immediately after transition | `OpenSent` |
-| `EventTCPConnectionFails` | inbound connection setup error | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
+| `EventTCPConnectionFails` | not generated in production: Active holds no connection, because without DelayOpen `EventTCPConnectionConfirmed` moves it to OpenSent at once, and a `connectionEstablished` setup error returns an error without firing an event. The Event 18 producers (`Session.Connect` dial failure, `handleConnectionClose`, the forward-pool congestion teardown) fire in Connect or later states. RFC4271-8.2.2-13 carries `{feature-declined}` for this reason | **increments ConnectRetryCounter** (FSM arm kept for completeness) | none | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | passive check: if not passive, go to Connect | none | `Connect` or `Active` |
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | any other event | unexpected | log transition | none | `Idle` |
