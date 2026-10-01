@@ -26,6 +26,28 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
       "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo",
+      "unit-sha": "2712bcc177979816",
+      "claim-sha": "f943ab27b1e650d5",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopLen",
+      "producer-sha": "894ab2b4e7e7a9f8",
+      "break": "body of nextHopLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen",
+      "unit-sha": "376da1e4275f5447",
+      "claim-sha": "becdfa8c8b442cd7",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopLen",
+      "producer-sha": "894ab2b4e7e7a9f8",
+      "break": "body of nextHopLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets",
       "unit-sha": "99154c5b91e01f56",
       "claim-sha": "c8e9640dbfd63331",
@@ -253,6 +275,28 @@
       "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
       "producer-sha": "95ae776972eaa76b",
       "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer",
+      "unit-sha": "fb0d61908af62273",
+      "claim-sha": "2c1aad3d4a625b64",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
+      "producer-sha": "ee697b559a29f575",
+      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer",
+      "unit-sha": "9a49085f27e08a3b",
+      "claim-sha": "8755929699952e52",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf",
+      "producer-sha": "ee697b559a29f575",
+      "break": "body of egressNextHopGlobalHalf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",

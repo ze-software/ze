@@ -458,6 +458,15 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		applyFactsSendCommunity(facts, &mods)
 		applyFactsAIGP(facts, srcAIGP, srcNextHop, destBaseWire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
+		// draft-ietf-idr-linklocal-capability Section 4: "Link-Local IPv6 next
+		// hops MUST NOT be included" toward a peer multiple IP hops away. A
+		// route server keeps the Global untouched (RFC 7947 Section 2.2.2) and
+		// drops only the Link-Local half a distant client cannot reach. The
+		// general rail (reactor_api_forward.go) answers the same.
+		if global, strip := egressNextHopGlobalHalf(peer, &mods, destBaseWire.Payload()); strip {
+			mods.Op(14, filterapi.AttrModSet, global)
+		}
+
 		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
 		// disabling advertisement of third party NEXT_HOP attributes in order to
 		// handle imperfectly bridged media." A next-hop-self destination with no

@@ -119,6 +119,79 @@ func TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter(t *testing.T
 		"the speaker's own Link-Local is not attached to another router's next hop")
 }
 
+// mpReachNextHopField finds the one MP_REACH_NLRI attribute (flags 0x80, type
+// 14, AFI 2, SAFI 1) in what the peer's connection received and returns its
+// Length of Next Hop Network Address octet and the next-hop octets that octet
+// announces. It fails the test when no such attribute was written, or when the
+// octets the length claims run past the end of the stream.
+func mpReachNextHopField(t *testing.T, written []byte) (byte, []byte) {
+	t.Helper()
+	header := []byte{0x80, 0x0E}
+	for i := 0; i+7 <= len(written); i++ {
+		if written[i] != header[0] || written[i+1] != header[1] {
+			continue
+		}
+		// written[i+2] is the attribute length; the value opens with AFI(2) SAFI(1).
+		if written[i+3] != 0x00 || written[i+4] != 0x02 || written[i+5] != 0x01 {
+			continue
+		}
+		length := written[i+6]
+		start := i + 7
+		require.LessOrEqual(t, start+int(length), len(written), "the announced next-hop octets are all on the wire")
+		return length, written[start : start+int(length)]
+	}
+	require.FailNow(t, "no IPv6 unicast MP_REACH_NLRI attribute was written")
+	return 0, nil
+}
+
+// TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo reads the Length
+// octet the encoder wrote, not a field of the precomputed facts.
+//
+// VALIDATES: a route sent with both the speaker's global and its own Link-Local
+// (next hop self toward the one-hop internal peer) leaves with the Length of
+// Next Hop Network Address octet at 0x20, followed by exactly the global
+// 2001:db8:1::1 and then the Link-Local fe80::1.
+// PREVENTS: an encoder that writes both addresses under a 16-octet length, or a
+// 32-octet length around anything but the two addresses.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2 positive -- a route sent through sendStaticRoutes with both the speaker's global 2001:db8:1::1 and its own Link-Local fe80::1 is written with the MP_REACH_NLRI Length of Next Hop Network Address octet at 32 (0x20), and the 32 octets it announces are the global followed by the Link-Local.
+func TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo(t *testing.T) {
+	peer, conn := newOneHopInternalPeer(t)
+	route := StaticRoute{Prefix: netip.MustParsePrefix("2001:db8:77::/64"), NextHop: bgptypes.NewNextHopSelf()}
+
+	sent := peer.sendStaticRoutes(peer.currentSession(), []StaticRoute{route}, false, 4096, false)
+
+	require.Len(t, sent, 1, "the route reached the wire")
+	length, field := mpReachNextHopField(t, conn.written())
+	assert.Equal(t, byte(32), length, "the Length of Next Hop octet is 32")
+	global := netip.MustParseAddr("2001:db8:1::1").As16()
+	linkLocal := netip.MustParseAddr("fe80::1").As16()
+	assert.Equal(t, append(global[:], linkLocal[:]...), field, "the global first, the Link-Local second")
+}
+
+// TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen is the other side:
+// a next hop the speaker does not own carries no Link-Local of the speaker's.
+//
+// VALIDATES: the same rail, for a route through another router
+// (2001:db8:dead::9), writes the Length octet 0x10 followed by that global
+// alone: the 32-octet length is tied to sending both addresses.
+// PREVENTS: an encoder that writes 32 for every IPv6 next hop toward a one-hop
+// peer, which the positive test above would not catch.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2 negative -- a route sent through sendStaticRoutes with one address only (another router's global 2001:db8:dead::9) is written with the MP_REACH_NLRI Length of Next Hop Network Address octet at 16 (0x10), never 32, and the 16 octets it announces are that global.
+func TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen(t *testing.T) {
+	peer, conn := newOneHopInternalPeer(t)
+	route := staticRouteAt("2001:db8:77::/64", "2001:db8:dead::9")
+
+	sent := peer.sendStaticRoutes(peer.currentSession(), []StaticRoute{route}, false, 4096, false)
+
+	require.Len(t, sent, 1, "the route reached the wire")
+	length, field := mpReachNextHopField(t, conn.written())
+	assert.Equal(t, byte(16), length, "one address keeps the Length of Next Hop octet at 16")
+	other := netip.MustParseAddr("2001:db8:dead::9").As16()
+	assert.Equal(t, other[:], field, "the other router's global is the whole field")
+}
+
 // TestLinkLocalSecondConditionNeverReachesTheWire drives the draft's second
 // condition on the announce rail: the interface address of the router through
 // which the network is reachable is the internal peer's own address.

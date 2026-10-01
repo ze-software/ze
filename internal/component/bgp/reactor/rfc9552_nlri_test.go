@@ -52,6 +52,7 @@ func lsNodeNLRI(autonomousSystem uint16) []byte {
 // RFC requirement: RFC9552-8.2.2-5 negative -- the session reset is reserved for the non-skipable error: a well-formed NLRI section leaves the session up.
 // RFC requirement: RFC9552-5.1-5 negative -- an NLRI whose TLV types ascend follows the ordering rule, so it is not considered malformed.
 // RFC requirement: RFC9552-5.2.1.4-1 negative -- a Node Descriptor carrying two sub-TLV types once each satisfies the uniqueness rule, so it is not considered malformed.
+// RFC requirement: RFC9552-5.1-4 positive -- the NLRI half: an NLRI carrying an unknown top-level TLV type (1234) and an unexpected Node Descriptor sub-TLV type (999) is not considered malformed on the receive path (enforceRFC7606 answers no action) and survives byte-identical.
 func TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated(t *testing.T) {
 	nlri := lsWireNLRI(1,
 		0x02,                                           // Protocol-ID: IS-IS Level 2
@@ -214,4 +215,141 @@ func TestRFC9552LinkStateNLRILengthOverrunResetsSession(t *testing.T) {
 	assert.Equal(t, message.RFC7606ActionSessionReset, action,
 		"a Link-State NLRI length that overruns its attribute is not skipable")
 	require.Error(t, err, "the session reset is reported to the caller as an error")
+}
+
+// TestRFC9552LinkStateUnreachLengthOverrunResetsSession drives §8.2.2's second bullet, the
+// MP_UNREACH_NLRI twin of the length-sum check above.
+//
+// VALIDATES: a withdrawn Link-State NLRI whose Total NLRI Length declares 255 octets with
+// 21 present makes the NLRI lengths disagree with the MP_UNREACH_NLRI length, and the
+// receive path answers session reset, reported as an error.
+// PREVENTS: the withdraw side escaping the check the announce side has.
+//
+// RFC requirement: RFC9552-8.2.2-9 positive -- the MP_UNREACH_NLRI bullet of the syntactic validation: a Link-State NLRI in MP_UNREACH_NLRI whose Total NLRI Length overruns the attribute is found malformed on the receive path, which answers session reset.
+func TestRFC9552LinkStateUnreachLengthOverrunResetsSession(t *testing.T) {
+	nlri := lsNodeNLRI(65001)
+	nlri[3] = 0xff // Total NLRI Length 255; 21 octets follow
+	s := nlriTypeTestSession()
+	body := makeUpdateBody(nil, mpUnreachAttrs(lsFam, nlri), nil)
+
+	_, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+
+	assert.Equal(t, message.RFC7606ActionSessionReset, action,
+		"a withdrawn Link-State NLRI length that overruns MP_UNREACH_NLRI is not skipable")
+	require.Error(t, err, "the session reset is reported to the caller as an error")
+}
+
+// TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded drives §8.2.2's sub-TLV length
+// bullet: inside a recognized TLV (256 Local Node Descriptors, itself correctly framed), the
+// Autonomous System sub-TLV declares 8 octets with 4 present.
+//
+// VALIDATES: the NLRI is malformed and discarded; the well-formed NLRI beside it survives.
+// PREVENTS: a walk that frames top-level TLVs only.
+//
+// RFC requirement: RFC9552-8.2.2-9 positive -- "when the TLV is recognized then, the length of its sub-TLVs": a sub-TLV whose declared length overruns the recognized TLV 256 carrying it is found malformed on the receive path, which discards that NLRI and keeps the survivor.
+func TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded(t *testing.T) {
+	malformed := lsWireNLRI(1,
+		0x02,                                           // Protocol-ID: IS-IS Level 2
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Identifier
+		0x01, 0x00, 0x00, 0x08, // TLV 256 Local Node Descriptors, length 8: frames correctly
+		0x02, 0x00, 0x00, 0x08, 0x00, 0x00, 0xfd, 0xe9, // sub-TLV 512 claiming 8, 4 present
+	)
+
+	got := lsReceive(t, malformed)
+
+	assert.Equal(t, lsNodeNLRI(65002), got, "only the NLRI whose sub-TLV overruns is removed")
+}
+
+// lsNodeNLRIWithTrailing is a Node NLRI (Protocol-ID 2, zero Identifier, Local Node
+// Descriptors holding AS 65001) followed by the top-level TLVs the caller frames.
+func lsNodeNLRIWithTrailing(trailing ...byte) []byte {
+	body := []byte{
+		0x02,                                           // Protocol-ID: IS-IS Level 2
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Identifier
+		0x01, 0x00, 0x00, 0x08, // TLV 256 Local Node Descriptors, length 8
+		0x02, 0x00, 0x00, 0x04, 0x00, 0x00, 0xfd, 0xe9, // sub-TLV 512 Autonomous System 65001
+	}
+	return lsWireNLRI(1, append(body, trailing...)...)
+}
+
+// lsReceive runs one MP_REACH carrying nlri and a well-formed survivor through
+// enforceRFC7606 and returns the NLRI bytes the attribute still carries.
+func lsReceive(t *testing.T, nlri []byte) []byte {
+	t.Helper()
+	survivor := lsNodeNLRI(65002)
+	s := nlriTypeTestSession()
+	body := makeUpdateBody(nil, mpReachAttrs(lsFam, append(append([]byte{}, nlri...), survivor...)), nil)
+
+	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))
+	require.NoError(t, err, "no case here is a session reset")
+	assert.Equal(t, message.RFC7606ActionNone, action, "a Link-State NLRI fault is an NLRI discard")
+	got, found := mpReachNLRIOf(t, wu.Payload())
+	require.True(t, found, "the survivor keeps the attribute alive")
+	return got
+}
+
+// TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded is the other side of the unknown-TLV
+// tolerance: an unknown top-level TLV type whose declared length runs past its NLRI.
+//
+// VALIDATES: the unknown type does not shelter broken framing: the NLRI is discarded and
+// the well-formed NLRI beside it survives.
+// PREVENTS: a walk that skips the length check for a type it does not recognize, which
+// would pass the positive unit above.
+//
+// RFC requirement: RFC9552-5.1-4 negative -- the NLRI half: tolerance covers the TYPE only; an unknown top-level TLV (1234) declaring 200 octets with 3 present makes its NLRI malformed on the receive path, which discards it while the well-formed NLRI beside it survives.
+func TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded(t *testing.T) {
+	malformed := lsNodeNLRIWithTrailing(0x04, 0xd2, 0x00, 0xc8, 0xaa, 0xbb, 0xcc) // TLV 1234 claiming 200
+
+	got := lsReceive(t, malformed)
+
+	assert.Equal(t, lsNodeNLRI(65002), got, "only the NLRI whose unknown TLV overruns is removed")
+}
+
+// TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded drives the same-type half of the
+// Section 5.1 ordering rule, which the descending-type unit above does not reach.
+//
+// VALIDATES: two TLVs of one type (1234) whose Length fields descend, and two of equal
+// Length whose Values descend, each make their NLRI malformed: discarded, survivor kept.
+// PREVENTS: a walk that compares types only.
+//
+// RFC requirement: RFC9552-5.1-5 positive -- the same-type clauses of "the above ordering rules": an NLRI repeating TLV 1234 with Lengths 3 then 2, and one repeating it with equal Lengths and Values bb bb then aa aa, are each considered malformed by ze as Propagator and discarded on the receive path.
+func TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded(t *testing.T) {
+	cases := map[string][]byte{
+		"length descends": lsNodeNLRIWithTrailing(
+			0x04, 0xd2, 0x00, 0x03, 0xaa, 0xaa, 0xaa,
+			0x04, 0xd2, 0x00, 0x02, 0xaa, 0xaa),
+		"value descends": lsNodeNLRIWithTrailing(
+			0x04, 0xd2, 0x00, 0x02, 0xbb, 0xbb,
+			0x04, 0xd2, 0x00, 0x02, 0xaa, 0xaa),
+	}
+	for name, malformed := range cases {
+		got := lsReceive(t, malformed)
+
+		assert.Equal(t, lsNodeNLRI(65002), got, "%s: the out-of-order NLRI is removed", name)
+	}
+}
+
+// TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated is the compliant side of the same
+// clauses.
+//
+// VALIDATES: TLV 1234 repeated with ascending Lengths, and with equal Lengths and
+// ascending Values, is not malformed: the NLRI survives byte-identical beside the survivor.
+// PREVENTS: a walk that refuses every repeated TLV type, which would pass the unit above.
+//
+// RFC requirement: RFC9552-5.1-5 negative -- an NLRI repeating TLV 1234 with Lengths 2 then 3, and one repeating it with equal Lengths and Values aa aa then bb bb, follows the ordering rules and is not considered malformed: both survive the receive path byte-identical.
+func TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated(t *testing.T) {
+	cases := map[string][]byte{
+		"length ascends": lsNodeNLRIWithTrailing(
+			0x04, 0xd2, 0x00, 0x02, 0xaa, 0xaa,
+			0x04, 0xd2, 0x00, 0x03, 0xaa, 0xaa, 0xaa),
+		"value ascends": lsNodeNLRIWithTrailing(
+			0x04, 0xd2, 0x00, 0x02, 0xaa, 0xaa,
+			0x04, 0xd2, 0x00, 0x02, 0xbb, 0xbb),
+	}
+	for name, ordered := range cases {
+		got := lsReceive(t, ordered)
+
+		want := append(append([]byte{}, ordered...), lsNodeNLRI(65002)...)
+		assert.Equal(t, want, got, "%s: the ordered NLRI survives", name)
+	}
 }

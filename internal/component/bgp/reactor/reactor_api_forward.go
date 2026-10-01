@@ -804,6 +804,18 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		}
 		applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
 
+		// draft-ietf-idr-linklocal-capability Section 4: "When sending a message
+		// to an external peer X, and the peer is multiple IP hops away from the
+		// speaker (aka "multihop EBGP"): * Link-Local IPv6 next hops MUST NOT be
+		// included." A received Global plus Link-Local next hop relayed to a peer
+		// more than one hop away keeps its Global alone
+		// (egressNextHopGlobalHalf, forward_next_hop.go, which also quotes the
+		// internal-peer sentence and RFC 2545 Section 3). Recorded before the
+		// gates below, so they read the field that will be written.
+		if global, strip := egressNextHopGlobalHalf(peer, &mods, peerBaseWire.Payload()); strip {
+			mods.Op(14, filterapi.AttrModSet, global)
+		}
+
 		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
 		// disabling advertisement of third party NEXT_HOP attributes in order to
 		// handle imperfectly bridged media."

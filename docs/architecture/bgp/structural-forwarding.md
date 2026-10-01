@@ -229,6 +229,19 @@ draft's second condition is a `{not-applicable}` row,
 explicit next hop naming another router, even one on the shared link, is sent
 as its Global alone, length 16. RFC 2545 would want that router's own
 Link-Local there, which Ze never learns: a recorded gap, `RFC2545-3-6`.
+
+A relayed route under `next-hop unchanged` or `auto` keeps the next hop it was
+received with, with one removal. When that next hop is the 32-octet Global plus
+Link-Local pair (or the 48-octet VPN-IPv6 pair) and the destination is more
+than one IP hop away (no connected subnet holds its address), the Link-Local
+half is dropped and the Global goes alone, length 16 (24 with the RD).
+draft-ietf-idr-linklocal-capability Section 4 forbids a Link-Local next hop
+toward a multihop external peer and toward an internal peer more than one hop
+away, and RFC 2545 Section 3 includes it only when the speaker shares a subnet
+with the peer. A filter that writes a pair is cut the same way. A directly
+attached destination still receives the pair as it arrived. Both forward rails
+(general and route server) apply it.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- nextHopOwners.classify -->

@@ -300,6 +300,87 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 	return dest.linkLocalOnlyNextHopRefused(written.mp, base.mpFamily)
 }
 
+// egressNextHopGlobalHalf returns, for ONE destination more than one IP hop
+// away, the Global half of an MP_REACH_NLRI next hop that is about to be
+// written with a Link-Local half behind it, and whether there is one to remove.
+//
+// draft-ietf-idr-linklocal-capability Section 4: "When sending a message to an
+// external peer X, and the peer is multiple IP hops away from the speaker (aka
+// "multihop EBGP"): * Link-Local IPv6 next hops MUST NOT be included." The same
+// Section says it of an internal peer: "If the internal peer is more than one
+// IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop."
+// RFC 2545 Section 3 binds every session, negotiated or not: "The link-local
+// address shall be included in the Next Hop field if and only if the BGP
+// speaker shares a common subnet with the entity identified by the global IPv6
+// address carried in the Network Address of Next Hop field and the peer the
+// route is being advertised to."
+//
+// Next hop self already obeys this (linkScope.linkLocalNextHop). This is the
+// relay half: under next hop unchanged or auto, applyFactsNextHop records
+// nothing, and a received 32-octet pair would cross unchanged to a peer that
+// cannot reach the Link-Local. The field asked about is the last MP_REACH_NLRI
+// Set in mods when one exists (a filter rewrite counts: a policy may not grant
+// what the RFC refuses), else basePayload's own field.
+//
+// The hop count is the destination's link scope (Peer.llScope): a peer no
+// connected subnet holds is more than one hop away. A nil scope has read no
+// interface table and proves no shared subnet, so the Link-Local is removed,
+// for the reason linkScope.linkLocalNextHop gives.
+//
+// The returned slice aliases the field it was cut from, which lives as long as
+// the operation buffers or the payload the rebuild reads. Allocation-free.
+func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePayload []byte) ([]byte, bool) {
+	if scope := dest.llScope.Load(); scope != nil {
+		if scope.peerOnLink {
+			return nil, false
+		}
+	}
+	field := payloadMPNextHopField(basePayload)
+	for _, op := range mods.Ops() {
+		if op.Code != uint8(attribute.AttrMPReachNLRI) {
+			continue
+		}
+		if op.Action == filterapi.AttrModSet {
+			field = op.Buf
+		}
+	}
+	switch len(field) {
+	case 32: // Global(16) + Link-Local(16)
+		return field[:16], true
+	case 48: // RD(8) + Global(16), RD(8) + Link-Local(16)
+		return field[:24], true
+	}
+	return nil, false
+}
+
+// payloadMPNextHopField returns the Network Address of Next Hop field of an
+// UPDATE payload's MP_REACH_NLRI, or nil when it carries none or the field
+// runs past the attribute. It reads the attribute section the way
+// payloadNextHop does. Allocation-free.
+func payloadMPNextHopField(payload []byte) []byte {
+	sections, err := wire.ParseUpdateSections(payload)
+	if err != nil {
+		return nil
+	}
+	attrs := sections.Attrs(payload)
+	if attrs == nil {
+		return nil
+	}
+	_, _, value, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+	if !found {
+		return nil
+	}
+	// AFI(2) + SAFI(1) + next-hop length(1) + next hop.
+	if len(value) < 4 {
+		return nil
+	}
+	end := 4 + int(value[3])
+	if end > len(value) {
+		return nil
+	}
+	return value[4:end]
+}
+
 // egressNextHopLacksExtendedNextHop answers, for ONE destination, whether the
 // MP_REACH_NLRI it is about to be sent carries IPv4 NLRI with an IPv6 next hop
 // that the destination never licensed.

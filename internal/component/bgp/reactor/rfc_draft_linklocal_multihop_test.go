@@ -1,0 +1,206 @@
+// Design: docs/architecture/bgp/structural-forwarding.md -- the next hop a relayed route carries
+// RFC: rfc/short/draft-ietf-idr-linklocal-capability.md
+// Related: forward_next_hop.go -- the egress next-hop decisions of the forward rails
+// Related: rfc_draft_linklocal_reflect_test.go -- llnhForward, the forward rail harness
+// Overview: rfc_draft_linklocal_test.go -- the same Section 4 sentence under next hop self
+//
+// draft-ietf-idr-linklocal-capability Section 4: "When sending a message to an
+// external peer X, and the peer is multiple IP hops away from the speaker (aka
+// "multihop EBGP"): * Link-Local IPv6 next hops MUST NOT be included."
+// These tests relay a route whose received MP_REACH_NLRI Next Hop field is the
+// 32-octet Global plus Link-Local pair through forwardUpdateCore, under the next
+// hop modes that leave the received next hop in place, and read the field each
+// external destination was asked to write.
+package reactor
+
+import (
+	"net/netip"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
+)
+
+// llnhMultihopAddr is an external peer no connected subnet holds: more than one
+// IP hop away from the speaker.
+const llnhMultihopAddr = "2001:db8:ff::1"
+
+// llnhReceivedPairPayload is an announcement of 2001:db8:7::/64 whose MP_REACH
+// Next Hop field is the 32-octet RFC 2545 Section 3 pair the advertiser sent:
+// its Global 2001:db8:1::1 followed by its Link-Local fe80::9.
+func llnhReceivedPairPayload() []byte {
+	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	linkLocal := netip.MustParseAddr("fe80::9").As16()
+	// AFI 2 (IPv6), SAFI 1 (unicast), Length of Next Hop Network Address 32.
+	value := []byte{0x00, 0x02, 0x01, 0x20}
+	value = append(value, global[:]...)
+	value = append(value, linkLocal[:]...)
+	// The Reserved octet, then 2001:db8:7::/64 as one NLRI.
+	value = append(value, 0x00, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x07, 0x00, 0x00)
+
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN igp
+		0x40, 0x02, 0x04, 0x02, 0x01, 0xfd, 0xe9, // AS_PATH 65001
+		0x80, 0x0e, byte(len(value)), // MP_REACH_NLRI header
+	}
+	attrs = append(attrs, value...)
+	return buildUpdatePayload(attrs, nil)
+}
+
+// llnhExternalPeer builds an established external peer (AS 65002) at addr whose
+// configured next-hop mode is mode. connected is the interface table its link
+// scope is settled against.
+func llnhExternalPeer(t *testing.T, addr string, connected []netip.Prefix, mode uint8) *Peer {
+	t.Helper()
+	settings := &PeerSettings{
+		Connection:    ConnectionBoth,
+		Address:       netip.MustParseAddr(addr),
+		LocalAS:       65000,
+		GlobalLocalAS: 65000,
+		PeerAS:        65002,
+		RouterID:      0x0a000001,
+		NextHopMode:   mode,
+	}
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+	peer.negotiated.Store(&NegotiatedCapabilities{
+		families: map[family.Family]bool{family.IPv6Unicast: true},
+	})
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, err := bgpctx.Registry.Register(ctx)
+	require.NoError(t, err)
+	peer.sendCtx.Store(ctx)
+	peer.sendCtxID = ctxID
+	peer.llScope.Store(newLinkScopeFrom(connected, peer.settings.Address))
+	peer.fwdFacts.Store(peer.buildForwardFacts())
+	return peer
+}
+
+// llnhExternalSource is a route learned from the external advertiser.
+var llnhExternalSource = forwardSourceInfo{resolved: true, globalLocalAS: 65000}
+
+// TestLinkLocalReceivedPairStrippedForMultihopExternalPeer relays the pair to a
+// multihop external peer under both modes that keep the received next hop.
+//
+// VALIDATES: the field written to the multihop external peer is the 16-octet
+// Global 2001:db8:1::1 alone, under next hop unchanged and under the default
+// next hop auto.
+// PREVENTS: the received Link-Local fe80::9 crossing to a peer that cannot
+// reach it, which the next-hop-self units never exercised.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 positive -- a route received with the 32-octet Global 2001:db8:1::1 plus Link-Local fe80::9 next hop and relayed through forwardUpdateCore to an external peer no connected subnet holds (multihop EBGP), under next hop unchanged and under next hop auto, is written with the Global alone: a 16-octet Next Hop field holding no Link-Local.
+func TestLinkLocalReceivedPairStrippedForMultihopExternalPeer(t *testing.T) {
+	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
+		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
+
+		got := llnhForward(t, llnhReceivedPairPayload(), llnhExternalSource, multihop)
+
+		field, sent := got[netip.MustParseAddr(llnhMultihopAddr)]
+		require.True(t, sent, "mode %d: the route reached the multihop peer", mode)
+		assert.Equal(t, global[:], field, "mode %d: the Global alone, no Link-Local", mode)
+	}
+}
+
+// TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer is the other side:
+// the same relay to an external peer on the advertiser's subnet.
+//
+// VALIDATES: a directly attached external peer still receives the 32-octet pair
+// with the received Link-Local fe80::9 (Section 4: "the speaker can use the
+// received Link-Local IPv6 address, provided that peer X is directly
+// attached"), so the removal is keyed on the hop count.
+// PREVENTS: a fix that strips every received Link-Local from every external peer.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 negative -- the same relayed route sent to an external peer one IP hop away (2001:db8:1::3, on the connected 2001:db8:1::/64) keeps the 32-octet field: the Global 2001:db8:1::1 followed by the received Link-Local fe80::9.
+func TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer(t *testing.T) {
+	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+
+	got := llnhForward(t, llnhReceivedPairPayload(), llnhExternalSource, attached)
+
+	field, sent := got[netip.MustParseAddr(llnhOnSegmentAddr)]
+	require.True(t, sent, "the route reached the directly attached peer")
+	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	linkLocal := netip.MustParseAddr("fe80::9").As16()
+	assert.Equal(t, append(global[:], linkLocal[:]...), field, "the Global then the received Link-Local")
+}
+
+// TestEgressNextHopGlobalHalf drives every branch of the predicate the two
+// tagged units above reach through the forward rail.
+//
+// VALIDATES: an on-link destination keeps any field; an off-link destination,
+// or one with no link scope, gets the first half of a 32-octet pair and of the
+// 48-octet VPN-IPv6 pair, nothing for a 16-octet field, and the last MP_REACH
+// Set in mods is asked in place of the payload's field.
+// PREVENTS: the VPN form or a filter-written pair escaping the removal.
+func TestEgressNextHopGlobalHalf(t *testing.T) {
+	pair := make([]byte, 32)
+	copy(pair, netip.MustParseAddr("2001:db8:1::1").AsSlice())
+	copy(pair[16:], netip.MustParseAddr("fe80::9").AsSlice())
+	vpnPair := make([]byte, 48)
+	copy(vpnPair[8:], pair[:16])
+	copy(vpnPair[32:], pair[16:])
+	payload := func(field []byte) []byte {
+		value := append([]byte{0x00, 0x02, 0x01, byte(len(field))}, field...)
+		value = append(value, 0x00, 0x30, 0xfc, 0x00, 0x00)
+		attrs := append([]byte{0x80, 0x0e, byte(len(value))}, value...)
+		return buildUpdatePayload(attrs, nil)
+	}
+	onLink := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+	offLink := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, NextHopUnchanged)
+	unscoped := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, NextHopUnchanged)
+	unscoped.llScope.Store(nil)
+
+	none := &filterapi.ModAccumulator{}
+	_, strip := egressNextHopGlobalHalf(onLink, none, payload(pair))
+	assert.False(t, strip, "an on-link destination keeps the pair")
+
+	global, strip := egressNextHopGlobalHalf(offLink, none, payload(pair))
+	require.True(t, strip, "an off-link destination loses the Link-Local")
+	assert.Equal(t, pair[:16], global)
+
+	global, strip = egressNextHopGlobalHalf(unscoped, none, payload(pair))
+	require.True(t, strip, "no link scope proves no shared subnet")
+	assert.Equal(t, pair[:16], global)
+
+	global, strip = egressNextHopGlobalHalf(offLink, none, payload(vpnPair))
+	require.True(t, strip, "the VPN-IPv6 pair loses its Link-Local too")
+	assert.Equal(t, vpnPair[:24], global, "RD and Global kept")
+
+	_, strip = egressNextHopGlobalHalf(offLink, none, payload(pair[:16]))
+	assert.False(t, strip, "a Global alone has nothing to remove")
+
+	written := &filterapi.ModAccumulator{}
+	written.Op(14, filterapi.AttrModSet, pair)
+	global, strip = egressNextHopGlobalHalf(offLink, written, payload(pair[:16]))
+	require.True(t, strip, "a pair written by a rewrite is asked, not the payload's field")
+	assert.Equal(t, pair[:16], global)
+}
+
+// TestMPReachNextHopHandler_Rewrite48To24Bytes applies the cut
+// egressNextHopGlobalHalf makes to a VPN-IPv6 pair.
+//
+// VALIDATES: a 24-octet Set (RD + Global) replaces a 48-octet next hop, the
+// length octet becomes 24, and the Reserved octet and NLRI follow unchanged.
+// PREVENTS: the handler refusing the 24-octet form and leaving the Link-Local.
+func TestMPReachNextHopHandler_Rewrite48To24Bytes(t *testing.T) {
+	oldNH := make([]byte, 48)
+	copy(oldNH[8:], netip.MustParseAddr("2001:db8:1::1").AsSlice())
+	copy(oldNH[32:], netip.MustParseAddr("fe80::9").AsSlice())
+	nlri := []byte{0x30, 0xfc, 0x00, 0x00}
+	src := buildMPReachSource(2, 128, oldNH, nlri)
+	ops := []filterapi.AttrOp{{Code: 14, Action: filterapi.AttrModSet, Buf: oldNH[:24]}}
+
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+
+	require.True(t, ok, "handler planned an emitted attribute")
+	require.Equal(t, len(src)-24, len(out), "length shrank by 24 octets")
+	val := out[3:]
+	assert.Equal(t, byte(24), val[3], "NH length updated to 24")
+	assert.Equal(t, oldNH[:24], val[4:28], "RD and Global written")
+	assert.Equal(t, byte(0), val[28], "reserved byte preserved")
+	assert.Equal(t, nlri, val[29:], "NLRI preserved")
+}

@@ -46,6 +46,50 @@
       "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9552-5.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded",
+      "unit-sha": "3d82021399975cc1",
+      "claim-sha": "6d0fb315913e6860",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
+      "producer-sha": "1e157272c89f3d1d",
+      "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated",
+      "unit-sha": "57cd9d4f30aa5663",
+      "claim-sha": "e1c663dfd83a3ab2",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
+      "producer-sha": "1e157272c89f3d1d",
+      "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated",
+      "unit-sha": "dad6ff60bdd57101",
+      "claim-sha": "2c48b6df5fa210fb",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsTLVOrdered",
+      "producer-sha": "353eac2ec3424cbf",
+      "break": "body of bgplsTLVOrdered replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded",
+      "unit-sha": "6a14a38b35f4cdf6",
+      "claim-sha": "8d9427b0e00a7dd2",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsTLVOrdered",
+      "producer-sha": "353eac2ec3424cbf",
+      "break": "body of bgplsTLVOrdered replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9552-5.2-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeProtocolIDFollowsSource",
@@ -627,6 +671,28 @@
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
       "producer-sha": "c01087982ad8e011",
       "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-8.2.2-9",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded",
+      "unit-sha": "9141e4014f63d8d9",
+      "claim-sha": "3a07802e1a6a7511",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNodeDescriptorWellFormed",
+      "producer-sha": "acc9c64dbaa6141c",
+      "break": "body of bgplsNodeDescriptorWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-8.2.2-9",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateUnreachLengthOverrunResetsSession",
+      "unit-sha": "0441e29f6c90d783",
+      "claim-sha": "e224af5757de157a",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::validateBGPLSNLRISyntax",
+      "producer-sha": "724d301f008f52f2",
+      "break": "body of validateBGPLSNLRISyntax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9552-8.2.3-5",

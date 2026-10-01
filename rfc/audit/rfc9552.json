@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-01",
   "requirements": {
     "RFC9552-5.1-1": {
       "note": "rejudge 2026-09-30: the native Link producer (ls_export encodeNativeLink) is now driven. TestRFC9552NativeLinkTLVsCanonicalOrder asserts the exact TLV sequence 256,257,259,259,260,261,261,262,263 and a pairwise no-descending-Type sweep; TestRFC9552NativeLinkTLVsReorderedSource feeds addresses interleaved IPv6-before-IPv4 and descending, and asserts the same canonical sequence. Judge break (sort comparator Type key reversed) turns both red; revert records observed red. The nlri/ls descriptor-encoder units stay tagged as the second producer's cover.",
@@ -45,30 +45,38 @@
       "verdict": "weak"
     },
     "RFC9552-5.1-4": {
-      "note": "tagged units cover only the BGP-LS Attribute half at decoder level (iterateAttrTLVs/decodeAllAttrTLVs); the NLRI half of the sentence is not under a 5.1-4 tag, although reactor TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated proves it on the receive path and could carry the tag",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge). Both halves of 'the NLRI or the BGP-LS Attribute' now tagged. NLRI half on the receive path: TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated (unknown top-level TLV 1234 + unexpected sub-TLV 999: enforceRFC7606 answers no action, NLRI byte-identical; tag added under D-15 approval, body unchanged) and TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded (unknown type 1234 declaring 200 with 3 present: NLRI discarded, survivor kept, so tolerance covers the type and not broken framing). Attribute half unchanged on the nlri/ls units. New units carry records observed red on bgplsNLRIWellFormed; the nlri/ls attribute units carry none (pre-existing).",
       "requirement_sha": "ab79ddbe147a9641",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "801f7762d8983274"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "801f7762d8983274",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "152fc33173abc49a",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded": "d14fe0c59160dcc8",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.1-5": {
-      "note": "receive path discards only a top-level descending pair (257 before 256); bgplsTLVOrdered also enforces the same-type Length/Value rule, which no tagged unit drives, so \"the above ordering rules\" is proven for one of its two clauses",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge). Section 5.1's three ordering clauses are now all driven through enforceRFC7606: type (existing descending 257-before-256 unit), same-type Length (TLV 1234 lengths 3 then 2 discarded; 2 then 3 kept byte-identical) and same-type Value (equal lengths, bb bb then aa aa discarded; aa aa then bb bb kept). Each malformed case is otherwise well framed, so only the order trips, and the survivor beside it is kept. Records observed red on bgplsTLVOrdered.",
       "requirement_sha": "3b82d2db89908ae1",
       "tests": {
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "4d2a1c4c30629022"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded": "afc246c289705756"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded": "02129e0bb50e55c1",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "a5ed39c998715483"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated": "1788e029ec204529",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded": "152d795c1f7c02fc"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2-6": {
       "note": "R-7: drives only a modified address descriptor; adding or removing a TLV/sub-TLV is never driven, and the assertion is a \" del \" engine command, not MP_UNREACH_NLRI on the wire; negative (attribute-only change, no withdraw) is sound",
@@ -108,14 +116,14 @@
       "verdict": "weak"
     },
     "RFC9552-5.2.1.4-1": {
-      "note": "re-audit RA12: receive half proven (duplicate sub-TLV 512 NLRI discarded, sibling survives; distinct types kept); sender half unproven and the code violates it: NodeDescriptor.WriteTo (nlri/ls/types_descriptor.go) emits one sub-TLV 518 per SRv6SIDs entry inside the Node Descriptor with no refusal, and the RFC9552-5.1-2 units assert that repeated emission",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Finding unchanged: receive half proven (duplicate sub-TLV 512 NLRI discarded, sibling survives; distinct types kept); sender half unproven and the code violates it: NodeDescriptor.WriteTo (nlri/ls/types_descriptor.go) emits one sub-TLV 518 per SRv6SIDs entry inside the Node Descriptor with no refusal, and the RFC9552-5.1-2 units assert that repeated emission.",
       "requirement_sha": "ac5bc03a05270e4c",
       "tests": {
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "4d2a1c4c30629022"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "afc246c289705756"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "a5ed39c998715483",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "18db48dbc5cf6076"
       },
       "verdict": "weak"
@@ -505,30 +513,30 @@
       "verdict": "weak"
     },
     "RFC9552-8.2.2-4": {
-      "note": "receive path: TLV overrun and duplicate sub-TLV NLRIs removed alone, sibling survives, no session reset; a well-formed NLRI survives byte-identically",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Receive path: TLV overrun and duplicate sub-TLV NLRIs removed alone, sibling survives, no session reset; a well-formed NLRI survives byte-identically.",
       "requirement_sha": "ac78be62eec5fe4e",
       "tests": {
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRITLVOverrunIsDiscarded": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "4d2a1c4c30629022"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRITLVOverrunIsDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "afc246c289705756"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRITLVOverrunIsDiscarded": "c42d3845d5cbac9c",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "a5ed39c998715483",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "18db48dbc5cf6076"
       },
       "verdict": "enforced"
     },
     "RFC9552-8.2.2-5": {
-      "note": "Total NLRI Length overrunning MP_REACH gives RFC7606ActionSessionReset; a well-formed section leaves the session up",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Total NLRI Length overrunning MP_REACH gives RFC7606ActionSessionReset; a well-formed section leaves the session up.",
       "requirement_sha": "d5b9e3f689ac5aff",
       "tests": {
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "4d2a1c4c30629022"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "fa85527157149db2",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "a5ed39c998715483"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0"
       },
       "verdict": "enforced"
     },
@@ -548,23 +556,27 @@
       "verdict": "enforced"
     },
     "RFC9552-8.2.2-9": {
-      "note": "row is the lead-in to seven syntactic checks; tagged units drive the MP_REACH_NLRI length sum (session reset), a Node Descriptor TLV overrun, a duplicate Node Descriptor sub-TLV and descending TLV order through enforceRFC7606, with a well-formed negative; the MP_UNREACH_NLRI length-sum bullet and the invalid-length sub-TLV of a recognized TLV, both implemented in validateBGPLSNLRISyntax/bgplsNLRIWellFormed, are driven by no tagged unit, so a regression there stays green",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge). The two bullets the earlier note named are now driven through enforceRFC7606: MP_UNREACH_NLRI length sum (Total NLRI Length 255 with 21 present: session reset + error, TestRFC9552LinkStateUnreachLengthOverrunResetsSession) and the sub-TLV length of a recognized TLV (TLV 256 framed at 8, sub-TLV 512 claiming 8 with 4 present: NLRI discarded, survivor kept). With the existing MP_REACH sum, TLV overrun, ordering and duplicate sub-TLV units and the well-formed negative, every concrete bullet of the section 8.2.2 list is driven; the 'per RFC 7606' bullet is the umbrella of the others. New units carry records observed red on validateBGPLSNLRISyntax and bgplsNodeDescriptorWellFormed; older units carry none (pre-existing).",
       "requirement_sha": "9b3313263c81a310",
       "tests": {
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRITLVOverrunIsDiscarded": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "4d2a1c4c30629022",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "4d2a1c4c30629022"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRITLVOverrunIsDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded": "afc246c289705756",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateUnreachLengthOverrunResetsSession": "afc246c289705756"
       },
       "units": {
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "fa85527157149db2",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded": "02129e0bb50e55c1",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRITLVOverrunIsDiscarded": "c42d3845d5cbac9c",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "a5ed39c998715483",
-        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "18db48dbc5cf6076"
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "18db48dbc5cf6076",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded": "e9d99c2444f4a7e5",
+        "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateUnreachLengthOverrunResetsSession": "01bdb4a3d60b268b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc9552"

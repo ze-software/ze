@@ -108,6 +108,17 @@ func llnhClient(t *testing.T, addr string, connected []netip.Prefix, nextHopSelf
 // absent from the map received nothing at all.
 func llnhReflect(t *testing.T, payload []byte, clients ...*Peer) map[netip.Addr][]byte {
 	t.Helper()
+	return llnhForward(t, payload, forwardSourceInfo{
+		resolved: true, isIBGP: true, isRRClient: true, globalLocalAS: 65000,
+	}, clients...)
+}
+
+// llnhForward sends one UPDATE from the advertiser, described by source, through
+// forwardUpdateCore toward every destination, and returns the MP_REACH Next Hop
+// field each one was asked to write. A destination absent from the map received
+// nothing at all.
+func llnhForward(t *testing.T, payload []byte, source forwardSourceInfo, clients ...*Peer) map[netip.Addr][]byte {
+	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -142,9 +153,7 @@ func llnhReflect(t *testing.T, payload []byte, clients ...*Peer) map[netip.Addr]
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	_ = adapter.forwardUpdateCore(update, id, clients, forwardSourceInfo{
-		resolved: true, isIBGP: true, isRRClient: true, globalLocalAS: 65000,
-	})
+	_ = adapter.forwardUpdateCore(update, id, clients, source)
 
 	got := make(map[netip.Addr][]byte, len(clients))
 	for range clients {

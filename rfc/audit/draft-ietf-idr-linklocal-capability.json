@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-01",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -28,17 +29,21 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2": {
-      "note": "Re-judged 2026-10-01 (BGP c19 judge), producer changed (linkLocalNextHop classify gate), units unchanged, records re-observed red. Unchanged finding: clause 'include both addresses' is asserted (nhGlobalLL[:16] Global, [16:] Link-Local), but clause 'set the length of the Next Hop field to 32' has no assertion that goes red: assert.Len(facts.nhGlobalLL[:], 32) measures a [32]byte array and is always true, and the unit stops at peerForwardFacts, so a writer (applyFactsNextHop) that emitted 16 octets for nhModeSelfV6LL would leave it green. Missing: a wire assertion of the 0x20 length octet in a unit tagged 3-2.",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge). The c19 finding is closed: TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo reads the MP_REACH_NLRI Length of Next Hop octet off the bytes sendStaticRoutes wrote to the one-hop internal peer's connection and asserts 0x20 followed by exactly 2001:db8:1::1 then fe80::1 (both clauses: length 32, both addresses); TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen asserts 0x10 and the lone global for a route through another router, so the 32-octet length is tied to sending both. mpReachNextHopField slices exactly the octets the length announces and fails when none is written. Records observed red on mpnlri.go::nextHopLen. The older facts-level units stay tagged; their assert.Len over a [32]byte array is vacuous and carries no weight in this verdict.",
       "requirement_sha": "4af2fb7eef0b4feb",
       "tests": {
+        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "eda240ce7fd2c20c",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "eda240ce7fd2c20c",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "8b6df8728f9a616d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "8b6df8728f9a616d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "444d14cf9d062586",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "bc461ac88770e007",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "dca4ee3b28586c6f",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "bf1c6ea9e32ea6e8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1": {
       "note": "Forbidden: advertising a route that is left with no IPv6 next hop AFTER the Section 4 procedures run. TestLinkLocalRouteWithNoNextHopIsNotAdvertised asserts assert.Nil on buildRIBRouteUpdate fed a zero netip.Addr, so it proves only that the RIB-replay builder refuses an empty address. The clause 'after completing these procedures' has no assertion: no tagged unit feeds a route whose procedures strip every address (for example a Link-Local-only next hop toward a multihop peer, where the Link-Local must not be included), and the forward rail (forwardUpdateCore) is not driven. A procedure that dropped the Link-Local and still sent an empty next hop leaves both units green.",
@@ -78,8 +83,8 @@
       "tests": {
         "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "52228b2fd5d81dde",
         "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "52228b2fd5d81dde",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "f0dc1dc01992645e",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "f0dc1dc01992645e",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "eda240ce7fd2c20c",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "eda240ce7fd2c20c",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "8b6df8728f9a616d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "8b6df8728f9a616d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "8b6df8728f9a616d"
@@ -112,8 +117,8 @@
       "note": "Forbidden: a reflector advertising a link-local-only route to a client off the original advertiser's segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore with a 16-octet fe80::1 next hop and asserts assert.NotContains(got, off-segment client); delivering to it turns the test red. The same function (negative tag) asserts the on-segment client does receive the link-local-only next hop, so the refusal is keyed on the segment.",
       "requirement_sha": "01dd2f11bbcb64db",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "7b38bc32690df8a9",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "7b38bc32690df8a9"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "a8caf0b26c61ea23",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "a8caf0b26c61ea23"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "7feb6579d8c4f4b2",
@@ -125,8 +130,8 @@
       "note": "Forbidden: for an off-segment client, sending the link-local-only route neither rewritten nor withheld. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives 2001:db8:1::254 and not a link-local-only field (rewrite arm) and that the client without rewrite receives nothing (ineligible arm); passing the link-local through to either turns it red. The negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld shows a Global next hop is untouched.",
       "requirement_sha": "3878bc1d729469f9",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "7b38bc32690df8a9",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "7b38bc32690df8a9"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "a8caf0b26c61ea23",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "a8caf0b26c61ea23"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "657bbc397ffff782",
@@ -148,13 +153,17 @@
       "verdict": "weak"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8": {
-      "note": "Re-judged 2026-10-01 (BGP c19 judge), producer changed, units unchanged, records re-observed red. Unchanged finding. Forbidden: including any Link-Local next hop toward a multihop EBGP peer. TestLinkLocalNotIncludedForMultihopExternalPeer asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only under next-hop-self (own configured link-local). A received Global+Link-Local next hop passed on under next-hop unchanged (nhModeNone; applyFactsNextHop returns without editing attribute 14) to a multihop external peer is not an input of any tagged unit, and nothing in the forward path is seen to strip it.",
+      "note": "Re-judged 2026-10-01 (BGP c21 judge). D-8 fixed: egressNextHopGlobalHalf (forward_next_hop.go) cuts a relayed 32-octet Global+Link-Local field (48 -> 24 for VPN-IPv6) to the Global toward a destination whose link scope holds no shared subnet; read at the producer, called after applyFactsNextHop on both rails, and it leaves every 4/16/24-octet field and every on-link destination untouched. General rail proven both polarities: TestLinkLocalReceivedPairStrippedForMultihopExternalPeer relays the received 2001:db8:1::1+fe80::9 through forwardUpdateCore to an off-link external peer under next hop unchanged and auto and reads the rebuilt field (Global alone); TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer keeps the pair one hop away; c21-48-red.log red before the fix; records observed red. Still missing: the route-server rail (reactorForwardRS, forward_rs.go line ~466) carries the same call and no tagged unit drives it, so deleting that call leaves every 4-8 unit green while a multihop RS client receives the Link-Local. Missing: a reactorForwardRS unit relaying the 32-octet pair to an off-link client, with a record.",
       "requirement_sha": "7a157c343d0362b5",
       "tests": {
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "dd16efc090c15665",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "dd16efc090c15665",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "8b6df8728f9a616d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "8b6df8728f9a616d"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "f545278a231f2e90",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "16721b3aa7f9e99a",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "45b3b0a054c9b3d1",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "405e2a4b4f76cdf8"
       },
@@ -185,6 +194,14 @@
         "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "efb9b6b9dfdfc4e8"
       },
       "verdict": "enforced"
+    },
+    "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1": {
+      "code": {
+        "internal/component/bgp/message/rfc7606.go::validateMPReachNextHop": "ab5b2ab48a8ad1c7"
+      },
+      "note": "Judged 2026-10-01 (BGP c21 judge). Gap confirmed, but its stated reason is mis-aimed. Draft section 6 places this sentence after the 32-octet paragraph ('the length of the Next Hop Field set to 32, where the update contains anything other than a Global IPv6 followed by a Link-Local IPv6 address'), so 'malformed' is the CONTENT of an admitted-length field. A length error stays under RFC 7606 section 7.11: 'it will not be possible to reliably locate the NLRI; thus, the \"session reset\" or \"AFI/SAFI disable\" approach MUST be used', and treat-as-withdraw needs the NLRI located, so the draft cannot override 7.11 there; validateMPReachNextHop answering session reset on a length outside attribute.ValidNextHopLens is correct, not the gap. The gap is the content half: on a capability-77 session no receive producer inspects a 32-octet field's addresses (grep IsLinkLocalUnicast: only send-side and IsLinkLocalOnlyNextHop, which is 16-octet only), so a field that is neither Global+Link-Local, Link-Local+Link-Local nor ::+Link-Local is accepted, never treated as withdraw. The {gap} annotation's first clause should be narrowed to that content half by the next author.",
+      "requirement_sha": "a3805533ad750bdf",
+      "verdict": "unimplemented"
     }
   },
   "rfc": "draft-ietf-idr-linklocal-capability"
