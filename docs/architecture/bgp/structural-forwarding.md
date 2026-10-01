@@ -199,7 +199,26 @@ When no address of Ze exists for the destination, the announcement is withheld
 from it, the withdrawals in the same UPDATE still go, and a warning names the
 peer: "withholding route: next-hop self is configured and the session has no
 local address". The received third-party next hop is never sent in its place.
+
+On a session that runs over an IPv6 link-local address, the connected endpoint
+is link-local, and `next-hop self` writes it alone: the 16-octet Link-Local-only
+Next Hop of draft-ietf-idr-linklocal-capability Section 3. The forward rails
+send that form only where the announce rail would: the session negotiated the
+Link-Local Next Hop capability (code 77), and for IPv4 NLRI RFC 8950 Extended
+Next Hop Encoding as well. Both rails ask the one predicate the announce rail
+asks. On any other session the announcement is withheld, the withdrawals still
+go, and a warning names the peer: "withholding route: its next hop is
+link-local-only and this peer did not negotiate the Link-Local Next Hop
+capability".
+
+The speaker's own Link-Local address is appended behind a next-hop-self Global
+address (RFC 2545 Section 3, draft-ietf-idr-linklocal-capability Section 4)
+against the Global address the rewrite chose, so under `local ip auto` the
+connected endpoint qualifies exactly as a configured local address does.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->
+<!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopRefused -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyRefused -->
 <!-- source: internal/component/bgp/reactor/session_connection.go -- connectedLocalAddress -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->

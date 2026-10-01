@@ -264,6 +264,42 @@ func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopVa
 	return base.linkLocalOnly()
 }
 
+// egressNextHopLinkLocalOnlyRefused answers, for ONE destination, whether the
+// MP_REACH_NLRI next hop this speaker is about to write for it is a
+// Link-Local-only Next Hop the destination's session may not carry.
+//
+// draft-ietf-idr-linklocal-capability Section 2: "When the capability has not
+// been negotiated, the procedures in this document do not apply." Section 5
+// adds the Extended Next Hop half for IPv4 NLRI. Peer.linkLocalOnlyNextHopRefused
+// (peer.go) holds both, and the announce rail (Peer.resolveNextHop) asks the same
+// method, so the rails cannot disagree.
+//
+// Only a next hop this speaker WRITES is asked: one recorded in mods by a
+// configured next-hop mode or a filter. Next hop self is built from the
+// session's connected endpoint (precomputeNextHop, peer_forward_facts.go), and on
+// a session that runs over a link-local address that endpoint is link-local. A
+// received Link-Local-only next hop passed along unchanged is not this speaker's
+// choice, and the route-reflector rule of Section 4 governs it
+// (egressNextHopIsLinkLocalOnly above).
+//
+// A destination base with no MP_REACH_NLRI carries no field to write the
+// address into, so it answers false.
+func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulator, base nextHopValue) bool {
+	if base.mpFamily == (family.Family{}) {
+		return false
+	}
+	written, set := modsNextHop(mods)
+	if !set {
+		return false
+	}
+	// A valid second address is the 32-octet RFC 2545 Section 3 pair, whose
+	// first address is the Global one: never the Link-Local-only form.
+	if written.mpLL.IsValid() {
+		return false
+	}
+	return dest.linkLocalOnlyNextHopRefused(written.mp, base.mpFamily)
+}
+
 // egressNextHopLacksExtendedNextHop answers, for ONE destination, whether the
 // MP_REACH_NLRI it is about to be sent carries IPv4 NLRI with an IPv6 next hop
 // that the destination never licensed.

@@ -107,8 +107,6 @@ func TestRFC4271LocalPrefIncludedForInternalPeers(t *testing.T) {
 // RFC requirement: RFC4271-5.1.5-1 negative -- the SHALL-include obligation is not applied
 // blindly: the same producer omits the attribute when the peer is external, so its
 // presence for internal peers is a real decision (reactor_wire.go:347).
-// RFC requirement: RFC4271-9.1.1-2 negative -- the computed degree of preference is not
-// emitted as a LOCAL_PREF toward an external peer (reactor_wire.go:347-354).
 func TestRFC4271LocalPrefOmittedForExternalPeers(t *testing.T) {
 	attrs := rfc4271Announce(t, false)
 	_, ok := rfc4271FindAttr(attrs, attribute.AttrLocalPref)

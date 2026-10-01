@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-01",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1": {
@@ -19,8 +22,8 @@
       "note": "Clause 'include both addresses' is asserted: TestLinkLocalBothAddressesUseThirtyTwoOctets compares nhGlobalLL[:16] to the Global and nhGlobalLL[16:] to the Link-Local. Clause 'set the length of the Next Hop field to 32' has no assertion that goes red: assert.Len(facts.nhGlobalLL[:], 32) measures a [32]byte array and is always true, and the unit stops at peerForwardFacts, so a writer (applyFactsNextHop) that emitted 16 octets for nhModeSelfV6LL would leave it green. The wire length is asserted only by units tagged 3-1 and 5-1.",
       "requirement_sha": "4af2fb7eef0b4feb",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "b65c3edba82c454e",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "b65c3edba82c454e"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "8b6df8728f9a616d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "dca4ee3b28586c6f",
@@ -45,8 +48,8 @@
       "note": "Forbidden: including any Link-Local next hop toward an internal peer more than one hop away. TestLinkLocalNotIncludedForPeerMoreThanOneHopAway asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only for a peer configured next-hop-self, where ze would append its OWN configured link-local. The third-party case is not asserted: under next-hop unchanged (nhModeNone, the iBGP default) applyFactsNextHop (peer_forward_facts.go) returns without touching the received MP_REACH next hop, so a received Global+Link-Local field forwarded to a multihop internal peer keeps its Link-Local address, and no tagged unit feeds that input.",
       "requirement_sha": "0484129d31f8abcf",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForPeerOneHopAway": "b65c3edba82c454e",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "b65c3edba82c454e"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForPeerOneHopAway": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "8b6df8728f9a616d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForPeerOneHopAway": "4630c7a31a65cda7",
@@ -55,14 +58,16 @@
       "verdict": "weak"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3": {
-      "note": "Forbidden: announcing to a one-hop internal peer a route that is directly connected (or whose next router is that peer) without the speaker's own Link-Local address. TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker asserts the own Link-Local is in nhGlobalLL[16:], but its input is the PEER's next-hop-self setting, not a route: neither condition of the sentence (route directly connected; next router's interface address is the internal peer's address) is an input of the tagged unit, so a directly connected route announced on a next-hop-unchanged session without the own Link-Local would leave both units green. Re-judged 2026-10-01 (BGP c16 judge), still weak: the c16 R54 change builds next-hop self from the session's connected endpoint (precomputeNextHop), but applyLinkLocalNextHop (link_scope.go) still reads s.LocalAddress as the global, so under `local ip auto` (LocalAddress unset) no own Link-Local is appended even where the configured-address case appends one; no unit covers that configuration. The re-recorded negative record on precomputeNextHop was observed red.",
+      "note": "Re-judged 2026-10-01 (BGP c17 judge). Forbidden: announcing to a one-hop internal peer a route that is directly connected (or whose next router is that peer) without the speaker's own Link-Local address. Closed in c17: the `local ip auto` gap the c16 judge named. applyLinkLocalNextHop (link_scope.go) now reads the Global from f.nhGlobal, which precomputeNextHop settled from the connected endpoint, and NEW TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress builds the facts through buildForwardFacts/connectedLocalAddress with no configured local address and asserts nhModeSelfV6LL with the connected Global first and the own Link-Local second (observed red before the fix, c17-red1.log: nhMode 2 not 3; revert record on applyLinkLocalNextHop). Quote verbatim (draft Section 4; the 'Link- Local' break is the source's line wrap). Still weak, the older objection stands: every tagged unit keys on the PEER's next-hop-self setting, never on a route. Neither condition of the sentence (route directly connected to the speaker; next router's interface address is the internal peer's address) is an input of any unit, and no unit drives a locally originated directly connected route through the announce rail (Peer.linkLocalNextHopFor) to a one-hop internal peer. Missing: that announce-rail unit, both polarities, with a record on linkLocalNextHopFor or resolveNextHop.",
       "requirement_sha": "0edf8c5e4a281906",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "b65c3edba82c454e",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "b65c3edba82c454e"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "8b6df8728f9a616d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "71cf6e0c76b63ec2",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "951f8278ecb9412d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "889cc8ffe6f9cb44"
       },
       "verdict": "weak"
@@ -123,8 +128,8 @@
       "note": "Forbidden: including any Link-Local next hop toward a multihop EBGP peer. TestLinkLocalNotIncludedForMultihopExternalPeer asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only under next-hop-self (own configured link-local). A received Global+Link-Local next hop passed on under next-hop unchanged (nhModeNone; applyFactsNextHop returns without editing attribute 14) to a multihop external peer is not an input of any tagged unit, and nothing in the forward path is seen to strip it.",
       "requirement_sha": "7a157c343d0362b5",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "b65c3edba82c454e",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "b65c3edba82c454e"
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "8b6df8728f9a616d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "45b3b0a054c9b3d1",

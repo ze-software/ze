@@ -20,7 +20,7 @@
       "claim-sha": "4c914426e65328d4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-      "producer-sha": "d94d127e5a93bb4c",
+      "producer-sha": "15ffeeb31253ff74",
       "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "c8e9640dbfd63331",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
-      "producer-sha": "210d1eb5bf3abd69",
+      "producer-sha": "1c5a27093e4e4daa",
       "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "e1f7704337350a7a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
-      "producer-sha": "210d1eb5bf3abd69",
+      "producer-sha": "1c5a27093e4e4daa",
       "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,18 @@
       "claim-sha": "652a5d865948fdfb",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
-      "producer-sha": "210d1eb5bf3abd69",
+      "producer-sha": "1c5a27093e4e4daa",
+      "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress",
+      "unit-sha": "2b3a31cbafdc7295",
+      "claim-sha": "14c11588111ada14",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
+      "producer-sha": "1c5a27093e4e4daa",
       "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +185,7 @@
       "claim-sha": "bae32fbf0075d840",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "f7156d994d729022",
+      "producer-sha": "0423c2f64a7c38ca",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +218,7 @@
       "claim-sha": "40e8eb1fa231b313",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
-      "producer-sha": "210d1eb5bf3abd69",
+      "producer-sha": "1c5a27093e4e4daa",
       "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +262,7 @@
       "claim-sha": "579320df808ac79d",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-      "producer-sha": "d94d127e5a93bb4c",
+      "producer-sha": "15ffeeb31253ff74",
       "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +273,7 @@
       "claim-sha": "d49204e02927d2b0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
-      "producer-sha": "d94d127e5a93bb4c",
+      "producer-sha": "15ffeeb31253ff74",
       "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

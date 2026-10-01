@@ -534,6 +534,30 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			destBaseWire = srcWithdrawOnly
 		}
 
+		// draft-ietf-idr-linklocal-capability Section 2: "When the capability has
+		// not been negotiated, the procedures in this document do not apply." A
+		// Link-Local-only next hop self (a session over a link-local address) goes
+		// only to a peer whose session may carry it. The general rail
+		// (reactor_api_forward.go) carries the reasoning; the two rails MUST
+		// answer this the same way.
+		if destBaseWire != update.WireUpdate {
+			baseNextHop = payloadNextHop(destBaseWire.Payload())
+		}
+		if egressNextHopLinkLocalOnlyRefused(peer, &mods, baseNextHop) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+			}
+			fwdLogger().Warn("withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability",
+				"peer", facts.addrStr, "family", baseNextHop.mpFamily, "src", sourcePeerAddr,
+				"rfc", "draft-ietf-idr-linklocal-capability Section 2",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				continue
+			}
+			destBaseWire = srcWithdrawOnly
+		}
+
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress filter pass above so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail

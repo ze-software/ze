@@ -240,7 +240,7 @@
       "claim-sha": "b1a8a63522e0b4e4",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "f7156d994d729022",
+      "producer-sha": "0423c2f64a7c38ca",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "bdd2fec81794b815",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
-      "producer-sha": "f7156d994d729022",
+      "producer-sha": "0423c2f64a7c38ca",
       "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "d4b1767cc7186788",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "0af7360f6b88153a",
+      "producer-sha": "116f887a892573c2",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "dbeb1b27ab055f3a",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "0af7360f6b88153a",
+      "producer-sha": "116f887a892573c2",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "aad3b860673562c0",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "0af7360f6b88153a",
+      "producer-sha": "116f887a892573c2",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -355,6 +355,17 @@
     },
     {
       "rid": "RFC4271-5.1.3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled",
+      "unit-sha": "def7fe9b4fff9e7b",
+      "claim-sha": "3b2ab24b4bec337a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
+      "producer-sha": "d9473e369d277c3a",
+      "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.3-3",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed",
       "unit-sha": "4898d7974cba978a",
@@ -396,6 +407,17 @@
       "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
       "producer-sha": "d9473e369d277c3a",
       "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess",
+      "unit-sha": "bfb17d6f0aba003c",
+      "claim-sha": "0ae35a67018f4c06",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+      "producer-sha": "e42eb5c938205968",
+      "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-5.1.5-1",
@@ -1863,6 +1885,28 @@
       "break": "body of SelectBest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-9.1.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers",
+      "unit-sha": "2b5a2353cd70f9d1",
+      "claim-sha": "679e6067e1b473dc",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
+      "producer-sha": "e5382adaa483c9fb",
+      "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.1.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers",
+      "unit-sha": "2b5a2353cd70f9d1",
+      "claim-sha": "5999be82693d79f5",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_local_pref.go::applyFactsLocalPref",
+      "producer-sha": "7ff68f32e189ebc3",
+      "break": "body of applyFactsLocalPref replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-9.1.2-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute",
@@ -2057,7 +2101,7 @@
       "claim-sha": "fece4d1c3bab23bf",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "0af7360f6b88153a",
+      "producer-sha": "116f887a892573c2",
       "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

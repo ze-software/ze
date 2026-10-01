@@ -1514,10 +1514,30 @@ func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam fa
 	default:
 		return netip.Addr{}, ErrNextHopUnset
 	}
-	if addr.Is6() && addr.IsLinkLocalUnicast() && !p.linkLocalOnlyNextHopPermitted(fam) {
+	if p.linkLocalOnlyNextHopRefused(addr, fam) {
 		return netip.Addr{}, ErrNextHopLinkLocalOnly
 	}
 	return addr, nil
+}
+
+// linkLocalOnlyNextHopRefused reports whether addr, written alone in the Next
+// Hop field for an NLRI of fam, is a Link-Local-only Next Hop this session may
+// not carry (linkLocalOnlyNextHopPermitted).
+//
+// It is the ONE test for that refusal. The announce rail asks it of the address
+// it resolves (resolveNextHop above), and the two forward rails ask it of the
+// next hop they write (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go).
+// Next hop self resolves to the session's connected endpoint on every rail, and
+// on a session that runs over a link-local address that endpoint is link-local,
+// so a rail that skipped this test would send what the others refuse.
+func (p *Peer) linkLocalOnlyNextHopRefused(addr netip.Addr, fam family.Family) bool {
+	if !addr.Is6() {
+		return false
+	}
+	if !addr.IsLinkLocalUnicast() {
+		return false
+	}
+	return !p.linkLocalOnlyNextHopPermitted(fam)
 }
 
 // safiVPNMulticast is SAFI 129, Multicast for BGP/MPLS IP VPNs (RFC 6513,

@@ -106,19 +106,29 @@ func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr) neti
 // condition holds for the global address that form already carries.
 //
 // It runs after precomputeNextHop (peer_forward_facts.go), which settles the
-// global address from config. Section 3 is decided against the host interface
-// table rather than against config, so the two steps read different inputs and
-// stay separate.
+// global address: for next hop self the session's connected endpoint
+// (connectedLocalAddress) or else the configured local address, and for an
+// explicit next hop the configured one. Section 3 is decided against the host
+// interface table rather than against config, so the two steps read different
+// inputs and stay separate.
 func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScope) {
-	var global netip.Addr
 	switch f.nhMode {
-	case nhModeSelfV6:
-		global = s.LocalAddress.Unmap()
-	case nhModeExplicitV6:
-		global = s.NextHopAddress.Unmap()
+	case nhModeSelfV6, nhModeExplicitV6:
+		// The single-address IPv6 forms, the only ones Section 3 can raise.
 	default:
 		return
 	}
+	// draft-ietf-idr-linklocal-capability Section 4: "If the route is directly
+	// connected to the speaker, or if the interface address of the router
+	// through which the announced network is reachable for the speaker is the
+	// internal peer's address, the next hop MUST include its own Link-Local IPv6
+	// address."
+	//
+	// The global is read back from the form precomputeNextHop wrote, never from
+	// config again: under `local ip auto` no local address is configured, and
+	// the connected endpoint is the speaker's own address. Reading the config
+	// here dropped the speaker's own Link-Local address in that configuration.
+	global := netip.AddrFrom16(f.nhGlobal).Unmap()
 
 	linkLocal := scope.linkLocalNextHop(s.LinkLocal, global)
 	if !linkLocal.IsValid() {

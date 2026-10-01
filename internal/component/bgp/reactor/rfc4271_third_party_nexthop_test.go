@@ -5,7 +5,9 @@
 package reactor
 
 import (
+	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -161,5 +163,48 @@ func TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute(t *testing.T) {
 		require.True(t, ok, "rs=%v: the default destination is owed the route", rs)
 		require.NotEmpty(t, toPassing.mpReach, "rs=%v: the default destination is sent the announcement", rs)
 		require.Contains(t, string(toPassing.mpReach), string(a2ThirdPartyNextHop), "rs=%v: with the received next hop", rs)
+	}
+}
+
+// TestRFC4271NextHopSelfWithheldRouteIsLoggedAtWarn proves the withhold of
+// TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute reaches the operator.
+// A route withheld in silence reads as a peer that never sent it.
+//
+// Method: the forward logger is replaced by a text handler at Warn, the level
+// ze.log runs at by default. The same next-hop-self destination with no local
+// address, and a default destination beside it, receive one route on the
+// general rail and on the route-server rail.
+//
+// VALIDATES: each rail writes exactly one WARN line for the withhold, naming the
+// withheld destination and RFC 4271 Section 5.1.3; the default destination,
+// which is sent the route, adds no line.
+// PREVENTS: the withhold path losing its log line, or logging below the default
+// level where no operator sees it.
+func TestRFC4271NextHopSelfWithheldRouteIsLoggedAtWarn(t *testing.T) {
+	const withholdLine = "withholding route: next-hop self is configured and the session has no local address"
+	sink := &syncBuffer{}
+	prev := fwdLogger
+	fwdLogger = func() *slog.Logger {
+		return slog.New(slog.NewTextHandler(sink, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	}
+	t.Cleanup(func() { fwdLogger = prev })
+
+	for _, rs := range []bool{false, true} {
+		before := strings.Count(sink.String(), withholdLine)
+		withheld, _ := autoLocalSelfDest(t, "192.0.2.67", netip.Addr{})
+		passing := a2Dest(t, "192.0.2.68", 65000, netip.Addr{}, false)
+
+		got := a2Forward(t, rs, a2Payload(a2ThirdPartyNextHop), withheld, passing)
+
+		require.Empty(t, got[netip.MustParseAddr("192.0.2.67")].mpReach, "rs=%v: the announcement is withheld", rs)
+		require.NotEmpty(t, got[netip.MustParseAddr("192.0.2.68")].mpReach, "rs=%v: the default destination is sent it", rs)
+
+		logged := sink.String()
+		require.Equal(t, before+1, strings.Count(logged, withholdLine), "rs=%v: one WARN line per withhold", rs)
+		line := logged[strings.LastIndex(logged, "level="):]
+		require.Contains(t, line, "level=WARN", "rs=%v: logged at the default level", rs)
+		require.Contains(t, line, withholdLine, "rs=%v", rs)
+		require.Contains(t, line, "peer=192.0.2.67", "rs=%v: the line names the withheld destination", rs)
+		require.Contains(t, line, `rfc="RFC 4271 Section 5.1.3"`, "rs=%v: the line names the rule", rs)
 	}
 }

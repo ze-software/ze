@@ -949,6 +949,39 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			peerBaseWire = srcWithdrawOnly
 		}
 
+		// draft-ietf-idr-linklocal-capability Section 2: "When the capability has
+		// not been negotiated, the procedures in this document do not apply."
+		// Section 4: "If, after completing these procedures, there are no IPv6
+		// next hop addresses included in the next hop, the BGP route MUST not be
+		// advertised to its peer."
+		//
+		// Next hop self is this session's connected endpoint, which is link-local
+		// on a session that runs over one. The announce rail refuses that
+		// Link-Local-only form to a session that may not carry it
+		// (Peer.resolveNextHop), and egressNextHopLinkLocalOnlyRefused
+		// (forward_next_hop.go) asks the same predicate here, so the rails agree.
+		// The announcement is withheld and the withdrawal half still goes, for the
+		// reason every gate above gives. The route-server rail (forward_rs.go)
+		// answers the same.
+		if peerBaseWire != sourceWire {
+			baseNextHop = payloadNextHop(peerBaseWire.Payload())
+		}
+		if egressNextHopLinkLocalOnlyRefused(peer, &mods, baseNextHop) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
+			}
+			fwdLogger().Warn("withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability",
+				"peer", facts.addrStr, "family", baseNextHop.mpFamily,
+				"rfc", "draft-ietf-idr-linklocal-capability Section 2",
+				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				suppressedCount++
+				continue
+			}
+			peerBaseWire = srcWithdrawOnly
+		}
+
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress step pass, so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress).

@@ -147,6 +147,49 @@ func TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker(t *testin
 		"the speaker's own Link-Local address is included")
 }
 
+// TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress drives the same Section 4
+// sentence under `connection > local > ip auto`, where no local address is
+// configured and the speaker's own Global address is the one its session
+// connected from.
+//
+// Method: a one-hop internal peer on 2001:db8:1::/64 is configured next-hop self
+// with a Link-Local address and no local address; its session's TCP local
+// endpoint is 2001:db8:1::1. The forwarding facts are built the way the reactor
+// builds them (buildForwardFacts), so the endpoint arrives through
+// connectedLocalAddress.
+//
+// VALIDATES: the next hop carries the connected Global address first and the
+// speaker's own Link-Local address second, as with a configured local address.
+// PREVENTS: the Link-Local half reading the configured address alone, so that
+// `local ip auto` silently dropped the speaker's own Link-Local address.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 positive -- with next-hop self and no configured local address, a one-hop internal peer's next hop carries the session's connected Global address followed by the speaker's own configured Link-Local IPv6 address (32-octet form).
+func TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress(t *testing.T) {
+	settings := &PeerSettings{
+		Connection:    ConnectionBoth,
+		Address:       llnhOnLink,
+		LocalAS:       65000,
+		GlobalLocalAS: 65000,
+		PeerAS:        65000,
+		RouterID:      0x0a000001,
+		LinkLocal:     llnhLinkLocal,
+		NextHopMode:   NextHopSelf,
+	}
+	peer := NewPeer(settings)
+	session := NewSession(settings)
+	session.transport.Store(&sessionTransport{local: llnhGlobal})
+	peer.session = session
+	peer.llScope.Store(newLinkScopeFrom(llnhConnected, llnhOnLink))
+
+	facts := peer.buildForwardFacts()
+
+	require.Equal(t, nhModeSelfV6LL, facts.nhMode, "the next hop must carry both addresses")
+	assert.Equal(t, llnhGlobal.As16(), [16]byte(facts.nhGlobalLL[:16]),
+		"the connected Global address is the next hop")
+	assert.Equal(t, llnhLinkLocal.As16(), [16]byte(facts.nhGlobalLL[16:]),
+		"the speaker's own Link-Local address is included")
+}
+
 // RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 negative -- that inclusion is keyed
 // on the speaker being the next hop and is not written into every next hop: for the same peer
 // on the same link, a route whose announced network is reachable through another router
