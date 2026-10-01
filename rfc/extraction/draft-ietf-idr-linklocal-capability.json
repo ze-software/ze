@@ -39,12 +39,14 @@
       "id": "4",
       "sites": 9,
       "disposition": "walked",
+      "reason": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 (2026-10-01, rfc/corrections/draft-ietf-idr-linklocal-capability.md) is split from DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 and quotes the second condition of site 4:3's sentence: it is annotated not-applicable, so it is listed here as unsourced rather than given a second site.",
       "unsourced-ids": [
         "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-10",
         "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-11",
         "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-12",
         "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-13",
-        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-14"
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-14",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15"
       ]
     },
     {

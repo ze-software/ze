@@ -215,8 +215,23 @@ The speaker's own Link-Local address is appended behind a next-hop-self Global
 address (RFC 2545 Section 3, draft-ietf-idr-linklocal-capability Section 4)
 against the Global address the rewrite chose, so under `local ip auto` the
 connected endpoint qualifies exactly as a configured local address does.
+
+The second address of the 32-octet form is the Link-Local of the next hop
+(RFC 2545 Section 3), and the only Link-Local Ze holds is its own. So it is
+appended only after a Global that is this speaker's own address: the session's
+connected endpoint, the configured local address, or an address on any local
+interface. The draft's Section 4 also names the internal peer's own address,
+but no rail sends that route: RFC 4271 Section 5.1.3 withholds an originated
+route whose NEXT_HOP is the peer's address, and the relayed rail withholds it
+too. So the predicate classifies the peer's address as a third party, and the
+draft's second condition is a `{not-applicable}` row,
+`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`. An
+explicit next hop naming another router, even one on the shared link, is sent
+as its Global alone, length 16. RFC 2545 would want that router's own
+Link-Local there, which Ze never learns: a recorded gap, `RFC2545-3-6`.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- nextHopOwners.classify -->
 <!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopRefused -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyRefused -->
 <!-- source: internal/component/bgp/reactor/session_connection.go -- connectedLocalAddress -->

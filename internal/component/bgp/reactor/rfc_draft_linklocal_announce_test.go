@@ -118,3 +118,28 @@ func TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter(t *testing.T
 	assert.NotContains(t, written, string(mpReachIPv6Attr(t, llAnnounceNLRI, "2001:db8:dead::9", "fe80::1")),
 		"the speaker's own Link-Local is not attached to another router's next hop")
 }
+
+// TestLinkLocalSecondConditionNeverReachesTheWire drives the draft's second
+// condition on the announce rail: the interface address of the router through
+// which the network is reachable is the internal peer's own address.
+//
+// The route never reaches the wire: RFC 4271 Section 5.1.3 says "A route
+// originated by a BGP speaker SHALL NOT be advertised to a peer using an
+// address of that peer as NEXT_HOP", and the write boundary withholds it
+// (originatedNextHopIsPeerOwn, session_write.go). The draft condition's
+// antecedent is therefore a route Ze is forbidden to send, so its row
+// DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 is annotated {not-applicable} and
+// names this test. UNTAGGED on purpose: `./le rfc check` refuses a tag beside
+// a {not-applicable} annotation.
+//
+// VALIDATES: nothing is written to the peer for a route whose explicit next
+// hop is the internal peer's own address 2001:db8:1::2.
+// PREVENTS: a tag claiming a wire form no rail sends.
+func TestLinkLocalSecondConditionNeverReachesTheWire(t *testing.T) {
+	peer, conn := newOneHopInternalPeer(t)
+	route := staticRouteAt("2001:db8:77::/64", "2001:db8:1::2")
+
+	peer.sendStaticRoutes(peer.currentSession(), []StaticRoute{route}, false, 4096, false)
+
+	assert.Empty(t, conn.written(), "a route naming the peer's own address as next hop is withheld")
+}

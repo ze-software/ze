@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc2545",
+  "records": [
+    {
+      "rid": "RFC2545-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc2545_own_link_local_red_test.go::TestOwnLinkLocalNotPairedWithAnotherRoutersGlobalOnTheSharedLink",
+      "unit-sha": "971ddaba0fe73d32",
+      "claim-sha": "78e68e409b76ccb2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/link_scope.go::classify",
+      "producer-sha": "5857622f38103252",
+      "break": "body of classify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

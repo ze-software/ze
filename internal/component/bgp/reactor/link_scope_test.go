@@ -112,8 +112,59 @@ func TestLinkScopeLinkLocalNextHop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.scope.linkLocalNextHop(tt.configured, tt.nextHop)
+			// The global names the speaker in every row: these rows drive the
+			// Section 3 subnet condition, TestNextHopOwnersClassify drives whose
+			// address the global is.
+			got := tt.scope.linkLocalNextHop(tt.configured, tt.nextHop, nextHopRouterSpeaker)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestNextHopOwnersClassify drives the router classification that decides
+// whether the speaker's own Link-Local may follow a global next hop.
+//
+// VALIDATES: the session endpoint, the configured local address and any held
+// interface address name the speaker; every other address, the peer's own
+// included, is a third party, and only the speaker class gets the own
+// Link-Local from linkLocalNextHop.
+// PREVENTS: the own Link-Local paired with another router's global.
+func TestNextHopOwnersClassify(t *testing.T) {
+	owners := nextHopOwners{
+		endpoint:   netip.MustParseAddr("2001:db8:1::1"),
+		configured: netip.MustParseAddr("2001:db8:1::5"),
+		held:       []netip.Prefix{netip.MustParsePrefix("2001:db8:2::7/64")},
+	}
+	scope := &linkScope{connected: []netip.Prefix{netip.MustParsePrefix("2001:db8:1::/64"), netip.MustParsePrefix("2001:db8:2::/64")}, peerOnLink: true}
+	linkLocal := netip.MustParseAddr("fe80::1")
+
+	tests := []struct {
+		name   string
+		owners nextHopOwners
+		global string
+		want   nextHopRouter
+	}{
+		{"session endpoint", owners, "2001:db8:1::1", nextHopRouterSpeaker},
+		{"configured local address", owners, "2001:db8:1::5", nextHopRouterSpeaker},
+		{"address on another interface", owners, "2001:db8:2::7", nextHopRouterSpeaker},
+		{"peer's own address", owners, "2001:db8:1::2", nextHopRouterThirdParty},
+		{"another router on the shared link", owners, "2001:db8:1::99", nextHopRouterThirdParty},
+		{"unset global", owners, "", nextHopRouterUnspecified},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var global netip.Addr
+			if tt.global != "" {
+				global = netip.MustParseAddr(tt.global)
+			}
+			router := tt.owners.classify(global)
+			assert.Equal(t, tt.want, router)
+			got := scope.linkLocalNextHop(linkLocal, global, router)
+			if router == nextHopRouterSpeaker {
+				assert.Equal(t, linkLocal, got, "own Link-Local follows the speaker's global")
+				return
+			}
+			assert.False(t, got.IsValid(), "no own Link-Local after a third party's global")
 		})
 	}
 }
@@ -144,10 +195,10 @@ func TestPeerLinkLocalNextHopForBeforeRefresh(t *testing.T) {
 		LinkLocal:    netip.MustParseAddr("fe80::1"),
 	})
 
-	assert.False(t, peer.linkLocalNextHopFor(netip.MustParseAddr("::1")).IsValid())
+	assert.False(t, peer.linkLocalNextHopFor(nil, netip.MustParseAddr("::1")).IsValid())
 
 	peer.refreshLinkScope()
 	assert.Equal(t, netip.MustParseAddr("fe80::1"),
-		peer.linkLocalNextHopFor(netip.MustParseAddr("::1")),
+		peer.linkLocalNextHopFor(nil, netip.MustParseAddr("::1")),
 		"loopback next hop and loopback peer both sit on the local ::1/128 subnet")
 }

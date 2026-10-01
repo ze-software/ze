@@ -69,8 +69,38 @@ func newLinkScopeFrom(connected []netip.Prefix, peerAddr netip.Addr) *linkScope 
 // address that is not link-local unicast is not appended either: Section 3 names
 // the second address "the link-local IPv6 address of the next hop", so writing
 // anything else there would break the same sentence it is meant to satisfy.
-func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr) netip.Addr {
+//
+// router names whose address globalNextHop is (nextHopOwners.classify). The
+// configured address is the SPEAKER's own Link-Local, so it is appended only
+// where that is the right second address; see the comment at the check below.
+func (ls *linkScope) linkLocalNextHop(configured, globalNextHop netip.Addr, router nextHopRouter) netip.Addr {
 	if ls == nil || !ls.peerOnLink {
+		return netip.Addr{}
+	}
+	// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the
+	// Network Address of Next Hop field the global IPv6 address of the next hop,
+	// potentially followed by the link-local IPv6 address of the next hop."
+	//
+	// draft-ietf-idr-linklocal-capability Section 4: "If the route is directly
+	// connected to the speaker, [...] the next hop MUST include its own
+	// Link-Local IPv6 address."
+	//
+	// The second address is the next hop's own. When the global is the
+	// speaker's address, the speaker's Link-Local is that next hop's. For any
+	// other router the speaker does not learn that router's Link-Local, so its
+	// own would send the peer's traffic to the wrong router: the global goes
+	// alone (a recorded gap on RFC 2545 Section 3, rfc2545.md).
+	//
+	// The draft's second condition, a global that is the internal peer's own
+	// address, needs no case here. RFC 4271 Section 5.1.3: "A route originated
+	// by a BGP speaker SHALL NOT be advertised to a peer using an address of
+	// that peer as NEXT_HOP." Ze withholds such a route on every rail
+	// (originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn), so it classifies as
+	// a third party and nothing it would carry reaches the wire.
+	switch router {
+	case nextHopRouterSpeaker:
+		// The speaker's own Link-Local is the right second address.
+	case nextHopRouterUnspecified, nextHopRouterThirdParty:
 		return netip.Addr{}
 	}
 	if !configured.Is6() || !configured.IsLinkLocalUnicast() {
@@ -119,10 +149,8 @@ func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScop
 		return
 	}
 	// draft-ietf-idr-linklocal-capability Section 4: "If the route is directly
-	// connected to the speaker, or if the interface address of the router
-	// through which the announced network is reachable for the speaker is the
-	// internal peer's address, the next hop MUST include its own Link-Local IPv6
-	// address."
+	// connected to the speaker, [...] the next hop MUST include its own
+	// Link-Local IPv6 address."
 	//
 	// The global is read back from the form precomputeNextHop wrote, never from
 	// config again: under `local ip auto` no local address is configured, and
@@ -130,7 +158,13 @@ func applyLinkLocalNextHop(s *PeerSettings, f *peerForwardFacts, scope *linkScop
 	// here dropped the speaker's own Link-Local address in that configuration.
 	global := netip.AddrFrom16(f.nhGlobal).Unmap()
 
-	linkLocal := scope.linkLocalNextHop(s.LinkLocal, global)
+	owners := nextHopOwners{endpoint: f.connectedLocal, configured: s.LocalAddress}
+	if f.localScope != nil {
+		if held := f.localScope.Load(); held != nil {
+			owners.held = held.addresses
+		}
+	}
+	linkLocal := scope.linkLocalNextHop(s.LinkLocal, global, owners.classify(global))
 	if !linkLocal.IsValid() {
 		return
 	}
@@ -162,10 +196,62 @@ func (p *Peer) refreshLinkScopeFrom(connected []netip.Prefix) {
 }
 
 // linkLocalNextHopFor returns the link-local address to append after
-// globalNextHop for this peer, or the zero Addr when Section 3's condition does
-// not hold.
-func (p *Peer) linkLocalNextHopFor(globalNextHop netip.Addr) netip.Addr {
-	return p.llScope.Load().linkLocalNextHop(p.settings.LinkLocal, globalNextHop)
+// globalNextHop for this peer over session, or the zero Addr when Section 3's
+// condition does not hold. session MAY be nil: the speaker's address is then
+// known from config and the interface table alone.
+func (p *Peer) linkLocalNextHopFor(session *Session, globalNextHop netip.Addr) netip.Addr {
+	owners := nextHopOwners{endpoint: connectedLocalAddress(session), configured: p.settings.LocalAddress}
+	if session != nil {
+		if held := session.nextHopScope.Load(); held != nil {
+			owners.held = held.addresses
+		}
+	}
+	return p.llScope.Load().linkLocalNextHop(p.settings.LinkLocal, globalNextHop, owners.classify(globalNextHop))
+}
+
+// nextHopRouter names the router a global next hop belongs to, which decides
+// whose Link-Local may follow it (linkScope.linkLocalNextHop).
+type nextHopRouter uint8
+
+const (
+	nextHopRouterUnspecified nextHopRouter = iota
+	// nextHopRouterSpeaker: the global is one of this speaker's own addresses.
+	nextHopRouterSpeaker
+	// nextHopRouterThirdParty: any other router, whose Link-Local Ze never learns.
+	// The peer's own address lands here too: RFC 4271 Section 5.1.3 keeps a
+	// route with that NEXT_HOP off the wire (linkScope.linkLocalNextHop).
+	nextHopRouterThirdParty
+)
+
+// nextHopOwners holds the addresses a global next hop is classified against for
+// one session. Safe for concurrent use: it is a value, built per call.
+type nextHopOwners struct {
+	// endpoint is the session's TCP local endpoint (connectedLocalAddress).
+	endpoint netip.Addr
+	// configured is the peer's configured local address.
+	configured netip.Addr
+	// held is every interface address of this host, host bits kept
+	// (receiveNextHopScope.addresses), so an address on another interface counts.
+	held []netip.Prefix
+}
+
+// classify answers which router global names: one of the speaker's own
+// addresses, or a third party.
+func (o nextHopOwners) classify(global netip.Addr) nextHopRouter {
+	if !global.IsValid() {
+		return nextHopRouterUnspecified
+	}
+	global = global.Unmap()
+	if global == o.endpoint.Unmap() {
+		return nextHopRouterSpeaker
+	}
+	if global == o.configured.Unmap() {
+		return nextHopRouterSpeaker
+	}
+	if holdsAddress(o.held, global) {
+		return nextHopRouterSpeaker
+	}
+	return nextHopRouterThirdParty
 }
 
 // sameLinkLayerSegment reports whether two peer addresses sit on ONE link-layer

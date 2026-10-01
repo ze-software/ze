@@ -874,7 +874,7 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			// global one when the speaker shares a subnet with both the next-hop
 			// entity and this peer. linkLocalNextHopFor returns the zero Addr in
 			// every other case, and buildMPReach then writes the 16-octet form.
-			LinkLocalNextHop: p.linkLocalNextHopFor(nextHop),
+			LinkLocalNextHop: p.linkLocalNextHopFor(p.currentSession(), nextHop),
 		}
 		update, err := ub.BuildUnicast(&params)
 		if err != nil {

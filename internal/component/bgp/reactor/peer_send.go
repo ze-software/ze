@@ -61,7 +61,7 @@ func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	}
 	asn4 := p.asn4()
 	addPath := p.addPathFor(fam)
-	linkLocal := p.linkLocalNextHopFor(route.NextHop.Addr)
+	linkLocal := p.linkLocalNextHopFor(session, route.NextHop.Addr)
 
 	if err := session.SendAnnounce(route, linkLocal, localAS, isIBGP, asn4, addPath); err != nil {
 		return err

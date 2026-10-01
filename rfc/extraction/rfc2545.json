@@ -31,7 +31,10 @@
       "id": "3",
       "sites": 4,
       "disposition": "walked",
-      "reason": "Constructing the Next Hop field. The only section that binds a BGP speaker. All four sites are mapped, one per requirement, to RFC2545-3-1 through RFC2545-3-4. The section's fifth sentence is the MAY captured as RFC2545-3-5; 'may' is not a derived site under either scan, which is why the site count is four rather than five."
+      "reason": "Constructing the Next Hop field. The only section that binds a BGP speaker. All four sites are mapped, one per requirement, to RFC2545-3-1 through RFC2545-3-4. The section's fifth sentence is the MAY captured as RFC2545-3-5; 'may' is not a derived site under either scan, which is why the site count is four rather than five. RFC2545-3-6 (2026-10-01, rfc/corrections/rfc2545.md) is split from RFC2545-3-3 and quotes the same sentence as site 3:3: it carries the third-party include half as a recorded gap, so it is listed here as unsourced rather than given a second site.",
+      "unsourced-ids": [
+        "RFC2545-3-6"
+      ]
     },
     {
       "id": "4",
