@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC5286-x-1": {
       "note": "Forbidden: accepting an alternate N with D_opt(N,D) >= D_opt(N,S)+D_opt(S,D). TestRFC5286LoopFreeInequality1 negative builds the equality case D(N,D)=21 == 10+11 with finite forward and reverse cost, and the `if _, ok := runSelect(...); ok { t.Fatalf(...) }` goes red on any selectLFA that accepts it (a <= or a missing check). Positive 11 < 21 asserts the backup is returned with next-hop N. Isolated: no other gate trips on either input. Unit-level on selectLFA (lfa.go), which is the production LFA selector.",
@@ -37,25 +37,25 @@
       "verdict": "enforced"
     },
     "RFC5286-x-3": {
-      "code": {
-        "internal/plugins/ospf/spf/lfa.go::reverseP2PCost": "805effd779e4ad18",
-        "internal/plugins/ospf/spf/lfa.go::selectLFA": "94a7a04967ffb784"
-      },
-      "note": "RA-FIX re-read 2026-09-27. Forbidden: N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. Asserted for point-to-point links only: TestRFC5286AllReverseLinksCostedOut and TestRFC5286ReverseCostAllInfinite derive the reverse cost with reverseP2PCost (spf/lfa.go) over parallel P2P links back to S, all 0xffff or none, and require no backup, with one finite link requiring the backup. A neighbour reached over a transit (broadcast) network takes its reverse cost from reverseTransitCost, which no tagged unit drives at 0xffff, so 'all links' is proven for one of the two link kinds lfa.go enumerates. IS-IS computes no LFA in ze, so the row binds OSPF only.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c25). Forbidden: N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. Both link kinds lfa.go enumerates are now driven. Point-to-point: TestRFC5286AllReverseLinksCostedOut and TestRFC5286ReverseCostAllInfinite (reverseP2PCost over parallel links, all 0xffff refused, one finite accepted). Transit: TestRFC5286TransitNeighborCostedOutReverseNotAlternate builds a graph where N's only link back to S is its transit link onto the shared LAN at 0xffff, runs the real neighborLinks enumeration (reverseTransitCost) and selectLFA over its candidates, and requires the candidate's reverse cost 0xffff and no alternate although N is otherwise loop-free (10 < 10+15); TestRFC5286TransitNeighborFiniteReverseIsAlternate is the same graph at 10 and requires N selected. Overlays on reverseTransitCost (return 10, return 0xffff) each redden only the matching new unit (author o2, o3); observed-red records on reverseTransitCost and selectLFA, both polarities. The gate is per candidate link, which never uses N when all links are costed out. IS-IS computes no LFA in ze, so the row binds OSPF only.",
       "requirement_sha": "c55d1fdc66e7e20e",
       "tests": {
         "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut": "ee3ad4d8add4a264",
         "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut#2": "ee3ad4d8add4a264",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite": "73162faa1d592207",
-        "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite#2": "73162faa1d592207"
+        "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite#2": "73162faa1d592207",
+        "internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go::TestRFC5286TransitNeighborCostedOutReverseNotAlternate": "61e76d45ddaddc47",
+        "internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go::TestRFC5286TransitNeighborFiniteReverseIsAlternate": "61e76d45ddaddc47"
       },
       "units": {
         "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut": "42f27e8389a19248",
         "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut#2": "42f27e8389a19248",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite": "8030f7886c10f3da",
-        "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite#2": "8030f7886c10f3da"
+        "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite#2": "8030f7886c10f3da",
+        "internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go::TestRFC5286TransitNeighborCostedOutReverseNotAlternate": "df0774af768a4041",
+        "internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go::TestRFC5286TransitNeighborFiniteReverseIsAlternate": "e6b9f3ab388d7c5e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc5286"

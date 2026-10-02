@@ -44,6 +44,28 @@
       "producer": "internal/plugins/ospf/spf/lfa.go::selectLFA",
       "producer-sha": "74837ae59fde8918",
       "break": "body of selectLFA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5286-x-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go::TestRFC5286TransitNeighborCostedOutReverseNotAlternate",
+      "unit-sha": "e2fee2579dcda394",
+      "claim-sha": "0c33e10e7d1a148e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/lfa.go::reverseTransitCost",
+      "producer-sha": "42c1fa8a62dd0439",
+      "break": "body of reverseTransitCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5286-x-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc5286_transit_reverse_test.go::TestRFC5286TransitNeighborFiniteReverseIsAlternate",
+      "unit-sha": "69ff0e067c93bcc6",
+      "claim-sha": "55a844fab7fc339d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/lfa.go::reverseTransitCost",
+      "producer-sha": "42c1fa8a62dd0439",
+      "break": "body of reverseTransitCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
