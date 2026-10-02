@@ -284,7 +284,7 @@
       "claim-sha": "7299261a6d01df2b",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::reassemble",
-      "producer-sha": "0a5880a439117cd1",
+      "producer-sha": "b33123e6dfd063e9",
       "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "65e32d49b1a9e5c6",
       "route": "revert",
       "producer": "internal/core/eap/eap_tls.go::reassemble",
-      "producer-sha": "0a5880a439117cd1",
+      "producer-sha": "b33123e6dfd063e9",
       "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
