@@ -45,15 +45,15 @@
       "verdict": "enforced"
     },
     "RFC7752-3.2-1": {
-      "note": "TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated asserts the (16388, 71) Multiprotocol capability encoding and that Negotiate marks the family supported when both sides carry it; the negative asserts Negotiate drops it when the peer is silent. Nothing drives the UPDATE send or receive path, so ze exchanging Link-State NLRI with a peer that did not negotiate the family leaves both units green. Same judgement as RFC9552-5.2-7.",
+      "note": "c23 rejudge after the unit's RFC9552-5.2-7 tag line changed (body and this row's tag unchanged): RFC7752-3.2-1 is still tagged only on the capability units, which assert the (16388, 71) encoding and that Negotiate keeps or drops the family; nothing under this row's tags drives the UPDATE send path. The send-side proof now exists under RFC9552-5.2-7 (reactor rfc9552_capability_test.go, enforced), the row this one is superseded by, but it is not tagged here",
       "requirement_sha": "3471b349f96fe2fe",
       "tests": {
-        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "a88ca94f37b8836e",
-        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "a88ca94f37b8836e"
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "421f3e1a06d77bc9",
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "421f3e1a06d77bc9"
       },
       "units": {
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "2b30646c3e2cffd3",
-        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "aebc3f3a909a342c"
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "4b846e3c98810be5"
       },
       "verdict": "weak"
     },

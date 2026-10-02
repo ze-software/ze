@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9552-5.1-1": {
@@ -46,16 +49,16 @@
       "verdict": "weak"
     },
     "RFC9552-5.1-4": {
-      "note": "Re-judged 2026-10-01 (BGP c21 judge). Both halves of 'the NLRI or the BGP-LS Attribute' now tagged. NLRI half on the receive path: TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated (unknown top-level TLV 1234 + unexpected sub-TLV 999: enforceRFC7606 answers no action, NLRI byte-identical; tag added under D-15 approval, body unchanged) and TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded (unknown type 1234 declaring 200 with 3 present: NLRI discarded, survivor kept, so tolerance covers the type and not broken framing). Attribute half unchanged on the nlri/ls units. New units carry records observed red on bgplsNLRIWellFormed; the nlri/ls attribute units carry none (pre-existing).",
+      "note": "c23 rejudge: only the comment of ls.TestRFC9552AttributeSyntaxStillRejected changed (it now names its decodeAttrTLV assertion as the Consumer decoder check, which matches the body); this row's negative claim there (an unknown TLV is tolerated only while its declared length fits) is the iterateAttrTLVs/decodeAllAttrTLVs ErrBGPLSTruncated assertion, unchanged. Receive-path NLRI units with records on bgplsNLRIWellFormed (c21) unchanged; c23 adds TLV 65000 tolerated by validateBGPLSAttr on the session path (TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed, tagged 8.2.2-2/-3)",
       "requirement_sha": "ab79ddbe147a9641",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "801f7762d8983274",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "81ceaa1dc478da5a",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded": "afc246c289705756",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "152fc33173abc49a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "3d72952851528c2a",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded": "d14fe0c59160dcc8",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0"
@@ -80,38 +83,48 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2-6": {
-      "note": "R-7: drives only a modified address descriptor; adding or removing a TLV/sub-TLV is never driven, and the assertion is a \" del \" engine command, not MP_UNREACH_NLRI on the wire; negative (attribute-only change, no withdraw) is sound",
+      "note": "c23: add and remove now driven (TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst: TLV 260 added then removed, each time a del of exactly the previous NLRI precedes the add) beside the HEAD modify +/-; wire half TestRFC9552LinkStateWithdrawalLeavesInMPUnreach pins MP_UNREACH_NLRI = 40 04 47 + exact NLRI with empty Withdrawn Routes and NLRI. Records: revert on reconcilePeer and buildBatchWithdrawUpdate. Judge probes: skipping the withdraw when a replacement exists turned the add/remove unit red; routing AFI 16388 into Withdrawn Routes turned the wire unit red. The update-handler hop between them is generic and untagged. Sub-TLV changes alter the containing TLV value, the modify case",
       "requirement_sha": "301c3e240cac344a",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "54a5a89330256fe3",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "54a5a89330256fe3"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst": "de280b1c094e08d4",
+        "internal/component/bgp/reactor/rfc9552_withdraw_test.go::TestRFC9552LinkStateWithdrawalLeavesInMPUnreach": "910c9151d45186d2"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "4832ef0ecb775066",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "4832ef0ecb775066"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "4832ef0ecb775066",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst": "f66977293338281f",
+        "internal/component/bgp/reactor/rfc9552_withdraw_test.go::TestRFC9552LinkStateWithdrawalLeavesInMPUnreach": "1a0584ba19674e67"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2-7": {
-      "note": "asserts the Multiprotocol capability encoding and that Negotiate intersects families; nothing drives the UPDATE send or receive path, so ze sending Link-State NLRI to a peer that did not negotiate it would leave both units green; negative tag prose claims \"never exchanged\", wider than its assertion",
+      "note": "c23: send side driven through AnnounceNLRIBatch: + a peer with (16388,71) negotiated gets one UPDATE whose MP_REACH_NLRI starts 40 04 47; - an IPv4-only peer gets no UPDATE and ErrNoPeersAcceptedFamily. Records: revert on AnnounceNLRIBatch both polarities, Negotiate for the capability negative (prose narrowed to what Negotiate asserts, matching its body). Judge targeted probe: removing nc.Has(batch.Family) from the family gate turned the negative red and left the positive green, so the gate itself is what the negative proves. Receive side (an unnegotiated peer sending Link-State NLRI) not driven; the HEAD advertise/negotiate positive in capability holds no record",
       "requirement_sha": "e9bcf2969c320ef2",
       "tests": {
-        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "a88ca94f37b8836e",
-        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "a88ca94f37b8836e"
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "8c26de005a4bd609",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "8c26de005a4bd609",
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "421f3e1a06d77bc9",
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "421f3e1a06d77bc9"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "b88e58a9f2692200",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "b43666617324f6ee",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "2b30646c3e2cffd3",
-        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "aebc3f3a909a342c"
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "4b846e3c98810be5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2.1-1": {
-      "note": "asserts only IPv4 TE Router-ID (IS-IS TLV 134 -> 1028) on the linkstateevents snapshot; the IPv6 path (TLV 140 -> 1029, isis/bgpls_export.go) and the OSPF producer (ospf/bgpls_export.go:187) are untested, and the unit stops before the BGP-LS attribute wire",
+      "note": "c23 rejudge: the IS-IS producer is now proven for both types (TestRFC9552ISISNodeCarriesBothRouterIDs: TLV 134 -> 1028 and TLV 140 -> 1029 with their values, revert record on isis lsp). Still weak: the OSPF producer (ospf/bgpls_export.go adds 1028/1029 from the TE Router Address) has no tagged unit, queued while the ospf package is held (R6), and no unit follows the node attribute onto the BGP-LS Attribute wire",
       "requirement_sha": "c412ac30190780d9",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeRouterID": "b7cb6be008ef6732"
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "07e1ba0c24d70214",
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214"
       },
       "units": {
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "d94341e3d0458eff",
         "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeRouterID": "67187e0eab6a8759"
       },
       "verdict": "weak"
@@ -158,23 +171,25 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2.2-1": {
-      "note": "re-audit RA12: positives pin 259/262 and 261/260 exactly for links with global addresses, so omission fails; but the negative tag drives an invalid (zero) address being refused, a neighbouring input-validation rule, not an omitted address TLV, and the row carries no {single-polarity} marker",
+      "note": "c23: genuine negative under R1(b): TestRFC9552NativeDualStackLinkKeepsEveryAddress forces link ids 7/9 and IPv4+IPv6 globals on both ends and asserts TLVs 259, 260, 261, 262 each exactly once with their values (revert record on encodeNativeLink). Judge probe dropping the IPv6 interface address when IPv4 is present turned it red on TLV 261. HEAD positive TestRFC9552NativeLinkIdentitySelection pins exact values; HEAD invalid-zero-address negative stays as a supplement",
       "requirement_sha": "5ba9071b16b330ad",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDualStackLinkKeepsEveryAddress": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDualStackLinkKeepsEveryAddress": "440e340ac4b7fbfc",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "bf450ecfa02bf986",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2.2-2": {
       "note": "negative asserts TLV 258 absent from a link carrying global addresses and link IDs; positive asserts the link is still advertised by 261/260",
       "requirement_sha": "7bf0ef653c86b8ad",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
@@ -187,7 +202,7 @@
       "note": "negative asserts link-local 169.254/fe80 addresses absent from 259-262 (exact single global values), and a link-local-only link carries none of 259-262; positive pins the global addresses once each",
       "requirement_sha": "6ce3d136fd1b6463",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
@@ -200,7 +215,7 @@
       "note": "Re-judged 2026-10-02 (BGP c22 judge). First clause now driven: TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers exports an IS-IS link with no interface or neighbor address and link ids 7/9 and asserts TLV 258 == 00000007 00000009 and none of 259-262. Second clause (link-local-only addressing) stays on TestRFC9552NativeLinkIdentitySelection. Row carries {single-polarity: positive}, read against encodeNativeLink: no refusal input exists. Revert records on encodeNativeLink observed red for both units.",
       "requirement_sha": "a04f6f915788b3a4",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
@@ -213,9 +228,9 @@
       "note": "Re-judged 2026-10-02 (BGP c22 judge). Genuine negative added: TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed feeds one IS-IS link in topologies 0, 2, 2 and asserts exactly two Link NLRIs, each with exactly one TLV 263, MT-IDs {0,2}: a producer collapsing onto the default topology or dropping 263 on the topology-2 NLRI goes red. Positive TestRFC9552NativeLinkNonDefaultTopology asserts 263 = MT-ID 2; its inline negative tag still re-asserts the same value and proves nothing on its own. Over-constraint noted: the negative also requires TLV 263 with MT-ID 0 on the default-topology NLRI, which RFC 9552 does not require (only the non-default case is a MUST). Revert records on encodeNativeLink observed red.",
       "requirement_sha": "260a5bccfdcc07a3",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "54a5a89330256fe3",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "54a5a89330256fe3",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed": "54a5a89330256fe3"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed": "de280b1c094e08d4"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "79859cfd2f05848c",
@@ -228,8 +243,8 @@
       "note": "positive: R bits set decode to the same MT-ID on Link and Prefix descriptors with the next TLV still read; negative: IS-IS MT-ID 4096 (R bit) refused at origination",
       "requirement_sha": "477054ca97395af9",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "54a5a89330256fe3",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt": "801f7762d8983274"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt": "81ceaa1dc478da5a"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "3f3e4711e5140e4f",
@@ -241,7 +256,7 @@
       "note": "negative: an unmasked 198.51.100.129/25 is emitted as 25,198.51.100.128; positive: a masked prefix is unchanged",
       "requirement_sha": "fc919baf0a851bcf",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeTopologySeparation": "6886dddcc0644d09"
       },
       "units": {
@@ -254,7 +269,7 @@
       "note": "re-audit RA12: first clause proven only for one explicit type (OSPFv2 route type 1 -> TLV 264 value 1 on the ls_export NLRI); the second clause, a type not signaled explicitly but determinable via another LSA (Extended Prefix route type 0 or AS/NSSA external 1-vs-2, resolved by ospf/bgpls_export.go::v2PrefixRouteTypes), is driven by no tagged unit, and the {single-polarity} argument that zero means unsignaled ignores exactly that clause",
       "requirement_sha": "c518550f04f2281f",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "54a5a89330256fe3"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "de280b1c094e08d4"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "f0355b7bfd1485ad"
@@ -292,13 +307,17 @@
       "verdict": "enforced"
     },
     "RFC9552-5.3.2.1-1": {
-      "note": "asserts IPv4 local 1028 and remote 1030 on IS-IS links (negative catches a swap); the IPv6 1029/1031 path produced by bgplsBuilder.linkRouterIDs and the OSPF producer are untested, so \"all auxiliary Router-IDs\" is proven for one type",
+      "note": "c23 rejudge: IS-IS links now proven for both types on both ends (TestRFC9552ISISLinkCarriesAllRouterIDs: 1028/1029 local, 1030/1031 remote, negative catches an IPv6 swap; +/- revert records on linkRouterIDs). Still weak: the OSPF link producer is untested (ospf package held, R6 queue), so 'all auxiliary Router-IDs' is proven for one of the two IGPs Ze exports",
       "requirement_sha": "418ca4fa3543e232",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs": "b7cb6be008ef6732",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs#2": "b7cb6be008ef6732"
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "07e1ba0c24d70214",
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "07e1ba0c24d70214",
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs": "07e1ba0c24d70214",
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214"
       },
       "units": {
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "fedfb153729e9d34",
+        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "fedfb153729e9d34",
         "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs": "4b831df520a7f1ce",
         "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs#2": "4b831df520a7f1ce"
       },
@@ -349,8 +368,8 @@
       "note": "row now cites 5.3.2.4; positive: 1-octet metrics keep bits 7-6 clear; negative: metrics above 0x3F widen to 2/3 octets, so a 1-octet encoder for 0x40 would fail",
       "requirement_sha": "9df9c814474f8e54",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "801f7762d8983274"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "81ceaa1dc478da5a"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "ef65071b7beab1d2",
@@ -431,7 +450,7 @@
       "note": "single-polarity negative per row annotation; a private-use 65000 node attribute is refused with no UPDATE; the refusal is of every private type, not of a short Enterprise Code",
       "requirement_sha": "684450a7a2f9b6ff",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "54a5a89330256fe3"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "de280b1c094e08d4"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "3be9c059e238e689"
@@ -477,17 +496,21 @@
       "verdict": "enforced"
     },
     "RFC9552-8.2.2-1": {
-      "note": "re-audit RA12: both units are decoder-level (parseBGPLS accepts private Protocol-ID, missing IGP Router-ID, unknown sub-TLV; framing errors refused); the 8.2.2 fault-management verdict that a received NLRI is malformed is taken on the session path (message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed via enforceRFC7606), which no 8.2.2-1 tag drives with semantically odd content",
+      "note": "c23: session path driven through enforceRFC7606 (reactor rfc9552_semantic_test.go). + three NLRIs wrong only in content (Protocol-ID 200 with empty TLV 256; 2-octet AS sub-TLV; Link NLRI without TLV 257) kept byte-identical beside a survivor; - each framing twin (one length octet past its container) discarded, survivor kept. Revert records on bgplsNLRIWellFormed both polarities. Judge overlay probes: adding each semantic check (Protocol-ID range, AS sub-TLV length 4, TLV 257 required) turned the matching positive subtest red with the twins green; a no-walk probe (return true) turned every twin red. HEAD decoder-level units in nlri/ls rfc9552_test.go stay as supplementary and hold no records",
       "requirement_sha": "96ed01c19d6a354d",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "801f7762d8983274"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "81ceaa1dc478da5a",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "2c5bdd2c21ad18f5",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "a22a1f8f9435e7a7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "a22a1f8f9435e7a7",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6a24ff75de55e526",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "7b63f6a5431ada7e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-8.2.2-10": {
       "note": "positive units drive a TLV overrunning the attribute and a trailing half-header (both sum-to-length failures) to Attribute Discard with a tombstone; negative keeps a well-formed attribute byte-identical; the recognized sub-TLV clause is vacuous on the session path because ze recognizes no BGP-LS Attribute TLV there (rfc7606_bgpls.go)",
@@ -505,34 +528,46 @@
       "verdict": "enforced"
     },
     "RFC9552-8.2.2-2": {
-      "note": "re-audit RA12: units are decoder-level (iterateAttrTLVs/decodeAllAttrTLVs accept descending, cross-context, unknown TLVs and reserved flag bits); the session-path attribute judgement (message/rfc7606_bgpls.go::validateBGPLSAttr) is not driven with semantically odd TLVs under an 8.2.2-2 tag; and the negative unit also asserts decodeAttrTLV refusing a wrong-size fixed-length TLV, which 8.2.2 itself lists as semantic validation",
+      "note": "c23: session path driven through enforceRFC7606. + four attributes wrong only in content (descending order, TLV 1024 twice, 3-octet TLV 1088 beside a Node NLRI, TLV 65000 with reserved flag bits): action None and the attribute byte-identical; - each twin whose last TLV declares 16 octets: Attribute Discard, attribute gone. Revert records on validateBGPLSAttr. Judge probes: a semantic check in validateBGPLSAttr (order, repeat, unregistered type, 1088 length) turned each positive subtest red; return-nil turned each twin red. The HEAD negative ls.TestRFC9552AttributeSyntaxStillRejected comment now names its decodeAttrTLV assertion as the Consumer's decoder check, matching the body; that unit holds no record",
       "requirement_sha": "a89b7dc4cf576ae2",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "801f7762d8983274"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "81ceaa1dc478da5a",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "152fc33173abc49a",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "3d72952851528c2a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "39bc476c33aac263",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "08e86e41e3de99a4"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-8.2.2-3": {
-      "note": "re-audit RA12: every tagged unit is decoder-level; none drives the Propagator receive path (enforceRFC7606/validateBGPLSAttr) to show no semantic check there; the negative unit presents decodeAttrTLV refusing a 3-octet Administrative Group as 'syntax still checked', yet 8.2.2 names 'the length of a fixed-length TLV is correct' as semantic validation not to be performed",
+      "note": "c23: the Propagator receive path (enforceRFC7606, reactor binary links the ls plugin so the Consumer decoders coexist) refuses none of the three semantic NLRIs nor the four semantic attributes, and still discards every framing twin; +/- revert records on bgplsNLRIWellFormed and validateBGPLSAttr. The same judge probes as 8.2.2-1/-2 show the positives fail on any added semantic check and the negatives on a dropped syntactic walk. HEAD decoder-level tags remain unrecorded supplements",
       "requirement_sha": "1c65fee67ce3cbce",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "801f7762d8983274",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "801f7762d8983274"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "81ceaa1dc478da5a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "81ceaa1dc478da5a",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "152fc33173abc49a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "3d72952851528c2a",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "2c5bdd2c21ad18f5",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "a22a1f8f9435e7a7",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "e27a4727787af42b",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "39bc476c33aac263",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "08e86e41e3de99a4",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6a24ff75de55e526",
+        "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "7b63f6a5431ada7e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-8.2.2-4": {
       "note": "Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Receive path: TLV overrun and duplicate sub-TLV NLRIs removed alone, sibling survives, no session reset; a well-formed NLRI survives byte-identically.",

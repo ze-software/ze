@@ -148,6 +148,71 @@ func TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers(t *testing.T) {
 	}
 }
 
+// VALIDATES: adding a descriptor TLV to a Link NLRI, then removing it again,
+// each withdraws the NLRI that was advertised before announcing the new one.
+// PREVENTS: a producer that withdraws only when a descriptor's value changes,
+// leaving the old NLRI standing beside the new one when a TLV appears or goes.
+//
+// RFC requirement: RFC9552-5.2-6 positive -- an IS-IS link that gains a neighbor address (TLV 260 added) and then loses it (TLV 260 removed) is, each time, sent a withdrawal carrying exactly the previously advertised NLRI before an announcement of the new one; after the removal the announced NLRI equals the first one again.
+func TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst(t *testing.T) {
+	e, capture := exportFixture(t)
+	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.ISISLevel1}, Generation: 1,
+		Links: []linkstateevents.Link{{Local: nativeTestNode(), Remote: nativeTestNode(),
+			LocalAddresses: []netip.Addr{netip.MustParseAddr("192.0.2.1")}}}}
+	require.NoError(t, e.replace("isis", snapshot))
+	require.NoError(t, e.reconcile(context.Background()))
+	require.Len(t, capture.commands, 1)
+	first := exportCommandBytes(t, capture.commands[0], "nlri")
+	require.Empty(t, exportTLVValues(t, first[13:], 260), "the first NLRI carries no neighbor address")
+
+	snapshot.Generation = 2
+	snapshot.Links[0].RemoteAddresses = []netip.Addr{netip.MustParseAddr("192.0.2.2")}
+	require.NoError(t, e.replace("isis", snapshot))
+	require.NoError(t, e.reconcile(context.Background()))
+	require.Len(t, capture.commands, 3)
+	require.Contains(t, capture.commands[1], " del ", "adding TLV 260 withdraws first")
+	require.Equal(t, first, exportCommandBytes(t, capture.commands[1], "nlri"))
+	require.NotContains(t, capture.commands[2], " del ")
+	added := exportCommandBytes(t, capture.commands[2], "nlri")
+	require.Equal(t, [][]byte{{192, 0, 2, 2}}, exportTLVValues(t, added[13:], 260))
+
+	snapshot.Generation = 3
+	snapshot.Links[0].RemoteAddresses = nil
+	require.NoError(t, e.replace("isis", snapshot))
+	require.NoError(t, e.reconcile(context.Background()))
+	require.Len(t, capture.commands, 5)
+	require.Contains(t, capture.commands[3], " del ", "removing TLV 260 withdraws first")
+	require.Equal(t, added, exportCommandBytes(t, capture.commands[3], "nlri"))
+	require.NotContains(t, capture.commands[4], " del ")
+	require.Equal(t, first, exportCommandBytes(t, capture.commands[4], "nlri"))
+}
+
+// VALIDATES: a link that offers the producer every reason to leave an address
+// out (link identifiers it could use instead, and both address families on both
+// ends) still carries all four address TLVs, each once with its own value.
+// PREVENTS: a producer that picks one family, or the link identifiers, and drops
+// a present address, which §5.2.2 forbids.
+//
+// RFC requirement: RFC9552-5.2.2-1 negative -- an IS-IS link with link identifiers 7 and 9 and both IPv4 and IPv6 global addresses on each end is advertised with TLV 259 = 192.0.2.1, TLV 260 = 192.0.2.2, TLV 261 = 2001:db8::1 and TLV 262 = 2001:db8::2, each exactly once: no present address is left out.
+func TestRFC9552NativeDualStackLinkKeepsEveryAddress(t *testing.T) {
+	e, capture := exportFixture(t)
+	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.ISISLevel1}, Generation: 1,
+		Links: []linkstateevents.Link{{Local: nativeTestNode(), Remote: nativeTestNode(), HasLinkIDs: true, LocalID: 7, RemoteID: 9,
+			LocalAddresses:  []netip.Addr{netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("2001:db8::1")},
+			RemoteAddresses: []netip.Addr{netip.MustParseAddr("192.0.2.2"), netip.MustParseAddr("2001:db8::2")}}}}
+	require.NoError(t, e.replace("isis", snapshot))
+	require.NoError(t, e.reconcile(context.Background()))
+	require.Len(t, capture.commands, 1)
+
+	wire := exportCommandBytes(t, capture.commands[0], "nlri")
+	local6 := netip.MustParseAddr("2001:db8::1").As16()
+	remote6 := netip.MustParseAddr("2001:db8::2").As16()
+	require.Equal(t, [][]byte{{192, 0, 2, 1}}, exportTLVValues(t, wire[13:], 259), "IPv4 interface address")
+	require.Equal(t, [][]byte{{192, 0, 2, 2}}, exportTLVValues(t, wire[13:], 260), "IPv4 neighbor address")
+	require.Equal(t, [][]byte{local6[:]}, exportTLVValues(t, wire[13:], 261), "IPv6 interface address")
+	require.Equal(t, [][]byte{remote6[:]}, exportTLVValues(t, wire[13:], 262), "IPv6 neighbor address")
+}
+
 // VALIDATES: one IGP link object associated with the default topology AND with
 // topology 2 is advertised once per topology, and the topology-2 Link NLRI
 // carries TLV 263 with MT-ID 2, so no NLRI presents the non-default link as a

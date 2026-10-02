@@ -60,7 +60,7 @@ func TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated(t *testing.T) {
 // PREVENTS: sending Link-State NLRI to a peer that never claimed to parse it.
 func TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent(t *testing.T) {
 	// RFC requirement: RFC7752-3.2-1 negative -- when the peer OPEN omits the (16388, 71) capability the family is not negotiated, so no Link-State NLRI is exchanged (§3.2)
-	// RFC requirement: RFC9552-5.2-7 negative -- a peer that never advertised the Link-State capability does not get the family negotiated, so Link-State NLRI is never exchanged unilaterally (§5.2)
+	// RFC requirement: RFC9552-5.2-7 negative -- a peer that never advertised the Link-State capability does not get the family negotiated: Negotiate leaves (16388, 71) out of the result when only the local OPEN carries it (§5.2)
 	local := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}, &Multiprotocol{AFI: AFIBGPLS, SAFI: SAFIBGPLS}}
 	remote := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}}
 

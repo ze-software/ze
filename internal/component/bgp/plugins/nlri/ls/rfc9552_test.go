@@ -82,11 +82,16 @@ func TestRFC9552UnorderedUnexpectedAttributeTLVs(t *testing.T) {
 
 // TestRFC9552AttributeSyntaxStillRejected is the counter-case. RFC 9552 forbids
 // calling an attribute malformed for its CONTENT, and requires the syntactic
-// checks to stay: a TLV length that overruns the attribute, or a fixed-length
-// TLV at the wrong size, is still refused.
+// checks to stay: a TLV length that overruns the attribute is still refused.
+// The last assertion is not one of those checks. RFC 9552 Section 8.2.2 lists
+// "the length of a fixed-length TLV is correct" as semantic validation a
+// Propagator does not perform, and leaves it to "a BGP-LS Consumer for its
+// semantic validation". decodeAttrTLV is the Consumer's decoder (AttrTLVsToJSON),
+// so its refusal of a wrong-sized value is that Consumer check; the receive path
+// keeps such an attribute (reactor rfc9552_semantic_test.go).
 //
-// VALIDATES: IterateAttrTLVs returns ErrBGPLSTruncated on a length overrun and
-// the fixed-length decoders reject a wrong-sized value.
+// VALIDATES: IterateAttrTLVs returns ErrBGPLSTruncated on a length overrun, and
+// the Consumer's fixed-length decoder rejects a wrong-sized value.
 // PREVENTS: "unordered and unexpected are fine" degenerating into "everything
 // is fine", which would let a length-overrun TLV through.
 func TestRFC9552AttributeSyntaxStillRejected(t *testing.T) {
@@ -102,9 +107,11 @@ func TestRFC9552AttributeSyntaxStillRejected(t *testing.T) {
 	_, err = decodeAllAttrTLVs(overrun)
 	assert.ErrorIs(t, err, ErrBGPLSTruncated)
 
-	// Fixed-length TLV 1088 (Administrative Group) is 4 octets; 3 is malformed.
+	// Fixed-length TLV 1088 (Administrative Group) is 4 octets. A Consumer cannot
+	// decode 3; that is its semantic check, never a reason to call the attribute
+	// malformed on the receive path.
 	_, err = decodeAttrTLV(attrTLVEntry{Type: TLVAdminGroup, Value: []byte{0, 0, 7}})
-	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a fixed-length TLV at the wrong size is refused")
+	assert.ErrorIs(t, err, ErrBGPLSTruncated, "the Consumer decoder refuses a fixed-length TLV at the wrong size")
 }
 
 // nodeNLRIOddButLegal builds a Node NLRI that is semantically questionable and
