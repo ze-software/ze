@@ -388,9 +388,6 @@ func TestRFC5880ActiveRoleTransmitsWithoutReception(t *testing.T) {
 // RFC requirement: RFC5880-6.8.7-5 positive -- the same producer implements
 // "MUST NOT transmit while bfd.RemoteDiscr is zero and the system is Passive":
 // the Passive session has RemoteDiscr zero and no TX deadline.
-// RFC requirement: RFC5880-6.1-3 negative -- the Active role is not universal:
-// an explicit Passive request produces RolePassive, so a deployment must
-// arrange for at least one end to stay Active.
 // RFC requirement: RFC5880-6.1-1 negative -- sending without reception is the
 // Active role's obligation, not every session's: an explicit Passive request
 // produces RolePassive, and Init leaves its periodic-TX deadline unarmed while

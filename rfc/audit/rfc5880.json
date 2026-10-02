@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -82,51 +82,49 @@
       "verdict": "enforced"
     },
     "RFC5880-6.1-1": {
-      "note": "Judge rejudge 2026-09-30 (bfd P-4). Stale only by a tag comment added to session TestRFC5880PassiveRoleSilentUntilReception; bodies unchanged. Proof unchanged: + engine TestRFC5880ActiveSessionSendsBeforeAnyReception (ticks, no reception, Sends > 0); - engine TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent (still sends past Detection Time of silence), both recorded revert loop.go::tick observed red. The new session-level negative (Passive leaves NextTxDeadline unarmed, record revert session.go::Init observed red) is a role contrast that catches arm-for-every-role code, which violates 6.1-2 rather than this row: supplementary, not load-bearing.",
+      "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Stale only because the RFC5880-6.1-3 negative tag comment was removed from session TestRFC5880PassiveRoleSilentUntilReception; body unchanged. Proof unchanged: + engine TestRFC5880ActiveSessionSendsBeforeAnyReception; - engine TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent, both recorded revert loop.go::tick observed red. The session-level negative stays supplementary.",
       "requirement_sha": "9235ea6a87c1482a",
       "tests": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "1a3ca4dc854245d8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "1a3ca4dc854245d8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "ecf2d0a8dd648483"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "8db25cbb4534cc2d",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "8db25cbb4534cc2d",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "8db25cbb4534cc2d"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "e1685b9301773ecc",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "f0a130b0c8773dbf",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "dd48fab2844e8fc1",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "5a65964a85953f8b"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.1-2": {
-      "note": "Judge rejudge 2026-09-30 (bfd P-4). Stale only by the RFC5880-6.1-1 tag comment added to session TestRFC5880PassiveRoleSilentUntilReception; body unchanged. + engine TestRFC5880PassiveSessionSilentThroughTicksUntilReception (5s of ticks, 0 Sends); - engine TestRFC5880PassiveSessionSendsOnceThePeerSpoke; both recorded revert loop.go::tick observed red. Session-level tags unchanged.",
+      "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Stale only because the RFC5880-6.1-3 negative tag comment was removed from session TestRFC5880PassiveRoleSilentUntilReception; body unchanged. + engine TestRFC5880PassiveSessionSilentThroughTicksUntilReception; - engine TestRFC5880PassiveSessionSendsOnceThePeerSpoke; both recorded revert loop.go::tick observed red.",
       "requirement_sha": "39a159b0e3368631",
       "tests": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke": "1a3ca4dc854245d8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSilentThroughTicksUntilReception": "1a3ca4dc854245d8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "ecf2d0a8dd648483"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "8db25cbb4534cc2d",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "8db25cbb4534cc2d"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke": "d354686b957783b8",
         "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSilentThroughTicksUntilReception": "620536c1be64dd35",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "dd48fab2844e8fc1",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "5a65964a85953f8b"
       },
       "verdict": "enforced"
     },
     "RFC5880-6.1-3": {
-      "note": "Judge rejudge 2026-09-30 under owner ruling P-4 (Thomas, 2026-09-30: 'we can not see the peer', no refusal path exists), so the row is judged on its positive for Ze's role as one system of the pair. + session TestRFC5880ActiveRoleTransmitsWithoutReception: a request with Passive unset gives RoleActive through Init/applyRequest and arms the TX deadline with RemoteDiscr 0; setting RoleActive to RolePassive in applyRequest fails the role assertion directly; record revert session.go::Init observed red (judge, 2026-09-30). The operator default reaches that request unchanged: ze-bfd-conf.yang passive default false, config.go copies p.passive, and single-hop Passive is refused (RFC 5881 Section 3), so Ze takes Active unless the operator opts a multihop profile into Passive, and Active sending is proven at the engine by RFC5880-6.1-1. The HEAD negative TestRFC5880PassiveRoleSilentUntilReception (Passive is selectable) does not violate this row; it is supplementary and proves a neighbouring rule (RFC5880-6.1-1 contrast, 6.1-2). The pair obligation beyond Ze's own role is not observable by Ze.",
+      "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Owner ruling 2026-09-30 ('we can not see the peer'): no refusal path exists, so the HEAD negative (TestRFC5880PassiveRoleSilentUntilReception, which proved RFC5880-6.1-1 and 6.1-2, where it stays) was removed and the row carries {single-polarity: positive}. + session TestRFC5880ActiveRoleTransmitsWithoutReception: a request with Passive unset gives RoleActive and arms the TX deadline with RemoteDiscr 0; record revert session.go::Init observed red. Operator default reaches that request (ze-bfd-conf.yang passive default false; single-hop Passive refused per RFC 5881 Section 3). The pair obligation beyond Ze's own role is not observable by Ze.",
       "requirement_sha": "adebdf4c918f4b5b",
       "tests": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "8db25cbb4534cc2d"
       },
       "units": {
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8"
       },
       "verdict": "enforced"
     },
@@ -954,13 +952,13 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.16-3": {
-      "note": "Judge rejudge 2026-09-30 under OWNER RULING 3: the MAY leaves the AdminDown transmit length to the implementer; the row records Ze's chosen behaviour (3 Detection Times, then silence) and is judged on the test that pins that choice. Producer: session/fsm.go const adminDownTransmitDetectionTimes = 3 (comment quotes the Section 6.8.16 SHOULD and MAY, cites the owner decision); Loop.tick skips the session once !now.Before(AdminDownTransmitEnd). - TestRFC5880NoPeriodicTransmitWhileAdminDown: sends at the transition, at start+1x+1ns and start+2x+1ns, nothing at exactly 3x nor an hour later, with the Detection Time read from the Machine after the transition; the factor is pinned by a test-local const, not the producer's. Judge overlays on the producer const: factor 1 red ('no AdminDown Control packet after 1 Detection Times'), factor 2 red (after 2), factor 4 red ('transmitted at 3 Detection Times'), factor 3 green. Record revert loop.go::tick re-recorded, observed red. {single-polarity: negative} accepted: Ze never transmits indefinitely, so no positive of the indefinite behaviour exists; the negative's in-window sends pin the chosen length from below. The earlier weak verdict (a declined MAY cannot fail on non-compliance) is superseded by the owner's route for this row.",
+      "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Stale only because the RFC5880-6.8.6-15 negative tag comment was removed from engine TestRFC5880NoPeriodicTransmitWhileAdminDown; body unchanged. Judged under OWNER RULING 3 on that test: sends at the transition, at start+1x+1ns and start+2x+1ns, nothing at exactly 3x nor an hour later; producer session/fsm.go adminDownTransmitDetectionTimes = 3 and Loop.tick; record revert loop.go::tick observed red. {single-polarity: negative} as before.",
       "requirement_sha": "0a395a36911d8c7e",
       "tests": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "5c1906d0d12f7987"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "4b885928a870b00d"
       },
       "units": {
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "050833842eb70921"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "9f186fa5344499a1"
       },
       "verdict": "enforced"
     },
@@ -1189,22 +1187,20 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-15": {
-      "note": "Judge rejudge 2026-09-30 (unit change only: TestRFC5880NoPeriodicTransmitWhileAdminDown gained the 1x/2x/3x window checks for 6.8.16-3 under owner ruling 3). The 6.8.6-15 negative tag prose is unchanged and still true: a session in AdminDown sends at the transition and nothing an hour later, so transmission is conditional. Judged on the positives under owner ruling P-4 (negative supplementary): engine/rfc5880_demand_disjunct_test.go, one positive per disjunct with the other two false, preconditions asserted on m.State()/m.RemoteState(), each tick asserting a send carrying My Discriminator: ClearBothUp (D=0, Up/Up), SetLocalNotUpRemoteUp (D=1, local Down, remote Up), SetLocalUpRemoteNotUp (D=1, local Up, remote Init); each has a revert record on loop.go::tick observed red and a targeted per-state overlay reddened only its own test. Ze never reads bfd.RemoteDemandMode, so it never enters the suppression the complement permits; for Ze's role every clause of the MUST is proven. Negative record re-recorded against the new unit, observed red. HEAD positive TestRFC5880PeriodicTransmitWhenRemoteDemandInactive has no discrimination record (supplementary).",
+      "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Owner ruling 2026-09-30: no genuine negative exists, so the HEAD negative on TestRFC5880NoPeriodicTransmitWhileAdminDown (which proves the RFC5880-6.8.16-3 window, where it stays) was removed and the row carries {single-polarity: positive}. Judged on the positives: engine/rfc5880_demand_disjunct_test.go, one positive per disjunct with the other two false (ClearBothUp, SetLocalNotUpRemoteUp, SetLocalUpRemoteNotUp), each with a revert record on loop.go::tick observed red; rfc5880_demand_periodic_test.go and TestRFC5880PeriodicTransmitWhenRemoteDemandInactive supplementary. Ze never reads bfd.RemoteDemandMode, so it never enters the suppression the complement permits.",
       "requirement_sha": "8cdcdb3774df1109",
       "tests": {
         "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp": "12188412c110b3e7",
         "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp": "12188412c110b3e7",
         "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp": "12188412c110b3e7",
         "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "5162da39b05c3713",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "5c1906d0d12f7987",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "5c1906d0d12f7987"
+        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "4b885928a870b00d"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp": "450bd1f42bcda7cf",
         "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp": "f37d9a81e5905a89",
         "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp": "7f7af51228d47e7e",
         "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "71131a440c3a8174",
-        "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "050833842eb70921",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "b39371a5a6575cd4"
       },
       "verdict": "enforced"
@@ -1410,19 +1406,19 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.7-5": {
-      "note": "Judge rejudge 2026-09-30 (bfd P-4). Stale only by tag comments added to session TestRFC5880PassiveRoleSilentUntilReception; bodies unchanged. Engine TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr (Passive, RemoteDiscr 0, 5 s of ticks, nothing sent; sends once the discriminator is learned) recorded revert loop.go::tick; session TestRFC5880PassiveSilentOnceRemoteDiscrCleared (+) and TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned (-) recorded revert timers.go::transmitPermitted, all observed red.",
+      "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Stale only because the RFC5880-6.1-3 negative tag comment was removed from session TestRFC5880PassiveRoleSilentUntilReception; body unchanged. Engine TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr recorded revert loop.go::tick; session TestRFC5880PassiveSilentOnceRemoteDiscrCleared (+) and TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned (-) recorded revert timers.go::transmitPermitted, all observed red.",
       "requirement_sha": "3729c7cbc96f7652",
       "tests": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr": "836d84530c95a8b2",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "ecf2d0a8dd648483",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "ecf2d0a8dd648483"
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "8db25cbb4534cc2d",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "8db25cbb4534cc2d",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "8db25cbb4534cc2d",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "8db25cbb4534cc2d"
       },
       "units": {
         "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr": "03d82a5544a77ee7",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
-        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "33027aa7f2203d67",
+        "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "dd48fab2844e8fc1",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "32af1e66df60c102",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "a773a0b323043c81"
       },

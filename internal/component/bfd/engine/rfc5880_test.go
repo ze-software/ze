@@ -400,12 +400,6 @@ func TestRFC5880PeriodicTransmitWhenRemoteDemandInactive(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.8.6-15 negative -- periodic transmission is
-// conditional, not unconditional: tick (Loop.tick) skips a session in AdminDown
-// once the window in which its AdminDown packets are owed (RFC 5880 Section
-// 6.8.16) has passed. A session put in AdminDown sends at the transition, and a
-// tick an hour later sends nothing. Without this the positive could pass on
-// code that transmitted on every tick regardless of session state.
 // RFC requirement: RFC5880-6.8.16-3 negative -- Ze takes the MAY only for a
 // bounded time, three Detection Times (owner decision 2026-09-30), and does
 // not transmit indefinitely after AdminDown: tick (Loop.tick) sends the
