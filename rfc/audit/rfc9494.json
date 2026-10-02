@@ -1,5 +1,8 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9494-3.1-1": {
@@ -148,15 +151,15 @@
       "verdict": "weak"
     },
     "RFC9494-4.3-1": {
-      "note": "TestComparePair_LLGRStale does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.",
+      "note": "Re-judged 2026-10-02 (BGP c25 judge): TestComparePair_LLGRStale's body is unchanged (only the RFC4724-4.2-5 tag lines left its doc comment), so the finding stands. It does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.",
       "requirement_sha": "1168b7e095abe221",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "3442e94ea37f4c89",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "3442e94ea37f4c89"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "fe2b08786b65b24e",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "fe2b08786b65b24e"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "c09d6ba79827272a",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "19eccc4948cfbb9e"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "6f0a87009dd59fa5"
       },
       "verdict": "weak"
     },
@@ -179,8 +182,8 @@
       "note": "Forbidden: a least-preferred route beating one that is not. TestSelectBest_LLGRStaleDepreference gives the stale candidate LOCAL_PREF 300 against 100 and fails, in both input orders, unless the normal route wins, so removing Step 0 goes red. Negative: TestSelectBest_BothLLGRStale fails unless two stale candidates fall through to LOCAL_PREF, so the rule orders only across the least-preferred boundary.",
       "requirement_sha": "a3a019491077def8",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "3442e94ea37f4c89",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference": "3442e94ea37f4c89"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "fe2b08786b65b24e",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference": "fe2b08786b65b24e"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "844428dff19e287b",

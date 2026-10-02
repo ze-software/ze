@@ -131,7 +131,7 @@ re-establishment rather than waiting for Ze to re-advertise.
 1. **Peer goes down** -- GR plugin sends `retain-routes` to RIB
 2. **RIB marks routes as stale** -- routes kept in forwarding but flagged
 3. **Restart timer starts** -- countdown from `restart-time` seconds
-4. **Peer reconnects** -- new session established, fresh routes received
+4. **Peer reconnects** -- new session established, fresh routes received. A family whose Forwarding State bit is clear in the new OPEN, a family the new capability omits, and every family when the new OPEN carries no Graceful Restart Capability at all, are purged with `purge-stale` at once (RFC 4724 Section 4.2)
 5. **Fresh routes replace stale** -- each new route implicitly clears its stale flag
 6. **End-of-RIB received** -- GR plugin sends `purge-stale` to RIB
 7. **Remaining stale routes removed** -- any route not refreshed is withdrawn

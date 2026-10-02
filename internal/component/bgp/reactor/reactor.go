@@ -311,6 +311,13 @@ type Reactor struct {
 	// comes off a live plugin socket. See filter_chain.go policyFilterFunc.
 	policyFilterSeam PolicyFilterFunc
 
+	// pluginCapabilitySeam replaces api as the source of the capabilities plugins
+	// declared for a peer. It is nil in production and set only by a test, exactly
+	// as policyFilterSeam above. api's injector is filled only by a plugin's
+	// startup declaration, so without it no test reaches the Restart State bit
+	// gate that getPluginCapabilities (peer.go) applies to the OPEN.
+	pluginCapabilitySeam func(selectors ...string) []plugin.InjectedCapability
+
 	// filterTransportSeam replaces what the policy filter's IPC body TALKS TO,
 	// where policyFilterSeam above replaces the body itself. Nil in production.
 	// See filterTransport (filter_chain.go) for which branches need it and why

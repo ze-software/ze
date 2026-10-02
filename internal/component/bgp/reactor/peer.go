@@ -1190,11 +1190,17 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 	settings := p.settings
 	p.mu.RUnlock()
 
-	if r == nil || r.api == nil {
+	if r == nil {
 		return nil
 	}
 
-	injected := r.api.GetPluginCapabilitiesForSelectors(capabilitySelectors(settings)...)
+	var injected []plugin.InjectedCapability
+	switch {
+	case r.pluginCapabilitySeam != nil:
+		injected = r.pluginCapabilitySeam(capabilitySelectors(settings)...)
+	case r.api != nil:
+		injected = r.api.GetPluginCapabilitiesForSelectors(capabilitySelectors(settings)...)
+	}
 	if len(injected) == 0 {
 		return nil
 	}

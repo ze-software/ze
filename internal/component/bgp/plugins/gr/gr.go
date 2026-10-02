@@ -317,12 +317,28 @@ func (gp *grPlugin) handleStructuredOpen(peerAddr string, msg *bgptypes.RawMessa
 		offset += paramLen
 	}
 
-	// RFC 9494: If GR capability is not present, LLGR MUST be ignored.
+	// RFC 4724 Section 4.2, RFC 9494 Section 4.5.
 	if !foundGR {
-		gp.mu.Lock()
-		delete(gp.peerLLGRCaps, peerAddr)
-		gp.mu.Unlock()
+		gp.forgetGRCapability(peerAddr)
 	}
+}
+
+// forgetGRCapability drops what an earlier OPEN from peerAddr advertised, for an OPEN that
+// carries no Graceful Restart Capability. The session-up handler then reads no capability
+// and purges every retained family, and a later session drop retains nothing. Safe for
+// concurrent use: it takes gp.mu.
+func (gp *grPlugin) forgetGRCapability(peerAddr string) {
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
+
+	// RFC 4724 Section 4.2: "if the Graceful Restart Capability is not received in the
+	// re-established session at all, then the Receiving Speaker MUST immediately remove all
+	// the stale routes from the peer that it is retaining for that address family."
+	delete(gp.peerCaps, peerAddr)
+	// RFC 9494 Section 4.5: "If the LLGR Capability is received without an accompanying GR
+	// Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST
+	// behave as though no LLGR Capability has been received."
+	delete(gp.peerLLGRCaps, peerAddr)
 }
 
 // extractGRCaps walks raw capability bytes looking for codes 64 (GR) and 71 (LLGR).
@@ -456,18 +472,18 @@ func (gp *grPlugin) handleEvent(event string) error {
 }
 
 // handleOpenEvent extracts GR (code 64) and LLGR (code 71) capabilities from
-// a received OPEN message. Stores both for use when the peer's session drops.
-// RFC 9494: LLGR capability MUST be ignored if GR capability is not also present.
+// a received OPEN message. Stores both for use when the peer's session drops or comes
+// back up. An OPEN without code 64 forgets both (forgetGRCapability), so a session that
+// re-establishes without the capability purges what it retained.
 func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 	openObj, ok := payload["open"].(map[string]any)
 	if !ok {
 		return
 	}
 
-	caps, ok := openObj["capabilities"].([]any)
-	if !ok {
-		return
-	}
+	// An OPEN with no capabilities array carries no Graceful Restart Capability: it still
+	// reaches forgetGRCapability below, so the previous session's capability is not kept.
+	caps, _ := openObj["capabilities"].([]any)
 
 	var foundGR bool
 	// Scan all capabilities for code 64 (GR) and code 71 (LLGR)
@@ -525,11 +541,9 @@ func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 		}
 	}
 
-	// RFC 9494: If GR capability is not present, LLGR MUST be ignored.
+	// RFC 4724 Section 4.2, RFC 9494 Section 4.5.
 	if !foundGR {
-		gp.mu.Lock()
-		delete(gp.peerLLGRCaps, peerAddr)
-		gp.mu.Unlock()
+		gp.forgetGRCapability(peerAddr)
 	}
 }
 

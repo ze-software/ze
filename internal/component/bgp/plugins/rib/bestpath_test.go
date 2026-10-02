@@ -807,10 +807,6 @@ func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 //
 // VALIDATES: ComparePair returns correct values for LLGR-stale combinations.
 // PREVENTS: Inverted LLGR depreference.
-// RFC requirement: RFC4724-4.2-5 negative -- the stale-differentiation mechanism exists but engages
-// only at or above DepreferenceThreshold=2 (LLGR, RFC 9494): a level-2 stale route loses to a normal
-// route (bestpath.go:311-316), confirming GR-stale level 1 is deliberately kept below the threshold
-// so it is never differentiated during forwarding.
 // RFC requirement: RFC9494-4.3-1 positive -- a route marked LLGR_STALE is treated as least
 // preferred in route selection: LLGR entry raises such routes to storage.DepreferenceThreshold
 // (internal/component/bgp/plugins/rib/rib_commands_community.go:101,

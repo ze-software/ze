@@ -134,27 +134,32 @@ func TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes(t *testing.T) {
 // proves the command removes them.
 // PREVENTS: onSessionReestablished answering the right families while nothing is purged.
 //
-// RFC requirement: RFC4724-4.2-8 positive -- on re-establishment the plugin dispatches purge-stale for IPv4 unicast when its F bit is clear, for IPv6 unicast when the new capability omits it, and for both families when no Graceful Restart Capability is received.
+// Each case delivers the re-established session's OPEN through handleEvent, the production
+// path, so the capability the "up" event reads is the one that OPEN left behind.
+//
+// RFC requirement: RFC4724-4.2-8 positive -- on re-establishment after an OPEN delivered through handleEvent, the plugin dispatches purge-stale for IPv4 unicast when its F bit is clear, for IPv6 unicast when the new capability omits it, and for both families when the OPEN carries only capability 65 and no Graceful Restart Capability.
 func TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily(t *testing.T) {
 	purgeIPv4 := "request bgp rib purge-stale " + testPeer + " " + family.IPv4Unicast.String()
 	purgeIPv6 := "request bgp rib purge-stale " + testPeer + " " + family.IPv6Unicast.String()
 	cases := []struct {
-		name   string
-		newCap *grPeerCap
-		want   []string
+		name string
+		caps string // the capabilities array of the re-established session's OPEN
+		want []string
 	}{
-		{"forwarding state bit clear", testCap(120, famIPv4NoF, famIPv6), []string{purgeIPv4}},
-		{"family not included", testCap(120, famIPv4), []string{purgeIPv6}},
-		{"capability not received", nil, []string{purgeIPv4, purgeIPv6}},
+		// Restart Time 120, IPv4 unicast F clear, IPv6 unicast F set.
+		{"forwarding state bit clear", `[{"code":64,"value":"00780001010000020180"}]`, []string{purgeIPv4}},
+		// Restart Time 120, IPv4 unicast F set, IPv6 unicast absent.
+		{"family not included", `[{"code":64,"value":"007800010180"}]`, []string{purgeIPv6}},
+		// Four-octet AS 65001 only: no capability 64 at all.
+		{"capability not received", `[{"code":65,"value":"0000fde9"}]`, []string{purgeIPv4, purgeIPv6}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			gp, sent := rfc4724RetainingPlugin(t, testCap(120, famIPv4, famIPv6))
-			if tc.newCap == nil {
-				delete(gp.peerCaps, testPeer)
-			} else {
-				gp.peerCaps[testPeer] = tc.newCap
-			}
+			open := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},` +
+				`"peer":{"remote":{"address":"` + testPeer + `","as":65001}},` +
+				`"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":` + tc.caps + `}}}`
+			require.NoError(t, gp.handleEvent(open))
 
 			gp.handleStateEvent(testPeer, map[string]any{"state": "up"})
 
