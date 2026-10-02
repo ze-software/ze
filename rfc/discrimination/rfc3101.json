@@ -244,6 +244,28 @@
       "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3101-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea",
+      "unit-sha": "a898f3510056fa9f",
+      "claim-sha": "3263a18d2e2f3cdd",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit",
+      "producer-sha": "b97e562cf30a61a0",
+      "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere",
+      "unit-sha": "b7180acbbae978d2",
+      "claim-sha": "bd708f0bd1098702",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit",
+      "producer-sha": "b97e562cf30a61a0",
+      "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3101-3.1-2",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected",

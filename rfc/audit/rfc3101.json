@@ -296,7 +296,7 @@
       "verdict": "enforced"
     },
     "RFC3101-3.1-1": {
-      "note": "c22 re-judge. OSPFv2 now proven: lsdb/rfc3101_nssa_border_ebit_areas_test.go originates through OriginateFromTopology for an ABR in the backbone, NSSA 0.0.0.1 and normal 0.0.0.2 with no external LSA and no translation, and asserts the E-bit set in the router-LSA of all three non-stub areas; the negative (area 0.0.0.1 normal, no NSSA) asserts it clear in all three. Overlay making NSSABorderEBit answer only for the backbone reds the positive on 0.0.0.2 and 0.0.0.1; both carry recorded reverts of origination.go::NSSABorderEBit. Still weak on the OSPFv3 producer: RFC 5340 sec 3.3 says its NSSA text 'coupled with [NSSA] provide sufficient specification' for OSPFv3, and Ze routes the v3 router-LSA E-bit through v6OriginateSelf (origination_v6.go) -> NSSABorderEBit -> v6OriginateRouter. No tagged unit drives v6OriginateSelf for an NSSA border router (TestOSPFv6OriginateRouterLSAABRNtBits passes nssaBorderE=false directly), so a v6OriginateSelf that dropped nssaBorderE stays green. Missing: one OSPFv3 unit asserting the E-bit in each attached non-stub area's v3 router-LSA.",
+      "note": "c23 re-judge (independent judge). OSPFv2 as recorded at c22 (rfc3101_nssa_border_ebit_areas_test.go, both polarities, records on NSSABorderEBit). OSPFv3 now proven: rfc3101_v6_nssa_border_ebit_test.go builds an OSPFv3 engine (v6Codec) with backbone, area 0.0.0.1, normal 0.0.0.2 and stub 0.0.0.3, one passive running interface each, and drives v6OriginateSelf (no hand-set nssaBorderE); the E-bit is read as the literal 0x02 of the flags octet at offset 20 of the installed Router-LSA (RFC 5340 A.4.3: 0 0 0 Nt x V E B). Positive: with 0.0.0.1 NSSA, E set in 0, 0.0.0.1 and 0.0.0.2 with no external origination, clear in the stub. Negative: with 0.0.0.1 normal, E clear in all four. Overlays on NSSABorderEBit (scratch/c23/e1..e3): backbone-only reds the positive, dropping the stub check reds it, any-active-area reds the negative; TestOSPFv6OriginateRouterLSAABRNtBits green under all three. Both new units hold observed-red revert records. TestOSPFASBRBitFromNSSAType7 (#2) stays supplementary.",
       "requirement_sha": "0409f2f519db36f9",
       "tests": {
         "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "0d6427b918f145f2",
@@ -304,7 +304,9 @@
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "fa377c02d28ef7c6",
-        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "fa377c02d28ef7c6"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "fa377c02d28ef7c6",
+        "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea": "c864c4021e34b9e0",
+        "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "c864c4021e34b9e0"
       },
       "units": {
         "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "61554072b6a1ad56",
@@ -312,9 +314,11 @@
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "58b9ac30f97841e6",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "6336aecd21aa6836",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "403ab4b7dbaeffb5",
-        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "403ab4b7dbaeffb5"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "403ab4b7dbaeffb5",
+        "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea": "74b547f31144fe8a",
+        "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "0160857821b3a624"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3101-3.1-2": {
       "note": "Re-judged 2026-09-30 (OSPF judge, continuation 5): the row now quotes the verbatim span through 'reachable both over the NSSA' (R3 split); the transit-topology ASBR condition is gap row RFC3101-3.1-5, so no clause of this row is untested. electNSSATranslator skips a router the NSSA's completed SPF does not reach (ReachabilitySnapshot.RouterReachable). TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed are an isolated pair differing only in reachability (translated 1 vs 0); TestOSPFNSSATranslatorElection adds the unreachable-higher case; five observed-red records re-recorded after the nssa.go comment edit.",

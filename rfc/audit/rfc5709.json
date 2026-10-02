@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -45,17 +45,21 @@
       "verdict": "enforced"
     },
     "RFC5709-3.1-2": {
-      "note": "(a) forbidden: an Authentication Data Length other than the hash output length L; (b) positive TestOSPFAuthSignVerifyCrypto asserts af[3]==authDigestLen(algo), whose expected value comes from the production table and is cross-checked only through the reference digest length; the tagged negative TestOSPFAuthCryptoRejectsExtraTrailerBytes appends a byte after the trailer and leaves af[3] correct, so it proves trailer framing, and no tagged unit presents a packet whose Auth Data Length field is wrong (Verify's int(af[3]) != l guard is unexercised)",
+      "note": "c23 re-judge (independent judge). Positive: TestRFC5709AuthDataLengthIsHashOutputLength signs AuType 2 under HMAC-SHA-1/256/384/512 and asserts af[3] == the literal 20/32/48/64 (not the production table), the trailer is that many octets and equals rfc5709ReferenceDigest (independent Ko, Apad and HMAC); overlay authDigestLen SHA-256 -> 31 reds it (scratch/c23/a1). Negative (owner ruling 2, handling of a peer packet with the wrong field): TestRFC5709WrongAuthDataLengthRejected presents an HMAC-SHA-1 packet with af[3]=32 whose 20-octet digest is computed independently over that very header, so only the length field differs from the verifying control (af[3]=20); Verify refuses it. Overlay removing Verify's int(af[3]) != l guard reds only this unit while TestOSPFAuthSignVerifyCrypto and TestOSPFAuthCryptoRejectsExtraTrailerBytes stay green (a2), closing the earlier finding. Observed-red records on authDigestLen and Verify. HEAD units supplementary.",
       "requirement_sha": "33583fc335b9c46d",
       "tests": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709AuthDataLengthIsHashOutputLength": "c6f8189c6e41691b",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709WrongAuthDataLengthRejected": "c6f8189c6e41691b"
       },
       "units": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709AuthDataLengthIsHashOutputLength": "f6777ebe35c03397",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709WrongAuthDataLengthRejected": "d44228486eb1629f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5709-3.1-3": {
       "note": "Re-judged 2026-09-30 (continuation 7, judge): the weak finding (no sender-side sequence assertion) is closed. TestRFC5709CryptoSequenceNonDecreasingOnInterface signs five Hellos through eng.signPacket on eth0 and reloads the key from Key ID 1 to 2 before the fourth; each packet's 32-bit sequence (auth offset 4) is not below the previous one (RFC 2328 D.4.3 (5): non-decreasing), Key ID checked per packet. Positive revert record on signKey re-recorded by the judge after continuation 8 changed signKey, observed red. Negative: TestOSPFAuthReplay-side replayedSequence refusal (revert record observed red). The packet-level round-trip positive in packet/auth_verify_test.go has no record (pre-existing).",

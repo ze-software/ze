@@ -78,45 +78,55 @@
       "verdict": "enforced"
     },
     "RFC3623-A-2": {
-      "note": "c22 re-judge (units changed: the RFC5187 tag comments moved off them). Forbidden: a grace-LSA without the Grace Period TLV (Type 1). TestGraceLSARoundTrip asserts the EncodeGraceLSA body length against opaqueTLVsLen of the expected TLVs and a round-trip through DecodeGraceLSA; TestGraceLSADecodeMissingMandatory asserts a reason-only body is refused. No assertion reads a type octet: encoder and decoder both use packet.GraceTLVPeriod, so a constant of the wrong value (the TLV absent on the wire as Type 1) stays green in both units, the same gap the RFC5187-2.2-1 verdict recorded on these units. The OSPFv2 origination (gr_lsa.go) is not driven. Missing: a literal-octet assertion on the originated OSPFv2 Grace-LSA body. Records exist (revert of EncodeGraceLSA/DecodeGraceLSA) and answer only the total-break question.",
+      "note": "c23 re-judge (independent judge). Positive: TestRFC3623OriginatedGraceLSATLVOctets drives grOriginateGraceLSAs (the OSPFv2 origination, grV4Body) over running p2p eth0 and broadcast eth1 and compares the installed link-scope body with literal octets 00 01 00 04 00 00 00 78 (Type 1, Length 4, 120 s), read without the codec; an overlay GraceTLVPeriod=4 reds it while TestGraceLSARoundTrip and TestGraceLSAv4* stay green (scratch/c23/o1). Negative under owner ruling 2 (RFC 3623 prescribes no handling; the helper cannot run a window it was not given, so ignore): TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV feeds a reason-only body through graceOnReceive while helping X and asserts the session survives with an unchanged grace end; the control with both TLVs moves it to now+600, so the input is isolated to the missing TLV. Decoder overlay without the hasPeriod check reds only missing-grace-period (o3). Both units hold observed-red revert records (EncodeGraceLSA, DecodeGraceLSA). The HEAD codec units stay supplementary.",
       "requirement_sha": "e48a7ac4d7b16413",
       "tests": {
         "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "88abc512204c607b",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
       },
       "units": {
         "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "c8441ff4dbe08dc1",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3623-A-3": {
-      "note": "c22 re-judge (units changed: the RFC5187 tag comments moved off them). Forbidden: a grace-LSA without the Graceful restart reason TLV (Type 2). TestGraceLSARoundTrip asserts the body length and a Reason=2 round-trip; TestGraceLSADecodeMissingMandatory asserts a period-only body is refused. No assertion reads the type octet: both sides use packet.GraceTLVReason, so a wrong type number stays green. The OSPFv2 origination (gr_lsa.go) is not driven. Missing: a literal-octet assertion on the originated OSPFv2 Grace-LSA body.",
+      "note": "c23 re-judge (independent judge). Positive: TestRFC3623OriginatedGraceLSATLVOctets asserts the originated OSPFv2 Grace-LSA carries 00 02 00 01 02 00 00 00 (Type 2, Length 1, reason 2, padded) at octets 8..15 on both p2p and broadcast, and the p2p body is exactly these 16 octets; overlay GraceTLVReason=5 reds it, old units green (o2). Negative under owner ruling 2: a period-only body (600) through graceOnReceive is ignored, same session, same grace end, control with both TLVs applied; decoder overlay without the hasReason check reds only missing-restart-reason (o4). Observed-red revert records on EncodeGraceLSA and DecodeGraceLSA. HEAD codec units supplementary.",
       "requirement_sha": "11574bd702f7ecb8",
       "tests": {
         "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "88abc512204c607b",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
       },
       "units": {
         "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "c8441ff4dbe08dc1",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3623-A-4": {
-      "note": "Re-judged 2026-09-29 (independent judge). The segment-type mapping gap is closed: TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress runs grOriginateGraceLSAs over running broadcast, NBMA and point-to-multipoint interfaces and decodes the type-3 TLV from each installed link-scope Grace-LSA (revert record on grSharedMedia). Weak only on polarity: the tagged negative (TestGraceLSAv4BodyBuild, point-to-point omits the TLV) asserts what the RFC does not forbid, so it does not violate this requirement, and the row carries no {single-polarity} annotation. The obligation is presence-only with no receive-side refusal, so the fix is to replace the negative tag with a {single-polarity: positive} annotation stating that.",
+      "note": "c23 re-judge under the main-thread ruling (R46 / owner ruling 5 precedent): judged on its positive. TestRFC3623OriginatedGraceLSATLVOctets: the Grace-LSA grOriginateGraceLSAs installs on a running broadcast interface is 24 octets and octets 16..19 are the literal type-3 TLV header 00 03 00 04; TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress covers broadcast, NBMA and P2MP and decodes the address value. Both hold observed-red revert records on grSharedMedia. No legitimate refusal exists: Ze's helper keys a restarting neighbour by advertising Router ID (onGraceReceived, hasFullNeighbor) and never reads the TLV, which RFC 3623 sec A does not forbid. The HEAD negative tag on TestGraceLSAv4BodyBuild (#2) is true as written (grV4Body with sharedMedia=false emits no type-3 TLV, asserted by !g2.HasInterfaceAddr) and stays supplementary: it does not violate this requirement, which forbids nothing on point-to-point. Observation for the main thread, outside this row: RFC 3623 sec 3.1 item 1 says on broadcast/NBMA/P2MP the neighbour 'is identified by the IP interface address in the body of the grace-LSA'; Ze identifies by Router ID (no gated row carries that sentence).",
       "requirement_sha": "d1cd3dd926b92d50",
       "tests": {
         "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild": "7e9ede073442bc66",
         "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild#2": "7e9ede073442bc66",
-        "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "58f3a76a57e8a603"
+        "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "58f3a76a57e8a603",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
       },
       "units": {
         "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild": "6b0efc6ec6c19999",
         "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild#2": "6b0efc6ec6c19999",
-        "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "fbcb989e428d9e0b"
+        "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "fbcb989e428d9e0b",
+        "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3623-A-5": {
       "note": "Forbidden behaviour (a): a grace-LSA whose LS age has the DoNotAge bit set. (b) TestGraceLSANeverSetsDoNotAge drives OriginateOpaque with the restarter's body and asserts grace.Header.Age.DoNotAge() is false and RawBytes[0]&0x80 == 0, so an origination that set the bit goes red. The demand-circuit clause has no path in ze: no production code sets DoNotAgeBit (only types/lsage.go declares and reads it) and flooding copies the installed RawBytes, so the asserted bytes are the flooded bytes. Single-polarity marker holds.",

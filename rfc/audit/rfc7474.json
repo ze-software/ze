@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -8,17 +8,21 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7474-2-1": {
-      "note": "Clause 'occupy the 8 octets following the OSPFv2 packet': TestOSPFAuthType3SequenceTrailer asserts readUint64(signed[plen:]) == seq and len == plen+8+digest, red if misplaced. Clause 'MUST be included when calculating the digest': no 2-1-tagged assertion goes red if Sign and Verify both leave the sequence out of the hash, because the round-trip still verifies and the extra-byte negative in TestOSPFAuthCryptoRejectsExtraTrailerBytes proves framing, not digest coverage. TestOSPFAuthType3SequenceTamperRejected would prove it but carries only the RFC7474-5-1 tag.",
+      "note": "c23 re-judge (independent judge). Clause 'occupy the 8 octets following the OSPFv2 packet': TestRFC7474SequenceIncludedInDigest asserts signed[plen:plen+8] == literal 00 00 00 05 00 00 00 09 and the total length plen+8+32. Clause 'MUST be included when calculating the digest': the same unit asserts the digest equals an independent HMAC-SHA-256 (Ko = key || 00 01 zero-padded, hand-built HMAC) over packet || sequence || Apad(src, 0x878FE1F3 fill); the negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet after signing and Verify refuses, unchanged control verifies. Overlay leaving the sequence out of the hash on both Sign and Verify reds both new units while TestOSPFAuthType3SequenceTrailer stays green (scratch/c23/a3), which was the earlier finding. Observed-red records on Sign and Verify. HEAD units supplementary.",
       "requirement_sha": "ebbbd9e5f2cbef7d",
       "tests": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "c6f8189c6e41691b",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "c6f8189c6e41691b"
       },
       "units": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "a355f044d9f3cc1f",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "ddc153af4ce09c6e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7474-2-2": {
       "note": "Forbidden: boot count and per-packet counter swapped or merged. TestSetBootCountSeedsSequence asserts signKey's seq == 0x1234<<32|1 after setBootCount(0x1234), red on any other composition. Single-polarity marker: a construction property with no violating input.",
@@ -96,17 +100,21 @@
       "verdict": "enforced"
     },
     "RFC7474-3-1": {
-      "note": "The quote spans four sentences of Section 3. Key ID 32 bits in the former sequence position: asserted (readUint32(af,4) == 0x01020304; TestOSPFAuthCryptoRejectsKeyIDMismatch AuType 3 mismatch rejected). 24-bit zero field: asserted (af[0:3] == 0). Sequence in the first 64 bits after the packet, OSPF Packet Length excluding it: asserted (readUint64(signed[plen:]), offLength == plen). 'protected by the authentication digest': no 3-1-tagged assertion goes red if the digest skipped the sequence (the round-trip still verifies); only TestOSPFAuthType3SequenceTamperRejected, tagged 5-1, proves it.",
+      "note": "c23 re-judge (independent judge). Four sentences of sec 3, each asserted with literal octets in TestRFC7474SequenceIncludedInDigest: authentication field 00 00 00 28 01 02 03 04 (24-bit zero field, 32-bit Key ID 0x01020304 in the former sequence position); OSPF Packet Length == plen so the 8 sequence octets sit outside it; the sequence occupies the first 64 bits after the packet; 'protected by the authentication digest' by the independent-digest comparison, with the negative TestRFC7474SequenceChangeBreaksDigest (changed sequence refused) and the a3 overlay reding both. TestOSPFAuthCryptoRejectsKeyIDMismatch stays as the Key ID negative. Caveat outside this row's quote: the unit also pins Auth Data Len = 0x28 (8 + L), which is Ze's choice (Sign af[3] = 8 + l); RFC 7474 never states the value and sec 5 leaves the RFC 5709 process unchanged, whose sec 3.1 says the field is the hash length L. The verdict does not rest on that octet; the reading is an open question for the main thread.",
       "requirement_sha": "8c74a5e58d4ef2dc",
       "tests": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "c6f8189c6e41691b",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "c6f8189c6e41691b"
       },
       "units": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "c6b3afbbb3714510",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "a355f044d9f3cc1f",
+        "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "ddc153af4ce09c6e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7474-4-1": {
       "note": "Re-judged 2026-09-30 (continuation 8, judge): TestVerifyRejectsOutsideAcceptLifetime verifies identical bytes at three clocks: refused accept-lifetime before the window opens (negative), accepted inside (positive), refused after it closes while successor Key ID 2 is live (negative). The successor was added because RFC 5709 s3.2 (row RFC5709-3.2-5) now keeps an expired LAST key; the closed-window refusal of a non-last key is exactly this row. Revert records on acceptsAt re-observed red for both polarities.",
