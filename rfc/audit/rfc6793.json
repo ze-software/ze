@@ -365,17 +365,21 @@
       "verdict": "enforced"
     },
     "RFC6793-6-3": {
-      "note": "TestRFC6793ReceivedConfedInAS4PathDiscarded injects only an AS_CONFED_SEQUENCE, never an AS_CONFED_SET. Its assertions read the egress AS4_PATH, which AS4Path.WriteTo writes without confederation segments whatever it holds (RFC6793-3-1), so the unit cannot tell a receive-side discard from the encoder's output filter",
+      "note": "Re-judged 2026-10-02 (BGP c34 judge). internal/component/bgp/wireu/rfc6793_received_confed_test.go reads the output of CollapseAS4Family, the single ingest rewrite every downstream consumer sees, so the receive-side discard is measured apart from the AS4_PATH encoder's own confed filter (RFC6793-3-1). Positive: an OLD speaker's AS4_PATH holding an AS_CONFED_SEQUENCE and an AS_CONFED_SET ahead of an AS_SEQUENCE collapses to the exact payload (AS_PATH 40 02 10: [65001] then [4200000001,4200000002], attribute section 0x1E, NLRI kept, no error): both segment types discarded, lengths adjusted, processing continues (judge checked the RFC 6793 Section 4.2.3 arithmetic and both length octets). Negative: an AS_SET in the AS4_PATH and a leading AS_CONFED_SEQUENCE in the AS_PATH both survive (payload literal, 0x1C / 0x2A), so the discard is not blanket. Records: attribute/as4.go::appendAS4Segments revert, both polarities observed red; author overlay probes (kept confed segments -> only the positive red, discard widened to AS_SET -> only the negative red) re-read by the judge in scratch c34p. The HEAD egress units in rfc6793_as4_test.go stay as unrecorded supplementary tags. The Section 6 SHOULD-log clause is not this row.",
       "requirement_sha": "76c64a2d4fa04e9a",
       "tests": {
         "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded": "46921ad87659919b",
-        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded#2": "46921ad87659919b"
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded#2": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_received_confed_test.go::TestRFC6793ReceivedAS4PathConfedSegmentsDiscarded": "814c48a19bfecb2e",
+        "internal/component/bgp/wireu/rfc6793_received_confed_test.go::TestRFC6793ReceivedAS4PathDiscardTakesOnlyConfedSegments": "814c48a19bfecb2e"
       },
       "units": {
         "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded": "8f44a4ff2235d630",
-        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded#2": "8f44a4ff2235d630"
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded#2": "8f44a4ff2235d630",
+        "internal/component/bgp/wireu/rfc6793_received_confed_test.go::TestRFC6793ReceivedAS4PathConfedSegmentsDiscarded": "716830cfe801425a",
+        "internal/component/bgp/wireu/rfc6793_received_confed_test.go::TestRFC6793ReceivedAS4PathDiscardTakesOnlyConfedSegments": "8fd6af0b388a054e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6793-6-4": {
       "note": "TestRFC6793MalformedAS4PathDiscarded: an odd-length AS4_PATH from an OLD speaker contributes nothing and the rewrite proceeds; negative keeps a well-formed one.",

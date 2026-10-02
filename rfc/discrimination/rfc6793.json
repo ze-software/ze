@@ -501,6 +501,28 @@
       "break": "body of ParseAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-6-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/wireu/rfc6793_received_confed_test.go::TestRFC6793ReceivedAS4PathConfedSegmentsDiscarded",
+      "unit-sha": "9e8113a0de50d16c",
+      "claim-sha": "e25e0046732c0e93",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::appendAS4Segments",
+      "producer-sha": "f627897a88d5f844",
+      "break": "body of appendAS4Segments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-6-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/wireu/rfc6793_received_confed_test.go::TestRFC6793ReceivedAS4PathDiscardTakesOnlyConfedSegments",
+      "unit-sha": "d41956b2d6c0a3b3",
+      "claim-sha": "102404e6276a7505",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/as4.go::appendAS4Segments",
+      "producer-sha": "f627897a88d5f844",
+      "break": "body of appendAS4Segments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-6-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator",
