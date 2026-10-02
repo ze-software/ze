@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -118,19 +118,17 @@
       "verdict": "weak"
     },
     "RFC4302-3.4.3-5": {
-      "note": "Re-judged 2026-09-29 (independent judge). The reach gap is closed: TestRFC4302MinimumReplayWindowReachesEverySA parses replay-window 32 from config text, validateConfig accepts it and all three SAs of buildIPsecInterfaceSAs carry ReplayWin 32 (revert record on buildIPsecSA); the kernel XFRM state is not read. Weak only on polarity: the tagged negative in TestIPsecReplayWindowRange (1 and 31 refused) is a Ze policy the RFC does not forbid, so it does not violate this requirement, and the row carries no {single-polarity} annotation. 'MUST support 32' has no violating input beyond 32 failing, so the fix is to replace that negative tag with a {single-polarity: positive} annotation.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c26). Row now carries {single-polarity: positive} citing owner ruling 8 (f): 'MUST be supported' has no violating input, so the 1/31 refusal in TestIPsecReplayWindowRange is Ze policy and its negative tag left the row under a D-15 approval citing owner ruling 8; the assertions and their comment (restated as policy) are kept. Positives: TestIPsecReplayWindowRange accepts 32, 64 and 255 through parseOSPFConfig/validateConfig (mutant record on validateIPsecReplayWindow -> false), and TestRFC4302MinimumReplayWindowReachesEverySA carries replay-window 32 from config text to all three SAs of buildIPsecInterfaceSAs (revert record on buildIPsecSA). The kernel XFRM state itself is not read. The HEAD negative mutant record on TestIPsecReplayWindowRange (-> true) is now an orphan with no negative unit on the row, left in place for the main thread.",
       "requirement_sha": "f615c5ec9826eb4d",
       "tests": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "b4ec6d2f07dfacb6",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "5c20e3c0dfa0036c",
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "b73d4aaa80fb87fb"
       },
       "units": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "cddd29092ae0c0e1",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "cddd29092ae0c0e1",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "cb5c9ee324c6ddf4",
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "28de7da421630189"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc4302"

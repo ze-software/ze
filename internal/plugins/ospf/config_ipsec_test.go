@@ -254,10 +254,12 @@ func TestIPsecNonHexKeyRejected(t *testing.T) {
 // size of 32 packets MUST be supported, but a window size of 64 is preferred and SHOULD be
 // employed as the default." A replay-window of 32 validates on an AH interface, and so do
 // the preferred 64 and the 255 the dataplane's uint8 window parameter tops out at.
-// RFC requirement: RFC4302-3.4.3-5 negative -- a window BELOW that mandatory minimum is
-// refused with ErrIPsecReplayWindow rather than installed: 1 and 31 are rejected, so no SA
-// can carry a window narrower than the 32 packets every implementation must support. 256
-// is rejected too, above what the kernel SA parameter carries.
+//
+// The refusals below are Ze policy, not a proof of that requirement: "MUST be supported"
+// has no violating input, so the row is single-polarity positive (owner ruling 8 (f),
+// 2026-10-02). 1 and 31 are refused with ErrIPsecReplayWindow so no configured SA is
+// narrower than the window every implementation supports, and 256 is refused because the
+// kernel SA parameter carries no more.
 func TestIPsecReplayWindowRange(t *testing.T) {
 	for _, w := range []uint64{0, 32, 64, 255} {
 		cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
