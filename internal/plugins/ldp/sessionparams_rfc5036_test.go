@@ -137,7 +137,7 @@ func TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited(t *testing.T) {
 	if !msg.OnDemand {
 		t.Fatal("the test PDU does not carry A=1: DecodeInit did not read the A bit")
 	}
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
+	if err := rx.processMessages(withPeerKeepAlive(pdu[ldpHeaderLen:]), [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -247,7 +247,7 @@ func TestRFC5036InitReservedBitsIgnoredOnReceipt(t *testing.T) {
 
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
+	if err := rx.processMessages(withPeerKeepAlive(pdu[ldpHeaderLen:]), [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {

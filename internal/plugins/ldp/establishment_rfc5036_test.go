@@ -44,7 +44,25 @@ func runSessionToOperational(t *testing.T, sess *Session, remote net.Conn, peerK
 		stop()
 		t.Fatalf("reply to the peer Initialization = %#x, want KeepAlive (%#x)", msgHdr.Type, MsgTypeKeepAlive)
 	}
+	if _, err := remote.Write(encodeKeepAlivePDU()); err != nil {
+		stop()
+		t.Fatalf("write peer KeepAlive: %v", err)
+	}
+	awaitOperational(t, sess)
 	return stop
+}
+
+// awaitOperational waits up to ldpReadTimeout for sess to reach the operational
+// state, which the peer's KeepAlive triggers on runSession's goroutine.
+func awaitOperational(t *testing.T, sess *Session) {
+	t.Helper()
+	deadline := time.Now().Add(ldpReadTimeout)
+	for sess.State() != StateOperational {
+		if time.Now().After(deadline) {
+			t.Fatalf("state = %s 2s after the peer's KeepAlive, want operational", sess.State())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 // expectSilence fails the test when remote receives any octet inside window.
@@ -108,7 +126,8 @@ func TestRFC5036ActiveRoleInitiatesNegotiation(t *testing.T) {
 
 // RFC requirement: RFC5036-2.5.3-5 positive -- ze, in the active role, receives an
 // acceptable Initialization and replies with a KeepAlive: the next PDU after the
-// peer's Initialization is a KeepAlive, and the session is operational.
+// peer's Initialization is a KeepAlive, and the peer's own KeepAlive then makes
+// the session operational.
 func TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -129,9 +148,10 @@ func TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive(t *testing.T) {
 	if msgHdr.Type != MsgTypeKeepAlive {
 		t.Fatalf("reply to an acceptable Initialization = %#x, want KeepAlive (%#x)", msgHdr.Type, MsgTypeKeepAlive)
 	}
-	if sess.State() != StateOperational {
-		t.Errorf("state = %s, want operational", sess.State())
+	if _, err := remote.Write(encodeKeepAlivePDU()); err != nil {
+		t.Fatalf("write peer KeepAlive: %v", err)
 	}
+	awaitOperational(t, sess)
 }
 
 // RFC requirement: RFC5036-2.5.3-5 negative -- the KeepAlive is a reply to an

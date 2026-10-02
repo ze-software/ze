@@ -1,16 +1,16 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC5561-6-4": {
-      "note": "Forbidden behaviours: (1) reacting to an unsupported U=1 Capability Parameter (e.g. sending a Notification) instead of silently ignoring it, (2) refusing the session because of it. (1): TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification fails on processMessages returning an error and on expectNoPDU seeing any PDU on the pipe. (2): TestRFC5561UnknownCapabilityWithUBitSetIsIgnored requires rx.State() == StateOperational and the peer's 30s keepalive negotiated, and that DecodeInit still reads the Common Session Parameters beside the parameter. Every capabilityCases code point runs both.",
+      "note": "Forbidden behaviours: (1) reacting to an unsupported U=1 Capability Parameter (e.g. sending a Notification) instead of silently ignoring it, (2) refusing the session because of it. (1): TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification fails on processMessages returning an error and on expectNoPDU seeing any PDU on the pipe. (2): TestRFC5561UnknownCapabilityWithUBitSetIsIgnored requires rx.State() == StateOperational and the peer's 30s keepalive negotiated, and that DecodeInit still reads the Common Session Parameters beside the parameter. Every capabilityCases code point runs both. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).",
       "requirement_sha": "7ac90ef5ee36edcc",
       "tests": {
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "e20921043d725b31",
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "e20921043d725b31"
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "e3d38b77cbbbca67",
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "e3d38b77cbbbca67"
       },
       "units": {
         "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "fbfc246e2438a6f5",
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "c6f089e09752eafb"
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "8ba96e88f7f19743"
       },
       "verdict": "enforced"
     }

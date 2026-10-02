@@ -512,6 +512,19 @@ func recordSetupFailure(log *slog.Logger, retries map[string]*setupRetry, key st
 	log.Info("ldp: session setup failed, next attempt delayed", "peer", key, "delay", delay)
 }
 
+// sessionUpEvent is the SessionUp a session opened for adj publishes when it
+// reaches the operational state: the discovering adjacency's interface and LDP
+// Identifier, so an interface-scoped consumer such as LDP-IGP synchronization
+// (RFC 5443 Section 2) learns which link has its session.
+func sessionUpEvent(adj *Adjacency, key string) *SessionEvent {
+	return &SessionEvent{
+		PeerAddress:   adj.TransportAddr.String(),
+		LDPIdentifier: key,
+		SessionState:  StateOperational.String(),
+		Interface:     adj.Interface,
+	}
+}
+
 // startSessionForAdj opens the session for adj unless one exists or the setup
 // backoff for it has not elapsed. Discovery calls it on every Hello from adj, so
 // the Hello cadence is the retry timer and a dead adjacency retries nothing.
@@ -548,16 +561,9 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 		m.sessionsActive.Set(float64(len(sessions)))
 	}
 
-	emitSessionEvent(getEventBus(), log, SessionUp, &SessionEvent{
-		PeerAddress:   adj.TransportAddr.String(),
-		LDPIdentifier: key,
-		SessionState:  StateOperational.String(),
-		Interface:     adj.Interface,
-	})
-
 	peerAddr := adj.TransportAddr
 	ifName := adj.Interface
-	go runSession(ctx, log, sess, lib, key, fib, func() {
+	go runSession(ctx, log, sess, lib, key, fib, sessionUpEvent(adj, key), func() {
 		sessionsMu.Lock()
 		delete(sessions, key)
 		// A session that ended before it was operational is a failed setup
@@ -833,7 +839,10 @@ func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfi
 	}
 }
 
-func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, peerKey string, fib *ldpFIB, onDone func()) {
+// runSession plays the active role on the connection ze dialed for one adjacency
+// and serves the session until it ends, then calls onDone. up is the SessionUp it
+// publishes when, and only when, the session reaches OPERATIONAL.
+func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, peerKey string, fib *ldpFIB, up *SessionEvent, onDone func()) {
 	defer onDone()
 	defer sess.Stop()
 
@@ -946,6 +955,14 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 				return
 			}
 			close(accepted)
+		},
+		func() {
+			// RFC 5036 Section 2.5.3: "When LSR1 has received both an acceptable
+			// Initialization message and a KeepAlive message, the session is
+			// operational from LSR1's point of view." Only now is the session that
+			// RFC 5443 Section 2 waits for established, so only now does an IGP
+			// running LDP-IGP synchronization hear of it.
+			emitSessionEvent(eb, log, SessionUp, up)
 
 			// AC-3: session reached operational -- advertise our local FEC
 			// bindings downstream-unsolicited (RFC 5036 Section 2.3).

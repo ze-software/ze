@@ -96,7 +96,7 @@ func TestRFC5561UnknownCapabilityWithUBitSetIsIgnored(t *testing.T) {
 
 			rx := rfcTestSession(local)
 			rx.state = StateOpenSent
-			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
+			if err := rx.processMessages(withPeerKeepAlive(pdu[ldpHeaderLen:]), [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 				t.Fatalf("processMessages: %v", err)
 			}
 			if rx.State() != StateOperational {

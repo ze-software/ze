@@ -57,16 +57,28 @@ Ze dials every session, so it always plays the active role of RFC 5036 section
 2.5.3. Nothing listens on TCP port 646, and a peer that plays the active role
 finds no listener. `runSession` sends ze's Initialization first. It sends no
 KeepAlive until the peer's Initialization has arrived and `processMessages` has
-accepted it. The operational callback then sends the KeepAlive that accepts the
-peer's parameters, before any Label Mapping. The periodic KeepAlive sender waits
-for that reply before its first period starts.
+accepted it. The accepted callback then sends the KeepAlive that accepts the
+peer's parameters, and the session moves to OPENREC. The periodic KeepAlive
+sender waits for that reply before its first period starts.
+
+The session is operational only when the peer's KeepAlive arrives after that
+(RFC 5036 section 2.5.3 item 2.d, the OPENREC row of section 2.5.4). The
+operational callback runs then, once: it publishes the `ldp` `session-up` event,
+naming the discovering adjacency's interface and LDP Identifier, and only then
+advertises the local Label Mappings. A peer that accepts the TCP connection, or
+even the Initialization, and never sends its KeepAlive produces no `session-up`,
+so an IGP running LDP-IGP synchronization (RFC 5443) keeps the link at maximum
+cost. Publishing `session-up` on the TCP connect was rejected for that reason:
+OSPF started its hold-down on a session that did not exist, and declared the link
+synchronized when the hold-down expired.
 
 A KeepAlive sent right after the Initialization was rejected. A KeepAlive tells
 the peer that its parameters are acceptable, and ze has not read them yet. When
 the peer's Initialization is unacceptable, a KeepAlive sent ahead of it
 contradicts the Notification that follows.
 
-<!-- source: internal/plugins/ldp/register.go -- runSession, startSessionForAdj -->
+<!-- source: internal/plugins/ldp/register.go -- runSession, startSessionForAdj, sessionUpEvent -->
+<!-- source: internal/plugins/ldp/session.go -- handleInit, keepaliveReceived, ReadLoop -->
 
 ## Decision: an unacceptable Initialization is NAK'd, never clamped
 

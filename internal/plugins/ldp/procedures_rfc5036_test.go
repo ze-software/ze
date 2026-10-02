@@ -258,7 +258,7 @@ func TestRFC5036InitFromHelloAdjacencyAccepted(t *testing.T) {
 	rx.state = StateOpenSent
 
 	pdu := encodeInitPDU(ldpVersion, 30)
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
+	if err := rx.processMessages(withPeerKeepAlive(pdu[ldpHeaderLen:]), [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {

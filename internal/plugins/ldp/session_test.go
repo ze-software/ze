@@ -64,9 +64,14 @@ func TestSessionHandleInit(t *testing.T) {
 	}
 
 	if !s.handleInit(msg, peerLSRID) {
-		t.Error("handleInit should report operational transition from open-sent")
+		t.Error("handleInit should report the Initialization accepted in open-sent")
 	}
-
+	if s.state != StateOpenReceived {
+		t.Errorf("state = %s, want open-received until the peer's KeepAlive", s.state)
+	}
+	if !s.keepaliveReceived() {
+		t.Error("keepaliveReceived should report the operational transition from open-received")
+	}
 	if s.state != StateOperational {
 		t.Errorf("state = %s, want operational", s.state)
 	}
@@ -107,9 +112,9 @@ func TestSessionHandleInitFromInitialized(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-3 -- when an Initialization message drives the session to
-// operational, processMessages fires onOperational exactly once so the engine
-// advertises its local label mappings.
+// VALIDATES: AC-3 -- an accepted Initialization fires onAccepted exactly once, so
+// the engine replies with its KeepAlive, and the peer's KeepAlive in the same PDU
+// then takes the session to operational.
 func TestSessionProcessMessagesFiresOperational(t *testing.T) {
 	s := &Session{
 		state:         StateOpenSent,
@@ -130,11 +135,11 @@ func TestSessionProcessMessagesFiresOperational(t *testing.T) {
 	})
 
 	fired := 0
-	if err := s.processMessages(buf[:n], [4]byte{10, 0, 0, 2}, 0, nil, nil, func() { fired++ }); err != nil {
+	if err := s.processMessages(withPeerKeepAlive(buf[:n]), [4]byte{10, 0, 0, 2}, 0, nil, nil, func() { fired++ }); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if fired != 1 {
-		t.Errorf("onOperational fired %d times, want 1", fired)
+		t.Errorf("onAccepted fired %d times, want 1", fired)
 	}
 	if s.State() != StateOperational {
 		t.Errorf("state = %s, want operational", s.State())

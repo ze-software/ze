@@ -78,6 +78,15 @@ func readLDPPDU(t *testing.T, conn net.Conn) (PDUHeader, MessageHeader, []byte) 
 	return pdu, msgHdr, body[ldpMsgHdrLen:]
 }
 
+// withPeerKeepAlive returns a copy of the PDU body with the peer's KeepAlive
+// message appended: an accepted Initialization takes the session to OPENREC, and
+// only the KeepAlive that follows makes it operational (RFC 5036 Section 2.5.4).
+func withPeerKeepAlive(body []byte) []byte {
+	var ka [ldpMsgHdrLen]byte
+	n := encodeKeepalive(ka[:], keepaliveMessage{MessageID: 9})
+	return append(append([]byte(nil), body...), ka[:n]...)
+}
+
 // encodeInitPDU builds a complete Initialization PDU with the given Common Session
 // Parameters protocol version and keepalive time.
 func encodeInitPDU(version, keepalive uint16) []byte {
@@ -246,7 +255,7 @@ func TestRFC5036InitProtocolVersionOne(t *testing.T) {
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
 	pdu := encodeInitPDU(1, 30)
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
+	if err := rx.processMessages(withPeerKeepAlive(pdu[ldpHeaderLen:]), [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages(version 1): %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -328,7 +337,7 @@ func TestRFC5036InitNonZeroKeepaliveTimeAccepted(t *testing.T) {
 	rx.state = StateOpenSent
 
 	pdu := encodeInitPDU(ldpVersion, 30)
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
+	if err := rx.processMessages(withPeerKeepAlive(pdu[ldpHeaderLen:]), [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -500,7 +509,8 @@ func runSessionForTest(t *testing.T, sess *Session) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go runSession(ctx, slogutil.DiscardLogger(), sess, sess.lib, "10.0.0.2:0",
-		newLDPFIB(nil, slogutil.DiscardLogger()), func() { close(done) })
+		newLDPFIB(nil, slogutil.DiscardLogger()), sessionUpEvent(testAdjacency(), "10.0.0.2:0"),
+		func() { close(done) })
 	return func() {
 		cancel()
 		sess.Stop()

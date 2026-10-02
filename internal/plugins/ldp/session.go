@@ -88,7 +88,12 @@ var (
 type Session struct {
 	mu sync.Mutex
 
-	state         SessionState
+	state SessionState
+	// initAccepted records that ze, having sent its own Initialization, accepted
+	// the peer's (OPENSENT to OPENREC). Only then does the peer's KeepAlive make
+	// the session operational: an OPENREC reached without ze's Initialization is
+	// not a session the peer can have confirmed.
+	initAccepted  bool
 	conn          net.Conn
 	peerAddr      netip.Addr
 	localLSRID    [4]byte
@@ -386,11 +391,13 @@ func (s *Session) SendLabelWithdraw(prefix netip.Prefix, label uint32) error {
 }
 
 // ReadLoop reads messages from the TCP connection and processes them.
-// Blocks until the connection is closed or an error occurs. onOperational fires
-// once, when the Initialization exchange completes and the session reaches the
-// operational state, so the caller can advertise its local label mappings
-// (RFC 5036 Section 2.5.3). It may be nil.
-func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onOperational func()) error {
+// Blocks until the connection is closed or an error occurs. onAccepted fires when
+// ze accepts the peer's Initialization, so the caller replies with a KeepAlive.
+// onOperational fires once, after the PDU carrying the peer's KeepAlive that made
+// the session operational (RFC 5036 Section 2.5.3), so the caller can advertise
+// its local label mappings and announce the session. Either may be nil.
+func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onAccepted, onOperational func()) error {
+	operational := false
 	var hdrBuf [ldpHeaderLen]byte
 	for {
 		if s.stopped() {
@@ -424,8 +431,18 @@ func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdra
 			return err
 		}
 
-		if err := s.processMessages(body, pdu.LSRID, pdu.LabelSpace, onLabel, onWithdraw, onOperational); err != nil {
+		if err := s.processMessages(body, pdu.LSRID, pdu.LabelSpace, onLabel, onWithdraw, onAccepted); err != nil {
 			return err
+		}
+		if operational {
+			continue
+		}
+		if s.State() != StateOperational {
+			continue
+		}
+		operational = true
+		if onOperational != nil {
+			onOperational()
 		}
 	}
 }
@@ -433,7 +450,9 @@ func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdra
 // processMessages applies every message of one PDU body. peerLSRID and
 // peerLabelSpace are the LDP Identifier of the PDU header, which names the
 // sender's label space (RFC 5036 Section 3.5.3, Receiver LDP Identifier).
-func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace uint16, onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onOperational func()) error {
+// onAccepted fires when ze accepts the peer's Initialization in OPENSENT, so the
+// caller replies with the KeepAlive. It may be nil.
+func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace uint16, onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onAccepted func()) error {
 	off := 0
 	for off < len(body) {
 		if len(body[off:]) < ldpMsgHdrLen {
@@ -451,7 +470,9 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 
 		switch msgHdr.Type {
 		case MsgTypeKeepAlive:
-			s.log.Debug("ldp: keepalive received")
+			if s.keepaliveReceived() {
+				s.log.Debug("ldp: session operational", "peer", s.peerAddr.String())
+			}
 		case MsgTypeInitialize:
 			initMsg, err := DecodeInit(msgHdr.MessageID, msgBody)
 			if err != nil {
@@ -497,10 +518,10 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 					"peer", s.peerAddr.String())
 				return s.rejectInit(statusSessionRejectedBadKeepaliveTime, msgHdr.MessageID, errBadKeepaliveTime)
 			}
-			if s.handleInit(initMsg, peerLSRID) && onOperational != nil {
+			if s.handleInit(initMsg, peerLSRID) && onAccepted != nil {
 				// Fire after handleInit has released s.mu so the callback can
 				// safely send on the session without re-entering the lock.
-				onOperational()
+				onAccepted()
 			}
 		case MsgTypeLabelMapping:
 			lm, err := decodeLabelMapping(msgHdr.MessageID, msgBody)
@@ -692,9 +713,29 @@ func (s *Session) sendNotification(status, referMsgID uint32, referMsgType uint1
 	return s.conn.SetWriteDeadline(time.Time{})
 }
 
+// keepaliveReceived applies a received KeepAlive to the FSM. It returns true when
+// the KeepAlive makes the session operational, which happens once.
+func (s *Session) keepaliveReceived() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.state != StateOpenReceived {
+		return false
+	}
+	if !s.initAccepted {
+		return false
+	}
+	// RFC 5036 Section 2.5.3: "When LSR1 has received both an acceptable
+	// Initialization message and a KeepAlive message, the session is operational
+	// from LSR1's point of view."
+	s.state = StateOperational
+	return true
+}
+
 // handleInit applies a received Initialization message and advances the FSM.
-// It returns true when this message transitions the session into the operational
-// state, so the caller can advertise its local label mappings.
+// It returns true when ze, in OPENSENT, accepts the message: the session moves to
+// OPENREC and the caller MUST reply with a KeepAlive. The session becomes
+// operational only on the peer's KeepAlive (keepaliveReceived).
 //
 // The caller MUST have accepted msg first: processMessages rejects an
 // unacceptable Initialization before it gets here, so msg.KeepaliveTime is
@@ -742,7 +783,11 @@ func (s *Session) handleInit(msg initMessage, peerLSRID [4]byte) bool {
 
 	switch s.state {
 	case StateOpenSent:
-		s.state = StateOperational
+		// RFC 5036 Section 2.5.4: "OPENSENT  Receive acceptable Initialization
+		// msg  OPENREC  Action: Transmit KeepAlive msg". The session is not yet
+		// operational: that waits for the peer's KeepAlive (keepaliveReceived).
+		s.state = StateOpenReceived
+		s.initAccepted = true
 		return true
 	case StateInitialized:
 		s.state = StateOpenReceived
