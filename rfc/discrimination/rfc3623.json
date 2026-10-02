@@ -90,6 +90,50 @@
       "break": "body of maybeUnplannedRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3623-A-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory",
+      "unit-sha": "986e690452a22c3e",
+      "claim-sha": "a4d078acc7354149",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/grace_lsa.go::DecodeGraceLSA",
+      "producer-sha": "43011a568a58e444",
+      "break": "body of DecodeGraceLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-A-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip",
+      "unit-sha": "78cf15ecae185b22",
+      "claim-sha": "61b7180a21855c52",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/grace_lsa.go::EncodeGraceLSA",
+      "producer-sha": "a11b0fe464a2ccf3",
+      "break": "body of EncodeGraceLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-A-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory",
+      "unit-sha": "986e690452a22c3e",
+      "claim-sha": "258c754d77448a52",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/grace_lsa.go::DecodeGraceLSA",
+      "producer-sha": "43011a568a58e444",
+      "break": "body of DecodeGraceLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-A-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip",
+      "unit-sha": "78cf15ecae185b22",
+      "claim-sha": "0e69553b216b0e54",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/grace_lsa.go::EncodeGraceLSA",
+      "producer-sha": "a11b0fe464a2ccf3",
+      "break": "body of EncodeGraceLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3623-A-4",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress",

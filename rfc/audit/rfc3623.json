@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC3623-2.1-1": {
       "note": "Re-judged 2026-09-30 (independent judge, c12). Section 2.1: 'Router X must ensure that its forwarding table(s) is/are up-to-date and will remain in place across the restart.' Up-to-date clause: TestRFC3623PrepareInstallsPendingSPFAndKeepsIt (c10, grRefreshFIB). Remain-in-place clause, the c11 gap (initSPF SetInstallSuppress wiring unproven): TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes drives the e.spf newEngine built through initSPF (not rebuilt), SPF installs 203.0.113.128/26, prepareRestart, the peer re-originates without the stub, Run: the route stays in the Loc-RIB. Author overlay removing only e.spf.SetInstallSuppress(e.gr.suppressInstall) from spf_wiring.go turns it red ('withdrew a route from the retained forwarding table'; judge read the overlay diff and the log) while the c10 unit stays green. Recorded red is the initSPF revert halt. {single-polarity: positive} kept: the requirement forbids nothing beyond failing to retain.",
@@ -78,30 +78,30 @@
       "verdict": "enforced"
     },
     "RFC3623-A-2": {
-      "note": "The quote describes the Grace Period TLV and ends with its MUST: it always appears in a grace-LSA. Forbidden behaviour (a): a grace-LSA emitted without the type-1 TLV. (b) TestGraceLSARoundTrip asserts len(body) == opaqueTLVsLen(period, reason, addr) and a round-trip equal to the input, so an EncodeGraceLSA that dropped type 1 goes red; the negative TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA errors on the reasonOnly body. EncodeGraceLSA emits type 1 unconditionally. The descriptive clauses on the TLV value (neighbors keep advertising, grace-period end) are helper behaviour stated in sec 3 rows, not this row's obligation.",
+      "note": "c22 re-judge (units changed: the RFC5187 tag comments moved off them). Forbidden: a grace-LSA without the Grace Period TLV (Type 1). TestGraceLSARoundTrip asserts the EncodeGraceLSA body length against opaqueTLVsLen of the expected TLVs and a round-trip through DecodeGraceLSA; TestGraceLSADecodeMissingMandatory asserts a reason-only body is refused. No assertion reads a type octet: encoder and decoder both use packet.GraceTLVPeriod, so a constant of the wrong value (the TLV absent on the wire as Type 1) stays green in both units, the same gap the RFC5187-2.2-1 verdict recorded on these units. The OSPFv2 origination (gr_lsa.go) is not driven. Missing: a literal-octet assertion on the originated OSPFv2 Grace-LSA body. Records exist (revert of EncodeGraceLSA/DecodeGraceLSA) and answer only the total-break question.",
       "requirement_sha": "e48a7ac4d7b16413",
       "tests": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "9c861bec0bc1802e",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "9c861bec0bc1802e"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560"
       },
       "units": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "8de3af46933958f8",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "c35d39a0489d572e"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3623-A-3": {
-      "note": "Forbidden behaviour (a): a grace-LSA emitted without the type-2 Graceful restart reason TLV. (b) TestGraceLSARoundTrip asserts the body length includes the 1-octet reason TLV padded to 4 and the round-trip returns Reason=2, so omission goes red; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA errors on the periodOnly body. The reason value range is a descriptive list, the MUST is presence.",
+      "note": "c22 re-judge (units changed: the RFC5187 tag comments moved off them). Forbidden: a grace-LSA without the Graceful restart reason TLV (Type 2). TestGraceLSARoundTrip asserts the body length and a Reason=2 round-trip; TestGraceLSADecodeMissingMandatory asserts a period-only body is refused. No assertion reads the type octet: both sides use packet.GraceTLVReason, so a wrong type number stays green. The OSPFv2 origination (gr_lsa.go) is not driven. Missing: a literal-octet assertion on the originated OSPFv2 Grace-LSA body.",
       "requirement_sha": "11574bd702f7ecb8",
       "tests": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "9c861bec0bc1802e",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "9c861bec0bc1802e"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560"
       },
       "units": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "8de3af46933958f8",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "c35d39a0489d572e"
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3623-A-4": {
       "note": "Re-judged 2026-09-29 (independent judge). The segment-type mapping gap is closed: TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress runs grOriginateGraceLSAs over running broadcast, NBMA and point-to-multipoint interfaces and decodes the type-3 TLV from each installed link-scope Grace-LSA (revert record on grSharedMedia). Weak only on polarity: the tagged negative (TestGraceLSAv4BodyBuild, point-to-point omits the TLV) asserts what the RFC does not forbid, so it does not violate this requirement, and the row carries no {single-polarity} annotation. The obligation is presence-only with no receive-side refusal, so the fix is to replace the negative tag with a {single-polarity: positive} annotation stating that.",

@@ -1,32 +1,32 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5187-2.2-1": {
-      "note": "Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4), originated or accepted. TestGraceLSARoundTrip asserts the EncodeGraceLSA body length equals period(4)+reason(1)+addr(4) TLVs and round-trips GracePeriod; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA rejects a Reason-only body. Neither reads the type octets: encode and decode both use GraceTLVPeriod, so a wrong type number (the TLV absent on the wire as Type 1) stays green. The tagged units are the shared codec; the OSPFv3 origination path (gr_restarter.go, LS type 0x000B) is not driven.",
+      "note": "c22 re-judge. Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4). Positive TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs drives the OSPFv3 origination v6OriginateGraceLSA (gr_restarter.go calls it) and compares the installed LSA body after the 20-octet v3 header with literal octets 00 01 00 04 <period> for period 120 and 0, so a wrong type, wrong length or dropped TLV goes red (author overlay GraceTLVPeriod=3 red; recorded revert of v3/packet/lsa_grace.go::tlvs). Negative under OWNER RULING 2 (generate row: the negative is how Ze handles a peer PDU lacking it; RFC 5187 prescribes no handling and the helper cannot run a window it was not given, so ignore): TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV feeds a reason-only v3 Grace-LSA to grInspectV6Update (instance.go receive path) while helping X and asserts the helper grace end is unchanged, with a both-TLV control that moves it to now+600, isolating the hasPeriod check (author overlay: removing hasPeriod reds only that subtest; recorded revert of ::decodeGraceLSA). Tags moved off the OSPFv2 RFC 3623 codec units (D-15).",
       "requirement_sha": "02624a9527143956",
       "tests": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "9c861bec0bc1802e",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "9c861bec0bc1802e"
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "9b3524b8afee74d5",
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "9b3524b8afee74d5"
       },
       "units": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "8de3af46933958f8",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "c35d39a0489d572e"
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "432a4746e0ebc120",
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "be719a1509d006d9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5187-2.2-2": {
-      "note": "Forbidden: a grace-LSA without the Graceful restart reason TLV (Type=2, Length=1). TestGraceLSARoundTrip asserts the encoded body length and round-trips Reason; TestGraceLSADecodeMissingMandatory asserts a Period-only body is rejected. No assertion reads the type octet: both sides use GraceTLVReason, so a wrong type number stays green. The OSPFv3 origination path (gr_restarter.go) is not driven.",
+      "note": "c22 re-judge. Forbidden: a grace-LSA without the Graceful restart reason TLV (Type=2, Length=1). Positive: same origination unit asserts the literal 00 02 00 01 <reason> 00 00 00 after the period TLV for reason 2 and 0, body exactly 16 octets, so a wrong type number, length or omission goes red (recorded revert of v3 lsa_grace.go::tlvs). Negative under OWNER RULING 2: a period-only (600) v3 Grace-LSA through grInspectV6Update leaves the helper session and its grace end unchanged while the both-TLV control applies 600, isolating the hasReason check (author overlay; recorded revert of ::decodeGraceLSA). Tags moved off the OSPFv2 codec units (D-15).",
       "requirement_sha": "8fd2ecb5b3d69054",
       "tests": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "9c861bec0bc1802e",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "9c861bec0bc1802e"
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "9b3524b8afee74d5",
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "9b3524b8afee74d5"
       },
       "units": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "8de3af46933958f8",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "c35d39a0489d572e"
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "432a4746e0ebc120",
+        "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "be719a1509d006d9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5187-3.1-1": {
       "note": "Re-judged 2026-09-30 (independent judge, c11). Now proven through the real restart path (rfc5187_preserve_restart_test.go): engine A redistributes 2001:db8:5187::/48 (v6InjectExternal), prepareRestart persists into a store; engine B over the same store resumes (inRestart asserted). TestRFC5187LSAIDToPrefixPreservedAcrossRestart +: B maps the prefix to A's LSA ID without redistributing it (only restorePrefixLSIDs can put it there; a no-op capture or restore leaves no entry -> red). - same unit: a prefix first redistributed on B does not take the preserved ID and the preserved prefix keeps its own; an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) removing the redistV6Next bump in restorePrefixLSIDs turns it red ('took the preserved LSA ID 1'). Revert records on restorePrefixLSIDs observed red. Old gr_nvs_test.go tags (store round-trip only) remain, unproven.",

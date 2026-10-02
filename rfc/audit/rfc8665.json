@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8665-10-1": {
@@ -234,17 +234,21 @@
       "verdict": "enforced"
     },
     "RFC8665-5-12": {
-      "note": "the NP=1/E=1 decision is asserted: TestRFC8665ExplicitNullReplacesPrefixSID requires ActionExplicitNull, and TestRFC8665NoPHPKeepsPrefixSIDLabel requires NP=1/E=0 to keep 16009. But 'an Explicit NULL label' is proven only as label == ExplicitNullV4, the constant compared with itself, so an Explicit NULL constant of the wrong value stays green, and no tagged unit drives E=1 through installRoutes/installPrefixSID or checks the label the installer programs (questions 2 and 4)",
+      "note": "c22 re-judge. Positive: NP and E both set pushes the literal IPv4 Explicit NULL 0 in the installed mpls-fib entry toward the originator, through installRoutes (recorded revert of sr/install.go::OutgoingLabel; overlay ExplicitNullV4=3 red). Negative: NP set with E clear is not the both-set case and pushes 16009, never 0 (recorded revert of OutgoingActionFor). The older decision-helper units stay as supplementary.",
       "requirement_sha": "48421cd0e398092b",
       "tests": {
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "321dd3b6715b9f86",
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "321dd3b6715b9f86",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "279bf468c654f872",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "279bf468c654f872"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "7b619330b57b3ea6",
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "afa359527626375f",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "6b565633b578aaa9",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-5-2": {
       "note": "forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7",
@@ -260,17 +264,21 @@
       "verdict": "enforced"
     },
     "RFC8665-5-3": {
-      "note": "clause 'replace with Explicit NULL' is asserted at the decision helper: TestRFC8665ExplicitNullReplacesPrefixSID requires OutgoingActionFor(NP=1,E=1) to be ActionExplicitNull, and the E=0 case keeps 16009. Clause '(0 for IPv4)' has no red assertion: the test compares the imposed label with the constant ExplicitNullV4 itself, so a wrong constant stays green, and the family choice srExplicitNull (sr_install.go) that hands the installer ExplicitNullV4 is driven by no tagged unit; no tagged unit drives E=1 through installRoutes/installPrefixSID (questions 2 and 4)",
+      "note": "c22 re-judge. rfc8665_explicit_null_label_test.go drives installRoutes (rfc8665PushTowardOriginator) with the originator as next hop and reads the label in the mpls-fib push entry. Positive: NP=1 E=1 pushes the literal label 0, which covers both 'replace the Prefix-SID with the Explicit NULL label' and '(0 for IPv4)' without comparing sr.ExplicitNullV4 with itself (author overlay ExplicitNullV4=3 reds it while the older units stay green; recorded revert of sr/install.go::OutgoingLabel). Negative: E clear (NP=1) pushes the Prefix-SID label 16009 and not 0 (recorded revert of OutgoingActionFor). RFC 8665 is IPv4-only, so the IPv4 value is the whole clause.",
       "requirement_sha": "a25fd316fa1c7fd9",
       "tests": {
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "321dd3b6715b9f86",
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "321dd3b6715b9f86",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "279bf468c654f872",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "279bf468c654f872"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "7b619330b57b3ea6",
+        "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "afa359527626375f",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "6b565633b578aaa9",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-5-4": {
       "note": "forbidden: installing a Prefix-SID whose algorithm the originator did not advertise. TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised drives installRoutes with the originator advertising {1} only and a usable SRGB and requires no mpls-fib entry at all; without the check the NP=0 penultimate-hop route would emit a pop entry, so the len == 0 assertion goes red. Positive with {0} requires push label 16009",

@@ -2,6 +2,50 @@
   "rfc": "rfc3101",
   "records": [
     {
+      "rid": "RFC3101-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted",
+      "unit-sha": "32056b2451a4254f",
+      "claim-sha": "b107dc624810d162",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+      "producer-sha": "b461a33440420dd6",
+      "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType",
+      "unit-sha": "e566ea5b7016347b",
+      "claim-sha": "29dd2bb4ff2c69ef",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+      "producer-sha": "b461a33440420dd6",
+      "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-2.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA",
+      "unit-sha": "5744d359dd541984",
+      "claim-sha": "d5ed54130fe80c8f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::eligibleInterface",
+      "producer-sha": "3f1a533598485f78",
+      "break": "body of eligibleInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-2.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA",
+      "unit-sha": "a18cc126bfa37573",
+      "claim-sha": "a8c71293e631d9f1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::eligibleInterface",
+      "producer-sha": "3f1a533598485f78",
+      "break": "body of eligibleInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3101-2.4-2",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress",
@@ -154,6 +198,28 @@
       "producer": "internal/plugins/ospf/spf/area_type.go::applyAreaTypePolicy",
       "producer-sha": "fe2392f24e27251d",
       "break": "body of applyAreaTypePolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea",
+      "unit-sha": "47d2b399377d142d",
+      "claim-sha": "0601f8cee7e27f12",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit",
+      "producer-sha": "b97e562cf30a61a0",
+      "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere",
+      "unit-sha": "535c858893b5e9f7",
+      "claim-sha": "258722c98b809055",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit",
+      "producer-sha": "b97e562cf30a61a0",
+      "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-3.1-1",
@@ -341,6 +407,28 @@
       "producer": "internal/plugins/ospf/nssa.go::equivalentType5V6",
       "producer-sha": "db333c7c23617694",
       "break": "body of equivalentType5V6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear",
+      "unit-sha": "84baae58315d19f6",
+      "claim-sha": "df00f6dc6dd4e88d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::expectedOptionsLocked",
+      "producer-sha": "d520e240f4def45d",
+      "break": "body of expectedOptionsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-x-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused",
+      "unit-sha": "261604cdc23fb842",
+      "claim-sha": "b8ad1b00d7cfdadf",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+      "producer-sha": "b461a33440420dd6",
+      "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-x-4",

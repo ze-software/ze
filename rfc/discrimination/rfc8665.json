@@ -35,6 +35,50 @@
       "break": "body of parseSegmentRouting replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8665-5-12",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero",
+      "unit-sha": "fbb71ac1904fe189",
+      "claim-sha": "32cf682a0d004dfb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/install.go::OutgoingLabel",
+      "producer-sha": "8a10ba17b123d1d6",
+      "break": "body of OutgoingLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-12",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag",
+      "unit-sha": "8c197684716749ae",
+      "claim-sha": "409de922a95dfd0f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
+      "producer-sha": "9ca706d9d63730b0",
+      "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero",
+      "unit-sha": "fbb71ac1904fe189",
+      "claim-sha": "dcb4c0d3e26a9782",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/install.go::OutgoingLabel",
+      "producer-sha": "8a10ba17b123d1d6",
+      "break": "body of OutgoingLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag",
+      "unit-sha": "8c197684716749ae",
+      "claim-sha": "1bd8373f01540e42",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
+      "producer-sha": "9ca706d9d63730b0",
+      "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-5-6",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate",

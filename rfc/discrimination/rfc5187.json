@@ -2,6 +2,50 @@
   "rfc": "rfc5187",
   "records": [
     {
+      "rid": "RFC5187-2.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV",
+      "unit-sha": "68e7b84984325fe8",
+      "claim-sha": "18a41e77ea582c8e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/v3/packet/lsa_grace.go::decodeGraceLSA",
+      "producer-sha": "5a9d4c5086577ea1",
+      "break": "body of decodeGraceLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-2.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs",
+      "unit-sha": "d2c10eac3fae0962",
+      "claim-sha": "9c1a7e7d9c713caa",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/v3/packet/lsa_grace.go::tlvs",
+      "producer-sha": "bc9c1143e3d662be",
+      "break": "body of tlvs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-2.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV",
+      "unit-sha": "68e7b84984325fe8",
+      "claim-sha": "35b4a1c18639f119",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/v3/packet/lsa_grace.go::decodeGraceLSA",
+      "producer-sha": "5a9d4c5086577ea1",
+      "break": "body of decodeGraceLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5187-2.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs",
+      "unit-sha": "d2c10eac3fae0962",
+      "claim-sha": "47985054cad0d611",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/v3/packet/lsa_grace.go::tlvs",
+      "producer-sha": "bc9c1143e3d662be",
+      "break": "body of tlvs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5187-3.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart",

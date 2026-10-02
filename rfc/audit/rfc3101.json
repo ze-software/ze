@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -8,17 +8,21 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3101-2.1-1": {
-      "note": "iface/hello_nssa_test.go TestOSPFNSSANbitMismatch runs on an NSSA interface only: E-set Hello red at the DropReasonOptionsE assert (line 74), N-clear Hello red at the DropReasonOptionsN assert (line 63). The quote requires both bits to match the area type of ANY receiving interface; no Hello with N set is sent to a normal or stub area interface, so a producer that compared the N-bit only on NSSA interfaces (validateHelloLocked, iface.go) stays green.",
+      "note": "c22 re-judge. The quote requires the received Hello's N-bit and E-bit to match the area type of the receiving interface, any area type. iface/rfc3101_hello_options_test.go drives ReceiveHello -> validateHelloLocked. Positive: matching options accepted on normal (E), stub (none) and NSSA (N). Negative: normal N set -> options-n, normal E clear -> options-e, stub N set -> options-n, stub E set -> options-e, NSSA N clear -> options-n; each case keeps the other bit matching, so the asserted drop reason isolates the bit under test (E is checked first). The author overlay comparing N only on NSSA (the earlier finding) reds normal-n-set and stub-n-set while the old NSSA-only TestOSPFNSSANbitMismatch stays green. Both polarities carry a recorded revert of validateHelloLocked.",
       "requirement_sha": "c6957237a63eeeba",
       "tests": {
         "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29"
+        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted": "4184129f1a0e776d",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType": "4184129f1a0e776d"
       },
       "units": {
         "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195"
+        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted": "9b9be4d9e73373f0",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType": "f164c3e081f1f30a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3101-2.1-2": {
       "note": "Forbidden: an adjacency with a neighbour disagreeing on N. iface/hello_nssa_test.go TestOSPFNSSANbitMismatch sends an N-clear Hello to an NSSA interface and asserts DropReasonOptionsN (line 63); receiveHello returns on that reason before the neighbour is created. Positive: the N-set, E-clear Hello is accepted (line 54).",
@@ -47,17 +51,21 @@
       "verdict": "enforced"
     },
     "RFC3101-2.3-2": {
-      "note": "lsdb/nssa_test.go TestOSPFType7FloodScope: the negative uses a backbone interface of a normal area, which the AreaType check alone rejects; an interface of a different NSSA is never tried, so dropping the AreaID==area comparison in eligibleInterface leaves the test green.",
+      "note": "c22 re-judge. lsdb/rfc3101_type7_flood_scope_test.go: ABR with eth0 backbone, eth1+eth4 NSSA 0.0.0.1, eth2 NSSA 0.0.0.2, all with Full neighbors; a Type-7 from 3.3.3.3 enters through ReceiveUpdate on eth1. Positive: installed in 0.0.0.1 and flooded out eth4 (same NSSA). Negative: with eth4 reach asserted first, no LS Update carries it out eth2 (a different NSSA) or eth0, no retransmission entry for 5.5.5.5 or 2.2.2.2, no copy in area 0.0.0.2. Dropping the AreaID==area comparison in eligibleInterface's NSSA case (the earlier finding) reds the new negative while TestOSPFType7FloodScope stays green. Both polarities carry a recorded revert of flooding.go::eligibleInterface.",
       "requirement_sha": "1ae6cfbb93a1b34d",
       "tests": {
         "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope": "25c9971b446b97d0",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope#2": "25c9971b446b97d0"
+        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope#2": "25c9971b446b97d0",
+        "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA": "ccba28623b8750db",
+        "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA": "ccba28623b8750db"
       },
       "units": {
         "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope": "77e7c7a36db7bf5a",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope#2": "77e7c7a36db7bf5a"
+        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope#2": "77e7c7a36db7bf5a",
+        "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA": "2ff94ee40bff2bee",
+        "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA": "5a0f675d4734c86e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3101-2.3-3": {
       "note": "Forbidden: keeping a Type-7 whose forwarding interface went Down. nssa_import_lifecycle_test.go TestNSSAImportReoriginatesAfterForwardingInterfaceDown asserts after onInterfaceDown the next forwarding address, Sequence.Next(), not MaxAge (line 138), and MaxAge when no address remains (line 145); TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent asserts an unrelated Down leaves sequence and address unchanged (line 170).",
@@ -288,20 +296,21 @@
       "verdict": "enforced"
     },
     "RFC3101-3.1-1": {
-      "code": {
-        "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit": "5484c23f0c0c1778"
-      },
-      "note": "RA-FIX re-read 2026-09-27. lsdb.NSSABorderEBit sets the E-bit for an ABR with an active NSSA in every attached area that is not a stub. TestRFC3101NSSABorderRouterSetsEBit asserts it only for the BACKBONE router-LSA of an ABR with no external (and clear when the second area is normal). The row says the router-LSAs of the directly attached non-stub areas, plural: the E-bit in the router-LSA of any other attached non-stub area is not asserted, nor is the OSPFv3 producer v6OriginateSelf (origination_v6.go), which the code also routes through NSSABorderEBit. TestOSPFASBRBitFromNSSAType7 proves the ASBR E-bit of a router with only backbone interfaces, a neighbouring rule (RFC 2328 Section A.4.2), though its tags call it an NSSA border router. Re-stamped 2026-09-27 by DF-OSPF-D, verdict unchanged: the only change to NSSABorderEBit since the last stamp is a comment sentence added for godot; the body is byte-identical.",
+      "note": "c22 re-judge. OSPFv2 now proven: lsdb/rfc3101_nssa_border_ebit_areas_test.go originates through OriginateFromTopology for an ABR in the backbone, NSSA 0.0.0.1 and normal 0.0.0.2 with no external LSA and no translation, and asserts the E-bit set in the router-LSA of all three non-stub areas; the negative (area 0.0.0.1 normal, no NSSA) asserts it clear in all three. Overlay making NSSABorderEBit answer only for the backbone reds the positive on 0.0.0.2 and 0.0.0.1; both carry recorded reverts of origination.go::NSSABorderEBit. Still weak on the OSPFv3 producer: RFC 5340 sec 3.3 says its NSSA text 'coupled with [NSSA] provide sufficient specification' for OSPFv3, and Ze routes the v3 router-LSA E-bit through v6OriginateSelf (origination_v6.go) -> NSSABorderEBit -> v6OriginateRouter. No tagged unit drives v6OriginateSelf for an NSSA border router (TestOSPFv6OriginateRouterLSAABRNtBits passes nssaBorderE=false directly), so a v6OriginateSelf that dropped nssaBorderE stays green. Missing: one OSPFv3 unit asserting the E-bit in each attached non-stub area's v3 router-LSA.",
       "requirement_sha": "0409f2f519db36f9",
       "tests": {
         "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "0d6427b918f145f2",
         "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "0d6427b918f145f2",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "05a1bdbad4c0a365",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "fa377c02d28ef7c6",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "fa377c02d28ef7c6"
       },
       "units": {
         "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "61554072b6a1ad56",
         "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "61554072b6a1ad56",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "58b9ac30f97841e6",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "6336aecd21aa6836",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "403ab4b7dbaeffb5",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "403ab4b7dbaeffb5"
       },
@@ -404,17 +413,21 @@
       "verdict": "weak"
     },
     "RFC3101-x-1": {
-      "note": "iface/hello_nssa_test.go TestOSPFNSSANbitMismatch: the negative sends a Hello with only E set (N clear), so it proves the E-mismatch drop, not the N-set implies E-clear rule; no Hello carrying N and E together is sent, and the options Ze itself emits on an NSSA interface are not asserted.",
+      "note": "c22 re-judge. Positive TestRFC3101NSSAHelloSentWithNSetAndEClear reads the Options octet at offset 30 of buildHelloPacketLocked (the payload every Hello send uses, iface.go) on an NSSA interface and asserts 0x08 set and 0x02 clear as literal bits (recorded revert of expectedOptionsLocked). Negative under OWNER RULING 2: an NSSA Hello carrying N and E together is dropped with options-e (TestRFC3101NSSAHelloWithNAndESetRefused, recorded revert of validateHelloLocked); the author overlay skipping the E check when N is set reds it while the old E-only negative stays green. RFC 3101 is OSPFv2; the Options octet checked is the OSPFv2 one.",
       "requirement_sha": "c2f99629ac81af34",
       "tests": {
         "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29"
+        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear": "4184129f1a0e776d",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused": "4184129f1a0e776d"
       },
       "units": {
         "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195"
+        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear": "1c152a7c5d3e59b9",
+        "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused": "9987661d6ac3a143"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC3101-x-3": {
       "note": "Forbidden: no configuration vehicle for the P-bit. nssa_import_lifecycle_test.go TestNSSAPerSourcePropagationEnabled parses nssa-propagate true and asserts P set on the imported route and default (line 204); TestNSSAPerSourcePropagationDisabled asserts P clear for explicit false and unconfigured sources (line 226); TestNSSAPerSourcePropagationCannotOverrideType5 asserts P clear with a Type-5 twin (line 251).",

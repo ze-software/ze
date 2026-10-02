@@ -9,13 +9,6 @@ package packet
 
 import "testing"
 
-// RFC requirement: RFC5187-2.2-1 positive -- the Grace Period TLV (Type 1) always
-// appears in a grace-LSA (RFC 5187 sec 2.2, same format as RFC 3623): EncodeGraceLSA
-// always emits it (internal/plugins/ospf/packet/grace_lsa.go:47-49) and the body
-// round-trips its GracePeriod through DecodeGraceLSA.
-// RFC requirement: RFC5187-2.2-2 positive -- the Graceful Restart Reason TLV (Type 2)
-// always appears in a grace-LSA (RFC 5187 sec 2.2): EncodeGraceLSA always emits it and
-// the body round-trips its Reason.
 func TestGraceLSARoundTrip(t *testing.T) {
 	// RFC requirement: RFC3623-A-2 positive -- the Grace Period TLV (type 1) always appears
 	// in a grace-LSA (RFC 3623 sec A): EncodeGraceLSA always emits it
@@ -62,12 +55,6 @@ func TestGraceLSANoInterfaceAddr(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5187-2.2-1 negative -- a grace-LSA body that OMITS the Grace
-// Period TLV is malformed and rejected (RFC 5187 sec 2.2 requires it to always appear):
-// DecodeGraceLSA returns an error rather than accepting a Reason-only body
-// (internal/plugins/ospf/packet/grace_lsa.go:94 requires hasPeriod).
-// RFC requirement: RFC5187-2.2-2 negative -- a grace-LSA body that OMITS the Reason TLV
-// is likewise malformed and rejected (grace_lsa.go:94 requires hasReason).
 func TestGraceLSADecodeMissingMandatory(t *testing.T) {
 	// RFC requirement: RFC3623-A-3 negative -- a grace-LSA body that OMITS the Reason TLV is
 	// malformed and rejected (RFC 3623 sec A requires it to always appear): DecodeGraceLSA
