@@ -543,28 +543,6 @@
     {
       "rid": "RFC4301-4.4.2.1-1",
       "polarity": "positive",
-      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
-      "unit-sha": "123ec0767cac9453",
-      "claim-sha": "fb0248e9198475d7",
-      "route": "revert",
-      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
-      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4301-4.4.2.1-1",
-      "polarity": "negative",
-      "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong",
-      "unit-sha": "2a10a734b6939a7b",
-      "claim-sha": "6db9ab495a2cd1f4",
-      "route": "revert",
-      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-      "producer-sha": "2d320a2463fb54dd",
-      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4301-4.4.2.1-1",
-      "polarity": "positive",
       "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue",
       "unit-sha": "9dd3c29e2801ea6a",
       "claim-sha": "06fcc8dbf2a60dd5",
@@ -879,7 +857,7 @@
       "route": "mutant",
       "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
       "producer-sha": "105a438ab75af3a8",
-      "break": "line 243: \"ic.IPsec != nil\" -\u003e \"false\""
+      "break": "line 243: \"ic.IPsec != nil\" -> \"false\""
     },
     {
       "rid": "RFC4301-4.5.2-1",

@@ -378,17 +378,6 @@
     {
       "rid": "RFC1195-5.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr",
-      "unit-sha": "d80c5135f8bbe90d",
-      "claim-sha": "a522aca671202f06",
-      "route": "revert",
-      "producer": "internal/plugins/isis/packet/tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV",
-      "producer-sha": "d53825749c50ffb3",
-      "break": "body of DecodeIPv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC1195-5.2-2",
-      "polarity": "positive",
       "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels",
       "unit-sha": "f40d8c8617a7f784",
       "claim-sha": "ad1204d88f8e21da",

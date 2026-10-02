@@ -300,17 +300,6 @@
     },
     {
       "rid": "RFC4090-4.4-7",
-      "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitClearWithoutNodeBypass",
-      "unit-sha": "657030b5119e9cdf",
-      "claim-sha": "bb35746af4a1a74f",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/frr.go::selectBypass",
-      "producer-sha": "c78b83e2ef5ceb5b",
-      "break": "body of selectBypass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4090-4.4-7",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
       "unit-sha": "3d749d857f3285b0",
@@ -604,7 +593,7 @@
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/frr.go::selectBypass",
       "producer-sha": "c78b83e2ef5ceb5b",
-      "break": "line 313: \"!=\" -\u003e \"==\""
+      "break": "line 313: \"!=\" -> \"==\""
     },
     {
       "rid": "RFC4090-6.2-1",
@@ -615,7 +604,7 @@
       "route": "mutant",
       "producer": "internal/plugins/rsvpte/register.go::setupBypass",
       "producer-sha": "a1f576fd10bcc94f",
-      "break": "line 875: \"bc.MergePoint\" -\u003e \"cfg.RouterID\""
+      "break": "line 875: \"bc.MergePoint\" -> \"cfg.RouterID\""
     },
     {
       "rid": "RFC4090-6.4-1",
