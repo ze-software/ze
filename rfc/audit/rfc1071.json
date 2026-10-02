@@ -1,20 +1,23 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC1071-1-1": {
-      "note": "Sentence: to generate, the checksum field is cleared, the 16-bit one's complement sum is computed, and its complement is placed in the field. TestOSPFPacketChecksum asserts only that the field is non-zero and that ze's own VerifyPacketChecksum accepts. The clearing clause is not provable there: the encoded header starts with a zero Checksum, so an encoder that skipped the clear passes. No independent expected value pins the complement.",
+      "note": "Re-judged c18. Sentence: clear the field, sum, place the complement. TestRFC1071PacketChecksumClearedSummedAndComplemented encodes a Hello through Packet.WriteTo with a stale header Checksum 0xBEEF into a 0xA5-prefilled buffer and asserts the field equals the test's own RFC 1071 checksum (independent 64-bit fold, field cleared, auth excluded, complemented), equals the same packet encoded from a zero Checksum, and that the covered packet then folds to 0xFFFF. An encoder that skipped the clear (header.go WriteTo h.Checksum = 0) would sum 0xBEEF and go red; one that skipped the complement or placed nothing goes red on the independent value. Record breaks PacketChecksum (the sum/complement producer, checksum.go); the clear and the placement live in Packet.WriteTo, which the record tool cannot name because header.go holds three WriteTo, so their discrimination is argued from the assertions, not recorded. Old TestOSPFPacketChecksum (round-trip only) kept as supplementary. {single-polarity: positive} holds: a generate rule has no reject path; corruption detection is RFC1071-1-5.",
       "requirement_sha": "b309a05cdec3045e",
       "tests": {
-        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "8ac8573c092c7f1a"
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "8ac8573c092c7f1a",
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "e33d335070dd836a"
       },
       "units": {
-        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "7a67bd5fa6cb3961"
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "7a67bd5fa6cb3961",
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "fd7de707aa0ed334"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1071-1-2": {
       "note": "Forbidden: a one's complement sum without end-around carry. Red on it: TestChecksumRFC1071 compares checksum16 with an independent straight-line reference (t.Fatalf on got != want) over inputs whose sums overflow 16 bits (0xDEAD+0xBEEF, the golden VRRP packets). Single-polarity marker on the row.",
@@ -28,23 +31,25 @@
       "verdict": "enforced"
     },
     "RFC1071-1-3": {
-      "note": "Sub-span: the 16-bit one's complement sum is computed and its complement is placed in the checksum field. The complement is pinned by the exact vector 0x1411 in TestInternetChecksumRFC1071Vectors. The placement clause is not ze's in that unit: the test itself writes the value into data[2:4]; the tagged unit calls internetChecksum only.",
+      "note": "Re-judged c18. Sub-span: compute the 16-bit one's complement sum and place its complement in the checksum field. Placement is now ze's: TestRFC1071PacketChecksumClearedSummedAndComplemented reads back the field Packet.WriteTo wrote and compares it with the complement of the test's independent sum (the 0xFFFF fold of the covered packet pins the complement). The exact vector 0x1411 in TestInternetChecksumRFC1071Vectors still pins the complement in internetChecksum. Record breaks PacketChecksum, observed red. Single-polarity positive valid (no reject path).",
       "requirement_sha": "7e6c6e5ec37d332b",
       "tests": {
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "8df584d7f7f93f43"
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "e33d335070dd836a",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "66165fee03c7d467"
       },
       "units": {
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2fa72f8d875453be"
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "fd7de707aa0ed334",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2444e63534991810"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC1071-1-4": {
       "note": "Both forms of the RFC 1071 Section 1 sentence are now pinned by exact vectors on both producers. Even count [1]: TestRFC1071ChecksumEvenLength (icmpChecksum) and TestInternetChecksumEvenLength (internetChecksum) answer 0x9753 for [12 34 56 78] and 0xfc96 for [12 34 56 78 9a bc]; a little-endian word, a padded even tail or a missing end-around carry (the 6-octet sum 0x10368) each goes red. Odd count [2] [Z,0]: TestInternetChecksumOddLength pins 0x97cb and TestRFC792ChecksumOddLength folds an 11-octet echo to 0xffff. The {single-polarity: positive} holds: the row defines the sum a generator forms and has no reject path.",
       "requirement_sha": "fa54a374c7e8117d",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "a33adbfdaaf4b8f4",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "e4aad773ce5cac19",
         "internal/core/probe/rfc1071_even_test.go::TestRFC1071ChecksumEvenLength": "ec544312848e5e35",
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "8df584d7f7f93f43",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "66165fee03c7d467",
         "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestInternetChecksumEvenLength": "cc5064006e5e0814"
       },
       "units": {
@@ -56,28 +61,30 @@
       "verdict": "enforced"
     },
     "RFC1071-1-5": {
-      "note": "Re-judged 2026-09-30: TestRFC792ChecksumRejectsCorruption changed only by losing its RFC792-Echo-3 tag (moved to the vrrp stack test); its assertion still uses the test helper checksumOnesFold, so the finding stands. Sentence: to check a checksum, sum over the same octets including the checksum field and succeed on all ones. Both tagged units (TestRFC792ChecksumValid, TestRFC792ChecksumRejectsCorruption) perform the check with the test helper checksumOnesFold, not with ze code. They prove ze's GENERATED checksum is valid (the generate rule, RFC1071-1-1/RFC792-Echo-3), and that the helper detects corruption. No ze verify function (ospf VerifyPacketChecksum, vrrp verifyChecksumSum) is driven under this tag.",
+      "note": "Re-judged c18 (was wrong: probe units checked a test helper). Sentence: to check, sum the same octets including the checksum field; all ones succeeds. Positive TestRFC1071VerifyAcceptsAllOnesSum places the TEST's independent checksum, proves in setup the covered fold including the field is 0xFFFF, and ze's VerifyPacketChecksum accepts. Negative TestRFC1071VerifyRefusesSumNotAllOnes, from a verifying base, changes only the checksum field (+1), one covered body octet, or zeroes the field; each is setup-checked as not folding to 0xFFFF and each is refused. The field-only cases catch a verifier that left the field out of the sum or compared against nothing. Both polarities recorded red under a VerifyPacketChecksum break. The probe RFC792 units lost their 1-5 tags (D-15/R1): probe has no verify function. Scope: OSPFv2 packet verify (InternetChecksumPairValid); other ze verifiers (vrrp) are not tagged here.",
       "requirement_sha": "977762d7e0e4aeaa",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "a33adbfdaaf4b8f4",
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a33adbfdaaf4b8f4"
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyAcceptsAllOnesSum": "e33d335070dd836a",
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyRefusesSumNotAllOnes": "e33d335070dd836a"
       },
       "units": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "6ff27d0f2500f22a",
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a4ca55fc19375ae9"
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyAcceptsAllOnesSum": "3dbc0501aaeec13a",
+        "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyRefusesSumNotAllOnes": "31d2813a5e86a9ee"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC1071-1-6": {
-      "note": "Sentence: fold the long sum into 16 bits; each 16-bit addition may produce new end-around carries that must be added. The vector in TestInternetChecksumRFC1071Vectors overflows once (0x1EBED folds to 0xEBEE with no second carry), so a single fold without repetition still returns 0x1411. The repeated-carry clause has no assertion.",
+      "note": "Re-judged c18. Sentence: fold the long sum by adding 16-bit segments; each addition may carry again and those carries must be added. TestRFC1071FoldRepeatsUntilNoCarry sums FFFF FFFF 0001 = 0x1FFFF, whose first fold 0x10000 carries again; internetChecksum and InternetChecksumPair must both answer exactly 0xFFFE (a single fold answers 0xFFFF), and internetChecksumValid accepts the data with 0xFFFE appended. Record breaks internetChecksum, observed red. TestInternetChecksumRFC1071Vectors prose narrowed to its one carry (D-15). Single-polarity positive valid: a fold has no reject path.",
       "requirement_sha": "3d5df36b6e1eb1ef",
       "tests": {
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "8df584d7f7f93f43"
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "66165fee03c7d467",
+        "internal/plugins/ospf/types/rfc1071_fold_test.go::TestRFC1071FoldRepeatsUntilNoCarry": "606551ba53a6cd63"
       },
       "units": {
-        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2fa72f8d875453be"
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2444e63534991810",
+        "internal/plugins/ospf/types/rfc1071_fold_test.go::TestRFC1071FoldRepeatsUntilNoCarry": "5d01780caf18be5d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc1071"

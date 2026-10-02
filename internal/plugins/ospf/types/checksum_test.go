@@ -59,7 +59,7 @@ func TestFletcherIgnoresLSAge(t *testing.T) {
 // PREVENTS: OSPF packets from being rejected because checksum generation and verification disagree.
 //
 // RFC requirement: RFC1071-1-3 positive -- internetChecksum stores the bitwise-NOT of the folded 16-bit sum; the exact vector 0x1411 fails if the complement is omitted (internetChecksum, checksum.go:97-103).
-// RFC requirement: RFC1071-1-6 positive -- the carry-producing vector drives the fold loop until no high bits remain before inverting (internetChecksum fold, checksum.go:99-101).
+// RFC requirement: RFC1071-1-6 positive -- the vector's 32-bit sum 0x1EBED overflows 16 bits once, and internetChecksum folds that carry back into the low 16 bits before inverting, giving exactly 0x1411.
 func TestInternetChecksumRFC1071Vectors(t *testing.T) {
 	data := []byte{0x00, 0x01, 0x00, 0x00, 0xf4, 0xf5, 0xf6, 0xf7}
 	checksum := internetChecksum(data)

@@ -1,13 +1,16 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC792-Echo-1": {
       "note": "Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze's netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).",
       "requirement_sha": "6fa3c0bc857d4be0",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "a33adbfdaaf4b8f4",
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "a33adbfdaaf4b8f4",
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "e4aad773ce5cac19",
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "e4aad773ce5cac19",
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
       },
       "units": {
@@ -21,7 +24,7 @@
       "note": "Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.",
       "requirement_sha": "2923f8d76b399c94",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "a33adbfdaaf4b8f4",
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "e4aad773ce5cac19",
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
       },
       "units": {
@@ -31,15 +34,15 @@
       "verdict": "enforced"
     },
     "RFC792-Echo-3": {
-      "note": "Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze's own request checksum folds to 0xffff) and the stack reply's checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one's complement sum is never answered, beside the valid control. The rejecting branch is Linux's on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.",
+      "note": "Re-judged c18 (2026-10-02): TestRFC792ChecksumValid changed only by losing its RFC1071-1-5 tag (moved off under D-15/R1, 1-5 now proven on ospf VerifyPacketChecksum); its body and RFC792-Echo-3 claim are unchanged, so the finding stands. Re-judged 2026-09-30. Positive: TestRFC792ChecksumValid (Ze's own request checksum folds to 0xffff) and the stack reply's checksum verifies in TestGatewayICMPEchoReply. Negative: a request whose checksum is not the defined one's complement sum is never answered, beside the valid control. The rejecting branch is Linux's on the address Ze installs, counted under the whole-stack rule; the tag claims the observed stack behaviour, not a Ze branch. TestRFC792ChecksumRejectsCorruption lost this tag correctly (it checked only a test helper). Records break AddAddress.",
       "requirement_sha": "a0f5ea4063259908",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a33adbfdaaf4b8f4",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "e4aad773ce5cac19",
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a4ca55fc19375ae9",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "6fab4edc6e7812e1",
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
         "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "2e14d56234529006"
       },
@@ -49,7 +52,7 @@
       "note": "Forbidden: computing the checksum of an odd-length message without one trailing zero pad octet. Red on it: TestRFC792ChecksumOddLength builds an 11-octet echo and asserts checksumOnesFold == 0xffff, which fails if icmpChecksum dropped the last octet or padded it into the low byte. The receive side is Linux; ze verifies no received ICMP checksum. Single-polarity marker on the row.",
       "requirement_sha": "4ee4c5d0dfa6a4c7",
       "tests": {
-        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "a33adbfdaaf4b8f4"
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "e4aad773ce5cac19"
       },
       "units": {
         "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54"
