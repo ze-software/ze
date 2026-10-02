@@ -9,14 +9,14 @@
       "claim-sha": "5647d92672cb8c05",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "2dc65a2e1ba5c9a5",
+      "producer-sha": "c7ce7d6ec022edd1",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5561-6-4",
       "polarity": "positive",
       "unit": "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored",
-      "unit-sha": "38df8d7897937be5",
+      "unit-sha": "71c766a9988965d5",
       "claim-sha": "7cd3270359c7f194",
       "route": "revert",
       "producer": "internal/plugins/ldp/wire.go::DecodeInit",

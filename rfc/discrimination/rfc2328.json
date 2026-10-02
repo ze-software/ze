@@ -289,17 +289,6 @@
     },
     {
       "rid": "RFC2328-13-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed",
-      "unit-sha": "9a5a5bf9be19ed86",
-      "claim-sha": "4a33c9e0431ebc56",
-      "route": "revert",
-      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
-      "producer-sha": "9aad52b4b9d70ae6",
-      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC2328-13-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed",
       "unit-sha": "9a5a5bf9be19ed86",
@@ -308,6 +297,17 @@
       "producer": "internal/plugins/ospf/packet/lsupdate.go::DecodeLSUpdate",
       "producer-sha": "c86f6706cddf25d7",
       "break": "body of DecodeLSUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-13-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed",
+      "unit-sha": "9a5a5bf9be19ed86",
+      "claim-sha": "4a33c9e0431ebc56",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+      "producer-sha": "5c5335abf1e54c07",
+      "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2328-13-2",
@@ -449,7 +449,7 @@
       "claim-sha": "2573a35898814a0c",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
-      "producer-sha": "9aad52b4b9d70ae6",
+      "producer-sha": "5c5335abf1e54c07",
       "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
