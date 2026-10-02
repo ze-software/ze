@@ -3,8 +3,9 @@
 // remote SR capabilities (RI LSAs) and Prefix-SIDs (Extended Prefix LSAs) from the
 // LSDB, computes each outgoing label from the SPF NEXT-HOP router's advertised SRGB
 // (RFC 8665 §5: the pushed/swapped label is SRGB(next-hop).Label(index)), applies the
-// NP/E/M PHP/Explicit-NULL rules ONLY when the next-hop IS the SID originator (this
-// node is the penultimate hop) and swaps unconditionally at a transit hop, and emits
+// NP/E PHP/Explicit-NULL rules ONLY when the next-hop IS the SID originator (this
+// node is the penultimate hop) and swaps unconditionally at a transit hop, decides PHP
+// for a Mapping Server SID (M-Flag) from the route type and A-Flag advertisers, and emits
 // an mpls-fib push/swap/pop toward the SPF next-hop. Stale FECs are withdrawn
 // idempotently. Shared logic; only the LSDB carriage the maps are built from differs
 // by address family.
@@ -14,8 +15,10 @@ package ospf
 
 import (
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 	"github.com/ze-software/ze/internal/plugins/ospf/sr"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
@@ -30,11 +33,16 @@ type srNextHop struct {
 }
 
 // srRoute is the slim SPF route view the installer needs: the destination prefix,
-// its advertising router (originator), and the resolved next-hops.
+// its advertising router (originator), its path type, the resolved next-hops, and the
+// routers whose Extended Prefix TLV for this prefix carries the A-Flag with a route
+// type of the same class (inter-area, or external). Type and Attached decide PHP for a
+// Mapping Server Prefix-SID (M-Flag set), whose NP and E flags are ignored.
 type srRoute struct {
 	Prefix   netip.Prefix
 	Origin   types.RouterID
+	Type     ospfspf.RouteType
 	NextHops []srNextHop
+	Attached []types.RouterID
 }
 
 // srRemotePrefixSID is a Prefix-SID received for one prefix, with its originator
@@ -101,7 +109,7 @@ func (s *srInstaller) installRoutes(
 		}
 		installedFEC := false
 		for _, nh := range r.NextHops {
-			outLabel, action, ok := s.forwarding(rs, nh, remoteCaps)
+			outLabel, action, ok := s.forwarding(&r, rs, nh, remoteCaps)
 			if !ok {
 				continue // next-hop not SR-capable, or index out of its SRGB
 			}
@@ -132,11 +140,13 @@ func (s *srInstaller) installRoutes(
 // toward a received Prefix-SID (RFC 8665 §5 / RFC 8666 §6). The pushed/swapped label
 // is computed from the SRGB of the NEXT-HOP router (the far end of the first hop),
 // NOT the SID originator: a SID index is global and each hop maps it through its own
-// SRGB. The NP/E/M PHP/Explicit-NULL rules apply ONLY when the next-hop IS the
+// SRGB. The NP/E PHP/Explicit-NULL rules apply ONLY when the next-hop IS the
 // originator (this node is the penultimate hop); at a transit hop the label is swapped
-// unconditionally (ActionKeep). A next-hop that advertised no SRGB is not SR-capable
-// (R-13): no install toward it. An out-of-range index yields no label.
-func (s *srInstaller) forwarding(rs srRemotePrefixSID, nh srNextHop, remoteCaps map[types.RouterID]sr.SRGB) (uint32, sr.OutgoingAction, bool) {
+// unconditionally (ActionKeep). A Mapping Server SID (M-Flag set) has its NP and E
+// ignored, and srMappedSIDAction decides PHP from the route instead. A next-hop that
+// advertised no SRGB is not SR-capable (R-13): no install toward it. An out-of-range
+// index yields no label.
+func (s *srInstaller) forwarding(r *srRoute, rs srRemotePrefixSID, nh srNextHop, remoteCaps map[types.RouterID]sr.SRGB) (uint32, sr.OutgoingAction, bool) {
 	if rs.SID.IsLabel {
 		// An absolute local label (V=1/L=1) is assigned by the originator and is only
 		// meaningful where the next-hop is that originator (directly attached). Apply the
@@ -155,12 +165,47 @@ func (s *srInstaller) forwarding(rs srRemotePrefixSID, nh srNextHop, remoteCaps 
 		srMetrics.Load().observeComputeError(s.af, "index-out-of-range")
 		return 0, sr.ActionKeep, false
 	}
-	// Penultimate hop (next-hop == originator): apply the advertised PHP/E/M rules.
+	// RFC 8665 Section 5: "When the M-Flag is set, the NP-Flag and the E-Flag MUST be
+	// ignored on reception."
+	if rs.SID.Flags.M {
+		return label, srMappedSIDAction(r, nh), true
+	}
+	// Penultimate hop (next-hop == originator): apply the advertised PHP/E rules.
 	// Transit hop: swap the label on unconditionally (ActionKeep).
 	if nh.Router == rs.Originator {
 		return label, sr.OutgoingActionFor(rs.SID.Flags), true
 	}
 	return label, sr.ActionKeep, true
+}
+
+// srMappedSIDAction is the forwarding action toward nh for a Prefix-SID a Mapping Server
+// advertised (M-Flag set). The advertiser is not the prefix originator, so its NP and E
+// say nothing about the last hop; the route's own type and originator decide. Every case
+// the RFC does not list keeps the label, which is also the answer for a route whose type
+// is unspecified.
+//
+// RFC 8665 Section 5: "As the Mapping Server does not specify the originator of a prefix
+// advertisement, it is not possible to determine PHP behavior solely based on the Mapping
+// Server Advertisement. However, PHP behavior SHOULD be done in the following cases: The
+// Prefix is intra-area type and the downstream neighbor is the originator of the prefix.
+// The Prefix is inter-area type and the downstream neighbor is an ABR, which is advertising
+// prefix reachability and is also generating the Extended Prefix TLV with the A-Flag set
+// for this prefix as described in Section 2.1 of [RFC7684]. The Prefix is external type and
+// the downstream neighbor is an ASBR, which is advertising prefix reachability and is also
+// generating the Extended Prefix TLV with the A-Flag set for this prefix as described in
+// Section 2.1 of [RFC7684]." The A-Flag advertisers come from srAttachedAdvertisers.
+func srMappedSIDAction(r *srRoute, nh srNextHop) sr.OutgoingAction {
+	switch r.Type {
+	case ospfspf.RouteIntraArea:
+		if nh.Router == r.Origin {
+			return sr.ActionPHP
+		}
+	case ospfspf.RouteInterArea, ospfspf.RouteExternalType1, ospfspf.RouteExternalType2:
+		if slices.Contains(r.Attached, nh.Router) {
+			return sr.ActionPHP
+		}
+	}
+	return sr.ActionKeep
 }
 
 // withdrawAll withdraws every currently-installed SR forwarding entry (SR disabled
@@ -195,9 +240,11 @@ func (e *engine) srInstallFromRoutes() {
 	e.srInstaller.installRoutes(e.srRoutes(), prefixSIDs, remoteCaps, algos, mySRGB)
 }
 
-// srRoutes flattens the SPF route table into the installer's slim view.
+// srRoutes flattens the SPF route table into the installer's slim view, with the A-Flag
+// advertisers of each inter-area and external prefix.
 func (e *engine) srRoutes() []srRoute {
 	entries := e.spf.Routes()
+	attached := e.srAttachedAdvertisers()
 	out := make([]srRoute, 0, len(entries))
 	for _, r := range entries {
 		if !r.Prefix.IsValid() || len(r.NextHops) == 0 {
@@ -212,9 +259,76 @@ func (e *engine) srRoutes() []srRoute {
 		if len(hops) == 0 {
 			continue
 		}
-		out = append(out, srRoute{Prefix: r.Prefix, Origin: r.Origin, NextHops: hops})
+		route := srRoute{Prefix: r.Prefix, Origin: r.Origin, Type: r.Type, NextHops: hops}
+		if r.Type != ospfspf.RouteIntraArea {
+			route.Attached = attached[srAttachKey{prefix: r.Prefix, external: r.Type != ospfspf.RouteInterArea}]
+		}
+		out = append(out, route)
 	}
 	return out
+}
+
+// srAttachKey names one prefix and the class of route, inter-area or external, an
+// A-Flag Extended Prefix TLV was generated for.
+type srAttachKey struct {
+	prefix   netip.Prefix
+	external bool
+}
+
+// srAttachedAdvertisers indexes, per prefix and route class, the routers generating an
+// Extended Prefix TLV with the A-Flag set for it (RFC 7684 Section 2.1), read from the
+// IPv4 Extended Prefix Opaque LSAs. srMappedSIDAction reads it to decide PHP for a
+// Mapping Server SID of an inter-area or external prefix. OSPFv3 answers nil: RFC 8666
+// Section 6 states the same cases on the LA-bit of the Prefix Options, which this does
+// not read, so a mapped inter-area or external IPv6 SID keeps its label.
+func (e *engine) srAttachedAdvertisers() map[srAttachKey][]types.RouterID {
+	if e.lsdb == nil {
+		return nil
+	}
+	if e.dispatch != nil && e.dispatch.codec.IsV6() {
+		return nil
+	}
+	out := make(map[srAttachKey][]types.RouterID)
+	for _, v := range e.lsdb.OpaqueLSAsByType(packet.ExtPrefixOpaqueType) {
+		lsa, err := packet.DecodeExtPrefixLSA(v.Body)
+		if err != nil {
+			continue
+		}
+		// RFC 8665 Section 9: a malformed LSA is ignored, its A-Flags included.
+		if srExtPrefixLengthInvalid(&lsa) {
+			continue
+		}
+		for i := range lsa.Prefixes {
+			tlv := &lsa.Prefixes[i]
+			if tlv.AF != packet.ExtPrefixAFIPv4Unicast {
+				continue
+			}
+			if !tlv.HasFlag(packet.ExtPrefixFlagA) {
+				continue
+			}
+			external, ok := srAttachClass(tlv.RouteType)
+			if !ok {
+				continue
+			}
+			pfx := netip.PrefixFrom(netip.AddrFrom4(tlv.AddressPrefix), int(tlv.PrefixLength))
+			key := srAttachKey{prefix: pfx, external: external}
+			out[key] = append(out[key], v.AdvertisingRouter)
+		}
+	}
+	return out
+}
+
+// srAttachClass maps an Extended Prefix TLV Route Type to the route class an ABR or ASBR
+// attaches: inter-area (3) answers false, AS-external (5) and NSSA-external (7) answer
+// true. Any other type is not one RFC 8665 Section 5 lists, and ok is false.
+func srAttachClass(routeType uint8) (external, ok bool) {
+	switch routeType {
+	case packet.ExtRouteTypeInterArea:
+		return false, true
+	case packet.ExtRouteTypeASExternal, packet.ExtRouteTypeNSSAExternal:
+		return true, true
+	}
+	return false, false
 }
 
 // srRemoteCapabilities reads every RI LSA in the LSDB and returns each originator's

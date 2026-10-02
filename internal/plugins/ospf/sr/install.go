@@ -43,7 +43,9 @@ const (
 // OutgoingActionFor applies the RFC 8665 §5 / RFC 8666 §6 truth table to the
 // next-hop router's advertised flags:
 //
-//	M=1            -> ignore NP and E; keep the label (ActionKeep)
+//	M=1            -> ignore NP and E; keep the label (ActionKeep). The flags alone
+//	                  cannot place PHP for a Mapping Server SID: the OSPF installer
+//	                  decides it from the route (srMappedSIDAction) for an index SID
 //	NP=0           -> penultimate hop pops (ActionPHP); received E ignored
 //	NP=1, E=0      -> keep the label on top of the stack (ActionKeep)
 //	NP=1, E=1      -> replace the label with Explicit NULL (ActionExplicitNull)

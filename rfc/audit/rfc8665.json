@@ -257,6 +257,21 @@
       },
       "verdict": "enforced"
     },
+    "RFC8665-5-14": {
+      "note": "Judged 2026-10-02 (independent judge, ospf c26, owner ruling 8 (h)). Producer srMappedSIDAction (sr_install.go) matches RFC 8665 section 5 (M-Flag ignores NP/E; PHP when intra-area and next hop == route originator, inter-area/external when next hop is an A-Flag advertiser of that class; else keep); non-M SIDs take the HEAD path unchanged. Units: + TestRFC8665MappedSIDPHPInListedCases (4 cases x 2 flag sets, no push and transit pop 18009), - TestRFC8665MappedSIDKeepsLabelOutsideListedCases (6 cases, push 16009 and swap), + TestRFC8665AttachedAdvertisersFromAFlag (real LSDB, A-Flag by route type). Records are halts (panic) on srMappedSIDAction and srAttachedAdvertisers; judge overlay (next hop == Origin instead of A-Flag) turned the negative red on inter-area-no-a-flag. Weak on reach: both PHP units feed srRoute values built by hand, and no test drives srRoutes, which joins the A-Flag index and the route type into the route. A judge overlay deleting that join (route.Attached never set) left every RFC8665/RFC8666/SR test green, so inter-area and external PHP could vanish from the real path with no red. Missing: a unit through engine.srRoutes/srInstallFromRoutes (SPF inter-area or external route plus an A-Flag Extended Prefix LSA) that fails under that overlay. OSPFv3 inter-area/external cases unmet (LA-bit not read): disclosed in docs/guide/ospf.md and journaled.",
+      "requirement_sha": "95681a18d2e9ad02",
+      "tests": {
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag": "6e5153eba70e9852",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases": "6e5153eba70e9852",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases": "6e5153eba70e9852"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag": "3c6c8d76a08b4463",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases": "19fcc38369c41595",
+        "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases": "996ada314ef98726"
+      },
+      "verdict": "weak"
+    },
     "RFC8665-5-2": {
       "note": "forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7",
       "requirement_sha": "4f5be94fdd9015e3",
@@ -339,15 +354,15 @@
       "verdict": "enforced"
     },
     "RFC8665-5-7": {
-      "note": "Re-judged 2026-09-29 (independent judge). TestRFC8665NextHopEAndMFlagsApplied drives installRoutes toward the originator next-hop: NP=1 E=0 -> 16009, NP=1 E=1 -> Explicit NULL, M=1 with NP/E set -> 16009 (E ignored), so the E-Flag and 'M ignores NP and E' are applied through the installer (record on OutgoingActionFor). Weak on question 1: the row reads 'as described below', and s5 then says PHP 'SHOULD be done' when 'The Prefix is intra-area type and the downstream neighbor is the originator of the prefix' -- exactly this fixture -- yet the m-set-np-clear case pins 16009 (no PHP) as correct (OutgoingActionFor returns ActionKeep for any M). The test enshrines a deviation from RFC8665-5-14 without a recorded reason. Missing: either the M case asserts PHP for the intra-area originator next-hop, or the deviation is recorded on 5-14 and the M case drops that expectation. The earlier transit-hop negative is unchanged and has no record.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c26). The 2026-09-29 deviation is fixed: TestRFC8665NextHopEAndMFlagsApplied (changed under D-15, owner ruling 8) now asserts PHP for the M-Flag cases on an intra-area prefix whose originator is the next hop, as section 5 lists, while NP=1/E=0 pushes 16009 and NP=1/E=1 pushes Explicit NULL; revert record on srMappedSIDAction (a halt, the E cases ride OutgoingActionFor). Still weak on proof: TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised (+) and TestRFC8665OriginatorFlagsNotAppliedAtTransitHop (-) in rfc8665_test.go carry no discrimination record, so the negative polarity is unrecorded, and both claims cite sr_install.go line numbers (158-163, 160-163, 103-111) that the c26 edit shifted onto other code. Missing: a record for the transit-hop negative, and claims naming forwarding instead of line numbers.",
       "requirement_sha": "02d16f90eaa7e273",
       "tests": {
-        "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "ec2e6c3f55e29a44",
+        "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "fe90cd16451cc24a",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "9a287c8302356a59",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "9a287c8302356a59"
       },
       "units": {
-        "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "c641759f4a58d066",
+        "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "809375afe11f06d7",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "a99bc9fab36cae77",
         "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "31b1e7e6378db7f4"
       },

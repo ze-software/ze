@@ -123,6 +123,39 @@
       "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8665-5-14",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag",
+      "unit-sha": "699ab7aac49ed378",
+      "claim-sha": "1baae25182b1bb3e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::srAttachedAdvertisers",
+      "producer-sha": "b5a2d3a9f8256945",
+      "break": "body of srAttachedAdvertisers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-14",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases",
+      "unit-sha": "d3d39f6a2e74a48b",
+      "claim-sha": "9a5f847b8ae05183",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::srMappedSIDAction",
+      "producer-sha": "352ef73bd17313c0",
+      "break": "body of srMappedSIDAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-14",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases",
+      "unit-sha": "91c2bbd73ad9f3b9",
+      "claim-sha": "8b85339b3b9cfbbb",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::srMappedSIDAction",
+      "producer-sha": "352ef73bd17313c0",
+      "break": "body of srMappedSIDAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-5-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero",
@@ -214,12 +247,12 @@
       "rid": "RFC8665-5-7",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied",
-      "unit-sha": "8cb4b7618092a374",
-      "claim-sha": "0e32bdca557e5242",
+      "unit-sha": "de4bd3175530b582",
+      "claim-sha": "d963bac2f4db0e63",
       "route": "revert",
-      "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
-      "producer-sha": "9ca706d9d63730b0",
-      "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/ospf/sr_install.go::srMappedSIDAction",
+      "producer-sha": "352ef73bd17313c0",
+      "break": "body of srMappedSIDAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8665-7.4.1-1",
