@@ -1,100 +1,68 @@
-# Handoff: spec-rfc-verdict-test-fix-pass (2026-10-01, end of session 869df689)
+# Handoff: spec-rfc-verdict-test-fix-pass (2026-10-02, end of session e08980d7)
 
 Goal (owner, unchanged): close plan/pre-release/spec-rfc-verdict-test-fix-pass.md and its
 eight children. Done = parent AC-11: every child closed, the derived weak/wrong listing holds
 only verdicts named in another spec's acceptance criteria, /ze-review gate clean,
 `./le verify worktree` has run.
 
-Every file the next session needs is in this directory (plan/handover/rfc-verdict-test-fix-pass/),
-committed, so the work resumes on any machine. Paths under tmp/session/2026-09-28-869df689-.../
-named in the briefs and older handoffs are lock files and logs only: create the directory
-(NEXT-SESSION.md step 1) and let flock create the locks. Logs named there were not kept.
-
-Read in this order:
-- NEXT-SESSION.md: the prompt to paste and the owner's sudo command.
-- RULINGS.md: R1..R58 and owner rulings 2..5, binding on every agent.
-- AUTHOR-BRIEF.md / JUDGE-BRIEF.md: the shared agent rules (addendums binding).
-- QUEUE.md: chronological log; the last ~40 lines are current.
-- <child>/*.md: per-package author handoffs. BGP: bgp/fsm-peer-author.md (continuations 8..21,
-  RFC 4271 + link-local + RFC 2545), bgp/rfc9552-author.md (BGP-LS, in progress).
-- data/: triage-c17.txt (OSPF), vrrp-closure-records.sh, rc12-recorded.tsv (access sweep),
-  rfc4271_replacement_red_test.go.txt (the route-server probe, for spec-bgp-rs-replacement-on-withdrawal).
-- session-state.md: session 869df689's per-spec state file at the first handover (historical).
+Every file the next session needs is in this directory, committed. Read in this order:
+NEXT-SESSION.md, this file, RULINGS.md (R1..R59, owner rulings 2..8), AUTHOR-BRIEF.md and
+JUDGE-BRIEF.md (addendums binding), the last ~20 lines of QUEUE.md, then the per-child author
+files named below.
 
 ## Child state
 
 | Child | State | Next |
 |---|---|---|
-| vrrp | CLOSED (875eb64337, 3b30602d2e) | post-hoc AC-C2 record check only |
-| bfd | listing 0; OSPF-BFD interop fixes committed (1c21de3153) | AC-C2 sweep incl. rfc5880 producer-changed records, verify, /ze-close |
-| routing | listing = 2 Blocked-by | AC-C2 sweep, verify, /ze-close |
-| services | listing = 12 Blocked-by (dbdde9fb4f) | AC-C2 sweep, verify, /ze-close |
-| access | judged (9af0ecb46b); RFC1332-2.1-1 negative weak (absence claim, needs mutant route) | owner RFC2866-4.1-1 recording, close |
-| ike-eap | ruling-5 ids enforced (b57b47161d) | AC-C2 sweep incl. 7 stale RFC9190-5.10-1 records on startTLSClient, close |
-| ospf | 57 unblocked weak/wrong (last 7708c6b240) | author/judge rounds (data/triage-c17.txt) |
-| bgp | 131 listing rows incl. Blocked-by; RFC 4271 left = 4.3-3, 4.3-4, 9.2-7 (all Blocked-by) | RFC 9552 (13 left), then rfc4724 9, rfc9494 8, rfc8277 7, rfc9252 6, rfc8669 6, linklocal 6, rfc2385 5, ... |
+| vrrp | CLOSED | post-hoc AC-C2 check only |
+| bfd | AC-C2 sweep committed (66249a3391); owner ruling on 6.1-3/6.8.6-15 applied (1248bf9d3d) | 3 Linux-guest records owed (RFC5880-9-2 +, RFC5881-5-1 +, RFC5881-5-3 +); verify; /ze-close |
+| routing | AC-C2 committed (41faabbc4b); tag claims fixed (1075b8992f); LDP session-up fix landed (8ca6178596) | re-record the 22 stale rfc5036/rfc5561 records (step 1 below); rfc5036 rows for 2.5.3 items 2.c/2.d and the OPENREC "other message gets a NAK" gap belong here; verify; /ze-close |
+| services | AC-C2 committed (a640d04015) | verify; /ze-close |
+| access | RFC1332-2.1-1 enforced (b3c573f601); listing = 3 rows blocked by spec-radius-rfc-defects | RFC2866-4.1-1 Linux recording (owner); verify; /ze-close |
+| ike-eap | AC-C2 committed (6b968f093b); tags fixed (1075b8992f); RFC9190 re-recorded (4074fd651a) | RFC4555-4.2.5-1 positive record owed on a Linux host; verify; /ze-close |
+| ospf | 3 rows left: RFC4302-3.4.3-1 (start from TestIPsecInstallerXFRMReplayWindow, ipsec_integration_linux_test.go: 64-on and 0-off for AH), RFC2328-4.4-1 (Linux-only, kernel discriminate-record), RFC3101-3.2-2 (blocked) | 2 stale rfc2328 records (step 1); then the 2 Linux rows; close |
+| bgp | ~55 unblocked rows: below rfc8000 ~30 (queue order in the c34 section of tmp state, copied to bgp/c34-author.md), rfc8000+ ~25 (bgp/c35-author.md) | owner decisions below; author/judge pairs, two authors partitioned by stem number |
 
-## Session 869df689, 2026-10-01: what landed
+## Step 1 for the next session (mechanical, no decision)
+`./le rfc check` exits 2 with 27 violations at handover:
+- 22 records in rfc/discrimination/rfc5036.json and rfc5561.json: producer-changed/unit-changed by the LDP fix 8ca6178596 (handleInit, processMessages, runSession, DecodeInit). Re-record each on its producer (revert route, observed red) under the per-stem lock; rejudge any verdict the tool marks stale.
+- 2 records in rfc/discrimination/rfc2328.json (RFC2328-13-7 +, RFC2328-13-1 -) on lsdb/flooding.go::ReceiveUpdate, changed by c797d66a9b. Re-record.
+- 3 owner items (below).
 
-Commits (oldest first): b57b47161d ike-eap judge; 9af0ecb46b access judge; 16a01204c4 R47;
-07bdc7ca76 c8; 841553bffd c9; 64e4b99bd0 c10; 6ab45a1542 c11 (FSM Error NOTIFICATION);
-1e5c829890 c12 (D-9 version error = Event 24); 36435ca55c c13 (IBGP export AS_PATH,
-AS_SET-first MED); 1e54dbbc7d c14 (RFC 7705 migration-aware export guard); 7101dc6f37 c15
-(6.3-2 WARN log, DelayOpen gap); 5380077d80 c16 (next-hop self from the connected endpoint);
-db6e42abe2 c17 (link-local on forward rails); 6da51925b2 interop bgp-nexthop-self-local-auto-frr;
-4755e4d1f6 c18; 771fc01602 c19 (own link-local only with own global, RFC2545-3-6 gap,
-skeleton spec-bgp-rs-replacement-on-withdrawal); b926ed0894 c20 (capability 77 needs a
-link-local address); 1c21de3153 OSPF-BFD interop configs; a9ddcd495e this handover; 20fec75f48 c21 (relay link-local cut to the global toward multihop peers, linklocal 3-2, rfc9552 5.1-4/5.1-5/8.2.2-9).
+## Owner items (decide before the next BGP authors start)
+| Item | Recommendation |
+|---|---|
+| rfc/audit/rfc8955.json still has the RFC8955-6-2 entry (row retired under RFC 9117 in 2046bf766a). Auto mode refuses agents deleting it | Owner deletes the key by hand (as for RFC4577, 5cdad9cd96), or orders the main thread to |
+| rfc/extraction/rfc8955.json: exclusions 12 -> 13 with the same signed-off date; auto mode refused updating the date | Owner updates `signed-off` or orders it |
+| RFC5575-6-1 [MUST] has no annotation: RFC 9117 section 7 made the AS_PATH check optional and Ze does not enforce it | Record it as a disclosed deviation ({gap} citing RFC 9117 section 7) |
+| ROUTE-REFRESH does not re-send config-static routes (RFC2918-4-3; red test test/draft/plugin/refresh-config-static.ci) | Fix A: the RIB keeps config-static routes in ribOut with a flag; peer-up replay skips them, a refresh includes them |
+| VPP SRv6 service routes never install (RFC9252-5-3; red test fib/vpp/rfc9252_srv6_encap_red_test.go): no sr_policy_add | New spec; local BSID allocated from the local SRv6 locator |
+| Duplicate Prefix-SID TLVs relayed (RFC8669-6-3; red test reactor/rfc8669_duplicate_tlv_red_test.go) | P-3 into spec-bgp-prefix-sid-rfc-defects; types 5 and 6 single-occurrence (RFC 9252 section 7) |
+| Label-Index Reserved/Flags on relay (RFC8669 3.1-3/3.1-5) | Relay unchanged (RFC 8669 section 3.2 forbids changing the attribute in propagation) |
+| spec-bgp-addpath-best-path-per-prefix: when it runs | After this pass, before release |
+| spec-bgp-llgr-per-family-config: existing per-peer configs | One-shot migration, byte-identical OPEN |
+| RFC9514-7.2-5/6: {gap} is refused beside tags (annotationBarsATest, check_core.go) | Options a/b/c in bgp/c35-author.md |
+| RFC9086-7-1: PeerAdj/PeerSet absent; R3 split leaves a fragment | Ruling in bgp/c35-author.md |
+| RFC5082-3-3: Linux-only, likely no genuine negative (R1) | OWNER-GATE candidate, write-up in bgp/c34-author.md |
+| RFC2866-4.1-1: owner sudo recording on Linux (NEXT-SESSION.md step 2) | still not in this checkout |
 
-Defects fixed this session (each failing test first): unknown message type claim; FSM Error
-NOTIFICATION in OpenSent/OpenConfirm; version-error NOTIFICATION as Event 24; export
-prepend/remove-private toward IBGP (incl. RFC 7705 migration-internal) and dry-run agreement;
-AS_SET-first neighbour AS in MED comparison; next-hop-self NEXT_HOP log at default level;
-next-hop self under local ip auto on the forward rails; link-local-only next hop refusal on
-forward rails; own link-local under local ip auto; third-party global never paired with Ze's
-link-local; capability 77 refused without a link-local address; global+link-local relayed to
-multihop EBGP stripped to the global.
+## Main-thread items without a decision
+- MRT add-path parsing D-8 (RFC8050-x-4; red test internal/mrt/rfc8050_addpath_nlri_red_test.go): ParseBGPMessage/ParseMPReach/ParseMPUnreach parse NLRI with add-path off; fix the three signatures (~27 call sites); the writer picks the subtype from the negotiated add-path state of the UPDATE's family, not config.
+- RFC8955-6-1 and RFC9117-4.1-1/4.2-1 weak: the best-match (longest covering prefix) selection in flowSpecAuthorized is untested; add two covering routes of different lengths with different originators.
+- RFC9086-5-5 duplicates 5-3: retire 5-5 under D-3, move its 3 tags to 5-3.
+- RFC9494-4.2-5 item 2 (NO_LLGR set by import policy) needs a .ci test.
+- Orphan records left in place (owner ruling 6 approves deleting them; auto mode blocks agents): RFC4302-3.4.3-5 negative on TestIPsecReplayWindowRange. Collect any new ones and hand the owner one script (the orphans.py pattern in the session scratch).
 
-## Owner decisions this session
-- Agent cap: 1 (this session only).
-- spec-bgp-rs-replacement-on-withdrawal (RFC4271-9.2-7, route-server bare withdrawal while
-  another source still has the prefix): runs LATER. The red probe
-  internal/component/bgp/plugins/rs/rfc4271_replacement_red_test.go is untracked (red on
-  purpose); a copy is kept as data/rfc4271_replacement_red_test.go.txt for that spec.
-- Duplicate red test rfc4271_third_party_nexthop_red_test.go: removed.
-- R58(a) chose config-load refusal for capability 77 without link-local; the owner was told
-  interface-derived link-local is the alternative (no reply: refusal stands).
-
-## Uncommitted in the tree at handover (not this work: leave)
-rfc/audit/{rfc4659,rfc6793,rfc8669,rfc9086}.json and test/weakened/{7e722ae0,916ee49e}.md
-(corpus reseal side effects / other sessions); config *_red_test.go and
-internal/core/eap/rfc5216_resumption_defect_test.go (intentional reds owned by other specs).
-
-## Standing decisions (RULINGS.md / QUEUE.md)
-- AC-C2 strict: every tagged unit of a verdict moved to enforced carries a discrimination record.
-- AC-C3: {gap}+unimplemented and {not-applicable}+not-applicable count as verdicts.
-- A row Ze implements with no row gets one (R47b). Optional absent features: {gap} +
-  unimplemented (R53), never hand-deleted audit keys (R52).
-- Never `./le spec release` from a subagent. Long gates from the main thread.
-- Commit-script index.lock failure after the commit landed: never re-run parts; write an owner
-  script tmp/delete-<sid>-*.sh (done once this session, 1c21de3153).
-- Handoff rows go in plan/handover files, never only in the session state file.
-
-## Next queue
-1. BGP first: linklocal 4-8 route-server-rail unit (reactorForwardRS, forward_rs.go: deleting
-   the egressNextHopGlobalHalf call there leaves every 4-8 test green); narrow the linklocal 6-1
-   {gap} annotation to the real gap (no receive-side check of the addresses in a 32-octet
-   field; a wrong LENGTH correctly stays an RFC 7606 section 7.11 session reset), dated
-   correction. Then RFC 9552 (bgp/rfc9552-author.md; 5.2.1.4-1 is a sender D-8:
-   NodeDescriptor.WriteTo repeats sub-TLV 518), then the next stems by size. Author/judge pairs, one stem at a time.
-2. OSPF c18 onward: 57 unblocked ids.
-3. Owner: RFC2866-4.1-1 recording (NEXT-SESSION.md step 2); then access close.
-4. AC-C2 sweeps: bfd (rfc5880 stale records), routing, services, ike-eap (RFC9190); vrrp post-hoc.
-5. `./le verify worktree` on a quiet machine; triage; /ze-close bfd, routing, services, access, ike-eap.
-6. Parent: /ze-review gate, AC-11, final verify, close.
+## Session e08980d7, 2026-10-02: what landed (58 commits, none pushed)
+Defects fixed: OSPF LS Update per-LSA discard (7488f60bc2); BGP-LS node descriptor TLV 518 (04b95f61d5); GR capability cleared on re-establish (a1a782247b); LLGR zero restart time (ba11f0e317); LLGR only for families Ze declared (3817eab289); GR capability lists only RIB-storable families (d34eecef09); RFC 8277 label Rsrv cleared on relay (c822fc2a81); SR-Algorithm TLV length (55581e8304); mapping-server PHP (30b572216a); LDP session up only when Operational (8ca6178596, interop ospf-ldp-sync-frr passes); static routes only for negotiated families (db87202229); opaque LSA 4-octet alignment (c797d66a9b). Gate: coverage ratchet owner-ruled move (03036dc006) and owner-ruled gap (c70b05c203). Specs: spec-bgp-addpath-best-path-per-prefix, spec-bgp-llgr-per-family-config (b4a4455529). RFC 9117 enrolled (2046bf766a).
 
 ## Known reds that are not this work
-- BGP plugin functional 524/523 path-asn-filter-export-reject and 641/640
-  redistribute-export-modify: wait-file fixture regression, journaled in
-  plan/journal/option-set-for-one-caller-changes-another.md.
-- Load-only timeouts seen and passing alone: plugin 401, 687; encode 10-13, 16, 17.
+- Interop on this Mac: ospf-opaque-frr, ospf-te-frr, ospf-ext-prefix-link-frr fail at baseline (journal assertion-reads-state-the-scheduler-owns.md).
+- Host-only (darwin): reactor 127.0.0.2 binds, link-local tests needing fd00::2 on loopback, TestRFC5187InterfaceIDPreservedAcrossRestart (needs lo).
+- Full native verification never ran this session: rows in plan/verification-debt/6912077e.md. `./le verify worktree` on a quiet machine before any push.
+
+## Process notes
+- Commit session 6912077e has used every automatic tag: pass `tag <name>` to `./le commit create`.
+- Agents hit the 100-call cap often: the main thread appends their final handoff lines (see "c29 close", "c30 close" in ospf-author.md).
+- Unused D-15 rows accumulate in tmp/commit-rfc-approved-6912077e.md (the gate does not consume them for comment-only edits or new units); harmless.
+- Auto mode blocks agents from deleting ledger records/audit keys and sometimes from `./le rfc reseal`: route those to the owner, do not work around it.
