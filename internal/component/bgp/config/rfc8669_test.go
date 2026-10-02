@@ -74,3 +74,32 @@ func TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission(t *testing.T) {
 		0x00, 0x13, 0x88, // range 5000
 	}, srgb[5:17], "each SRGB entry is 3-octet base + 3-octet range, big-endian")
 }
+
+// TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission pins the
+// Label-Index TLV that the second encoder builds. A configuration naming an
+// SRGB goes through parsePrefixSIDWithSRGB, which writes its own Label-Index
+// TLV rather than reusing the bare-index path the test above drives.
+//
+// VALIDATES: RFC 8669 Section 3.1, on the SRGB form: the Label-Index TLV
+// Reserved octet and both Flags octets are emitted as zero. The whole attribute
+// value is compared as literal octets, so a non-zero bit anywhere fails.
+// PREVENTS: the SRGB-form encoder drifting from the bare-index encoder, which
+// TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission cannot see.
+//
+// RFC requirement: RFC8669-3.1-3 positive -- the Label-Index TLV the SRGB-form encoder emits carries a zero Reserved octet.
+// RFC requirement: RFC8669-3.1-5 positive -- the Label-Index TLV the SRGB-form encoder emits carries zero Flags.
+func TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission(t *testing.T) {
+	sid, err := attribute.EncodePrefixSID("300, [(800000,4096)]")
+	require.NoError(t, err)
+
+	require.Equal(t, []byte{
+		0x01, 0x00, 0x07, // Label-Index TLV: type 1, length 7
+		0x00,       // Reserved
+		0x00, 0x00, // Flags
+		0x00, 0x00, 0x01, 0x2c, // Label Index 300
+		0x03, 0x00, 0x08, // Originator SRGB TLV: type 3, length 8
+		0x00, 0x00, // Flags
+		0x0c, 0x35, 0x00, // base 800000
+		0x00, 0x10, 0x00, // range 4096
+	}, sid, "RFC 8669 Section 3.1: Reserved and Flags MUST be clear on transmission")
+}

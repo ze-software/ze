@@ -79,6 +79,28 @@
       "break": "body of wireStateCallbacks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9494-4.2-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath",
+      "unit-sha": "bf2e577575a11b47",
+      "claim-sha": "e5dc1c23d1c9d6f1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
+      "producer-sha": "3f72a71eb52f5937",
+      "break": "body of deleteWithCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR",
+      "unit-sha": "146540d05f923878",
+      "claim-sha": "a0ef4f81721814ff",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands_community.go::deleteWithCommunityCommand",
+      "producer-sha": "3f72a71eb52f5937",
+      "break": "body of deleteWithCommunityCommand replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9494-5-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig",

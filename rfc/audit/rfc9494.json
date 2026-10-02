@@ -124,15 +124,19 @@
       "verdict": "enforced"
     },
     "RFC9494-4.2-5": {
-      "note": "Re-judged 2026-10-02 (BGP c26 judge). Now asserted: LLGR entry dispatches 'request bgp rib delete-with-community <peer> ipv4/unicast ffff0007' before LLGR_STALE is attached (TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, production wireStateCallbacks, wireStateCallbacks-revert record observed red); TestDeleteWithCommunity fails unless the sweep removes the stale NO_LLGR route from the peer RIB; negative TestRFC9494_StaleRouteWithoutNoLLGRRetained keeps a route without NO_LLGR. Still not asserted, hence weak: (1) 'MUST be removed as per the normal operation of [RFC4271]': deleteWithCommunityCommand runs checkBestPathChange and publishBestChanges for each removed NLRI (rib_commands_community.go), but no tagged unit asserts the best-path change or the downstream withdrawal; removal from the peer RIB alone is what is checked. (2) 'or as the result of a configured policy': no unit sets NO_LLGR through import policy and sees it swept; the author's argument that the sweep matches the stored post-policy community is plausible but unexercised. c27 (2026-10-02, BGP c27 judge): setup gains declareLocalLLGR(gp, IPv4 unicast) so Ze's side of the LLGR exchange exists under the R59 per-family gate (exchangedLLGRLocked); assertions unchanged, re-recorded and observed red (c27-rec-r1..r7). Verdict unchanged.",
+      "note": "Re-judged 2026-10-02 (BGP c30 judge). Item 1 of the c26 judge's list is now proven: TestRFC9494NoLLGRSweepWithdrawsTheBestPath drives delete-with-community ffff0007 over a stale best route carrying NO_LLGR and asserts exactly one (bgp-rib, best-change) batch, ipv4/unicast, one Withdraw for 10.0.0.0/24, i.e. removal as per the normal operation of RFC 4271 reaches the Loc-RIB best path; TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR keeps a stale route carrying 65001:100 (community match reached) with no event. Both recorded (deleteWithCommunityCommand revert, observed red); author probes: publishBestChanges dropped turns only the positive red, community match ignored turns only the negative red. HEAD units unchanged (LLGR entry dispatch via wireStateCallbacks, peer-RIB removal, retention negative). Still weak: item 2, 'or as the result of a configured policy', is unproven: no unit sets NO_LLGR through an import policy and sees the LLGR sweep remove the route; it needs a functional .ci test (import policy adds 65535:7, peer enters LLGR, route withdrawn downstream).",
       "requirement_sha": "fac8847e101227fd",
       "tests": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "edfdb44e1c3eb08c",
+        "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "e60d254188c8f1f0",
+        "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "e60d254188c8f1f0",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "e5d6319873861ae8",
         "internal/component/bgp/plugins/rib/rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a2f00612c091011a",
+        "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "c168de6e2c60822d",
+        "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "a08a43a4dcd95e09",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "41bdc95fe854ca44",
         "internal/component/bgp/plugins/rib/rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451"
       },

@@ -1,13 +1,17 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8669-3-1": {
       "note": "Re-judged after the D-8 fix (applyFactsNextHop records Remove{5,6} on code 40; prefixSIDNextHopHandler rewrites the attribute per route). Clause 'ignored': message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored pins RFC7606ActionNone and intact bytes for an unallocated TLV (no discrimination record; supplementary). Clause 'propagated unmodified': reactor TestRFC8669UnknownTLVPropagatedAcrossANextHopChange reads attribute 40 on the wire over both relay rails (forwardUpdateCore, reactorForwardRS): positive, next hop unchanged, [LabelIndex, L3 Svc, type 200, L2 Svc, SRGB] byte-identical; negative (R1b: the input that used to violate), next-hop-self with NEXT_HOP really 10.0.0.254, attribute == LabelIndex+type200+SRGB byte-identical in received order. Observed red: positive with applyFactsNextHop broken, negative with prefixSIDNextHopHandler broken. Buffers isolated (well-formed TLVs, only type 200 unknown).",
       "requirement_sha": "86075c5141e1f486",
       "tests": {
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "c396cd02e76541ca",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "44582e489427aa30",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "44582e489427aa30"
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange": "c845a4b49b1894c0",
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC8669UnknownTLVPropagatedAcrossANextHopChange#2": "c845a4b49b1894c0"
       },
       "units": {
         "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627",
@@ -28,15 +32,17 @@
       "verdict": "weak"
     },
     "RFC8669-3.1-3": {
-      "note": "RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Reserved emitted. There are two Label-Index encoders: EncodePrefixSID's simple path (asserted sid[3]==0) and parsePrefixSIDWithSRGB (prefixsid.go:120), which builds its own Label-Index TLV. TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission inspects only sid[10:], so a non-zero Reserved in the SRGB path's Label-Index stays green. The {single-polarity} note calls the encoder ParsePrefixSID and names one encoder.",
+      "note": "Re-judged 2026-10-02 (BGP c30 judge). Both Label-Index encoders are now pinned on origination: TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission asserts sid[3]==0 on EncodePrefixSID's bare-index path (recorded by this judge, EncodePrefixSID revert, observed red), and the new TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission compares the whole SRGB-form attribute value from parsePrefixSIDWithSRGB as literal octets, Reserved 00 included (revert record observed red; author's specific break, Reserved literal set to 1, turns only the new unit red). {single-polarity: positive} is valid: the Reserved octet is a literal 0 reached by no input; the annotation now states it covers origination only. Open, not judged here: a received Label-Index TLV with a non-zero Reserved is relayed as received (RFC 8669 Section 5 SHOULD advertise without modification).",
       "requirement_sha": "fdafa7899931e228",
       "tests": {
-        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "184d0b5dc42dc364"
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1"
       },
       "units": {
-        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9"
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.1-4": {
       "note": "Transmission: every EncodePrefixSID shape (bare, all-ones index, SRGB-leading) has Label-Index Reserved 0. Reception: Reserved 0xFF gives Action None, no discard, bytes unchanged, ParsePrefixSID ok. Judge break (Reserved 1 in the SRGB-path encoder): red.",
@@ -56,15 +62,17 @@
       "verdict": "enforced"
     },
     "RFC8669-3.1-5": {
-      "note": "RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Flags emitted. sid[4:6]=={0,0} is asserted only for EncodePrefixSID's simple Label-Index path; the Label-Index TLV that parsePrefixSIDWithSRGB (prefixsid.go:120) builds is not inspected by any tagged unit, so non-zero Flags there stay green.",
+      "note": "Re-judged 2026-10-02 (BGP c30 judge). Both Label-Index encoders are now pinned on origination: the bare-index unit asserts sid[4:6]=={0,0} (recorded by this judge, EncodePrefixSID revert, observed red) and the new SRGB-form unit compares the whole attribute value from parsePrefixSIDWithSRGB as literal octets, Flags 0000 included (revert record observed red; author's specific break, Flags low octet set to 1, turns only the new unit red). {single-polarity: positive} is valid: both Flags octets are literals reached by no input; the annotation now states it covers origination only. Open, not judged here: a received Label-Index TLV with non-zero Flags is relayed as received (RFC 8669 Section 5).",
       "requirement_sha": "00eec3b1db3275a6",
       "tests": {
-        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "184d0b5dc42dc364"
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1"
       },
       "units": {
-        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9"
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8669-3.1-6": {
       "note": "Same unit: Label-Index Flags 0 on every encoded shape; received Flags 0xFFFF ignored with bytes unchanged and ParsePrefixSID ok.",
@@ -87,7 +95,7 @@
       "note": "Non-compliant behaviour: non-zero Originator SRGB Flags emitted. config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission asserts require.Equal([]byte{0,0}, srgb[3:5]) on EncodePrefixSID output. Single-polarity marker present.",
       "requirement_sha": "0dbfd3b32f15d2b5",
       "tests": {
-        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "184d0b5dc42dc364"
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "e3e1f3a30a4af6f1"
       },
       "units": {
         "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "acb10accb7b04bcd"
