@@ -368,7 +368,16 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// `./le rfc audit-stamp` and extracts the unchanged-units upgrade predicate
 	// that checkAuditFindings and the stamp share. The gate's refusal is the
 	// same test in a function of its own. No verdict moved.
-	const want = "7f028059ff74c854f1744005a881e6b894cc2bc5dfd5aa81d709c22e7c4fbcc3"
+	//
+	// Re-sealed 2026-10-02 over three commits, each of which named this seal as
+	// owed. 0bde29b2db: importName reads a major-version suffix ("math/rand/v2")
+	// as the element before it, so the discrimination prune keeps that import.
+	// c0bf1de71f: the keyword register no longer bills unsourced ids, and a
+	// prose sign-off is judged against the prose sites it walked. 03036dc006:
+	// the coverage ratchet accepts a lost polarity only for an owner-ruled tag
+	// move (OWNER RULING 6(b)), and Check takes the session's approval rows.
+	// No other non-test byte of the package moved since b12b55da47.
+	const want = "9d9b87c71f25fe515a25185f0980901b283e1cbfca6edb2560be6df51198cbea"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
