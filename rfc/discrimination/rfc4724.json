@@ -174,7 +174,7 @@
       "claim-sha": "f8cf4394872a0710",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "dac5c16ac290efc1",
+      "producer-sha": "5923c611ec89c6a3",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "3768b563e1763230",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "dac5c16ac290efc1",
+      "producer-sha": "5923c611ec89c6a3",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

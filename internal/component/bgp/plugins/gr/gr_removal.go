@@ -20,6 +20,7 @@ func (gp *grPlugin) onPeerRemoved(peerAddr string) {
 	gp.mu.Lock()
 	delete(gp.peerCaps, peerAddr)
 	delete(gp.peerLLGRCaps, peerAddr)
+	delete(gp.sentLLGRFamilies, peerAddr)
 	if gp.removedPeers == nil {
 		gp.removedPeers = make(map[string]bool)
 	}

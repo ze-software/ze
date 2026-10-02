@@ -182,7 +182,7 @@ the child engine get that same treatment.
 
 ## Long-Lived Graceful Restart (RFC 9494)
 
-LLGR extends standard GR with a second, much longer stale period. When the GR restart-time expires without the peer reconnecting, instead of purging all stale routes, LLGR keeps them for up to ~194 days (per-family configurable) with reduced priority.
+LLGR extends standard GR with a second, much longer stale period. When the GR restart-time expires without the peer reconnecting, instead of purging all stale routes, LLGR keeps them for up to ~194 days with reduced priority. The stale time a peer advertises can differ per family; the one Ze advertises is a single value for every family of the session.
 
 ### Configuration
 
@@ -201,7 +201,12 @@ capability {
 |------|------|---------|-------------|
 | `graceful-restart / long-lived-stale-time` | uint32 | -- | Seconds to hold LLGR-stale routes per family (0-16777215, 24-bit) |
 
-LLGR is only active when both peers negotiate it. Ze advertises LLGR capability (code 71) in OPEN when `long-lived-stale-time` is configured. LLGR requires GR capability (code 64) to also be present -- LLGR without GR is ignored per RFC 9494.
+LLGR is off unless you configure it. Ze advertises the LLGR capability (code 71) in its OPEN only when `long-lived-stale-time` is configured for the peer, and then for every family the peer's session carries.
+
+LLGR is only active for a family when both OPENs of the session list it in their LLGR capability. A peer that advertises LLGR for a family Ze did not advertise it for gets the base GR treatment for that family: its routes are kept for the Restart Time and no longer (RFC 9494 Section 5 requires configuration per AFI/SAFI before the procedures run). LLGR also requires the GR capability (code 64) in the same OPEN: LLGR without GR is ignored, as RFC 9494 Section 4.5 requires.
+<!-- source: internal/component/bgp/plugins/gr/gr_llgr_exchange.go -- exchangedLLGRLocked -->
+<!-- source: internal/component/bgp/plugins/gr/gr_llgr.go -- extractLLGRCapabilities -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- forgetGRCapability -->
 <!-- source: internal/component/bgp/plugins/gr/register.go -- CapabilityCodes: 64, 71 -->
 
 ### How It Works

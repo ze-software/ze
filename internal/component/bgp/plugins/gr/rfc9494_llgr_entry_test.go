@@ -30,6 +30,17 @@ func rfc9494Down(gp *grPlugin, structured bool) {
 	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
 }
 
+// declareLocalLLGR records that Ze's own OPEN to testPeer carried the LLGR Capability
+// for families, which is what the operator's long-lived-stale-time puts there. Without
+// it a received LLGR family is ignored (RFC 9494 Section 5, exchangedLLGRLocked).
+func declareLocalLLGR(gp *grPlugin, families ...family.Family) {
+	declared := make(map[family.Family]bool, len(families))
+	for _, f := range families {
+		declared[f] = true
+	}
+	gp.recordSentLLGR(testPeer, declared)
+}
+
 // rfc9494Paths names the two session-down paths every test below runs on.
 var rfc9494Paths = []struct {
 	name       string
@@ -63,6 +74,7 @@ func TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod(t *testing.T) {
 			gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
 				{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600},
 			}}
+			declareLocalLLGR(gp, family.IPv4Unicast)
 
 			rfc9494Down(gp, path.structured)
 
@@ -102,6 +114,7 @@ func TestRFC9494BothTimesZeroRetainsNothing(t *testing.T) {
 			gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
 				{Family: family.IPv4Unicast, ForwardState: true, LLST: 0},
 			}}
+			declareLocalLLGR(gp, family.IPv4Unicast)
 
 			rfc9494Down(gp, path.structured)
 
@@ -136,6 +149,7 @@ func TestRFC9494RestartTimeThenLongLivedStaleTime(t *testing.T) {
 	gp.peerLLGRCaps[testPeer] = &llgrPeerCap{Families: []llgrCapFamily{
 		{Family: family.IPv4Unicast, ForwardState: true, LLST: 1},
 	}}
+	declareLocalLLGR(gp, family.IPv4Unicast)
 	ipv4 := family.IPv4Unicast.String()
 	attach := "request bgp rib attach-community " + testPeer + " " + ipv4 + " ffff0006"
 	purge := "request bgp rib purge-stale " + testPeer + " " + ipv4

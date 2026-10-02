@@ -101,6 +101,10 @@ type grPlugin struct {
 	mu           sync.Mutex
 	peerCaps     map[string]*grPeerCap   // peerAddr -> last seen GR capability from OPEN
 	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> last seen LLGR capability from OPEN
+	// sentLLGRFamilies holds, per peer, the AFI/SAFI Ze declared in the LLGR Capability
+	// of the OPEN it last sent. A received LLGR family is honored only when it is here
+	// (exchangedLLGRLocked, gr_llgr_exchange.go). A nil map reads as "nothing declared".
+	sentLLGRFamilies map[string]map[family.Family]bool
 	// removedPeers tombstones peers deconfigured via a SessionStateDown with
 	// reason rpc.ReasonPeerRemoved, so a racing teardown "down" for the same
 	// peer does not re-activate GR. Cleared when the peer re-establishes.
@@ -184,7 +188,7 @@ func RunGRPlugin(conn net.Conn) int {
 	//   state — detect peer up/down (with reason for GR vs normal teardown)
 	//   eor — track End-of-RIB per fam for stale route purge
 	p.SetStartupSubscriptions(
-		[]string{"open direction received", "state", "eor"},
+		[]string{"open direction received", "open direction sent", "state", "eor"},
 		nil, "full",
 	)
 
@@ -275,6 +279,10 @@ func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		gp.handleStructuredState(se.PeerAddress, se.State, se.Reason)
 	case rpc.EventKindOpen:
 		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+			if se.Direction == rpc.DirectionSent {
+				gp.handleStructuredSentOpen(se.PeerAddress, msg)
+				return
+			}
 			gp.handleStructuredOpen(se.PeerAddress, msg)
 		} else if se.RawMessage != nil {
 			logger().Warn("gr: unexpected RawMessage type for open event",
@@ -410,7 +418,9 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 
 		gp.mu.Lock()
 		cap := gp.peerCaps[peerAddr]
-		llgrCap := gp.peerLLGRCaps[peerAddr]
+		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
+		// in order to enable them." Only the families both OPENs declared take part.
+		llgrCap := gp.exchangedLLGRLocked(peerAddr)
 		gp.mu.Unlock()
 
 		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
@@ -432,7 +442,9 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 
 		gp.mu.Lock()
 		newCap := gp.peerCaps[peerAddr]
-		newLLGRCap := gp.peerLLGRCaps[peerAddr]
+		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
+		// in order to enable them." Only the families both OPENs declared take part.
+		newLLGRCap := gp.exchangedLLGRLocked(peerAddr)
 		gp.mu.Unlock()
 
 		purged, _ := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
@@ -468,6 +480,10 @@ func (gp *grPlugin) handleEvent(event string) error {
 
 	switch msgType {
 	case "open":
+		if direction, _ := msgObj["direction"].(string); direction == rpc.DirectionSent.String() {
+			gp.handleSentOpenEvent(peerAddr, bgpPayload)
+			return nil
+		}
 		gp.handleOpenEvent(peerAddr, bgpPayload)
 	case "state":
 		gp.handleStateEvent(peerAddr, bgpPayload)
@@ -578,7 +594,9 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 
 		gp.mu.Lock()
 		cap := gp.peerCaps[peerAddr]
-		llgrCap := gp.peerLLGRCaps[peerAddr]
+		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
+		// in order to enable them." Only the families both OPENs declared take part.
+		llgrCap := gp.exchangedLLGRLocked(peerAddr)
 		gp.mu.Unlock()
 
 		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
@@ -604,7 +622,9 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 
 		gp.mu.Lock()
 		newCap := gp.peerCaps[peerAddr]
-		newLLGRCap := gp.peerLLGRCaps[peerAddr]
+		// RFC 9494 Section 5: "They MUST require affirmative configuration per AFI/SAFI
+		// in order to enable them." Only the families both OPENs declared take part.
+		newLLGRCap := gp.exchangedLLGRLocked(peerAddr)
 		gp.mu.Unlock()
 
 		purged, _ := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
@@ -658,6 +678,7 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 	gp.mu.Lock()
 	delete(gp.peerCaps, peerAddr)
 	delete(gp.peerLLGRCaps, peerAddr)
+	delete(gp.sentLLGRFamilies, peerAddr)
 	gp.mu.Unlock()
 }
 
