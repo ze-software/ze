@@ -24,6 +24,28 @@
       "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8414-2-1",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_MissingIssuer",
+      "unit-sha": "7ac44652ce9d46a8",
+      "claim-sha": "e4afc2a48230d561",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "9c3c0b8747d3dbfb",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-2-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_Success",
+      "unit-sha": "3d7f5a95707f5169",
+      "claim-sha": "fb63f46019cffd65",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "9c3c0b8747d3dbfb",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8414-3.1-1",
       "polarity": "positive",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",

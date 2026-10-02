@@ -22,6 +22,28 @@
       "producer": "internal/core/dnsserver/secure.go::dohRequestBody",
       "producer-sha": "ecd5f4f73536d829",
       "break": "body of dohRequestBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8484-6-2",
+      "polarity": "negative",
+      "unit": "internal/core/dnsserver/secure_test.go::TestDoHGetRejectsBadDNSParam",
+      "unit-sha": "ec7d82f6251e3412",
+      "claim-sha": "cd8b8c5ca673de68",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/secure.go::dohRequestBody",
+      "producer-sha": "ecd5f4f73536d829",
+      "break": "body of dohRequestBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8484-6-2",
+      "polarity": "positive",
+      "unit": "internal/core/dnsserver/secure_test.go::TestDoHListener",
+      "unit-sha": "ce92e353a0a033c7",
+      "claim-sha": "595dad210354646c",
+      "route": "revert",
+      "producer": "internal/core/dnsserver/secure.go::dohRequestBody",
+      "producer-sha": "ecd5f4f73536d829",
+      "break": "body of dohRequestBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

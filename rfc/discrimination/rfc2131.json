@@ -123,6 +123,28 @@
       "break": "body of safeAppendOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2131-4.1-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField",
+      "unit-sha": "84bf04b92e3761a7",
+      "claim-sha": "411e47c0d540e4ea",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::parseOptionAddr",
+      "producer-sha": "ff6dc120891059f1",
+      "break": "body of parseOptionAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.1-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField",
+      "unit-sha": "84bf04b92e3761a7",
+      "claim-sha": "5974fe8a03d139b8",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::safeAppendOption",
+      "producer-sha": "6465741358bf025e",
+      "break": "body of safeAppendOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2131-4.2-2",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient",
@@ -145,6 +167,17 @@
       "break": "body of extractMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2131-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier",
+      "unit-sha": "3758c1a79452d2ac",
+      "claim-sha": "cdd0b277429d1556",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::extractMAC",
+      "producer-sha": "6c1b5685be260229",
+      "break": "body of extractMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2131-4.3.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned",
@@ -161,6 +194,17 @@
       "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned",
       "unit-sha": "9b0f8b5fce3c766c",
       "claim-sha": "e9320268d530803a",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
+      "producer-sha": "768b422a81e3e140",
+      "break": "body of buildReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-4.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted",
+      "unit-sha": "4630baa60db01b39",
+      "claim-sha": "b5b145060e9d2276",
       "route": "revert",
       "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
       "producer-sha": "768b422a81e3e140",

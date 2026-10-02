@@ -37,6 +37,17 @@
     {
       "rid": "RFC792-Echo-2",
       "polarity": "positive",
+      "unit": "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode",
+      "unit-sha": "ef7532a74806a6a9",
+      "claim-sha": "801884d6ec76bb45",
+      "route": "revert",
+      "producer": "internal/core/probe/icmp.go::BuildICMPEcho",
+      "producer-sha": "aef7e871a591d9d2",
+      "break": "body of BuildICMPEcho replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC792-Echo-2",
+      "polarity": "positive",
       "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "3137d39e4d5cbebb",
@@ -44,6 +55,17 @@
       "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
       "producer-sha": "8891a051c78a5dc7",
       "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC792-Echo-3",
+      "polarity": "positive",
+      "unit": "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid",
+      "unit-sha": "6de4bc74c148342c",
+      "claim-sha": "cb35937401606b61",
+      "route": "revert",
+      "producer": "internal/core/probe/icmp.go::icmpChecksum",
+      "producer-sha": "6012fbb6e5eb2290",
+      "break": "body of icmpChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC792-Echo-3",

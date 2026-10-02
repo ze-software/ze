@@ -13,6 +13,17 @@
       "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4035-3-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing",
+      "unit-sha": "78e886e2a80359d0",
+      "claim-sha": "1f93f44ccb1a9509",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/server.go::answerQuestions",
+      "producer-sha": "93efe337a73bd924",
+      "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4035-4.1-1",
       "polarity": "positive",
       "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode",
@@ -24,11 +35,33 @@
       "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4035-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD",
+      "unit-sha": "780383ba14d0bc5e",
+      "claim-sha": "126f82db41d4278e",
+      "route": "revert",
+      "producer": "internal/component/resolve/dns/resolver.go::query",
+      "producer-sha": "86b40ee9731b4dba",
+      "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4035-4.1-4",
       "polarity": "positive",
       "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode",
       "unit-sha": "8095a19f57e46e46",
       "claim-sha": "974389bacdef698b",
+      "route": "revert",
+      "producer": "internal/component/resolve/dns/resolver.go::query",
+      "producer-sha": "86b40ee9731b4dba",
+      "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4035-4.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD",
+      "unit-sha": "780383ba14d0bc5e",
+      "claim-sha": "b6872194dabe881b",
       "route": "revert",
       "producer": "internal/component/resolve/dns/resolver.go::query",
       "producer-sha": "86b40ee9731b4dba",
@@ -55,6 +88,28 @@
       "producer": "internal/component/resolve/dns/resolver.go::dnssecDecision",
       "producer-sha": "8495c71007fe23e5",
       "break": "body of dnssecDecision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4035-4.6-3",
+      "polarity": "negative",
+      "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded",
+      "unit-sha": "dc4b72ade971b660",
+      "claim-sha": "3f5c8580f53685f1",
+      "route": "revert",
+      "producer": "internal/component/resolve/dns/resolver.go::dnssecDecision",
+      "producer-sha": "8495c71007fe23e5",
+      "break": "body of dnssecDecision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4035-4.6-3",
+      "polarity": "positive",
+      "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded",
+      "unit-sha": "dc4b72ade971b660",
+      "claim-sha": "3eec3d5a162af6b7",
+      "route": "revert",
+      "producer": "internal/component/resolve/dns/resolver.go::query",
+      "producer-sha": "86b40ee9731b4dba",
+      "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

@@ -3,6 +3,28 @@
   "records": [
     {
       "rid": "RFC4578-2.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch",
+      "unit-sha": "14b8ed7b81aa51db",
+      "claim-sha": "be8e65e412d4771d",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::parsePXEArch",
+      "producer-sha": "58ccac88ef37b551",
+      "break": "body of parsePXEArch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4578-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch",
+      "unit-sha": "14b8ed7b81aa51db",
+      "claim-sha": "1a05e25490ecafbe",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/handler.go::parsePXEArch",
+      "producer-sha": "58ccac88ef37b551",
+      "break": "body of parsePXEArch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4578-2.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/dhcpserver/rfc4578_arch_test.go::TestRFC4578ClientArchLengthEvenAndPositive",
       "unit-sha": "ee35939168765252",
