@@ -1,5 +1,6 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6793-3-1": {
       "note": "TestRFC6793AS4PathWireExcludesConfed: AS4Path.WriteTo/Len skip both confed types and keep AS_SEQUENCE/AS_SET, with Len matching bytes written.",
@@ -137,17 +138,21 @@
       "verdict": "enforced"
     },
     "RFC6793-4.2.2-4": {
-      "note": "TestRFC6793ConstructedAS4PathExcludesConfed drives TranscodeASPath 4->2 with an AS_CONFED_SEQUENCE only and asserts it is excluded from the constructed AS4_PATH while the AS_SEQUENCE is kept. The row names AS_CONFED_SEQUENCE or AS_CONFED_SET, and no AS_CONFED_SET reaches this path in any tagged unit, so half the exclusion is unproven",
+      "note": "Both confederation types now proven excluded from the constructed AS4_PATH. TestRFC6793ConstructedAS4PathExcludesConfedSet: AS_CONFED_SET {64514,64515}, AS_CONFED_SEQUENCE [64512], AS_SEQUENCE [non-mappable, 65001] through TranscodeASPath 4->2 yields an AS4_PATH of exactly the one AS_SEQUENCE, AS_PATH keeping all three. The AS_CONFED_SEQUENCE half is also held by the HEAD TestRFC6793ConstructedAS4PathExcludesConfed (exact single-segment assertion, no record) and by the AS_CONFED_SEQUENCE inside the new recorded unit. Negative TestRFC6793ConstructedAS4PathKeepsAnOrdinarySet: an ordinary AS_SET in the same place is carried, so the exclusion is scoped to type 3/4. Judge break (overlay, attribute/as4.go AS4Path.Len and WriteTo excluding only AS_CONFED_SEQUENCE) turned the new positive red, the HEAD sequence-only unit and the new negative green. Revert records on TranscodeASPath both polarities.",
       "requirement_sha": "ce7d002377db9cfd",
       "tests": {
         "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed": "46921ad87659919b",
-        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed#2": "46921ad87659919b"
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed#2": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_confed_set_test.go::TestRFC6793ConstructedAS4PathExcludesConfedSet": "627aae2b9fb74c1d",
+        "internal/component/bgp/wireu/rfc6793_confed_set_test.go::TestRFC6793ConstructedAS4PathKeepsAnOrdinarySet": "627aae2b9fb74c1d"
       },
       "units": {
         "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed": "0c86683be4e4471d",
-        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed#2": "0c86683be4e4471d"
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed#2": "0c86683be4e4471d",
+        "internal/component/bgp/wireu/rfc6793_confed_set_test.go::TestRFC6793ConstructedAS4PathExcludesConfedSet": "0baef55d526ae7bd",
+        "internal/component/bgp/wireu/rfc6793_confed_set_test.go::TestRFC6793ConstructedAS4PathKeepsAnOrdinarySet": "9faa2f8d091f4921"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6793-4.2.2-5": {
       "note": "Three producers (message originate, wireu TranscodeASPath, rib commit pack) each send AS_TRANS in a 6-octet AGGREGATOR plus AS4_AGGREGATOR with the real AS for a non-mappable aggregator; negatives keep a mappable AS with no companion.",
@@ -399,6 +404,5 @@
       "verdict": "enforced"
     }
   },
-  "rfc": "rfc6793",
-  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  "rfc": "rfc6793"
 }

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC9830-2.1-2": {
       "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies. Forbidden: a length octet other than 96 for AFI 1 or other than 192 for AFI 2. Red: assert.Equal(byte(96), v4[0]) and assert.Equal(byte(192), v6[0]) on EncodeNLRIHex output, with assert.Len on the 12/24-octet body. Negative: Parse(AFIIPv6, 12-octet body) require.ErrorIs ErrSRPolicyTruncated, and SplitSRPolicy refuses a 100-bit length.",
@@ -15,21 +15,25 @@
       "verdict": "enforced"
     },
     "RFC9830-2.1-3": {
-      "note": "The MP_UNREACH_NLRI half is now proven: TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes builds the SR Policy withdrawal on buildBatchWithdrawUpdate toward eBGP and iBGP, with an operator MED and with no attribute named at all (the input that yields a bare MP_UNREACH_NLRI), and finds MP_UNREACH 1/73, ORIGIN and AS_PATH by AttrFind every time, LOCAL_PREF on iBGP only. Observed-red records on planBatchAttrs both polarities. Still missing on the MP_REACH_NLRI half: TestRFC9830UpdateCarriesMandatoryAttributes checks the iBGP AS_PATH as the bare hex substring 4002, which can match across other octets of the UPDATE, so an iBGP SR Policy announce without AS_PATH can stay green; its tags carry no observed-red record.",
+      "note": "Both halves now proven. MP_UNREACH_NLRI: TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes (planBatchAttrs records, unchanged). MP_REACH_NLRI: TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes finds MP_REACH 00 01 49, ORIGIN 40/00 and the eBGP AS_PATH 40/02 01 0000FDE8 by attribute.AttrFind over the parsed path attribute section, iBGP MP_REACH and ORIGIN likewise; TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath forces the iBGP empty-path input (R1(b)) and requires AS_PATH present, flags 40, zero-length value. BuildPlugin is the producer the reactor's config send shares (peer_initial_sync.go). Judge break (overlay, update_build_plugin.go: drop every attribute appendASPath wrote on iBGP) turned the new negative red and the new positive green; the c32 author's probes cover dropped ORIGIN (positive red). Revert records on BuildPlugin for the two new units and the two HEAD tags of TestRFC9830UpdateCarriesMandatoryAttributes. Residual: the HEAD negative (LOCAL_PREF only on iBGP) proves attribute categorisation rather than presence of the mandatory set, supplementary here.",
       "requirement_sha": "89e9de484f71fc82",
       "tests": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "f1e61f246e4da117",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "f1e61f246e4da117",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "35c12d1922010b90",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "35c12d1922010b90",
         "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "38048ce0e9d32912",
         "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "38048ce0e9d32912"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "0b773d1066af9ac2",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "0b773d1066af9ac2",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "7242167016f52975",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "9b3d4d582a609e8d",
         "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "dd7ea18f18423fca",
         "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "dd7ea18f18423fca"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9830-2.3-1": {
       "note": "Judge 2026-09-30. Reactor TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong: a clean and a dirty Tunnel Encapsulation attribute (dirty: all-ones reserved fields, unrecognized sub-TLV 200, UDP Destination Port of Length 3, VXLAN sub-TLV in an SR Policy TLV, second Tunnel Egress Endpoint, TLV of unrecognized type 0xFFFE) go through enforceRFC7606 (ActionNone, no error, octet-equal) and to a peer's socket both forwarded raw and rebuilt by buildModifiedPayload for next-hop-self and a new MED; attribute 23 and the Color extended community reach the wire octet-equal in every run. Ze reads no received sub-TLV (only TunnelTLV.Preference, test decode only), so the carrier's obligation is observed as verdict plus carry. Judge break: a receive validator acting on Preference Flags made the dirty run red. Here: Color and Tunnel Egress Endpoint sub-TLVs inside the SR Policy TLV change neither verdict nor handling between the clean and dirty runs, and are carried octet-equal.",

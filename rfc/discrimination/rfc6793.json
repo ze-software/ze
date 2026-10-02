@@ -149,6 +149,28 @@
       "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC6793-4.2.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/wireu/rfc6793_confed_set_test.go::TestRFC6793ConstructedAS4PathExcludesConfedSet",
+      "unit-sha": "121ab198f7c83369",
+      "claim-sha": "94342e79c1c74418",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_transcode.go::TranscodeASPath",
+      "producer-sha": "937a974224aaa13f",
+      "break": "body of TranscodeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6793-4.2.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/wireu/rfc6793_confed_set_test.go::TestRFC6793ConstructedAS4PathKeepsAnOrdinarySet",
+      "unit-sha": "4a0e62c099827ae4",
+      "claim-sha": "470a1bb525dcff7c",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_transcode.go::TranscodeASPath",
+      "producer-sha": "937a974224aaa13f",
+      "break": "body of TranscodeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6793-4.2.2-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker",

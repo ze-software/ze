@@ -4,6 +4,50 @@
     {
       "rid": "RFC9830-2.1-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes",
+      "unit-sha": "ed010ff61c5753b2",
+      "claim-sha": "223319b2754811dc",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
+      "producer-sha": "378ee273eeaf821f",
+      "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes",
+      "unit-sha": "ed010ff61c5753b2",
+      "claim-sha": "e9a80b6fc312b850",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
+      "producer-sha": "378ee273eeaf821f",
+      "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes",
+      "unit-sha": "3bb47a72cf2f8092",
+      "claim-sha": "1c2d291ef75ae072",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
+      "producer-sha": "378ee273eeaf821f",
+      "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath",
+      "unit-sha": "0548e0704fb3b265",
+      "claim-sha": "c4ea4642cd1f9602",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
+      "producer-sha": "378ee273eeaf821f",
+      "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9830-2.1-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes",
       "unit-sha": "626d1ab29e2fbd67",
       "claim-sha": "bc8e391d1f3306ba",

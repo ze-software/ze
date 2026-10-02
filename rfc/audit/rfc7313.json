@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC7313-4-1": {
       "note": "Single-polarity positive, marker accepted (no input selects a re-advertisement without the BoRR; BoRR/EoRR receipt is log-only, RFC7313-4-4/4-5 gaps, so no handling-of-absence negative exists). TestRFC7313BoRRRoutesEoRRInOneSequence asserts [BoRR, route, route, EoRR] on both rails (handleRefresh, handleRefreshStructured) in response to a peer normal ROUTE-REFRESH; observed red with handleRefresh broken. The BoRR is written raw at once and the routes after it, so no queue can put a route ahead of it. Supplementary positives: BoRR subtype encoding (routerefresh_test.go), dispatch to SendBoRR, BoRR-first on both rails (rfc7313_test.go); no records for those.",
@@ -41,21 +41,25 @@
       "verdict": "enforced"
     },
     "RFC7313-4-3": {
-      "note": "(a) forbidden: handling a ROUTE-REFRESH without reading its subtype (every subtype treated alike); (b) no tagged assertion goes red on it. TestHandleRouteRefreshBoRR, TestHandleRouteRefreshEoRR, TestHandleRouteRefreshUnknown and TestHandleRouteRefresh_UnknownSubtype all assert only NoError and Established, the same outcome for every subtype, so a subtype-blind handler passes all of them. The differentiated action (only subtype 0 starts a refresh) lives in rib_structured.go and rs parseStructuredRefresh and is asserted only by an untagged rib test for subtype 1.",
+      "note": "The differentiated action is now asserted on the RIB, which takes it. TestRFC7313SubtypeZeroStartsTheRefresh: body 00 01 00 01 on handleRefreshStructured and event kind refresh on dispatch each yield exactly BoRR, the two IPv4 routes of the Adj-RIB-Out, EoRR (requireBracketedReadvertisement, IPv6 route excluded). TestRFC7313PeerMarkersStartNoRefresh: the same up peer and Adj-RIB-Out with subtype 1 or 2 (both rails) emits nothing. Judge break (overlay, rib_structured.go: subtype != 0 widened to subtype > 2) turned the new negative red and the positive green. Revert records on handleRefreshStructured both polarities. The HEAD reactor tags (NoError/Established for every subtype) remain supplementary and unrecorded. The BoRR/EoRR stale handling itself stays the {gap} rows 4-4/4-5.",
       "requirement_sha": "551f4e7a9d5d0c2c",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "229f47592a83c9c4",
+        "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "229f47592a83c9c4",
         "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "36ad5ca29acc4eb4",
         "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "933b3c0fcb7d9bad",
         "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "933b3c0fcb7d9bad",
         "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "933b3c0fcb7d9bad"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "8b53b9ee1343739b",
+        "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "275a5077853e4496",
         "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "43ed522f8946174d",
         "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "2b609f04afb8968f",
         "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "40fecd773bb351a7",
         "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "3b1ffa2c587c08fe"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7313-5-1": {
       "note": "(a) forbidden: not sending Error 7/subcode 1 for a BoRR or EoRR whose body is not 4 octets; (b) TestRouteRefreshBadLengthByMessageSubtype asserts the exact NOTIFICATION for subtypes 1 and 2, too short and too long, and TestRouteRefreshInvalidLengthNotDelivered asserts octets 7/1. Negatives: subtype 0 draws Bad Message Length, a peer without capability 70 draws Bad Message Length, a 4-octet body draws nothing, and an unknown subtype of any length draws no NOTIFICATION and is not delivered (TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength, whose well-formed cases now expect 0 deliveries after the RFC7313-5-3 fix).",

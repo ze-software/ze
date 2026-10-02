@@ -46,6 +46,28 @@
       "break": "body of sendRefreshMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7313-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh",
+      "unit-sha": "e744aabf7c30eeca",
+      "claim-sha": "e098e90399306e39",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured",
+      "producer-sha": "aaaaba231975ab79",
+      "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7313-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh",
+      "unit-sha": "d0a8e3c3d61d4653",
+      "claim-sha": "0c35100ff4231848",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured",
+      "producer-sha": "aaaaba231975ab79",
+      "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7313-5-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",

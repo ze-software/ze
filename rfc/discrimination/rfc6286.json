@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc6286",
+  "records": [
+    {
+      "rid": "RFC6286-2.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS",
+      "unit-sha": "ea20ac5aa32bce25",
+      "claim-sha": "c8bdd87e42d15a7b",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::ValidateBGPIdentifier",
+      "producer-sha": "516a675ad55b89c5",
+      "break": "body of ValidateBGPIdentifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
