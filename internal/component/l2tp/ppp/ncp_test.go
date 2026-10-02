@@ -161,15 +161,16 @@ func TestIPResponseConfiguresInterface(t *testing.T) {
 //
 // VALIDATES: with the IPCP exchange stalled short of Opened (ze's Configure-Request Acked,
 // driving it to AckRcvd, but ze has not yet Acked the peer's Configure-Request because the
-// peer never sends one), the backend AddAddressP2P is never called and no
-// EventSessionIPAssigned is emitted.
+// peer never sends one), the backend AddAddressP2P and SetAdminUp are never called and
+// no EventSessionIPAssigned is emitted.
 // PREVENTS: programming the interface address at Configure-Request-sent or at AckRcvd,
 // which would put IPv4 on the wire before IPCP Opened. onNCPOpened (ncp.go) is the only
 // AddAddressP2P caller and runs only on the transition into Opened, so a regression that
 // moved the programming earlier is exactly what this pins.
 //
-// RFC requirement: RFC1332-2.1-1 negative -- before IPCP reaches Opened, ze programs no
-// address and emits no EventSessionIPAssigned, so no IP is communicated pre-Opened; the
+// RFC requirement: RFC1332-2.1-1 negative -- with IPCP held at Ack-Rcvd, short of Opened,
+// ze programs no address (no AddAddressP2P), emits no EventSessionIPAssigned and never
+// brings pppN up (no SetAdminUp), so the kernel has no interface to carry IP on; the
 // sole AddAddressP2P caller onNCPOpened (internal/component/l2tp/ppp/ncp.go) fires only on
 // the transition into Opened.
 func TestIPCPNoAddressBeforeOpened(t *testing.T) {
@@ -196,6 +197,11 @@ func TestIPCPNoAddressBeforeOpened(t *testing.T) {
 	}
 	if calls := td.backend.P2PCalls(); len(calls) != 0 {
 		t.Errorf("AddAddressP2P called before IPCP reached Opened: %+v", calls)
+	}
+	// SetAdminUp runs only after runNCPPhase returns (session_run.go), and a
+	// pppN that is down carries no IP in either direction.
+	if up := td.backend.UpCalls(); len(up) != 0 {
+		t.Errorf("SetAdminUp called before IPCP reached Opened: %v", up)
 	}
 }
 

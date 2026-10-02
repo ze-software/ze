@@ -38,12 +38,12 @@
       "rid": "RFC1332-2.1-1",
       "polarity": "negative",
       "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened",
-      "unit-sha": "f4fc6d3a51a33cd0",
-      "claim-sha": "02c19f3f2e97208f",
-      "route": "revert",
+      "unit-sha": "fffffacce2204d03",
+      "claim-sha": "ad8fb045d73d3c2f",
+      "route": "mutant",
       "producer": "internal/component/l2tp/ppp/ncp.go::handleNCPPacket",
       "producer-sha": "a3f5f02588814e50",
-      "break": "body of handleNCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "break": "line 540: \"==\" -\u003e \"!=\""
     },
     {
       "rid": "RFC1332-2.1-1",

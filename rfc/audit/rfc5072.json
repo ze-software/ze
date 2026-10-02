@@ -1,12 +1,15 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5072-2-1": {
       "note": "Judge ppp5 2026-09-30. TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened: both NCPs enabled, IPCP Opened, IPV6CP held in Ack-Rcvd; fails on EventSessionUp and now on either attempt log, 'IPv6 service start failed' or 'refusing to start the IPv6 service', the second being what afterLCPOpenIPv6Service logs in this scenario because the peer interface id is never negotiated. So an up gate keyed on any non-Initial IPV6CP state and an early service start both turn it red (recorded ncpsComplete revert). Single-polarity positive per the row marker; ncp_test.go TestIPv6ServiceStartsOnlyAfterIPv6CPOpened proves the service does start once IPV6CP Opens.",
       "requirement_sha": "39050f2ad3f56b75",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "c0875be325cf7c8c",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "99a68f4293234999",
         "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened": "4eae0d47d0d5b1c1"
       },
       "units": {
@@ -19,8 +22,8 @@
       "note": "Judge 2026-09-29. Send half now driven: TestNCPHeldUntilNetworkPhase/ipv6, CHAP pending 3 s -> no IPV6CP frame (no frame at all) and no address request (-); accepted -> IPV6CP (0x8057) Configure-Request (+). Receive half: TestIPv6CPNoResponseBeforeNetworkPhase. Records on runAuthPhase (-) and runNCPPhase (+).",
       "requirement_sha": "92b84b69a4c59301",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase": "c0875be325cf7c8c",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned": "c0875be325cf7c8c",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase": "99a68f4293234999",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned": "99a68f4293234999",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "d6b4e2cbd1b095e9",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase#2": "d6b4e2cbd1b095e9"
       },
@@ -37,8 +40,8 @@
       "requirement_sha": "170ecc871559a43e",
       "tests": {
         "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPProposesInterfaceID": "bbec4cd4bfc6bbe0",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked": "c0875be325cf7c8c",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked": "99a68f4293234999",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPProposesInterfaceID": "bbf840d4c68e2a00",
@@ -51,8 +54,8 @@
       "note": "Forbidden: a further Configure-Request carrying the interface-identifier option after a valid Interface-Identifier Configure-Reject. TestIPv6CPInterfaceIDRejectIsFatal fails when no EventSessionDown follows the Reject (absorbIPv6CPReject returns ncpReplyFatal, so no new CR is ever sent); a regression that absorbs and resends keeps the session up and goes red. Negative TestIPv6CPUnknownOptionRejectNotFatal fails if a Reject of an unrequested option stops negotiation.",
       "requirement_sha": "afe6272ed58fa5ff",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal": "c0875be325cf7c8c",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal": "99a68f4293234999",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal": "484bfec1198ca9e6",
@@ -64,7 +67,7 @@
       "note": "Forbidden: Naking a second option-less Configure-Request after having Naked the first. TestIPv6CPMissingOptionIsNakedOnce fails when the second evalIPv6CPRequest verdict is not ncpRequestAcceptable (i.e. a second Nak). The first-call assertion bounds it. Single-polarity marker present.",
       "requirement_sha": "8701bd9511ba0f60",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce": "957508221554b045"
@@ -75,8 +78,8 @@
       "note": "Forbidden: Nak/Reject of a different non-zero identifier, or an Ack carrying a value other than the requested one. TestIPv6CPAcksDifferentNonZeroInterfaceID fails on response code != Configure-Ack and on ackOpts.InterfaceID != the requested ipv6cpTestPeerID. Negative TestIPv6CPNaksZeroInterfaceID fails when a zero identifier is Acked, bounding the non-zero condition.",
       "requirement_sha": "95e22bd6299fe20a",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID": "c0875be325cf7c8c",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID": "99a68f4293234999",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID": "708b3c185c899bb0",
@@ -88,7 +91,7 @@
       "note": "Forbidden: answering equal non-zero identifiers with Ack or Reject, or a Nak whose suggestion equals the colliding value or is zero. TestIPv6CPNakOnEqualNonZeroIdentifiers fails on verdict != unacceptable, code != Configure-Nak, opts.InterfaceID == local (not different) and opts.InterfaceID == zero (not non-zero). Every clause asserted; single-polarity marker present.",
       "requirement_sha": "ecab5648a62ba83e",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers": "03b6f4b5cf0a007a"
@@ -99,7 +102,7 @@
       "note": "Judge 2026-09-29. TestIPv6CPSuggestionDiffersFromLocalIdentifier now feeds crypto/rand.Reader a first draw equal to the local identifier (u bit clear) and a distinct second: the suggestion must be the second draw. Deleting the id == local rejection in suggestIPv6CPInterfaceID returns the local identifier and fails both assertions. Valid single-polarity: the forced colliding draw is the violating input; ze produces no suggestion outside this function. Marker text corrected.",
       "requirement_sha": "620a78d00de64eba",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier": "d1daf4702a44ee0b"
@@ -110,7 +113,7 @@
       "note": "Forbidden: answering equal-zero identifiers with a Nak/Ack, or a Reject not carrying the zero identifier. TestIPv6CPBothZeroIsRejected fails on code != Configure-Reject, a Reject missing the Interface-Identifier option, and opts.InterfaceID != zero. The sentence defines termination as transmitting that Reject, which is asserted. Single-polarity marker present.",
       "requirement_sha": "3df5305ee54e7405",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected": "acb1a522a0e9169b"
@@ -121,8 +124,8 @@
       "note": "Forbidden: after a peer Nak with a suggestion, resending the old identifier or none. TestIPv6CPResendsCRWithNakSuggestedID fails when the resent CR lacks the option or opts.InterfaceID != suggested. Negative TestIPv6CPNakInvalidSuggestionNotAdopted fails if an all-zero suggestion is adopted, bounding the rule to usable suggestions.",
       "requirement_sha": "041756c7bba9b99f",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "c0875be325cf7c8c",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "c0875be325cf7c8c"
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "99a68f4293234999",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "99a68f4293234999"
       },
       "units": {
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "9614ddb5c554e086",

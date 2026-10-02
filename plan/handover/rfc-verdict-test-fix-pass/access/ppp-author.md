@@ -196,3 +196,17 @@ Files changed (continuation 5):
 
 Files changed (continuation 7): internal/component/l2tp/pppoeclient/{session.go, network_phase.go (comment), rfc1994_network_phase_test.go, ipcp_reply_test.go, rfc1661_option_length_test.go, pap_request_rfc1334_test.go, rfc1994_peer_rfc_test.go, chap_reply_test.go, lcp_reply_test.go, lcp_transition_test.go}, docs/architecture/l2tp/cpe-1-pppoe-client.md, plan/journal/test-against-broken-path.md, rfc/discrimination/rfc1994.json, rfc approvals for the 3 D-15 units.
 Owed by main thread: reseal (SHIFTED), independent judge for the STALE verdicts above, rfc index-update. Advisory hook warning (pre-existing): session.go has no `// RFC:` header.
+
+# Continuation 8 (2026-10-02, RFC1332-2.1-1 negative, c12 judge "absence claim, needs mutant route")
+
+| id | change | records | expected verdict | changed files |
+|---|---|---|---|---|
+| RFC1332-2.1-1 | tests. Negative TestIPCPNoAddressBeforeOpened (D-15 approved) drives IPCP to Ack-Rcvd, one step short of Opened (peer Acks ze's request, never sends its own). It now also asserts no SetAdminUp, because a pppN that is down carries no IP. The claim was reworded to match. Ruling 2 receive side is already proven under RFC1661-3.6-2 (TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened). The absence assertion is now discriminated by a real gomu mutant on the Opened gate. | negative re-recorded on the mutant route: handleNCPPacket Opened gate `tr.NewState == LCPStateOpened` mutated to `!=` (selector column 5, mutant #2 in the proposer listing), which makes onNCPOpened fire on entry to Ack-Rcvd. OBSERVED red on the test's own assertion "EventSessionIPAssigned emitted before IPCP reached Opened". This replaces the old revert/halt record. Real gomu report over ncp.go only: 552 mutants, 315 killed, at tmp/session/2026-10-02-e08980d7-.../scratch/a1332-gomu/mutation-report.json. Positive and TestNCPHeldUntilNetworkPhase records unchanged | enforced (judge re-read owed: unit-sha and claim changed) | internal/component/l2tp/ppp/ncp_test.go, rfc/discrimination/rfc1332.json |
+
+## Judge, Continuation 8 (2026-10-02, independent, mode rejudge)
+
+| id | verdict | evidence |
+|---|---|---|
+| RFC1332-2.1-1 | enforced (rejudged) | gomu report genuine: gomu 0.1.0, run.log 1h5m over ncp.go, 552 mutants / 315 killed; mutant ncp.go_245 is the handleNCPPacket Opened gate `==` -> `!=` (TIMED_OUT in gomu's full-package run, so the unit-scoped record is the proof). Judge re-applied it under a Go overlay: TestIPCPNoAddressBeforeOpened FAIL "EventSessionIPAssigned emitted before IPCP reached Opened"; green without it. ncp.go unchanged since dcbc6de1a7. Claim matches the body's three assertions at Ack-Rcvd (no IPAssigned, no AddAddressP2P, no SetAdminUp; SetAdminUp runs only after runNCPPhase returns, session_run.go). Nit, not a defect: "so the kernel has no interface to carry IP on" is rationale the fake backend does not assert. Ruling 2 receive side: TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened (RFC1661-3.6-2, enforced) carries an observed-red revert record on supportsProtocol. rfc/audit/rfc5072.json carried: reseal shifts of ncp_test.go whole-file shas only (units unchanged) plus the reseal history line. |
+
+Gates: golangci-lint internal/component/l2tp/ppp 0 issues; package tests ok; `./le rfc check` 61 violations, none in rfc1332, rfc1661 or rfc5072 (rfc5880 BFD, rfc3101/3623/5709/7474 OSPF, rfc9190 producer-changed: other agents). Access derived listing: RFC2866-5.5-1, RFC3579-3.3-2, RFC5176-2.3-2, all Blocked-by spec-radius-rfc-defects.

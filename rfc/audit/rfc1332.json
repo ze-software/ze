@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC1332-2-1": {
       "note": "Judge ppp4 2026-09-30. Re-read after the frame_test.go negative moved to RFC1661-5-2 (it proved Length validation, a neighbour). Still proven by TestIPCPOnePacketPerFrameThroughRun: ze's IPCP CONFREQ from run() is 0x8021 with Length == Information length (+); a 0x8021 frame carrying a CONFREQ and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack in 1 s (-, receiver-side injection).",
@@ -17,15 +17,15 @@
       "verdict": "enforced"
     },
     "RFC1332-2.1-1": {
-      "note": "Judge 2026-09-29. Network-phase clause now driven: TestNCPHeldUntilNetworkPhase/ipv4, CHAP pending 3 s -> no frame, no address request, no AddAddressP2P (-); accepted -> address request and IPCP Configure-Request. Opened clause unchanged: TestIPCPNoAddressBeforeOpened / TestIPResponseConfiguresInterface. Observed red with runAuthPhase broken; an NCP started beside or before authentication writes a frame inside the 3 s window by construction.",
+      "note": "Rejudge 2026-10-02 (independent judge). Opened clause: positive TestIPResponseConfiguresInterface (completeIPCP -> AddAddressP2P ppp42 10.0.0.1/32 10.0.0.2/32, EventSessionIPAssigned, SetAdminUp after EventSessionUp; revert sendIPAssigned observed red). Negative TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or any SetAdminUp (SetAdminUp runs only after runNCPPhase returns, session_run.go). Recorded on the mutant route: gomu 0.1.0 report over ncp.go (552 mutants, 315 killed; this mutant TIMED_OUT in the full package run) mutant ncp.go_245, handleNCPPacket line 540 `tr.NewState == LCPStateOpened` -> `!=`; judge re-ran it under a Go overlay: red on the unit's own assertion 'EventSessionIPAssigned emitted before IPCP reached Opened'. Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 (runAuthPhase revert observed red). Ruling 2 receive side: a supported IPv4 packet before NCP Opened is discarded, TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2 (supportsProtocol revert recorded). Claim nit, not a verdict defect: 'so the kernel has no interface to carry IP on' is a rationale the fake backend does not assert; pppN exists but stays down.",
       "requirement_sha": "3568b51e3865902e",
       "tests": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "c0875be325cf7c8c",
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "c0875be325cf7c8c",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "99a68f4293234999",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "99a68f4293234999",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "d6b4e2cbd1b095e9"
       },
       "units": {
-        "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "05ad882f6d762809",
+        "internal/component/l2tp/ppp/ncp_test.go::TestIPCPNoAddressBeforeOpened": "e2a7b24bc970dacb",
         "internal/component/l2tp/ppp/ncp_test.go::TestIPResponseConfiguresInterface": "5bd68df15f1a63ac",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "8a0f8d564218620c"
       },
