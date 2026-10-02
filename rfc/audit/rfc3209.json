@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC3209-3-1": {
       "note": "Forbidden: LABEL or RECORD_ROUTE placed before its FILTER_SPEC or after a subsequent one. TestRFC3209ResvLabelFollowsFilterSpec asserts objs[filter+1]==LABEL and objs[filter+2]==RECORD_ROUTE; TestRFC3209LabelFollowsFilterSpec asserts exactly one FILTER_SPEC and label==filter+1; TestRFC3209ResvNeverCarriesSenderTemplate asserts no LABEL/RRO precedes the FILTER_SPEC. buildResv emits one sender per RESV, so both clauses are pinned.",
@@ -71,15 +71,15 @@
       "verdict": "enforced"
     },
     "RFC3209-4.3.4-1": {
-      "note": "Rejudged 2026-09-29 (routing child). Positive TestEngineTransitForwarding: the transit deletes its first subobject and forwards to the adjacent next hop. New negative TestRFC3209TransitNotAdjacentToSecondSubobject: with no route to the strict second subobject the transit selects no next hop, forwards nothing, keeps no state, and sends PathErr 24/2 (the 5a branch that follows when step 4's condition fails).",
+      "note": "Closure rejudge 2026-10-02: TestEngineTransitForwarding changed only in its positive claim, which named nextHopFromERO (gone) and now names the current producer, routing.go resolveExplicitPath, which skips the leading local subobjects and, when the next node is in the second abstract node, returns the ERO from that subobject on; the body still asserts the PATH is relayed to the egress with a one-hop ERO beginning at the egress. Positive re-recorded on resolveExplicitPath (observed red). Negatives TestRFC3209TransitNotAdjacentToSecondSubobject (no route to the strict second subobject: no next hop, nothing forwarded, no state, PathErr 24/2) and TestEngineTransitNoUsableERONextHop, both recorded on resolveExplicitPath.",
       "requirement_sha": "7976a5da38c3aa56",
       "tests": {
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding": "e4340b136a4de02d",
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitNoUsableERONextHop": "e4340b136a4de02d",
+        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding": "bd58ca6db1f33b46",
+        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitNoUsableERONextHop": "bd58ca6db1f33b46",
         "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding": "0ca6fad242dd6dee",
+        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding": "624e2801cc93c4b0",
         "internal/plugins/rsvpte/engine_test.go::TestEngineTransitNoUsableERONextHop": "f03ea0cc31a7bc4c",
         "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "9f827990467756ac"
       },

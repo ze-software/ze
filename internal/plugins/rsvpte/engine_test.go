@@ -288,7 +288,7 @@ func TestEngineTransitForwarding(t *testing.T) {
 	fwd, dst, ok := ft.lastByType(MsgTypePath)
 	require.True(t, ok, "transit relays PATH downstream")
 	assert.Equal(t, egress, dst, "PATH relayed to next ERO hop")
-	// RFC requirement: RFC3209-4.3.4-1 positive -- the transit node removes its own leading ERO subobject (nextHopFromERO, engine.go:407-416) before relaying, so the forwarded PATH's ERO begins at the next hop (the egress).
+	// RFC requirement: RFC3209-4.3.4-1 positive -- the transit node removes its own leading ERO subobject (resolveExplicitPath in routing.go strips the leading subobjects naming a local address) before relaying, so the forwarded PATH's ERO begins at the next hop (the egress).
 	require.Len(t, fwd.ERO, 1, "transit consumed its own ERO subobject; only the egress hop remains")
 	assert.Equal(t, egress, fwd.ERO[0].Address.Addr())
 

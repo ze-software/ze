@@ -206,9 +206,6 @@ func TestHigherMajorVersionDropped(t *testing.T) {
 // buildSAInitRequest copies only the initiator SPI into the header (initiator.go:70-81).
 // Octets 8..15 of the IKE_SA_INIT request are therefore zero.
 //
-// RFC requirement: RFC7296-3.1-3 negative -- the rule is enforced on receipt too. dispatchInbound
-// drops a datagram whose initiator SPI is all zeroes (register.go:657-659). It does not match
-// that datagram against the SA table.
 // RFC requirement: RFC7296-3.1-4 negative -- the zero is confined to that first message. The
 // IKE_SA_INIT RESPONSE and every later message carry a non-zero responder SPI, so a peer can
 // name the SA.

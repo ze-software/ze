@@ -1,6 +1,7 @@
 {
-  "audited": "2026-10-01",
+  "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -729,9 +730,9 @@
       "note": "V bit clear on every built message; set V bit on receipt changes nothing",
       "requirement_sha": "10244e09703cee9f",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "b06c27b0c6cb7382",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "b06c27b0c6cb7382",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "b06c27b0c6cb7382"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "8d3fcb43ed2e4c94",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "8d3fcb43ed2e4c94",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "8d3fcb43ed2e4c94"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
@@ -744,7 +745,7 @@
       "note": "TestNrsResponseNeverDrawsAResponse drives the responder handshake, out-of-SA admission (with a matching source so the flag is the only difference), INFORMATIONAL and CREATE_CHILD_SA paths: a message marked as a response builds and sends nothing, the same message with the flag clear is answered. TestNrsInformationalHandlerRefusesAResponse takes handleInformationalOwned at its own entry point, both ways. TestResponseBitMatchesDirection's moved negative repeats the handshake arm (R-set IKE_SA_INIT leaves the responder idle, the clear one reaches sa-init-received). The Section 2.21.2 exception is not exercised here.",
       "requirement_sha": "9541df22d0b78b28",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse": "13157a7cdb7a412c",
         "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse#2": "13157a7cdb7a412c",
         "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse": "13157a7cdb7a412c",
@@ -790,33 +791,31 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-3": {
-      "note": "Send: GenerateSPI and new SAs asserted non-zero (TestSPIZeroRules). Receive, both dispatchers: TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt (port 500, dispatchInbound) and TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket (port 4500, dispatchNATTInbound, non-ESP marker) each put an SA with a zero Initiator's SPI in the table, so without the guard the zero-iSPI datagram would reach that SA's owner; the following non-zero datagram is delivered (NAT-T: marker stripped). Records are whole-producer reverts (reach); the isolation comes from the zero-iSPI SA in the table.",
+      "note": "Send: GenerateSPI and new SAs asserted non-zero (TestSPIZeroRules, positive, recorded on GenerateSPI). Receive, both dispatchers: TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt (port 500, dispatchInbound) and TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket (port 4500, dispatchNATTInbound, non-ESP marker) each put an SA with a zero Initiator's SPI in the table, so without the guard the zero-iSPI datagram would reach that SA's owner; the following non-zero datagram is delivered (NAT-T: marker stripped). Records are whole-producer reverts (reach); the isolation comes from the zero-iSPI SA in the table. Closure rejudge 2026-10-02: the negative tag on TestSPIZeroRules was removed, since its body never calls dispatchInbound; the negative polarity rests on the two dedicated recorded units above.",
       "requirement_sha": "df0a427bb2fa29ae",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "b06c27b0c6cb7382",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket": "bec623016e9c3934",
         "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "9421156ced1ce8cb"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "8c22f393434b327c",
         "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket": "1e1b9354165bd819",
         "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "a88a9b37b6cf5987"
       },
       "verdict": "enforced"
     },
     "RFC7296-3.1-4": {
-      "note": "First message: TestSPIZeroRules asserts octets 8..15 zero in Ze's IKE_SA_INIT request, non-zero in the response. Cookie repeat: TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat answers a COOKIE challenge whose Responder's SPI is 0909..09, checks the repeat carries the COOKIE notify and the same Initiator's SPI, and asserts octets 8..15 of the repeat are zero, red on a retry that copies the challenge's SPI.",
+      "note": "First message: TestSPIZeroRules asserts octets 8..15 zero in Ze's IKE_SA_INIT request, non-zero in the response. Cookie repeat: TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat answers a COOKIE challenge whose Responder's SPI is 0909..09, checks the repeat carries the COOKIE notify and the same Initiator's SPI, and asserts octets 8..15 of the repeat are zero, red on a retry that copies the challenge's SPI. Rejudged 2026-10-02: TestSPIZeroRules changed only by the removal of its RFC7296-3.1-3 negative tag lines; the 3.1-4 assertions are unchanged.",
       "requirement_sha": "aec2989709fac5ae",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "b06c27b0c6cb7382",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "8d3fcb43ed2e4c94",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "9e3b858e56f0381a"
       },
       "units": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "8c22f393434b327c",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "8c22f393434b327c",
         "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "e5feaf9700e10c59"
       },
       "verdict": "enforced"
@@ -825,8 +824,8 @@
       "note": "every engine-built message has X bits clear; I and R observed so the mask is not vacuous",
       "requirement_sha": "a83889dde379df73",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "b06c27b0c6cb7382",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "b06c27b0c6cb7382"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "8d3fcb43ed2e4c94",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "8d3fcb43ed2e4c94"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
@@ -838,8 +837,8 @@
       "note": "IKE_SA_INIT with all X bits set is processed as the clean one; R bit set changes treatment",
       "requirement_sha": "a80d7400e445d775",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "b06c27b0c6cb7382",
-        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "b06c27b0c6cb7382"
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "8d3fcb43ed2e4c94",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "8d3fcb43ed2e4c94"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf",
@@ -851,7 +850,7 @@
       "note": "Positive: TestResponseBitMatchesDirection asserts the exact R bit on every engine-built request and response. Negative (ruling R1 a, receive side): TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear feeds the initiator's handleInbound the responder's real IKE_SA_INIT answer with only the R bit cleared (stays StateSAInitSent), then the untouched answer (advances), so the refusal is the R bit's doing. The old responder-side negative moved to RFC7296-3.1-12, which it proves. Record: whole-producer revert of fsm.go::handleInbound (reach); isolation by the one-bit difference.",
       "requirement_sha": "501ace8bd2b37543",
       "tests": {
-        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "b06c27b0c6cb7382",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "8d3fcb43ed2e4c94",
         "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear": "27be632153608b49"
       },
       "units": {

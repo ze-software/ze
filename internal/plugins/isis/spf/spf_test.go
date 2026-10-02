@@ -290,7 +290,7 @@ func TestISISMetricWidth(t *testing.T) {
 	g2 := BuildGraph(src2, Level1)
 	res2 := Compute(g2, sysID(1), Level1)
 	// B itself is still reachable (edge 10) -- it is the prefix that drops out.
-	// RFC requirement: RFC5305-4-1 positive -- a node/prefix whose total cost stays below MAX_PATH_METRIC (edge 10) remains reachable and installable; the exclusion does not drop valid routes.
+	// RFC requirement: RFC5305-4-1 positive -- node B, whose total cost (edge 10) stays below MAX_PATH_METRIC, remains reachable in the SPF result; the exclusion of B's over-ceiling prefix does not drop B itself.
 	if _, ok := res2.Nodes[b]; !ok {
 		t.Fatal("B should be reachable at edge metric 10")
 	}

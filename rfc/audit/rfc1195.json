@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -240,16 +240,14 @@
       "verdict": "enforced"
     },
     "RFC1195-5.2-2": {
-      "note": "Single-polarity positive per the row. root TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires fragment 0's TLV 132 at each level to be exactly {192.0.2.9, 198.51.100.9}: the engine path (lsdb_wiring.go levelState) that collects the router's own interface addresses into its LSPs is now exercised, closing the earlier gap (only the Originator was driven, with addresses the test supplied, and only the TLV type was checked). An engine that passed no addresses, or the wrong ones, goes red. Recorded + on levelState. lsdb TestISISOriginateOnAdjacencyUp remains tagged.",
+      "note": "Single-polarity positive per the row. Closure rejudge 2026-10-02: the tag on packet TestISISTLVIPv4InterfaceAddr was removed (decode-only, it cannot reach Originate or levelState, so it never proved that the router includes the field); its revert record on tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV is left as an orphan in rfc/discrimination/rfc1195.json. The verdict rests, unchanged, on root TestRFC1195SameInterfaceAddressesBothLevels (L1L2 engine, two circuits, fragment 0's TLV 132 at each level must be exactly {192.0.2.9, 198.51.100.9}; recorded + on lsdb_wiring.go levelState) and lsdb TestISISOriginateOnAdjacencyUp (recorded + on origination.go Originate).",
       "requirement_sha": "a975bea804aee1af",
       "tests": {
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "a9c7db27fc400dcf",
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "1ef6f2102a068439"
       },
       "units": {
         "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "875bee7c0cecca99",
         "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "7ddfe3c23f1ba086"
       },
       "verdict": "enforced"

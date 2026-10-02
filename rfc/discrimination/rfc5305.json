@@ -94,7 +94,7 @@
       "polarity": "positive",
       "unit": "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth",
       "unit-sha": "366e983cf8fa6413",
-      "claim-sha": "ba44343b8ea5f0ef",
+      "claim-sha": "04f245ee3adbd84f",
       "route": "revert",
       "producer": "internal/plugins/isis/spf/spf.go::Compute",
       "producer-sha": "819f17307b651ed5",

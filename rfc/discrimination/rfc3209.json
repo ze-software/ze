@@ -204,7 +204,7 @@
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding",
       "unit-sha": "88e195edf59fad24",
-      "claim-sha": "db1a3a40cbb83606",
+      "claim-sha": "06e007b85219b52d",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
       "producer-sha": "0deccc8d4603d01c",

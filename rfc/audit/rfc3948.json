@@ -1,5 +1,8 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC3948-2.1-1": {
@@ -67,7 +70,7 @@
       "note": "Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.",
       "requirement_sha": "e03b3988d738b573",
       "tests": {
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434"
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "d713aac66480f95a"
       },
       "units": {
         "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
@@ -101,15 +104,14 @@
       "verdict": "enforced"
     },
     "RFC3948-4-1": {
-      "note": "Rejudged 2026-09-30 (ike-eap judge). Need clause now proven at both gates Ze has: the non-MOBIKE gate, extracted unchanged from runEstablished into startNATKeepalive (established.go; interval passed by the caller as DefaultKeepaliveInterval, Stop still deferred by runEstablished), is held by TestRFC3948KeepaliveStartsWhenNATDetected (NATDetected: keepalive returned running, raw peer receives >=2 0xFF at 40ms) and TestRFC3948NoKeepaliveWithoutDetectedNAT (no NAT: nil, 0 datagrams in 400ms); the MOBIKE gate in serviceMobike by TestRFC3948MobikeKeepaliveWhenNATDetected (exactly one 0xFF per owner tick) and TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT (0). Each reads the peer socket, so dropping either gate or making it unconditional goes red; all four carry observed-red records. M-second clause stays proven by the transport window units (TestRFC3948KeepaliveIdleWindowNeverExceedsM, TestRFC3948UnsetKeepaliveIntervalFallsBackToM, recorded). Supplementary HEAD tags on transport TestNATKeepalive and TestKeepaliveDefaultInterval hold no record; TestKeepaliveDefaultInterval's prose still claims more than its constant check (author rewording owed, the verdict does not rest on it).",
+      "note": "Closure rejudge 2026-10-02: the tag on transport TestKeepaliveDefaultInterval was removed (it asserts only the DefaultKeepaliveInterval constant and could never carry a record); its comment now says so and names TestRFC3948UnsetKeepaliveIntervalFallsBackToM, which closes the rewording the 2026-09-30 note left owed. Need clause unchanged: the non-MOBIKE gate startNATKeepalive held by TestRFC3948KeepaliveStartsWhenNATDetected (+) and TestRFC3948NoKeepaliveWithoutDetectedNAT (-), the MOBIKE gate serviceMobike by TestRFC3948MobikeKeepaliveWhenNATDetected (+) and TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT (-); each reads the peer socket. M-second clause held by TestRFC3948KeepaliveIdleWindowNeverExceedsM (+, on Run), TestRFC3948UnsetKeepaliveIntervalFallsBackToM (-, on NewKeepalive) and TestNATKeepalive (+, on Run). All seven carry observed-red records.",
       "requirement_sha": "7a70244ce37ee3c6",
       "tests": {
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948KeepaliveStartsWhenNATDetected": "5d3f2966bcedeea9",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected": "5d3f2966bcedeea9",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT": "5d3f2966bcedeea9",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT": "5d3f2966bcedeea9",
-        "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "953e0984234cb434",
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434",
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "d713aac66480f95a",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "2c1dae638cc540d2",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "2c1dae638cc540d2"
       },
@@ -118,7 +120,6 @@
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected": "f0e85ce81a7d1d4e",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT": "1dc4fec68dce7cbe",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT": "4da9d6250fe0f55c",
-        "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "1b40e58f60aec171",
         "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "02f299727c51f363",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "0f102284c2310616"

@@ -59,9 +59,9 @@ func TestNATKeepalive(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC3948-4-1 positive -- the default NAT-keepalive interval is a small,
-// positive, conservative constant (<= 20s, keepalive.go:13), well under a typical NAT UDP
-// binding lifetime, so keepalives refresh the mapping before it can expire.
+// TestKeepaliveDefaultInterval pins the value of the DefaultKeepaliveInterval constant:
+// positive and at most 20 seconds. It proves no behavior; that the keepalive timer runs
+// at this default when no interval is set is TestRFC3948UnsetKeepaliveIntervalFallsBackToM.
 func TestKeepaliveDefaultInterval(t *testing.T) {
 	if DefaultKeepaliveInterval <= 0 {
 		t.Fatalf("DefaultKeepaliveInterval = %v, want a positive interval", DefaultKeepaliveInterval)

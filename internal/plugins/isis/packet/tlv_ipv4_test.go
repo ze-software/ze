@@ -16,8 +16,6 @@ import (
 // encoder: a round trip through one codec proves self-consistency, and a shared
 // misreading of the wire format would pass it. These bytes assert the format.
 //
-// RFC requirement: RFC1195-5.2-2 positive -- the IP Interface Address TLV 132 carries a list of 4-octet IPv4 addresses that the codec reads back verbatim, so an IP-capable router can carry TLV 132 in its LSPs (RFC 1195 sec 5.2).
-//
 // writeIPv4InterfaceAddrTLV had no production caller and was deleted, so the
 // fixture it built is hand-written RFC 1195 bytes. This test stays because
 // DecodeIPv4InterfaceAddrTLV is live in circuit/runtime.go and spf/graph.go and
