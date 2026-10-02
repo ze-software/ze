@@ -155,8 +155,11 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 	validate := d.receiveValidator
 	d.mu.RUnlock()
 	for _, lsa := range in.Update.LSAs {
+		// RFC 2328 Section 13: "(1) Validate the LSA's LS checksum. If the checksum
+		// turns out to be invalid, discard the LSA and get the next one from the Link
+		// State Update packet."
 		if !lsa.VerifyChecksum() {
-			return "bad-lsa-checksum"
+			continue
 		}
 		// RFC 7684 Section 5: "Malformed LSAs MUST NOT be stored in the Link
 		// State Database (LSDB), acknowledged, or reflooded."

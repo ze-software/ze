@@ -11,7 +11,8 @@ type LSUpdate struct {
 }
 
 // DecodeLSUpdate parses a Link State Update body. Iteration is driven by each
-// LSA Length field and must consume exactly the body after the 4-byte count.
+// LSA Length field and must consume exactly the body after the 4-byte count. An
+// LSA of unknown LS type is discarded and still counts toward the # LSAs field.
 func DecodeLSUpdate(body []byte) (LSUpdate, error) {
 	if len(body) < lsUpdateFixedLen {
 		return LSUpdate{}, ErrTruncated
@@ -29,7 +30,7 @@ func DecodeLSUpdate(body []byte) (LSUpdate, error) {
 	if err := it.Err(); err != nil {
 		return LSUpdate{}, err
 	}
-	if len(out.LSAs) != int(count) {
+	if len(out.LSAs)+it.Skipped() != int(count) {
 		return LSUpdate{}, ErrLength
 	}
 	return out, nil

@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -173,19 +174,21 @@
       "verdict": "weak"
     },
     "RFC2328-13-1": {
-      "note": "bad-checksum discard is proven on the flooding path (TestRFC2328BadLSChecksumDiscarded), but the unknown-LS-type clause is exercised only through DecodeLSReq (an LS Request decoder, TestDecodeLSReqRejectsMalformed), never an LSA of unknown type inside a Link State Update reaching ReceiveUpdate.",
+      "note": "Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).",
       "requirement_sha": "777287c8db2b74df",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "ebbf7e5934a7cc96",
-        "internal/plugins/ospf/packet/packet_body_test.go::TestDecodeLSReqRejectsMalformed": "e925d44067663451"
+        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "6242f112e5a452b3",
+        "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "26f4f0cd9038b198",
+        "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "26f4f0cd9038b198"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
-        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "3ae3d327fc7efc67",
-        "internal/plugins/ospf/packet/packet_body_test.go::TestDecodeLSReqRejectsMalformed": "4794a3a08f3bf5f3"
+        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "4590a0976cf127c3",
+        "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "fa74463d58b67307",
+        "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "fa74463d58b67307"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13-2": {
       "note": "Clauses: not flooded INTO a stub area (send side) and not THROUGHOUT it (receive side). Receive side is proven through ReceiveUpdate: TestOSPFStubAreaDropsType5 fails if a Type-5 received on a stub interface is installed. Send side is proven only on the helper: TestOSPFStubFloodFilter asserts eligibleInterface returns false for stub/NSSA, but no unit floods a Type-5 and observes that no LS Update leaves a stub interface, so a flood path (flooding.go:360, :599) that stopped consulting eligibleInterface stays green.",
@@ -201,24 +204,28 @@
       "verdict": "weak"
     },
     "RFC2328-13-3": {
-      "note": "Forbidden: processing an LS Update or LS Ack from a neighbor below Exchange. TestRFC2328FloodingRequiresExchangeOrHigher proves AcceptsFlooding returns reasonState for Init and 2-Way and empty from Exchange. The quoted obligation is the DROP 'without further processing', which happens in the engine (instance.go:373, :413); no tagged unit dispatches a packet from a pre-Exchange neighbor and asserts it never reaches the LSDB, so an engine that ignored the returned reason stays green (ext_receive_test.go may cover it but carries no tag for this id).",
+      "note": "Engine drop now exercised: LS Updates dispatched through eng.dispatch from an unknown neighbor, Init, and ExStart are not stored and draw no LS Ack or LS Update even after FlushDelayedAcks; the same packet after Exchange is installed and acknowledged. Disabling the AcceptsFlooding drop in handleLSUpdate turns all three negatives red. 2-Way (not reachable on point-to-point) stays on the neighbor-package AcceptsFlooding units, which gate the same call.",
       "requirement_sha": "95a4879db9a4ee2f",
       "tests": {
         "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher": "42818b298d1598fb",
-        "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher#2": "42818b298d1598fb"
+        "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher#2": "42818b298d1598fb",
+        "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateBelowExchangeDroppedByEngine": "8e5e783989311c9c",
+        "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateFromExchangeNeighborProcessed": "8e5e783989311c9c"
       },
       "units": {
         "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher": "cadda7a50eab55a9",
-        "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher#2": "cadda7a50eab55a9"
+        "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher#2": "cadda7a50eab55a9",
+        "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateBelowExchangeDroppedByEngine": "edf5b0bb6dee884c",
+        "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateFromExchangeNeighborProcessed": "48a6b532f9d331be"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13-4": {
       "note": "Forbidden: acknowledging, or sending the database copy back for, an LSA received while the database copy is MaxAge at MaxSequenceNumber. Red: TestOSPFMaxSeqMaxAgeSilentDiscard installs a MaxSequenceNumber copy aged to MaxAge, receives an older instance, flushes delayed acks, and fails on any send. Other polarity: TestRFC2328OlderInstanceGetsDatabaseCopyBack fails if an ordinary more-recent copy is not sent back to the sender (so a blanket silent discard goes red). One clause, both polarities.",
       "requirement_sha": "81117094d2c8ebbc",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "fcd3234658f1748d",
-        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "ebbf7e5934a7cc96"
+        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "d30def248d201f20",
@@ -227,17 +234,19 @@
       "verdict": "enforced"
     },
     "RFC2328-13-5": {
-      "note": "Forbidden: leaving the replaced database copy on a neighbor retransmission list. TestRFC2328ReplacedInstanceLeavesRetransmitLists checks only eth1, the interface the newer instance is flooded to, and the list is a map keyed by LSAKey (retransmit[nbr][key], flooding.go queueRetransmit), so the re-flood overwrites the entry whether or not removeFromAllRetransmit runs. No unit checks a neighbor that does not receive the new instance (e.g. an entry on the receiving interface's list), so dropping the removal leaves both units green.",
+      "note": "TestRFC2328ReplacedInstanceLeavesSenderRetransmitList queues the old instance for 3.3.3.3, then the newer instance arrives FROM 3.3.3.3 so no flood can overwrite that entry; after install the list is empty for the key and a retransmit tick sends nothing on eth1. A no-op removeFromAllRetransmit turns it red while the older positive stays green. Negative: a duplicate leaves other lists intact (unchanged).",
       "requirement_sha": "c8b29952038365ae",
       "tests": {
         "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DuplicateKeepsOtherRetransmitLists": "1f2e47ae6a5f8fdb",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328ReplacedInstanceLeavesRetransmitLists": "1f2e47ae6a5f8fdb"
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328ReplacedInstanceLeavesRetransmitLists": "1f2e47ae6a5f8fdb",
+        "internal/plugins/ospf/lsdb/rfc2328_replaced_retransmit_test.go::TestRFC2328ReplacedInstanceLeavesSenderRetransmitList": "3bee9ad489b41a5b"
       },
       "units": {
         "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DuplicateKeepsOtherRetransmitLists": "8514659f5519acd1",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328ReplacedInstanceLeavesRetransmitLists": "44cfc94f8a021574"
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328ReplacedInstanceLeavesRetransmitLists": "44cfc94f8a021574",
+        "internal/plugins/ospf/lsdb/rfc2328_replaced_retransmit_test.go::TestRFC2328ReplacedInstanceLeavesSenderRetransmitList": "3c3c388a971a927a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13-6": {
       "note": "the tagged units start from TriggerArea and show every area is recalculated; no unit installs an LSA with changed contents to trigger it, nor shows that unchanged contents trigger nothing, nor the summary/AS-external best-route recalculation.",
@@ -270,7 +279,7 @@
       "requirement_sha": "7f1e50f1e1a1cbd3",
       "tests": {
         "internal/plugins/ospf/lsdb/lsdb_test.go::TestOSPFFreshnessCompareMatrix": "ae0055f5fef676ec",
-        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "ebbf7e5934a7cc96"
+        "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
       },
       "units": {
         "internal/plugins/ospf/lsdb/lsdb_test.go::TestOSPFFreshnessCompareMatrix": "5006bad58fcc1fda",
@@ -328,17 +337,21 @@
       "verdict": "enforced"
     },
     "RFC2328-13.4-1": {
-      "note": "only the Advertising Router == own Router ID detection is exercised; clause 2) a network-LSA whose Link State ID is one of the router own interface addresses is never tested. The positive also calls handleSelfReceived directly rather than through ReceiveUpdate.",
+      "note": "Both detection rules through ReceiveUpdate: router-LSA adv = own Router ID, and network-LSAs from 9.9.9.9 whose LSID is either own interface address, are each installed at MaxAge with sequence+1 and flooded at MaxAge. Negatives: a network-LSA with a foreign LSID, another router's router-LSA, and an AS-external whose LSID equals an own address (rule 2 is network-LSA only) are installed as received and never flushed. Disabling rule 2, or dropping its type check, turns the matching subtests red.",
       "requirement_sha": "fde3f33741605652",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "fcd3234658f1748d",
-        "internal/plugins/ospf/lsdb/origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "618a366fc22e7907"
+        "internal/plugins/ospf/lsdb/origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "618a366fc22e7907",
+        "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated": "ca16b940e4f4eaf6",
+        "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress": "ca16b940e4f4eaf6"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "ad7fb9db719ee48e",
-        "internal/plugins/ospf/lsdb/origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "13f3ad4d5bc32194"
+        "internal/plugins/ospf/lsdb/origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "13f3ad4d5bc32194",
+        "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated": "2673985a5730131f",
+        "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress": "638a520842880acf"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13.5-1": {
       "note": "Forbidden: a newly received LSA left unacknowledged. The tagged units prove the implicit ack by flooding back (TestOSPFDRRefloodsBackOutReceivingInterface: no delayed ack), the implied-ack duplicate on the Backup and the MaxAge-no-copy direct ack through ReceiveUpdate. The ordinary case, a newer LSA installed through ReceiveUpdate and not flooded back, is only reached by calling ackForReceive directly with hand-set flags in TestOSPFAckDecisionTable, so a ReceiveUpdate that skipped or mis-flagged that call stays green. (TestRFC2328MinLSArrivalElapsedAccepts proves it through ReceiveUpdate but is tagged only for 13-7.)",
@@ -371,17 +384,21 @@
       "verdict": "enforced"
     },
     "RFC2328-14-2": {
-      "note": "Clauses: delete the MaxAge LSA as soon as a) it is on no retransmission list and b) no neighbor is in Exchange OR Loading. (a) is proven with both polarities by TestOSPFASExternalPurgeRetainedAcrossAreas (kept after the first ack, deleted on the last). (b) is proven only for Loading (TestOSPFPurgeRetainedForExchangeOrLoading); no unit holds a neighbor in Exchange, so a guard that checked Loading alone stays green.",
+      "note": "Clause (b) now holds Exchange as well as Loading: a purged MaxAge LSA on no retransmission list is kept with the only neighbor in exchange or loading and removed at once in full or exstart; a Loading-only guard turns the exchange subtest red while the older Loading unit stays green. Clause (a) stays on the retransmission-list units. The units call deletePurgedIfAcked directly, the LSDB seam every trigger uses.",
       "requirement_sha": "c44a7407d2818023",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "5f02a64139f8d93a"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "207148933d5942ce",
+        "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "207148933d5942ce"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "7eb73e02547a5a89",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "f8ef49f3f9f94f71"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "f8ef49f3f9f94f71",
+        "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "82eea7ef3f6a7a01",
+        "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "a4b620aed4c475d7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-15-2": {
       "note": "Re-judged 2026-09-30 (independent judge, c10/c11). Prior clauses unchanged: cost = intra-area path cost carried by the routing table entry (spf/TestRFC2328VirtualCostIsTransitPathCost), a cost change originates a new backbone router-LSA (TestRFC2328VirtualCostChangeOriginatesNewInstance, TestRFC2328VirtualCostChangeReoriginatesBackbone +, TestRFC2328VirtualUnusablePathWithdrawsBackboneLink -). The missing MUST clause 'The cost of a virtual link is NOT configured' now has negatives on both virtual-link lists through the operator path (config text -> config.ParseTreeWithYANG over ZeOSPFConfYANG -> ToPluginMap -> parseOSPFConfig): TestRFC2328VirtualLinkCostNotConfigurable (ospf areas area virtual-link) and TestRFC2328VirtualLinkCostNotConfigurableV3 (address-family ipv6, ospf-af-topology grouping), each accepting the link without cost (reaches cfg.VirtualLinks / cfg.V6.VirtualLinks) and refusing `cost 10` with an error naming cost. Their records are no-break declaration-only (the tool cannot mutate an embedded YANG file); the judge observed the red with an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) adding `leaf cost { type uint16; }` to both lists of ze-ospf-conf.yang: both units red at the refusal assertion.",
@@ -467,17 +484,21 @@
       "verdict": "enforced"
     },
     "RFC2328-16.4-1": {
-      "note": "intra-area over external and E1 over E2 are asserted; inter-area over external and the smallest type-2 metric among E2 paths are not.",
+      "note": "All four orderings asserted: intra over external (route_test), inter-area at 100 over E1 and E2 at 1 (selectBestRoutes, both input orders), E1 over E2 regardless of metric (external_test), and among E2 the smallest advertised metric (7 via an ASBR 50 away) over 9 via an ASBR 1 away through ComputeExternal. Ranking inter-area below externals, or letting distance decide E2, turns the new units red.",
       "requirement_sha": "fedd680a38ace253",
       "tests": {
         "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalE1PreferredOverE2": "9c93a2a5f3cb7b7e",
+        "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused": "05726bfdcca78ba0",
+        "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected": "05726bfdcca78ba0",
         "internal/plugins/ospf/spf/route_test.go::TestOSPFRouteTablePreference": "93cbca41ae0bce52"
       },
       "units": {
         "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalE1PreferredOverE2": "1994156734c401a6",
+        "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused": "4160346543960073",
+        "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected": "d19b92c3b8b47492",
         "internal/plugins/ospf/spf/route_test.go::TestOSPFRouteTablePreference": "7af1ad6871867409"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-3.6-1": {
       "note": "Forbidden: an ABR attached to a stub area not advertising a default route into it via a summary-LSA. Red: TestRFC2328StubAreaGetsDefaultSummary fails unless the stub area holds a Type 3 summary with Link State ID 0.0.0.0, mask 0.0.0.0 and the configured cost 5. Other polarity: TestRFC2328NormalAreaGetsNoDefaultSummary fails if a normal area receives one, and still checks the ordinary summary is originated. One clause, both polarities.",

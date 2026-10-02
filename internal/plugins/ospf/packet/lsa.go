@@ -1,9 +1,14 @@
 // Design: docs/architecture/ospf/ospf-2-wire.md -- common 20-byte LSA header and lazy LSA view
 // RFC 2328 Appendix A.4.1: LSA header.
+// RFC: rfc/short/rfc2328.md -- Appendix A.4.1 (LSA header), Section 13 step 2 (unknown LS type).
 
 package packet
 
-import "github.com/ze-software/ze/internal/plugins/ospf/types"
+import (
+	"errors"
+
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+)
 
 const (
 	lsaAgeOff       = 0
@@ -223,43 +228,56 @@ func (l LSA) DecodeExternal() (ExternalLSA, error) {
 
 // LSAIterator walks a region containing consecutive LSAs using each LSA's Length
 // field. It never panics on malformed input; Err reports truncation or bad length.
+// An LSA of unknown LS type is framed, counted by Skipped, and never returned.
 type LSAIterator struct {
-	data []byte
-	off  int
-	cur  LSA
-	err  error
+	data    []byte
+	off     int
+	cur     LSA
+	err     error
+	skipped int
 }
 
 // NewLSAIterator returns an iterator over a consecutive LSA region.
 func NewLSAIterator(data []byte) LSAIterator { return LSAIterator{data: data} }
 
-// Next advances to the next LSA.
+// Next advances to the next LSA of a known LS type. The loop is bounded by the
+// region: every pass consumes at least one LSA header or stops.
 func (it *LSAIterator) Next() bool {
-	if it.err != nil || it.off == len(it.data) {
-		return false
+	for it.err == nil && it.off < len(it.data) {
+		if len(it.data)-it.off < types.LSAHeaderLen {
+			it.err = ErrTruncated
+			return false
+		}
+		length := int(readUint16(it.data, it.off+lsaLengthOff))
+		if length < types.LSAHeaderLen {
+			it.err = ErrLength
+			return false
+		}
+		if it.off+length > len(it.data) {
+			it.err = ErrTruncated
+			return false
+		}
+		lsa, err := DecodeLSA(it.data[it.off : it.off+length])
+		it.off += length
+		// RFC 2328 Section 13: "(2) Examine the LSA's LS type. If the LS type is
+		// unknown, discard the LSA and get the next one from the Link State Update
+		// Packet."
+		if errors.Is(err, ErrUnknownLSAType) {
+			it.skipped++
+			continue
+		}
+		if err != nil {
+			it.err = err
+			return false
+		}
+		it.cur = lsa
+		return true
 	}
-	if len(it.data)-it.off < types.LSAHeaderLen {
-		it.err = ErrTruncated
-		return false
-	}
-	length := int(readUint16(it.data, it.off+lsaLengthOff))
-	if length < types.LSAHeaderLen {
-		it.err = ErrLength
-		return false
-	}
-	if it.off+length > len(it.data) {
-		it.err = ErrTruncated
-		return false
-	}
-	lsa, err := DecodeLSA(it.data[it.off : it.off+length])
-	if err != nil {
-		it.err = err
-		return false
-	}
-	it.cur = lsa
-	it.off += length
-	return true
+	return false
 }
+
+// Skipped returns how many LSAs of unknown LS type Next discarded so far.
+func (it *LSAIterator) Skipped() int { return it.skipped }
 
 // LSA returns the current iterator item.
 func (it *LSAIterator) LSA() LSA { return it.cur }

@@ -29,6 +29,14 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
   update. Unknown opaque applications are not parsed as known extensions.
   <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
   <!-- source: internal/plugins/ospf/opaque.go -- wireOpaqueDelivery -->
+- **A bad LSA costs only itself (RFC 2328 Section 13 steps 1 and 2).** An LSA
+  with an invalid LS checksum, or of an LS type Ze does not know, is discarded
+  without storage or acknowledgment, and the next LSA of the same LS Update is
+  processed. The decoder drops an unknown-type LSA but still counts it against
+  the packet's `# LSAs` field; the checksum discard is per LSA in
+  `ReceiveUpdate`, so it records no packet drop reason.
+  <!-- source: internal/plugins/ospf/packet/lsa.go -- LSAIterator.Next -->
+  <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
 - **Native link-scope extension LSAs share the interface lifetime.** E-Link
   and link-scope Router Information LSAs enter the link store, not the area
   store. Origination, purge and interface release notify readers outside the

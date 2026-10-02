@@ -15,8 +15,9 @@ import (
 )
 
 // RFC requirement: RFC2328-13-1 negative -- an LSA whose covered region is corrupted fails the
-// Fletcher check and is discarded by the flooding receive procedure: ReceiveUpdate returns
-// "bad-lsa-checksum" and the LSA never reaches the database (ReceiveUpdate, flooding.go:161-164).
+// Fletcher check and is discarded by the flooding receive procedure: the LSA never reaches
+// the database and nothing is flooded or acknowledged; the discard is per LSA, so ReceiveUpdate
+// returns no packet-level reason (ReceiveUpdate, flooding.go).
 func TestRFC2328BadLSChecksumDiscarded(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
@@ -36,8 +37,8 @@ func TestRFC2328BadLSChecksumDiscarded(t *testing.T) {
 
 	reason := db.ReceiveUpdate(ReceiveInput{Interface: "eth0", AreaID: area("0.0.0.0"), RouterID: rid("2.2.2.2"), Src: netip.MustParseAddr("10.0.0.2"), Update: packet.LSUpdate{LSAs: []packet.LSA{bad}}})
 
-	if reason != "bad-lsa-checksum" {
-		t.Fatalf("ReceiveUpdate reason = %q, want bad-lsa-checksum", reason)
+	if reason != "" {
+		t.Fatalf("ReceiveUpdate reason = %q, want none: a bad LS checksum discards the LSA, not the packet", reason)
 	}
 	if _, ok := db.Lookup(area("0.0.0.0"), lsa.Header.Key()); ok {
 		t.Fatalf("an LSA with an invalid LS checksum was installed")
