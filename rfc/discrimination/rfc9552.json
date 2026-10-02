@@ -57,6 +57,28 @@
       "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9552-5.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesPropagateOnAForwardedUpdate",
+      "unit-sha": "ccb8dd63a5bf3439",
+      "claim-sha": "3cc6f5dc41bae96f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+      "producer-sha": "185373519721298d",
+      "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesSurviveARewrittenUpdate",
+      "unit-sha": "b89f03125df36b2e",
+      "claim-sha": "cf99f75369b859eb",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
+      "producer-sha": "729811dd504a337f",
+      "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9552-5.1-4",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded",
@@ -858,6 +880,17 @@
       "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
       "producer-sha": "1e157272c89f3d1d",
       "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-8.2.2-10",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved",
+      "unit-sha": "072e26a51b96c91d",
+      "claim-sha": "34f1d40bb926d7da",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::iterateAttrTLVs",
+      "producer-sha": "e68b5e54fa31fb57",
+      "break": "body of iterateAttrTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9552-8.2.2-2",

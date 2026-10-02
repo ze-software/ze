@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4724-3-2": {
@@ -146,17 +146,21 @@
       "verdict": "enforced"
     },
     "RFC4724-4.2-11": {
-      "note": "TestGRStateManagerEORPurge asserts onEORReceived returns true per family; the removal is the purge-stale dispatch in handleEOREvent (gr.go), which no tagged unit asserts",
+      "note": "Re-judged 2026-10-02 (BGP c24 judge). The production removal is now asserted: TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes (production callbacks, session-down sequence consumed) sends an IPv4 unicast End-of-RIB and asserts exactly one dispatch, purge-stale <peer> ipv4/unicast, before handleEOREvent returns; TestRFC4724EndOfRIBLeavesOtherFamiliesStale asserts no ipv6 or peer-wide purge and nothing for an End-of-RIB of a family never retained. Judge overlay probe (handleEOREvent purging regardless of onEORReceived) turned only the negative red; the author's probe (purge-stale without the family) turned both red. Rib side: TestRIBPurgeStaleFamilyCommand. HEAD gr_state_test units stay supplementary.",
       "requirement_sha": "3a7dc061a2a9ae09",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "cf46a858daa1d515",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "cf46a858daa1d515"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "ddefbb62b2a30101",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "f68e4286fabb5ec1"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "f68e4286fabb5ec1",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "32961464794de1dd",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "a69883b5669c4135"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4.2-3": {
       "note": "TestRFC4724SessionDownRetainsAndMarksRoutesStale asserts the production dispatch of retain-routes and mark-stale with the Restart Time; TestRFC4724RetentionCoversEveryAdvertisedFamily pins the family set to the capability's; the no-capability negative asserts nothing is dispatched",
@@ -178,17 +182,21 @@
       "verdict": "enforced"
     },
     "RFC4724-4.2-4": {
-      "note": "the tagged unit asserts grStateManager's staleFamilies set is replaced on a second down; the deletion of previously stale routes is the purge-stale dispatch in gr.go, asserted only in TestRFC4724SessionDownRetainsAndMarksRoutesStale, which is tagged 4.2-3 and runs a first restart, not a consecutive one",
+      "note": "Re-judged 2026-10-02 (BGP c24 judge). TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes drives a real consecutive restart (down, up with F set so stale routes stay, down again before End-of-RIB) and asserts the second drop dispatches purge-stale for the peer. The negative is an R1(b) genuine negative: TestRFC4724ConsecutiveRestartDeletesBeforeMarking asserts purge-stale precedes retain-routes and mark-stale, so only the previously stale routes are deleted, not the ones refreshed in the re-established session (author probe moving purge after mark turned only the negative red; rib side TestRIBPurgeStalePreservesFresh). HEAD gr_state_test units stay supplementary.",
       "requirement_sha": "488066b292b60d55",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesBeforeMarking": "bbed297afb7d5120",
+        "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes": "bbed297afb7d5120"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale": "706a9b28958bec89",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "706a9b28958bec89"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "706a9b28958bec89",
+        "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesBeforeMarking": "fb127268f758e592",
+        "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes": "575f78d7f478a3a3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4.2-5": {
       "note": "the positive (level-1 stale with higher LOCAL_PREF beats fresh) proves non-differentiation in selection. The negative is an LLGR level-2 route losing, which is RFC 9494 behaviour and does not violate this requirement, so no genuine negative exists",
@@ -217,28 +225,36 @@
       "verdict": "weak"
     },
     "RFC4724-4.2-7": {
-      "note": "TestGRStateManagerTimerExpiry installs its own expiry callback and asserts it fires; it cannot see whether the production callback (gp.onTimerExpired) deletes the stale routes",
+      "note": "Re-judged 2026-10-02 (BGP c24 judge). TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes lets the production timer (Restart Time 1 s) fire into gp.onTimerExpired and asserts release-routes <peer> is dispatched; TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes re-establishes before expiry with F set and asserts nothing is dispatched over the next 2 s (author probe removing restartTimer.Stop() turned only the negative red). Release-routes deleting every retained route is the rib's rib_commands.go handler, not re-proven here.",
       "requirement_sha": "1a6b5822ed2f2ffa",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes": "cf46a858daa1d515",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes": "cf46a858daa1d515"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "ab686c26a339d576"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "ab686c26a339d576",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithinRestartTimeKeepsTheRoutes": "87bcc285776d2765",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724RestartTimeExpiryDeletesTheStaleRoutes": "ad7a06ecca3422f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4.2-8": {
-      "note": "TestGRStateManagerReconnectFBitZero asserts onSessionReestablished returns the F-bit-clear family; the purge-stale dispatch in gr.go is not asserted. The other two triggers (family absent, no GR capability) have tests (ReconnectMissingFamily, ReconnectNoGR) that are not tagged",
+      "note": "Re-judged 2026-10-02 (BGP c24 judge). Two of the three triggers are now proven at the production dispatch: F clear for IPv4 and IPv6 omitted from the new capability each purge exactly that family, and F set for both purges nothing (negative). The third trigger, 'the Graceful Restart Capability is not received in the re-established session at all', is NOT met in production: handleOpenEvent and handleStructuredOpen (gr.go) never clear gp.peerCaps when the new OPEN lacks capability 64, so onSessionReestablished reads the previous session's capability and purges nothing. The subtest 'capability not received' reaches the purge only by deleting gp.peerCaps by hand. Judge probe: down with F set, then handleOpenEvent with only capability 65, then up: no purge-stale dispatched (defect, reported to the main thread).",
       "requirement_sha": "53f5275147da817c",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes": "cf46a858daa1d515",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily": "cf46a858daa1d515"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "21af448503016e9e",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes": "b20261f7ccf4db92",
+        "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily": "3fec23dde123402a"
       },
       "verdict": "weak"
     },
