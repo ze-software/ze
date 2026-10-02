@@ -82,6 +82,73 @@ func TestCoverageRatchetAcceptsAnOwnerRuledTagMove(t *testing.T) {
 	}
 }
 
+// VALIDATES: the coverage ratchet accepts a row losing BOTH polarities when
+// the owner ruled the requirement an absent feature: the row now carries a
+// {gap} citing the ruling, and every unit that held either polarity at HEAD
+// carries an approval citing the same ruling.
+// PREVENTS: an owner-ruled gap (OWNER RULING 8(g), 2026-10-02) being
+// unreachable, since a {gap} row may carry no tag, and the gap turning into a
+// hatch that one of the two halves alone opens.
+//
+// The method mirrors TestCoverageRatchetAcceptsAnOwnerRuledTagMove: one
+// accepted case, then each half removed, mismatched or short of one unit.
+// Every refusal must be the ratchet's own message.
+func TestCoverageRatchetAcceptsAnOwnerRuledGap(t *testing.T) {
+	const (
+		positiveUnit = "internal/component/bfd/send_test.go::TestSend"
+		positiveRow  = "bfd.TestSend"
+		negativeUnit = "internal/component/bfd/session_test.go::TestWidgetRefused"
+		negativeRow  = "bfd.TestWidgetRefused"
+		ruled        = "D-15: owner ruling 8 (g) records the absent feature as a gap"
+		gapReason    = "unnumbered interfaces are not implemented; owner ruling 8 (g), 2026-10-02"
+		ratchetText  = "is no longer proven"
+	)
+	gap := func(reason string) *Annotation {
+		return &Annotation{Kind: AnnotationGap, Reason: reason}
+	}
+	held := map[Cover][]Tag{
+		{RID: selftestRIDSend, Polarity: PolarityPositive, Unit: positiveUnit}: nil,
+		{RID: selftestRIDSend, Polarity: PolarityNegative, Unit: negativeUnit}: nil,
+	}
+	both := map[string]string{positiveRow: ruled, negativeRow: ruled}
+	enrolled := map[string]bool{selftestStem: true}
+
+	cases := []struct {
+		name       string
+		annotation *Annotation
+		approvals  map[string]string
+		accepted   bool
+	}{
+		{"gap and approvals cite one ruling", gap(gapReason), both, true},
+		{"gap cites no ruling", gap("unnumbered interfaces are not implemented"), both, false},
+		{"gap cites another ruling", gap("absent feature, owner ruling 6"), both, false},
+		{"ruling without gap", nil, both, false},
+		{"approval missing for the negative unit", gap(gapReason),
+			map[string]string{positiveRow: ruled}, false},
+		{"approval missing for the positive unit", gap(gapReason),
+			map[string]string{negativeRow: ruled}, false},
+		{"approval cites another ruling", gap(gapReason),
+			map[string]string{positiveRow: ruled, negativeRow: "D-15: owner ruling 6"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			requirement := Requirement{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust,
+				Section: "2", Source: selftestSummaryRel, Line: 5, Annotation: tc.annotation}
+			errs := checkCoverageRatchet([]Requirement{requirement}, nil, enrolled, held, enrolled,
+				tc.approvals)
+			if tc.accepted {
+				if len(errs) != 0 {
+					t.Fatalf("an owner-ruled gap was refused: %v", errs)
+				}
+				return
+			}
+			if len(errs) != 1 || !strings.Contains(errs[0], ratchetText) {
+				t.Fatalf("want the coverage ratchet's refusal, got %v", errs)
+			}
+		})
+	}
+}
+
 // VALIDATES: the approval rows the ratchet reads are the ones `./le rfc
 // approve` writes, keyed by unit, and an absent file is no approval.
 // PREVENTS: the exception reading a grammar the writer does not produce, which

@@ -32,24 +32,15 @@ func ownerRuling(text string) string {
 	return strings.ToLower(match[1])
 }
 
-// ownerRuledMove reports whether req losing polarity is a tag move the owner
-// ruled. Both halves must cite ONE ruling: the row now carries a
-// {single-polarity} annotation keeping the other polarity, and every unit that
-// held the lost polarity at HEAD carries an approval in this commit session.
-// Either half alone is something an author can write unaided: the annotation
-// is a summary edit, and an approval with no annotation leaves the row
-// claiming both polarities with one of them gone.
+// ownerRuledMove reports whether req losing polarity is a loss the owner
+// ruled. Both halves must cite ONE ruling: the row now carries an annotation
+// stating what it keeps (ruledAnnotation), and every unit that held the lost
+// polarity at HEAD carries an approval in this commit session. Either half
+// alone is something an author can write unaided: the annotation is a summary
+// edit, and an approval with no annotation leaves the row claiming a proof
+// that is gone.
 func ownerRuledMove(req Requirement, polarity string, held map[Cover][]Tag, approvals map[string]string) bool {
-	if req.Annotation == nil {
-		return false
-	}
-	if req.Annotation.Kind != AnnotationSinglePolarity {
-		return false
-	}
-	if req.Annotation.Polarity == polarity {
-		return false
-	}
-	ruling := ownerRuling(req.Annotation.Reason)
+	ruling := ruledAnnotation(req.Annotation, polarity)
 	if ruling == "" {
 		return false
 	}
@@ -64,6 +55,28 @@ func ownerRuledMove(req Requirement, polarity string, held map[Cover][]Tag, appr
 		}
 	}
 	return units > 0
+}
+
+// ruledAnnotation answers the owner ruling annotation cites when it states
+// what the row keeps after losing polarity, and "" otherwise. Two kinds state
+// it: {single-polarity} keeping the OTHER polarity, a tag move (OWNER RULING
+// 6(b)), and {gap}, an absent feature whose row keeps no tag at all, so it may
+// lose both polarities (OWNER RULING 8(g)). Every other kind excuses a row
+// without saying the proof it held was ruled away, so it answers "".
+func ruledAnnotation(annotation *Annotation, polarity string) string {
+	if annotation == nil {
+		return ""
+	}
+	if annotation.Kind == AnnotationGap {
+		return ownerRuling(annotation.Reason)
+	}
+	if annotation.Kind != AnnotationSinglePolarity {
+		return ""
+	}
+	if annotation.Polarity == polarity {
+		return ""
+	}
+	return ownerRuling(annotation.Reason)
 }
 
 // approvalUnitOf turns a cover's unit key (`<path>::<Function>`, or the bare

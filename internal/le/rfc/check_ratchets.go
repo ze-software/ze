@@ -158,8 +158,9 @@ func checkEnrolment(tree string, current, baseline, summaries, signed map[string
 // HEAD. held is HEAD's cover set, keyed by the unit each tag sat in, and
 // approvals is this commit session's `./le rfc approve` rows, unit to reason.
 //
-// The one accepted loss is an owner-ruled tag move (OWNER RULING 6(b),
-// 2026-10-02): ownerRuledMove says which.
+// The one accepted loss is an owner-ruled one: a tag move to a
+// {single-polarity} row (OWNER RULING 6(b), 2026-10-02) or an absent feature
+// recorded as a {gap} (OWNER RULING 8(g)). ownerRuledMove says which.
 func checkCoverageRatchet(requirements []Requirement, tags []Tag, enrolled map[string]bool,
 	held map[Cover][]Tag, baselineEnrolled map[string]bool, approvals map[string]string) []string {
 	current := baselinePolarities(tags)
@@ -189,7 +190,7 @@ func checkCoverageRatchet(requirements []Requirement, tags []Tag, enrolled map[s
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).
 			Str(" is no longer proven -- the ").Str(strings.Join(lost, "/")).
-			Str(" test(s) that covered it at HEAD are gone. Coverage is monotonic: evidence that existed cannot quietly stop existing. Restore the test, or retire the requirement id if the obligation itself is gone. An annotation does not substitute for proof that was already there; the one exception is a tag move the owner ruled, which needs both an `./le rfc approve` row for every unit that lost the tag and a {single-polarity} annotation on this row, each citing the same `owner ruling <id>`").String())
+			Str(" test(s) that covered it at HEAD are gone. Coverage is monotonic: evidence that existed cannot quietly stop existing. Restore the test, or retire the requirement id if the obligation itself is gone. An annotation does not substitute for proof that was already there; the one exception is a loss the owner ruled, which needs both an `./le rfc approve` row for every unit that lost the tag and a {single-polarity} (a tag move) or {gap} (an absent feature) annotation on this row, each citing the same `owner ruling <id>`").String())
 	}
 	return errs
 }

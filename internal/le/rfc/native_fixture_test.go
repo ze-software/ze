@@ -377,7 +377,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// the coverage ratchet accepts a lost polarity only for an owner-ruled tag
 	// move (OWNER RULING 6(b)), and Check takes the session's approval rows.
 	// No other non-test byte of the package moved since b12b55da47.
-	const want = "9d9b87c71f25fe515a25185f0980901b283e1cbfca6edb2560be6df51198cbea"
+	//
+	// Re-sealed 2026-10-02 in the commit that makes the change, computed over
+	// the bytes it commits: the coverage ratchet also accepts a row losing both
+	// polarities when it now carries a {gap} citing the owner ruling every lost
+	// unit's approval cites (OWNER RULING 8(g)). No verdict over an unchanged
+	// record moved: only a row that carries such a {gap} is judged differently.
+	const want = "7543026accc391e8bff50b1bcaaeeb899aad878f86eadd5f1c1424276503345c"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
