@@ -46,6 +46,50 @@
       "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5443-2-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive",
+      "unit-sha": "8939f9bcce046a3a",
+      "claim-sha": "9a76bee07c7cfd3b",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "9bb4e7110e073d7a",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443SessionUpOnPeerKeepAlive",
+      "unit-sha": "e0b88dd26d457e83",
+      "claim-sha": "d18d26f6a29442c6",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::keepaliveReceived",
+      "producer-sha": "cb7d6dab18856480",
+      "break": "body of keepaliveReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-2-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown",
+      "unit-sha": "649124023484ff8f",
+      "claim-sha": "0a634f02f7f5cee1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ldp_sync.go::onHoldDownExpiry",
+      "producer-sha": "31716f37fd4763a5",
+      "break": "body of onHoldDownExpiry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5443-2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents",
+      "unit-sha": "5791f8a1834c0c21",
+      "claim-sha": "69ac511c657acd88",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ldp_sync.go::onSessionUp",
+      "producer-sha": "98550fbb4c95a744",
+      "break": "body of onSessionUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5443-3-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment",
