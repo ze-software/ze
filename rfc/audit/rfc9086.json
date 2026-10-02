@@ -63,19 +63,19 @@
       "verdict": "enforced"
     },
     "RFC9086-5-3": {
-      "note": "rejudge 2026-10-02 (c33 judge): origination clause enforced by HEAD TestRFC9086NativePeerSIDReservedFlagsZero (+/-). Receive clause: TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived drives the registered decoders of 1101/1102/1103 with Flags 0xcf and 0xc0, but both inputs pair V and L set with a 4-octet SID. RFC 9086 Section 5: the V-Flag means the SID carries a label, and a 3-octet label is the case where V and L MUST be set; a 4-octet value is the SRGB index. So the baseline is not a conforming TLV and the unit passes only because the decoder reads the width from the length; a decoder that rightly refused V set with a 4-octet value would turn it red for a reason unrelated to the Rsvd bits. Missing: the same comparison over conforming TLVs, a 7-octet value (3-octet label) with Flags 0xcf vs 0xc0, and an 8-octet index with Flags 0x0f vs 0x00. The test also duplicates RFC9086-5-5, which quotes the same sentence (D-3 merge candidate).",
+      "note": "rejudge 2026-10-02 (c35 judge): origination clause unchanged, HEAD TestRFC9086NativePeerSIDReservedFlagsZero +/- (reserved flag bits and Reserved field of the source cleared on the emitted PeerNode SID, revert records on clearOriginatedReserved). Receive clause, the c33 gap closed: TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived now drives the registered decoders of 1101/1102/1103 over conforming TLVs, a 7-octet label TLV (Flags 0xcf vs 0xc0, label 24000) and an 8-octet index TLV (Flags 0x0f vs 0x00, index 24000), asserting no refusal and identical V/L, Weight 5 and SID for each set/clear pair. An ignore clause has no refusal to assert, so the set/clear comparison is its proof: author probes c35p/9086-refuse (decodePeerSID refuses Flags&0x0f) and 9086-fold2 (reserved nibble folded into V/L) both turn it red, 9086-green passes. Duplicates RFC9086-5-5, which quotes the same single S5 sentence (D-3 merge owed, see the c35 judge row).",
       "requirement_sha": "8c984fd02855eedf",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "53b12be097689bcd"
+        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "13c55f324c7d165f"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "a3d1695f2324dd74",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "a3d1695f2324dd74",
-        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "dd98a26ba5e369c6"
+        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "74c2d9af6264b12b"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9086-5-5": {
       "note": "rejudge 2026-09-30: receipt clause TestRFC9086PeerSIDIgnoresReservedFields (flags 0xCF decodes V/L and SID intact). Originate clause: ls_export TestRFC9086OriginatedPeerSIDRsvdBitsZero (+: 0xc0 -> 0xc0) and TestRFC9086SourceRsvdBitsNeverOriginated (-: 0xcf -> 0xc0) on the emitted PeerNode SID TLV 1101. Judge break (1101 flags mask 0xff) turns the negative red. Single-polarity marker removed. Duplicate sentence of RFC9086-5-3 left as is.",
