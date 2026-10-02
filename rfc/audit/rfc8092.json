@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8092-3-1": {
@@ -44,28 +44,34 @@
       "verdict": "enforced"
     },
     "RFC8092-6-1": {
-      "note": "Forbidden behaviour: treating the attribute as malformed because its Global Administrator is an unallocated, unassigned or reserved ASN. TestRFC8092LargeCommunityValidReservedASN asserts RFC7606ActionNone for a length-12 attribute with Global Administrator 0, so the reserved case (ASN 0 only) is proven. The unallocated and unassigned cases, and the other reserved ASNs 65535 and 4294967295, have no assertion, so a validator that special-cased any of them would stay green.",
+      "note": "rejudge 2026-10-02 (c33 judge): {single-polarity: positive} is valid: the rule only forbids rejection and the validator has no Global Administrator path to refuse. TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed asserts RFC7606ActionNone through ValidateUpdateRFC7606 for reserved 0, 65535 and 4294967295, AS_TRANS 23456, documentation 64496, private 4200000000 and unallocated 1000000, each in a well-formed 12-octet value with ORIGIN, AS_PATH and NEXT_HOP present, so only the Global Administrator varies.",
       "requirement_sha": "61b54103b45ffe9a",
       "tests": {
+        "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed": "8764f6eba0f93fbb",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab"
       },
       "units": {
+        "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed": "b5a7c0ceb8b2c16a",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8092-6-2": {
-      "note": "Forbidden behaviour: accepting a value whose length is not a non-zero multiple of 12, or flagging one that is. Positive TestRFC8092LargeCommunityMalformedLength asserts TreatAsWithdraw and AttrCode 32 for length 10; negative TestRFC8092LargeCommunityValidReservedASN asserts ActionNone for length 12. The non-zero clause has no assertion: a zero-length LARGE_COMMUNITY is never driven, although validateLargeCommunityAttr (rfc7606.go) does flag length 0, and ParseLargeCommunities accepts length 0 without error, so dropping the length == 0 test would stay green.",
+      "note": "rejudge 2026-10-02 (c33 judge): both clauses, both polarities. + TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed: lengths 0, 1, 11, 13, 23, 25 each draw TreatAsWithdraw with AttrCode 32 (zero and non-multiple). - TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed: 12, 24, 36 (distinct values) draw ActionNone. HEAD units kept (length 10 / length 12). Judge break: validator condition replaced by length%12 > 1 (accepts 0, 1, 13, 25) turns only the new + red; every HEAD unit stays green, which was the gap.",
       "requirement_sha": "b9ac4a13f77379cf",
       "tests": {
+        "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed": "8764f6eba0f93fbb",
+        "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed": "8764f6eba0f93fbb",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "64840271479cd6ab",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab"
       },
       "units": {
+        "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed": "0d6ab0a231301261",
+        "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed": "7a27112ad7c539b5",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "3bf72eb68ee49fcf",
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8092-6-3": {
       "note": "Judge 2026-09-30. Reactor TestRFC8092DuplicateLargeCommunityIsNotMalformed: a LARGE_COMMUNITY holding one value twice goes through enforceRFC7606 with ActionNone, no error, attribute kept. {single-polarity: positive} is valid: the obligation is a SHALL NOT on one decision, and a duplicate-based rejection has no compliant negative form. RFC8092-3-2 (remove redundant values) is a separate row, still weak on defect D-8 (R34).",
@@ -81,17 +87,21 @@
       "verdict": "enforced"
     },
     "RFC8092-6-4": {
-      "note": "Forbidden behaviour: an UPDATE with a malformed LARGE_COMMUNITY handled other than by treat-as-withdraw (session reset, attribute discard, or accepting the routes). TestRFC8092LargeCommunityMalformedLength asserts the validator's classification RFC7606ActionTreatAsWithdraw and AttrCode 32, and the negative asserts ActionNone for a well-formed attribute. That proves the classification only: no tagged unit asserts that the UPDATE's routes are then withdrawn, which is what RFC 7606 Section 2 treat-as-withdraw requires.",
+      "note": "rejudge 2026-10-02 (c33 judge): proven on the live receive rail, not only the classifier. + TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes: an Established session receives an UPDATE announcing 10.0.0.0/24 with a 10-octet LARGE_COMMUNITY; exactly one payload is dispatched with Withdrawn 18 0a 00 00, no attributes, no NLRI, no NOTIFICATION, session still Established. - TestRFC8092WellFormedLargeCommunityKeepsTheRoutes: identical attributes with a 12-octet value dispatch unchanged as an announcement, which also isolates the LARGE_COMMUNITY as the only cause of the withdrawal. Records: revert SynthesizeWithdrawFamilies (+ red), revert validateLargeCommunityAttr (- red); author probe disabling the session treat-as-withdraw dispatch turned the + red and left the - green.",
       "requirement_sha": "25a1fc1019385ad0",
       "tests": {
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "64840271479cd6ab",
-        "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab"
+        "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab",
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "961f26a0b4e29dd6",
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "961f26a0b4e29dd6"
       },
       "units": {
         "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "3bf72eb68ee49fcf",
-        "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389"
+        "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389",
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "f00a0c5bf148cfd5",
+        "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "0f48d758226b0331"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8092"

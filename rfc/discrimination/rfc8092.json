@@ -24,6 +24,39 @@
       "break": "body of removeRedundantLargeCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8092-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed",
+      "unit-sha": "383c1a4d6d2eca7e",
+      "claim-sha": "42bf045cda5bc0ee",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
+      "producer-sha": "0b3890a8f14078ec",
+      "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-6-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed",
+      "unit-sha": "77594e2c808096dc",
+      "claim-sha": "1457c35a7a8247db",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
+      "producer-sha": "0b3890a8f14078ec",
+      "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-6-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed",
+      "unit-sha": "caa34d75a6877746",
+      "claim-sha": "3bd3825a17fb72d6",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
+      "producer-sha": "0b3890a8f14078ec",
+      "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8092-6-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DuplicateLargeCommunityIsNotMalformed",
@@ -33,6 +66,28 @@
       "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
       "producer-sha": "29b57c597e6fde4a",
       "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-6-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes",
+      "unit-sha": "3fe160bfd1747d5f",
+      "claim-sha": "72ded844679a41bc",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdrawFamilies",
+      "producer-sha": "ccded480ba2e58e9",
+      "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8092-6-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes",
+      "unit-sha": "6886e7664fa3b24b",
+      "claim-sha": "5281585806b0380d",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
+      "producer-sha": "0b3890a8f14078ec",
+      "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

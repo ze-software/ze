@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc8050",
+  "records": [
+    {
+      "rid": "RFC8050-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1",
+      "unit-sha": "0b5e7d1662674761",
+      "claim-sha": "9f2136ea1daf9a94",
+      "route": "revert",
+      "producer": "internal/mrt/decode.go::decodeRIBEntries",
+      "producer-sha": "7ab36476c3137c6a",
+      "break": "body of decodeRIBEntries replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-2",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1",
+      "unit-sha": "0b5e7d1662674761",
+      "claim-sha": "907ddc020e076a01",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::WriteRIBEntryAddPath",
+      "producer-sha": "0ee5f536beefa95a",
+      "break": "body of WriteRIBEntryAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-3",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields",
+      "unit-sha": "727e498327d4fe42",
+      "claim-sha": "182c538aed2d03a1",
+      "route": "revert",
+      "producer": "internal/mrt/decode.go::DecodeBGP4MPMessage",
+      "producer-sha": "bd77902ce82b528f",
+      "break": "body of DecodeBGP4MPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout",
+      "unit-sha": "0bf3ada4a7a81957",
+      "claim-sha": "62f8fe805f9eab72",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::writeBGP4MPCommon",
+      "producer-sha": "8dc448507cb88714",
+      "break": "body of writeBGP4MPCommon replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

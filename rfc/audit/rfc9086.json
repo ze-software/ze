@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -7,17 +7,21 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9086-4.2-1": {
-      "note": "The sentence covers every BGP-LS NLRI Ze distributes for protocol BGP, Node NLRI and Link NLRI. (a) forbidden: a Local Node Descriptor without TLV 516 or TLV 512. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts local 516=192.0.2.1 and 512=65000 on the Link NLRI (capture.commands[1]); TestRFC9086NativePeerRequiresNodeIdentities refuses a local ASN of 0. Weak because the Node NLRI the same test emits (capture.commands[0]) never has its Local Node Descriptors checked, so dropping 516 or 512 from the Node NLRI stays green; the negative covers the missing ASN only, not a missing local Router-ID.",
+      "note": "rejudge 2026-10-02 (c33 judge): + TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN reads both emitted NLRIs (Node type 1 and Link type 2, Protocol-ID 7) and asserts one Local Node Descriptors TLV 256 holding TLV 516 c0 00 02 01 and TLV 512 00 00 fd e8 exactly once each, closing the unchecked Node NLRI. - TestRFC9086NativePeerRequiresLocalRouterID (local router-id 0.0.0.0 or absent: State errors, no label, no NLRI) beside HEAD TestRFC9086NativePeerRequiresNodeIdentities (local ASN 0). Judge break: the local-identifier check in epe_source.go State reduced to rejecting only a non-IPv4 address turns the new negative red. The confederation-identifier clause is conditional on confederations, which have no configuration surface in Ze (internal/component/bgp/reactor/forward_local_pref.go), so TLV 512 always carries the plain local ASN.",
       "requirement_sha": "4754fb0312f016dd",
       "tests": {
+        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "511e2ab2aae3d91b",
+        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "511e2ab2aae3d91b",
         "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
         "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
       },
       "units": {
+        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "1f5303e3ea1836c5",
+        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "31ce1ba3742101aa",
         "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
         "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9086-4.2-2": {
       "note": "(a) forbidden: a BGP-LS Link NLRI whose Remote Node Descriptors lack TLV 516 or TLV 512 of the peer. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts remote 516=192.0.2.2 and remote 512=65001 on the Link NLRI; each goes red if that TLV is dropped or carries the local value. Negative: TestRFC9086NativePeerRequiresNodeIdentities, a remote Router-ID of 0.0.0.0 refuses origination, installs no label and emits no command.",
@@ -59,15 +63,17 @@
       "verdict": "enforced"
     },
     "RFC9086-5-3": {
-      "note": "Two clauses. Zero when originated: (a) a PeerNode SID sent with reserved flag bits set; (b) TestRFC9086NativePeerSIDReservedFlagsZero asserts sid[0]&0x0f==0 on the wire from a source that set 0xcf, enforced. Ignored when received: (a) a received TLV rejected or mis-decoded because Rsvd bits are set; (b) no unit tagged 5-3 asserts it. The receive clause is proven only by TestRFC9086PeerSIDIgnoresReservedFields, which is tagged RFC9086-5-5. Rows 5-3 and 5-5 now quote the same sentence.",
+      "note": "rejudge 2026-10-02 (c33 judge): origination clause enforced by HEAD TestRFC9086NativePeerSIDReservedFlagsZero (+/-). Receive clause: TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived drives the registered decoders of 1101/1102/1103 with Flags 0xcf and 0xc0, but both inputs pair V and L set with a 4-octet SID. RFC 9086 Section 5: the V-Flag means the SID carries a label, and a 3-octet label is the case where V and L MUST be set; a 4-octet value is the SRGB index. So the baseline is not a conforming TLV and the unit passes only because the decoder reads the width from the length; a decoder that rightly refused V set with a 4-octet value would turn it red for a reason unrelated to the Rsvd bits. Missing: the same comparison over conforming TLVs, a 7-octet value (3-octet label) with Flags 0xcf vs 0xc0, and an 8-octet index with Flags 0x0f vs 0x00. The test also duplicates RFC9086-5-5, which quotes the same sentence (D-3 merge candidate).",
       "requirement_sha": "8c984fd02855eedf",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "de280b1c094e08d4"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "de280b1c094e08d4",
+        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "53b12be097689bcd"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "a3d1695f2324dd74",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "a3d1695f2324dd74"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "a3d1695f2324dd74",
+        "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived": "dd98a26ba5e369c6"
       },
       "verdict": "weak"
     },

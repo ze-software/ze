@@ -48,6 +48,28 @@
     {
       "rid": "RFC9086-4.2-1",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN",
+      "unit-sha": "b790cd7db4608df7",
+      "claim-sha": "63c58e65683f4559",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::exportNodeID",
+      "producer-sha": "03055ef88c72e77e",
+      "break": "body of exportNodeID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID",
+      "unit-sha": "099efc2f9635f16a",
+      "claim-sha": "efd06cb4939bf476",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/epe/epe_source.go::State",
+      "producer-sha": "a1e8aa03a8c6ba43",
+      "break": "body of State replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-4.2-1",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "06d83c16d4cca7b1",
@@ -154,6 +176,17 @@
       "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
       "producer-sha": "52e68cb09ad57c46",
       "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/rfc9086_rsvd_receive_test.go::TestRFC9086PeerSIDRsvdBitsIgnoredWhenReceived",
+      "unit-sha": "540479c138b210e3",
+      "claim-sha": "9e3b152c8be75878",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::lookupLsAttrTLVDecoder",
+      "producer-sha": "528eefb10dce7a8e",
+      "break": "body of lookupLsAttrTLVDecoder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC9086-5-5",
