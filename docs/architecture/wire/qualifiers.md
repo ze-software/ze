@@ -196,7 +196,7 @@ stack given to the wrong writer encodes a wrong label.
 
 | Writer | Input | Call it when |
 |--------|-------|--------------|
-| `WriteLabelStack(buf, off, entries)` | Stack entries | The speaker RELAYS a stack it parsed. Each entry is written whole, so the traffic class the peer set survives |
+| `WriteLabelStack(buf, off, entries)` | Stack entries | The speaker RELAYS a stack it parsed. Each entry is written whole, so the traffic class the peer set survives; in a SAFI 4 or SAFI 128 route it was cleared on receipt (Rsrv on Relay, below) |
 | `WriteLabelValues(buf, off, labels)` | Bare 20-bit label values | The speaker ORIGINATES the stack, from operator config or a CLI argument. Every entry goes out with a zero traffic class |
 
 `WriteLabelValues` allocates nothing, which is why a caller on the UPDATE build
@@ -218,6 +218,24 @@ The same split reaches the NLRI constructors. `NewVPN` takes label values and
 widens them with `LabelEntriesFor`, and `NewVPNFromEntries` takes entries as the
 wire carries them.
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- NewVPN, NewVPNFromEntries -->
+
+### Rsrv on Relay
+
+In a labeled unicast (SAFI 4) or VPN (SAFI 128) NLRI the three bits RFC 3032
+calls traffic class are the Rsrv field. RFC 8277 Section 2.2: "Rsrv: This 3-bit
+field SHOULD be set to zero on transmission and MUST be ignored on reception."
+So for these two families Ze does not relay what a peer set there.
+
+The clear runs once, when the UPDATE is received, in the same ingest step that
+removes repeated Large Community values (`clearLabelRsrv`, called from
+`publishBase`). The bytes it returns are the ones the RIB keeps, both forward
+rails copy, and every rebuild parses, so the entries that reach
+`WriteLabelStack` on relay already carry Rsrv 000, and the traffic class that
+writer preserves is zero for these families. The step first reads the NLRI
+and returns the received update untouched when every Rsrv is already zero,
+which is the common case; it copies the attributes only when a peer set a bit.
+EVPN label fields are not touched.
+<!-- source: internal/component/bgp/reactor/rfc8277_label_rsrv.go -- clearLabelRsrv -->
 
 ### ExaBGP Implementation
 

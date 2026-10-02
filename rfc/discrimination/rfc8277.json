@@ -47,6 +47,39 @@
     },
     {
       "rid": "RFC8277-2.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnRelay",
+      "unit-sha": "34bf8bc0ae89cb59",
+      "claim-sha": "928da10f0cbba08d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/rfc8277_label_rsrv.go::clearLabelRsrv",
+      "producer-sha": "cebc6ef3ee418731",
+      "break": "body of clearLabelRsrv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnTheReceivePath",
+      "unit-sha": "a635a6e36a6f289d",
+      "claim-sha": "cc18c13ab9ab2b46",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/rfc8277_label_rsrv.go::clearLabelRsrv",
+      "producer-sha": "cebc6ef3ee418731",
+      "break": "body of clearLabelRsrv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy",
+      "unit-sha": "8425a69f8427ceb1",
+      "claim-sha": "5007564fa3bca3a1",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/rfc8277_label_rsrv.go::clearLabelRsrv",
+      "producer-sha": "cebc6ef3ee418731",
+      "break": "body of clearLabelRsrv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-3",
       "polarity": "positive",
       "unit": "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack",
       "unit-sha": "56e5e4e567a3ac34",

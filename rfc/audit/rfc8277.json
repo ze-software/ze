@@ -30,10 +30,13 @@
       "verdict": "enforced"
     },
     "RFC8277-2.2-3": {
-      "note": "Re-judged 2026-10-02 (BGP c28 judge). Two clauses. Reception (MUST ignore): enforced, now including the Section 2.3 multi-label case. TestLabeledRsrvIgnoredOnReceive (one label) and TestRFC8277RsrvIgnoredOnReceiveLabelStack (three-label stack 50 00064e 000c8e 0012cf 0a followed by a second NLRI) assert NoError, labels 100/200/300, CIDR and framing of both NLRIs identical for Rsrv 000 and 111 through ExtractLabels and SplitLabeled; a judge overlay making the readers take any Rsrv bit as S reds the 111 case. Transmission (SHOULD zero): only a positive for ORIGINATED stacks (TestRFC8277BuilderLabelLayout, Rsrv 000 on every entry; an overlay leaking 0x0E into WriteLabelValues reds all five cases). On RELAY Ze transmits non-zero Rsrv on purpose: LabeledUnicast.WriteTo/WriteLabelStack copy received traffic-class bits and the forward rail copies the NLRI verbatim, so no negative exists and the clause is a SHOULD deviation awaiting the owner (disclose and split the transmit clause, or clear Rsrv on relay). Stays weak until that decision.",
+      "note": "Re-judged 2026-10-02 (BGP c29 judge), owner ruling 8(d). Reception (MUST ignore) unchanged from c28: TestLabeledRsrvIgnoredOnReceive and TestRFC8277RsrvIgnoredOnReceiveLabelStack. Transmission (SHOULD zero) now enforced for both originated and relayed stacks. Originated: TestRFC8277BuilderLabelLayout (WriteLabelValues, Rsrv 000). Relayed: clearLabelRsrv runs in publishBase, the ingest step every announcement passes before the RIB and both forward rails see it; SAFI 4 and 128 only, read-only scan first, copy only on a hit. Negatives TestRFC8277RsrvClearedOnRelay (Rsrv 111/101/001/110 to 000 over one label, a three-label stack then a second NLRI, ADD-PATH path id, SAFI 128 RD; framing and the received buffer unchanged) and TestRFC8277RsrvClearedOnTheReceivePath (through enforceRFC7606, no RFC 7606 action). Positive TestRFC8277ZeroRsrvRelayedZeroCopy asserts the same WireUpdate for a zero-Rsrv stack and a unicast NLRI. No bypass: the only non-publishBase exits of enforceRFC7606 are treat-as-withdraw (withdrawals carry the Section 2.4 Compatibility field, not a label stack) and session reset; originated stacks come from LabelEntriesFor (Rsrv 0). EVPN (SAFI 70) untouched. Three observed-red records (revert clearLabelRsrv).",
       "requirement_sha": "4b854b57cc9edcda",
       "tests": {
         "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+        "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnRelay": "7709e060b8ea799b",
+        "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnTheReceivePath": "7709e060b8ea799b",
+        "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy": "7709e060b8ea799b",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "c829ac5b6e0bd533",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "c829ac5b6e0bd533",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "185c8ef1c3f2dd5e",
@@ -41,12 +44,15 @@
       },
       "units": {
         "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+        "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnRelay": "b4c30a38c6077bcf",
+        "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnTheReceivePath": "437ae389ad95b643",
+        "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy": "c67a01af0e9579a7",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "56fbcef3cc2d414d",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "56fbcef3cc2d414d",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "29ca998daacf0c45",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "29ca998daacf0c45"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-2.3-1": {
       "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a non-last label entry transmitted with S=1. Positive: TestRFC8277BuilderLabelLayout pins 50 000640 000c80 0012c1 0a and 78 000640 000c81 <RD> 0a through WriteLabelValues; HEAD TestLabeledLabelStackSBitPlacement covers WriteTo built from values. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo entries 0x000641, 0x000c81, 0x0012c0 (S=1 mid-stack) and asserts the S bits are cleared. Judge overlay dropping 'entry &^= 1' in WriteLabelStack reds the negative only (50000641000c810012c10a) while the HEAD placement test stays green, so the new unit is what discriminates the relay path. Marker dropped, records on both polarities.",

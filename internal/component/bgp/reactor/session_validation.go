@@ -497,6 +497,10 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	// the deduplicated attribute is what the RIB, the relays and every rebuild see.
 	wu = removeRedundantLargeCommunities(wu)
 
+	// RFC 8277 Section 2.2, applied at this site for the same reason: the label
+	// fields the RIB keeps and the relays copy carry a zero Rsrv.
+	wu = clearLabelRsrv(wu, bgpctx.Registry.Get(s.recvCtxID).AddPathFor)
+
 	wu = discardNonVPNAcceptOwn(wu)
 
 	attrs, err := wu.Attrs()
