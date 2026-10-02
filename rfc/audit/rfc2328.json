@@ -191,17 +191,21 @@
       "verdict": "enforced"
     },
     "RFC2328-13-2": {
-      "note": "Clauses: not flooded INTO a stub area (send side) and not THROUGHOUT it (receive side). Receive side is proven through ReceiveUpdate: TestOSPFStubAreaDropsType5 fails if a Type-5 received on a stub interface is installed. Send side is proven only on the helper: TestOSPFStubFloodFilter asserts eligibleInterface returns false for stub/NSSA, but no unit floods a Type-5 and observes that no LS Update leaves a stub interface, so a flood path (flooding.go:360, :599) that stopped consulting eligibleInterface stays green.",
+      "note": "c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.",
       "requirement_sha": "41dc0469753b2263",
       "tests": {
         "internal/plugins/ospf/lsdb/area_type_test.go::TestOSPFStubFloodFilter": "a8040e2a2e2a44b0",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "5f02a64139f8d93a"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "330db5d6e142abe6",
+        "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "330db5d6e142abe6"
       },
       "units": {
         "internal/plugins/ospf/lsdb/area_type_test.go::TestOSPFStubFloodFilter": "df85c915bafc46f3",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "00a1edf28240c2b1"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "00a1edf28240c2b1",
+        "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "7b99f8bd9ad0fb62",
+        "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "6da69fd268bd37a5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13-3": {
       "note": "Engine drop now exercised: LS Updates dispatched through eng.dispatch from an unknown neighbor, Init, and ExStart are not stored and draw no LS Ack or LS Update even after FlushDelayedAcks; the same packet after Exchange is installed and acknowledged. Disabling the AcceptsFlooding drop in handleLSUpdate turns all three negatives red. 2-Way (not reachable on point-to-point) stays on the neighbor-package AcceptsFlooding units, which gate the same call.",
@@ -262,30 +266,36 @@
       "verdict": "weak"
     },
     "RFC2328-13-7": {
-      "note": "Clauses: discard a newer instance arriving within MinLSArrival of a flooded install, without acknowledging it, AND go on to examine the next LSA in the Link State Update. The first two are proven: TestRFC2328MinLSArrivalDiscardsWithoutAck fails if the sequence changes, any packet is sent, or the later delayed ack names the discarded instance; TestRFC2328MinLSArrivalElapsedAccepts fails if an instance after MinLSArrival is not installed and acked. Not proven: every update carries a single LSA, so a receiver that abandoned the rest of the update after a too-soon discard stays green.",
+      "note": "c20 judge: discard without ack and keep the earlier copy proven by TestRFC2328MinLSArrivalDiscardsWithoutAck (negative) and the elapsed case by TestRFC2328MinLSArrivalElapsedAccepts; the 'examine the next LSA' clause now by TestRFC2328TooSoonDiscardThenNextLSAExamined: one LS Update [too-soon 4.4.4.4, new 5.5.5.5], 4.4.4.4 keeps its sequence and is not flooded, 5.5.5.5 installed, flooded and the ONLY header acknowledged. Author overlay (continue->return on the TooSoon branch) red on the new unit only; revert record on ReceiveUpdate.",
       "requirement_sha": "9ee1607ecf336df6",
       "tests": {
         "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalDiscardsWithoutAck": "1f2e47ae6a5f8fdb",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalElapsedAccepts": "1f2e47ae6a5f8fdb"
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalElapsedAccepts": "1f2e47ae6a5f8fdb",
+        "internal/plugins/ospf/lsdb/rfc2328_too_soon_next_lsa_test.go::TestRFC2328TooSoonDiscardThenNextLSAExamined": "9f565246782fd8b5"
       },
       "units": {
         "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalDiscardsWithoutAck": "1ccde6bf0d86f810",
-        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalElapsedAccepts": "b2715cbf4447154a"
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalElapsedAccepts": "b2715cbf4447154a",
+        "internal/plugins/ospf/lsdb/rfc2328_too_soon_next_lsa_test.go::TestRFC2328TooSoonDiscardThenNextLSAExamined": "fe95d7b24c6504c5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13.1-1": {
-      "note": "TestOSPFFreshnessCompareMatrix asserts each step on its own: higher sequence newer (both directions), larger checksum newer, MaxAge newer, age difference above MaxAgeDiff younger newer, within MaxAgeDiff equal. The ORDER of the steps is not discriminated: every case varies one field with the others equal, so a comparator checking checksum or MaxAge before sequence stays green. The unsigned 16-bit checksum comparison is not discriminated (10 vs 11), nor is the signed sequence space of 12.1.6. TestRFC2328OlderInstanceGetsDatabaseCopyBack proves only that an older sequence never replaces the copy.",
+      "note": "c20 judge: order and signedness now discriminated. TestRFC2328FreshnessStepsAppliedInOrder pits an earlier step against a later one in both argument orders (sequence over checksum+MaxAge, unsigned 0x8001 over 0x7FFF against MaxAge, MaxAge over age, age > MaxAgeDiff, MaxSequenceNumber over InitialSequenceNumber signed); TestRFC2328LessRecentByEarlierStepRefused through ReceiveUpdate (past MinLSArrival) keeps the database copy against a lower sequence or smaller checksum at MaxAge. Matrix and Older-sequence units kept. Revert records both polarities on CompareHeaders; author overlays (order swaps, signed checksum, unsigned sequence) red.",
       "requirement_sha": "7f1e50f1e1a1cbd3",
       "tests": {
         "internal/plugins/ospf/lsdb/lsdb_test.go::TestOSPFFreshnessCompareMatrix": "ae0055f5fef676ec",
+        "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder": "ad7121ee95b70bef",
+        "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused": "ad7121ee95b70bef",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
       },
       "units": {
         "internal/plugins/ospf/lsdb/lsdb_test.go::TestOSPFFreshnessCompareMatrix": "5006bad58fcc1fda",
+        "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder": "27f8293c0fade9eb",
+        "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused": "5f90dab7abd2a421",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "846d82d2765e89f7"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13.3-1": {
       "note": "Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.",
@@ -354,19 +364,21 @@
       "verdict": "enforced"
     },
     "RFC2328-13.5-1": {
-      "note": "Forbidden: a newly received LSA left unacknowledged. The tagged units prove the implicit ack by flooding back (TestOSPFDRRefloodsBackOutReceivingInterface: no delayed ack), the implied-ack duplicate on the Backup and the MaxAge-no-copy direct ack through ReceiveUpdate. The ordinary case, a newer LSA installed through ReceiveUpdate and not flooded back, is only reached by calling ackForReceive directly with hand-set flags in TestOSPFAckDecisionTable, so a ReceiveUpdate that skipped or mis-flagged that call stays green. (TestRFC2328MinLSArrivalElapsedAccepts proves it through ReceiveUpdate but is tagged only for 13-7.)",
+      "note": "c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.",
       "requirement_sha": "24e8e5fb97afba29",
       "tests": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "fcd3234658f1748d",
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFAckDecisionTable": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "5f02a64139f8d93a"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "09296c82da305f9e"
       },
       "units": {
         "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "df4470387694a059",
         "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFAckDecisionTable": "8f25863a405c187e",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "1b631d6e9c599745"
+        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "1b631d6e9c599745",
+        "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "5870efe0e2ea0b59"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-14-1": {
       "note": "Forbidden: (a) LS age incremented past MaxAge: TestLSAgeAddSaturates fails unless MaxAge-10 plus 20 equals MaxAge exactly, and TestOSPFLSDBAgeToPurge fails unless the aged LSA sits at MaxAge; (b) a MaxAge LSA used in the routing calculation: TestOSPFGraphSkipsMaxAge fails if BuildGraph makes a router vertex of a MaxAge router-LSA. The fixture is isolated: BuildGraph (graph.go) turns a decodable non-MaxAge router-LSA into a vertex with no other filter, so only the age check can exclude it. Positive: age advances and saturation leaves DoNotAge untouched.",
@@ -422,17 +434,21 @@
       "verdict": "enforced"
     },
     "RFC2328-16.1-1": {
-      "note": "tagged units cover only the link-back clause (one-way link excluded); the missing-LSA and MaxAge-LSA clauses are not asserted under this id (MaxAge is covered by TestOSPFGraphSkipsMaxAge under 14-1).",
+      "note": "c20 judge: every skip clause and the continuation. TestRFC2328SPFExaminesNextLinkAfterSkip: root lists links to a missing router-LSA, a MaxAge router-LSA, a router with no link back, and a transit net with no network-LSA BEFORE 5.5.5.5, which is still reached at 10 with only 192.0.2.0/24 at 15 routed. TestRFC2328SPFSkipsMissingOrMaxAgeVertex isolates missing/MaxAge for router and network LSAs with a below-MaxAge control. Link-back clause by TestOSPFSPFShortestPath / TestOSPFTwoWayCheck. Revert records Compute (+), BuildGraph (-).",
       "requirement_sha": "40d9940eae570f35",
       "tests": {
+        "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip": "b9cd19a4f666c2f3",
+        "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex": "b9cd19a4f666c2f3",
         "internal/plugins/ospf/spf/spf_test.go::TestOSPFSPFShortestPath": "beb97c3c18b451e8",
         "internal/plugins/ospf/spf/spf_test.go::TestOSPFTwoWayCheck": "beb97c3c18b451e8"
       },
       "units": {
+        "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip": "1c07645da33df4c2",
+        "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex": "9c59bab60f4c5288",
         "internal/plugins/ospf/spf/spf_test.go::TestOSPFSPFShortestPath": "c529cc253499eb83",
         "internal/plugins/ospf/spf/spf_test.go::TestOSPFTwoWayCheck": "edbfaa682f52faec"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-16.1-3": {
       "note": "Forbidden: choosing a router vertex before a network vertex at equal distance. Red: TestRFC2328EqualDistanceNetworkVertexFirst pushes two routers and one network at dist 10 and fails unless the first pop is the network vertex. Other polarity: TestRFC2328CloserRouterVertexBeforeFartherNetwork fails if the network-first preference overrides distance (router at 10 must pop before network at 11). Both over spfHeap, the SPF candidate list itself.",
@@ -448,17 +464,19 @@
       "verdict": "enforced"
     },
     "RFC2328-16.2-1": {
-      "note": "Forbidden: an ABR examining non-backbone summary-LSAs. Red: TestOSPFABRBackboneOnlyAcceptance fails if the cheaper area-0.0.0.1 summary is used (metric must be 30 via 2.2.2.2). The condition 'if the router is attached to multiple areas' is not discriminated: the positive TestOSPFInterAreaRoute uses a router attached only to the BACKBONE, so a producer that examined only backbone summaries for every router stays green; no unit shows a non-ABR in a non-backbone area using that area's summaries.",
+      "note": "c20 judge: the 'attached to multiple areas' condition now discriminated: TestRFC2328NonABRUsesItsAreaSummaries, a router in area 0.0.0.1 only installs 10.40.0.0/24 from that area's summary at 2 via 3.3.3.3 (red under a backbone-only-for-every-router producer). Negative TestOSPFABRBackboneOnlyAcceptance: the ABR ignores the cheaper area-1 summary, metric 30 via 2.2.2.2; judge-observed revert record on ComputeInterAreaWith.",
       "requirement_sha": "8e78c47bb67b2879",
       "tests": {
         "internal/plugins/ospf/spf/interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "8afc978a14b338b7",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7"
+        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7",
+        "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries": "50f6d38abd345bba"
       },
       "units": {
         "internal/plugins/ospf/spf/interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "143c6d8b2108e3ef",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42"
+        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42",
+        "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries": "05be64bd715a8230"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-16.2-2": {
       "note": "Closes the earlier gap (advertised LSInfinity unfed). + TestRFC2328SummaryAdvertisingLSInfinitySkipped: summary cost 20 through an ABR 10 away installs one route; - the same summary with cost LSInfinity installs none. MaxAge and self-originated skips stay on rfc2328_test.go; composed-cost saturation on interarea_test. Records: + v4SummaryReader, - ComputeInterAreaWith, observed red. Note: the advertised-cost check (v4SummaryReader, interarea.go:189) is subsumed by the composed-cost check (ComputeInterAreaWith, interarea.go:153), because clampMetric saturates any sum with an LSInfinity term to LSInfinity; a mutant removing only :189 stays green, but no input then installs a route, so the behaviour the clause demands is enforced by the unit either way. The AS-external tags on external_test/rfc2328_test prove s16.4 neighbours and are supplementary.",
@@ -635,17 +653,19 @@
       "verdict": "enforced"
     },
     "RFC2328-9.5.1-1": {
-      "note": "SB-3 strict re-read 2026-09-27, quote widened to the full span through the ineligible-router sentence the old row claimed. Clauses: an eligible router sends periodic Hellos to every eligible neighbor; a DR or BDR also sends them to all other neighbors; an ineligible router sends them to the DR and BDR. TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor and TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor prove only the eligible DROther case (every eligible neighbor targeted, a priority-0 one skipped). No unit makes the router DR or BDR and asserts Hellos to ineligible neighbors, and none makes the router ineligible.",
+      "note": "c20 judge: eligible router to every eligible neighbor (TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor) and DROther skipping priority-0 neighbors (negative TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor); DR and Backup sending to the priority-0 neighbor too (TestRFC2328NBMAHelloTargetsByRole dr/backup, red under an overlay gating priority-0 in every state). Ineligible-router clause: the subtest asserts a priority-0 DROther targets both DR and BDR; no producer branch reads the router's own priority (it sends to every eligible neighbor, a superset the sentence allows), so no targeted overlay exists; the assertion fails on any producer that drops DR or BDR from that router's targets, and the unit's revert record is observed red. Single positive for that clause is the sentence's own shape (no MUST NOT).",
       "requirement_sha": "69cbde79dd83699d",
       "tests": {
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor": "5f75ed219587e64e",
-        "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "5f75ed219587e64e"
+        "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "5f75ed219587e64e",
+        "internal/plugins/ospf/iface/rfc2328_nbma_hello_roles_test.go::TestRFC2328NBMAHelloTargetsByRole": "d13a91ee25f6176f"
       },
       "units": {
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor": "f8a22ef0f176fd01",
-        "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "402cc8e4f575a581"
+        "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "402cc8e4f575a581",
+        "internal/plugins/ospf/iface/rfc2328_nbma_hello_roles_test.go::TestRFC2328NBMAHelloTargetsByRole": "2d724bf5fd9f08ec"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-A.1-1": {
       "note": "Forbidden: OSPF packets sent with a TTL other than 1. Red: TestOSPFSocketTTLIsOne first proves the kernel default is not 1, then fails unless IP_TTL and IP_MULTICAST_TTL both read back 1 after setMulticastOptions (which hard-codes 1, backend_linux.go:307-316). Other polarity: TestOSPFSocketTTLFailureIsAnError fails if a setsockopt failure is swallowed, so a socket cannot enter service with the default TTL.",
@@ -691,17 +711,21 @@
       "verdict": "enforced"
     },
     "RFC2328-A.3.1-2": {
-      "note": "TestOSPFPacketChecksum / TestPacketVerifyChecksum only round-trip and corrupt a body octet; no unit shows the 64-bit authentication field is excluded (changing auth octets must leave the checksum valid), and the verifier shares PacketChecksum with the generator.",
+      "note": "c20 judge: independent arithmetic (test-side RFC 1071 fold) for both sides. TestRFC2328PacketChecksumCoversHeaderExcludesAuth: with a simple password the generated field equals the reference over header+body excluding Auth, differs from the whole-packet sum, is unchanged by another password and moves with the Router ID. TestRFC2328PacketChecksumWrongRangeRefused: VerifyPacketChecksum refuses an Auth-included and a body-excluded checksum, accepts the correct one. Revert records PacketChecksum (+), VerifyPacketChecksum (-).",
       "requirement_sha": "ceb1df038e294974",
       "tests": {
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth": "8ac8573c092c7f1a",
-        "internal/plugins/ospf/packet/header_test.go::TestPacketVerifyChecksum": "3690176478e839f0"
+        "internal/plugins/ospf/packet/header_test.go::TestPacketVerifyChecksum": "3690176478e839f0",
+        "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth": "d8d026ab65bff2b1",
+        "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused": "d8d026ab65bff2b1"
       },
       "units": {
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth": "7578318cd652e22d",
-        "internal/plugins/ospf/packet/header_test.go::TestPacketVerifyChecksum": "d97dae373086ba92"
+        "internal/plugins/ospf/packet/header_test.go::TestPacketVerifyChecksum": "d97dae373086ba92",
+        "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth": "05356c529611eaee",
+        "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused": "a102206c6e365966"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-A.3.3-1": {
       "note": "Forbidden: a DD sent over a virtual link carrying a non-zero Interface MTU. Red: TestRFC2328VirtualLinkDBDescCarriesZeroMTU fails on any sent DD with InterfaceMTU != 0 over the MTU-less virtual interface, and TestRFC2328VirtualInterfaceHasNoMTU fails unless the engine-created virtual interface reports MTU 0 (so the DD stamps 0). Other polarity: the same units fail unless a real interface's DD carries 1500 and the real interface reports a non-zero MTU, so a blanket zero goes red.",
