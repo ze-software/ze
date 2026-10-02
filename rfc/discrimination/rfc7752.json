@@ -24,6 +24,17 @@
       "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7752-3.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence",
+      "unit-sha": "5d3aa1da7dcde4be",
+      "claim-sha": "71c5321614e51a9d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/types_descriptor.go::addressTLVs",
+      "producer-sha": "7321284a6d32ae99",
+      "break": "body of addressTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7752-3.1-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder",

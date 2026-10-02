@@ -127,6 +127,53 @@ func TestRFC9552NativeLinkNonDefaultTopology(t *testing.T) {
 	}
 }
 
+// VALIDATES: a link that carries no interface or neighbor address at all, and
+// whose link local/remote identifiers are known, is advertised with the Link
+// Local/Remote Identifiers TLV 258 holding exactly those identifiers.
+// PREVENTS: an unnumbered link reaching the collector with no link identity.
+//
+// RFC requirement: RFC9552-5.2.2-4 positive -- an IS-IS link with no interface or neighbor address and link identifiers 7 and 9 is advertised with TLV 258 = 00000007 00000009 and none of TLVs 259, 260, 261 or 262 (the first clause: addresses not present, identifiers present).
+func TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers(t *testing.T) {
+	e, capture := exportFixture(t)
+	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.ISISLevel1}, Generation: 1,
+		Links: []linkstateevents.Link{{Local: nativeTestNode(), Remote: nativeTestNode(), HasLinkIDs: true, LocalID: 7, RemoteID: 9}}}
+	require.NoError(t, e.replace("isis", snapshot))
+	require.NoError(t, e.reconcile(context.Background()))
+	require.Len(t, capture.commands, 1)
+
+	wire := exportCommandBytes(t, capture.commands[0], "nlri")
+	require.Equal(t, [][]byte{{0, 0, 0, 7, 0, 0, 0, 9}}, exportTLVValues(t, wire[13:], 258))
+	for _, kind := range []uint16{259, 260, 261, 262} {
+		require.Empty(t, exportTLVValues(t, wire[13:], kind), "no address TLV %d for an unnumbered link", kind)
+	}
+}
+
+// VALIDATES: one IGP link object associated with the default topology AND with
+// topology 2 is advertised once per topology, and the topology-2 Link NLRI
+// carries TLV 263 with MT-ID 2, so no NLRI presents the non-default link as a
+// default one.
+// PREVENTS: a producer that collapses a multi-topology link onto its first or
+// default topology, which drops the non-default MT-ID the section requires.
+//
+// RFC requirement: RFC9552-5.2.2-5 negative -- an IS-IS link listed in topologies 0, 2 and again 2 yields exactly two Link NLRIs, each carrying exactly one TLV 263; their MT-IDs are 0 and 2, so the non-default topology 2 is never advertised without its Multi-Topology Identifier TLV.
+func TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed(t *testing.T) {
+	e, capture := exportFixture(t)
+	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.ISISLevel1}, Generation: 1,
+		Links: []linkstateevents.Link{{Local: nativeTestNode(), Remote: nativeTestNode(), HasLinkIDs: true, LocalID: 1, RemoteID: 2,
+			Topologies: []uint16{0, 2, 2}}}}
+	require.NoError(t, e.replace("isis", snapshot))
+	require.NoError(t, e.reconcile(context.Background()))
+	require.Len(t, capture.commands, 2, "one Link NLRI per distinct topology")
+
+	mtids := make([][]byte, 0, 2)
+	for _, command := range capture.commands {
+		values := exportTLVValues(t, exportCommandBytes(t, command, "nlri")[13:], 263)
+		require.Len(t, values, 1, "every Link NLRI carries exactly one Multi-Topology Identifier TLV")
+		mtids = append(mtids, values[0])
+	}
+	require.ElementsMatch(t, [][]byte{{0, 0}, {0, 2}}, mtids, "the topology-2 NLRI carries MT-ID 2")
+}
+
 // VALIDATES: an OSPF prefix whose route type the source knows carries the
 // OSPF Route Type TLV in its Prefix Descriptor.
 // PREVENTS: dropping the route type the LSA signaled.

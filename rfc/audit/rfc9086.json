@@ -1,5 +1,9 @@
 {
   "audited": "2026-09-30",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9086-4.2-1": {
       "note": "The sentence covers every BGP-LS NLRI Ze distributes for protocol BGP, Node NLRI and Link NLRI. (a) forbidden: a Local Node Descriptor without TLV 516 or TLV 512. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts local 516=192.0.2.1 and 512=65000 on the Link NLRI (capture.commands[1]); TestRFC9086NativePeerRequiresNodeIdentities refuses a local ASN of 0. Weak because the Node NLRI the same test emits (capture.commands[0]) never has its Local Node Descriptors checked, so dropping 516 or 512 from the Node NLRI stays green; the negative covers the missing ASN only, not a missing local Router-ID.",
@@ -32,7 +36,7 @@
       "requirement_sha": "a237fa9f14cfadd4",
       "tests": {
         "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "0a3283bf2950e533"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "54a5a89330256fe3"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
@@ -57,8 +61,8 @@
       "note": "Two clauses. Zero when originated: (a) a PeerNode SID sent with reserved flag bits set; (b) TestRFC9086NativePeerSIDReservedFlagsZero asserts sid[0]&0x0f==0 on the wire from a source that set 0xcf, enforced. Ignored when received: (a) a received TLV rejected or mis-decoded because Rsvd bits are set; (b) no unit tagged 5-3 asserts it. The receive clause is proven only by TestRFC9086PeerSIDIgnoresReservedFields, which is tagged RFC9086-5-5. Rows 5-3 and 5-5 now quote the same sentence.",
       "requirement_sha": "8c984fd02855eedf",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "0a3283bf2950e533",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "0a3283bf2950e533"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero#2": "54a5a89330256fe3"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativePeerSIDReservedFlagsZero": "a3d1695f2324dd74",
@@ -72,7 +76,7 @@
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "431bf0a1967a3360",
         "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "431bf0a1967a3360",
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "38b7a68c47518d20"
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "31d7422e3822a335"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "1d880b244ca5df63",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-01",
+  "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -153,21 +153,25 @@
       "verdict": "weak"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8": {
-      "note": "Re-judged 2026-10-01 (BGP c21 judge). D-8 fixed: egressNextHopGlobalHalf (forward_next_hop.go) cuts a relayed 32-octet Global+Link-Local field (48 -> 24 for VPN-IPv6) to the Global toward a destination whose link scope holds no shared subnet; read at the producer, called after applyFactsNextHop on both rails, and it leaves every 4/16/24-octet field and every on-link destination untouched. General rail proven both polarities: TestLinkLocalReceivedPairStrippedForMultihopExternalPeer relays the received 2001:db8:1::1+fe80::9 through forwardUpdateCore to an off-link external peer under next hop unchanged and auto and reads the rebuilt field (Global alone); TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer keeps the pair one hop away; c21-48-red.log red before the fix; records observed red. Still missing: the route-server rail (reactorForwardRS, forward_rs.go line ~466) carries the same call and no tagged unit drives it, so deleting that call leaves every 4-8 unit green while a multihop RS client receives the Link-Local. Missing: a reactorForwardRS unit relaying the 32-octet pair to an off-link client, with a record.",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author's overlay disabling only the forward_rs.go call (strip && false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.",
       "requirement_sha": "7a157c343d0362b5",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "dd16efc090c15665",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "dd16efc090c15665",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "23787ae23d680369",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "23787ae23d680369",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "23787ae23d680369",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "23787ae23d680369",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "8b6df8728f9a616d",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "8b6df8728f9a616d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "f545278a231f2e90",
         "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "16721b3aa7f9e99a",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "6422352eb874ecc7",
+        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "455ec9701962d1ad",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "45b3b0a054c9b3d1",
         "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "405e2a4b4f76cdf8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9": {
       "note": "Forbidden: advertising to a multihop external peer a route that carries no Global IPv6 next hop, typically one whose next hop is Link-Local only. TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer feeds a ZERO next hop to buildRIBRouteUpdate and asserts nil, which is the no-next-hop-at-all rule of 4-1/4-7; its facts half (no Link-Local appended under next-hop-self) is not connected to the builder call. No tagged unit offers a Link-Local-only (fe80::) next hop toward a multihop external peer, which is the input the sentence forbids.",
@@ -199,7 +203,7 @@
       "code": {
         "internal/component/bgp/message/rfc7606.go::validateMPReachNextHop": "ab5b2ab48a8ad1c7"
       },
-      "note": "Judged 2026-10-01 (BGP c21 judge). Gap confirmed, but its stated reason is mis-aimed. Draft section 6 places this sentence after the 32-octet paragraph ('the length of the Next Hop Field set to 32, where the update contains anything other than a Global IPv6 followed by a Link-Local IPv6 address'), so 'malformed' is the CONTENT of an admitted-length field. A length error stays under RFC 7606 section 7.11: 'it will not be possible to reliably locate the NLRI; thus, the \"session reset\" or \"AFI/SAFI disable\" approach MUST be used', and treat-as-withdraw needs the NLRI located, so the draft cannot override 7.11 there; validateMPReachNextHop answering session reset on a length outside attribute.ValidNextHopLens is correct, not the gap. The gap is the content half: on a capability-77 session no receive producer inspects a 32-octet field's addresses (grep IsLinkLocalUnicast: only send-side and IsLinkLocalOnlyNextHop, which is 16-octet only), so a field that is neither Global+Link-Local, Link-Local+Link-Local nor ::+Link-Local is accepted, never treated as withdraw. The {gap} annotation's first clause should be narrowed to that content half by the next author.",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge). Gap unchanged; the {gap} annotation is now aimed at the content half as the c21 judge required: on a capability-77 session no receive producer inspects the addresses of an admitted 32-octet Next Hop field, so a field that is not Global followed by Link-Local is never treated as withdrawn. A wrong Length stays an RFC 7606 Section 7.11 session reset in validateMPReachNextHop, which is correct and named here as the producer that admits the field without inspecting it. Dated correction in rfc/corrections.",
       "requirement_sha": "a3805533ad750bdf",
       "verdict": "unimplemented"
     }

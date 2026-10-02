@@ -347,6 +347,11 @@ func parseBGPLS(data []byte) (bGPLSNLRI, error) {
 		if err := parseNodeDescriptorTLVs(body[9:], &srv6.LocalNode); err != nil {
 			return nil, err
 		}
+		// RFC 9514 Section 6: the SRv6 SID Descriptors follow the Local Node
+		// Descriptors at NLRI level.
+		if err := parseSRv6SIDDescriptorTLVs(body[9:], &srv6.SRv6SID); err != nil {
+			return nil, err
+		}
 		srv6.cached = data[:4+nlriLen]
 		return srv6, nil
 
@@ -382,10 +387,10 @@ const nodeDescriptorMaxDepth = 1
 // Descriptors container up to nodeDescriptorMaxDepth levels.
 //
 // Descending and then RESUMING the outer walk is the whole point. Replacing the
-// iteration buffer with the container's value, which is what this did, discards
-// every octet that follows the container: for an RFC 9514 SRv6 SID NLRI the SRv6
-// SID Information TLV sits after it at NLRI level, so it was never read for any
-// wire-decoded NLRI.
+// iteration buffer with the container's value discards every octet that follows
+// the container. TLV 518 is not read here even when it sits at NLRI level: it is
+// the RFC 9514 SRv6 SID Information TLV, an SRv6 SID Descriptor and not a Node
+// Descriptor sub-TLV, so parseSRv6SIDDescriptorTLVs reads it.
 //
 // A container nested deeper than the bound is skipped rather than refused. RFC
 // 9552 Section 8.2.2: "A Link-State NLRI MUST NOT be considered malformed or
@@ -447,10 +452,39 @@ func parseNodeDescriptorTLVsAt(data []byte, nd *NodeDescriptor, depth int) error
 			if len(value) >= 4 {
 				nd.ConfedMember = binary.BigEndian.Uint32(value)
 			}
-		case TLVSRv6SID: // TLV 518 - 16 bytes (RFC 9514)
-			sid := make([]byte, len(value))
-			copy(sid, value)
-			nd.SRv6SIDs = append(nd.SRv6SIDs, sid)
+		}
+
+		data = data[4+tlvLen:]
+	}
+
+	return nil
+}
+
+// parseSRv6SIDDescriptorTLVs reads the SRv6 SID Descriptors of an SRv6 SID
+// NLRI: the TLVs at NLRI level, beside the Local Node Descriptors container,
+// which it skips.
+//
+// RFC 9514 Section 6: "This field MUST contain a single SRv6 SID Information TLV
+// (Section 6.1) and MAY contain the Multi-Topology Identifier TLV [RFC7752]."
+// The first SRv6 SID Information TLV is the one kept. A second is not refused,
+// because RFC 9552 Section 8.2.2 says "A Link-State NLRI MUST NOT be considered
+// malformed or invalid based on the inclusion/exclusion of TLVs or contents of
+// the TLV fields". A received NLRI is re-sent from its own octets (cached), so
+// the repeat still reaches the next speaker unchanged.
+func parseSRv6SIDDescriptorTLVs(data []byte, sd *SRv6SIDDescriptor) error {
+	for len(data) >= 4 {
+		tlvType := binary.BigEndian.Uint16(data[0:2])     // TLV Type (2 bytes)
+		tlvLen := int(binary.BigEndian.Uint16(data[2:4])) // TLV Length (2 bytes)
+
+		if len(data) < 4+tlvLen {
+			return ErrBGPLSTruncated
+		}
+
+		if tlvType == TLVSRv6SID {
+			if sd.SRv6SID == nil {
+				sd.SRv6SID = make([]byte, tlvLen)
+				copy(sd.SRv6SID, data[4:4+tlvLen])
+			}
 		}
 
 		data = data[4+tlvLen:]

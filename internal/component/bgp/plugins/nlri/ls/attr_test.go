@@ -1076,26 +1076,23 @@ func TestDescriptorConfedMember(t *testing.T) {
 	assert.Equal(t, uint32(65100), parsed.ConfedMember)
 }
 
-// TestDescriptorSRv6SID tests descriptor sub-TLV 518 round-trip.
+// TestDescriptorSRv6SID tests the SRv6 SID Information TLV 518 round-trip.
 //
-// VALIDATES: SRv6 SID in NodeDescriptor encodes and parses (16-byte IPv6 address).
-// PREVENTS: Missing TLV 518 in node descriptor, matching GoBGP behavior.
+// VALIDATES: an SRv6 SID NLRI encodes its SID (16-byte IPv6 address) as TLV 518
+// after the Local Node Descriptors, and parsing returns it in the SRv6 SID
+// Descriptor (RFC 9514 Section 6).
+// PREVENTS: TLV 518 written inside the Node Descriptor or lost on parse.
 func TestDescriptorSRv6SID(t *testing.T) {
 	sid := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
-	nd := NodeDescriptor{
-		ASN:      65001,
-		SRv6SIDs: [][]byte{sid},
-	}
+	nlri := NewBGPLSSRv6SID(ProtoISISL2, 0, NodeDescriptor{ASN: 65001}, SRv6SIDDescriptor{SRv6SID: sid})
 
-	buf := make([]byte, nd.Len())
-	nd.WriteTo(buf, 0)
-
-	var parsed NodeDescriptor
-	err := parseNodeDescriptorTLVs(buf, &parsed)
+	parsed, err := parseBGPLS(nlri.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, uint32(65001), parsed.ASN)
-	require.Len(t, parsed.SRv6SIDs, 1)
-	assert.Equal(t, sid, parsed.SRv6SIDs[0])
+	srv6, ok := parsed.(*BGPLSSRv6SID)
+	require.True(t, ok)
+	assert.Equal(t, uint32(65001), srv6.LocalNode.ASN)
+	assert.Equal(t, sid, srv6.SRv6SID.SRv6SID)
+	assert.Equal(t, 8, srv6.LocalNode.Len(), "TLV 518 must not be read into the Node Descriptor")
 }
 
 // TestPhase3Registration verifies all Phase 3 TLV decoders are registered.

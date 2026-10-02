@@ -1,4 +1,4 @@
-// Related: types_descriptor.go — addressTLVs, srv6SIDsOrdered
+// Related: types_descriptor.go — addressTLVs
 //
 // VALIDATES: the descriptor encoders emit sub-TLVs in the canonical order RFC
 // 9552 Section 5.1 defines, ascending by type and, among repeated types,
@@ -98,7 +98,6 @@ func TestNoDescriptorEmitsADescendingTLVSequence(t *testing.T) {
 		IGPRouterID:        []byte{1, 2, 3, 4},
 		BGPRouterID:        0x0a000001,
 		ConfedMember:       65002,
-		SRv6SIDs:           [][]byte{bytes.Repeat([]byte{0xfd}, 16)},
 	}).Bytes()
 	encodings["prefix"] = (&PrefixDescriptor{
 		HasMultiTopologyID: true,
@@ -114,69 +113,5 @@ func TestNoDescriptorEmitsADescendingTLVSequence(t *testing.T) {
 					name, types[i], types[i-1], encoded)
 			}
 		}
-	}
-}
-
-// TestNodeDescriptorOrdersRepeatedSRv6SIDs covers a received descriptor that
-// carries TLV 518 more than once. RFC 9552 Section 5.2.1.4 allows at most one
-// instance of each Node Descriptor sub-TLV, so no Ze producer builds this; the
-// parser keeps the unexpected repeats rather than refusing the NLRI (Section
-// 5.1), and this checks that re-encoding them is deterministic: ascending by
-// Length and then by Value, whatever order they were stored in. The Section
-// 5.1 ordering obligation is proven on the native Link producer, which does
-// repeat a Type (ls_export export_rfc9552_ordering_test.go).
-func TestNodeDescriptorOrdersRepeatedSRv6SIDs(t *testing.T) {
-	high := bytes.Repeat([]byte{0xfe}, 16)
-	low := bytes.Repeat([]byte{0xfd}, 16)
-	short := []byte{0xff, 0xff}
-
-	nd := &NodeDescriptor{SRv6SIDs: [][]byte{high, short, low}}
-
-	encoded := nd.Bytes()
-	kind := TLVSRv6SID
-	off := 0
-	for _, want := range [][]byte{short, low, high} {
-		header := []byte{
-			byte(kind >> 8), byte(kind & 0xff),
-			byte(len(want) >> 8), byte(len(want) & 0xff),
-		}
-		end := off + 4 + len(want)
-		if end > len(encoded) {
-			t.Fatalf("encoding ends at %d, short of the sub-TLV for % x: % x", len(encoded), want, encoded)
-		}
-		if !bytes.Equal(encoded[off:end], append(header, want...)) {
-			t.Fatalf("at offset %d the encoder emitted % x, want the sub-TLV for % x; "+
-				"full encoding % x", off, encoded[off:end], want, encoded)
-		}
-		off = end
-	}
-
-	if off != len(encoded) {
-		t.Fatalf("%d trailing octets after the three SID sub-TLVs: % x", len(encoded)-off, encoded)
-	}
-
-	// The caller's slice is an input, not scratch space. Reordering it in place
-	// would give the same node a different key on a later encode.
-	if !bytes.Equal(nd.SRv6SIDs[0], high) {
-		t.Error("the encoder reordered the caller's SRv6SIDs slice in place")
-	}
-}
-
-// TestSRv6SIDOrderIsLengthBeforeValue is the discrimination case for the
-// comparison the re-encode above uses. A plain lexicographic sort passes the
-// test above and fails this one, because the comparison makes Length the first
-// key, as Section 5.1 does.
-func TestSRv6SIDOrderIsLengthBeforeValue(t *testing.T) {
-	longer := make([]byte, 16)
-	shorter := []byte{0xff, 0xff}
-
-	nd := &NodeDescriptor{SRv6SIDs: [][]byte{longer, shorter}}
-	encoded := nd.Bytes()
-
-	const firstValueStart = 4
-	if !bytes.Equal(encoded[firstValueStart:firstValueStart+len(shorter)], shorter) {
-		t.Fatalf("the longer SID was emitted first: % x. Section 5.1 orders repeated "+
-			"TLVs \"in ascending order based on the Length field followed by ascending "+
-			"order based on the Value field\", so Length decides before Value does", encoded)
 	}
 }

@@ -6,10 +6,7 @@
 package ls
 
 import (
-	"bytes"
-	"cmp"
 	"encoding/binary"
-	"slices"
 
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
@@ -17,13 +14,19 @@ import (
 // NodeDescriptor contains node identification information.
 // RFC 7752 Section 3.2.1.4 defines the node descriptor sub-TLVs.
 type NodeDescriptor struct {
-	ASN             uint32   // Autonomous System (TLV 512, RFC 7752 Section 3.2.1.4)
-	BGPLSIdentifier uint32   // BGP-LS Identifier (TLV 513, RFC 7752 Section 3.2.1.4)
-	OSPFAreaID      uint32   // OSPF Area-ID (TLV 514, RFC 7752 Section 3.2.1.4)
-	IGPRouterID     []byte   // IGP Router-ID (TLV 515, RFC 7752 Section 3.2.1.4)
-	BGPRouterID     uint32   // BGP Router-ID (TLV 516, RFC 9086 Section 4.1) — IPv4 as uint32
-	ConfedMember    uint32   // BGP Confederation Member (TLV 517, RFC 9086 Section 4.2)
-	SRv6SIDs        [][]byte // SRv6 SID addresses (TLV 518, RFC 9514) — 16 bytes each
+	ASN             uint32 // Autonomous System (TLV 512, RFC 7752 Section 3.2.1.4)
+	BGPLSIdentifier uint32 // BGP-LS Identifier (TLV 513, RFC 7752 Section 3.2.1.4)
+	OSPFAreaID      uint32 // OSPF Area-ID (TLV 514, RFC 7752 Section 3.2.1.4)
+	IGPRouterID     []byte // IGP Router-ID (TLV 515, RFC 7752 Section 3.2.1.4)
+	BGPRouterID     uint32 // BGP Router-ID (TLV 516, RFC 9086 Section 4.1) — IPv4 as uint32
+	ConfedMember    uint32 // BGP Confederation Member (TLV 517, RFC 9086 Section 4.2)
+
+	// No field for TLV 518. RFC 9514 Section 6 puts the SRv6 SID Information
+	// TLV among the SRv6 SID NLRI's "SRv6 SID Descriptors", beside the Local
+	// Node Descriptors and not inside them, so it lives in SRv6SIDDescriptor.
+	// Every field here holds one value because RFC 9552 Section 5.2.1.4 allows
+	// one instance of each sub-TLV type: "At most, there MUST be one instance
+	// of each sub-TLV type present in any Node Descriptor."
 
 	// Presence for the two sub-TLVs whose ZERO is a legal value, carried apart
 	// from the value because the value cannot carry it.
@@ -42,36 +45,6 @@ type NodeDescriptor struct {
 	// is the same reserved AS. For those, zero and absent mean the same thing.
 	HasBGPLSIdentifier bool
 	HasOSPFAreaID      bool
-}
-
-// srv6SIDsOrdered returns the SRv6 SID values in the order RFC 9552 Section 5.1
-// requires of repeated TLVs sharing one type: "first in ascending order based on
-// the Length field followed by ascending order based on the Value field", the
-// value compared "as opaque binary data and ordered lexicographically".
-//
-// RFC 9552 Section 5.2.1.4 allows at most one instance of each Node Descriptor
-// sub-TLV, and RFC 9514 Section 6 carries TLV 518 in the SRv6 SID NLRI, not in
-// a Node Descriptor. SRv6SIDs holds the repeats a received descriptor carried:
-// the parser keeps an unexpected TLV rather than refusing the NLRI (Section
-// 5.1), and re-encoding it must not depend on storage order, because one node
-// would then get two keys, which Section 5.2.1.1 forbids.
-//
-// The caller's slice is never reordered, and fewer than two SIDs allocate
-// nothing.
-func (nd *NodeDescriptor) srv6SIDsOrdered() [][]byte {
-	if len(nd.SRv6SIDs) < 2 {
-		return nd.SRv6SIDs
-	}
-
-	ordered := slices.Clone(nd.SRv6SIDs)
-	slices.SortStableFunc(ordered, func(a, b []byte) int {
-		if byLength := cmp.Compare(len(a), len(b)); byLength != 0 {
-			return byLength
-		}
-		return bytes.Compare(a, b)
-	})
-
-	return ordered
 }
 
 // Bytes encodes the node descriptor as TLVs.
@@ -109,11 +82,6 @@ func (nd *NodeDescriptor) Bytes() []byte {
 		data = append(data, tlv(TLVConfedMember, uint32ToBytes(nd.ConfedMember))...)
 	}
 
-	// SRv6 SID TLV (518) - RFC 9514
-	for _, sid := range nd.srv6SIDsOrdered() {
-		data = append(data, tlv(TLVSRv6SID, sid)...)
-	}
-
 	return data
 }
 
@@ -138,14 +106,15 @@ func (nd *NodeDescriptor) Len() int {
 	if nd.ConfedMember != 0 {
 		n += 4 + 4 // TLV 517 (RFC 9086)
 	}
-	for _, sid := range nd.SRv6SIDs {
-		n += 4 + len(sid) // TLV 518 (RFC 9514)
-	}
 	return n
 }
 
 // WriteTo writes the node descriptor TLVs directly to buf at offset.
 // Returns bytes written.
+//
+// RFC 9552 Section 5.2.1.4: "At most, there MUST be one instance of each
+// sub-TLV type present in any Node Descriptor." Each sub-TLV below is written
+// from one single-valued field, at most once, so no input can repeat a type.
 func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 	pos := off
 
@@ -171,9 +140,6 @@ func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 	if nd.ConfedMember != 0 {
 		pos += writeTLV(buf, pos, TLVConfedMember, 4)
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.ConfedMember)
-	}
-	for _, sid := range nd.srv6SIDsOrdered() {
-		pos += WriteTLVBytes(buf, pos, TLVSRv6SID, sid)
 	}
 
 	return pos - off

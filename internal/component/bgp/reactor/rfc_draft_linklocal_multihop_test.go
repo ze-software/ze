@@ -16,6 +16,7 @@ package reactor
 import (
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -123,6 +124,102 @@ func TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer(t *testing.T) 
 
 	field, sent := got[netip.MustParseAddr(llnhOnSegmentAddr)]
 	require.True(t, sent, "the route reached the directly attached peer")
+	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	linkLocal := netip.MustParseAddr("fe80::9").As16()
+	assert.Equal(t, append(global[:], linkLocal[:]...), field, "the Global then the received Link-Local")
+}
+
+// llnhForwardRS relays payload, received from the external advertiser at
+// 2001:db8:1::1, through the ROUTE-SERVER rail (reactorForwardRS) to clients,
+// and returns the MP_REACH Next Hop field each client was asked to write.
+func llnhForwardRS(t *testing.T, payload []byte, clients ...*Peer) map[netip.Addr][]byte {
+	t.Helper()
+
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, err := bgpctx.Registry.Register(ctx)
+	require.NoError(t, err)
+
+	cache := newRecentUpdateCache(100)
+	update, id := newLeakTestUpdate(t, cache, payload, ctxID)
+
+	type delivery struct {
+		addr  netip.Addr
+		field []byte
+	}
+	delivered := make(chan delivery, 8)
+	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
+		delivered <- delivery{addr: k.peerAddr.Addr(), field: llnhItemNextHopField(t, items)}
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	t.Cleanup(pool.Stop)
+
+	peerMap := make(map[netip.AddrPort]*Peer, len(clients)+1)
+	for _, c := range clients {
+		key := fwdKey{peerAddr: c.Settings().PeerKey()}
+		pool.registerOutgoingPool(key, 4096)
+		peerMap[key.peerAddr] = c
+	}
+	source := llnhExternalPeer(t, llnhAdvertiserAddr, llnhSegment, NextHopUnchanged)
+	peerMap[source.Settings().PeerKey()] = source
+
+	r := &Reactor{
+		attrModHandlers:     attrModHandlersWithDefaults(),
+		recentUpdates:       cache,
+		peers:               peerMap,
+		fwdPool:             pool,
+		rsForwardingEnabled: true,
+	}
+	reactorForwardRS(r, update, id, source.Settings().Address, source)
+
+	got := make(map[netip.Addr][]byte, len(clients))
+	for range clients {
+		select {
+		case d := <-delivered:
+			got[d.addr] = d.field
+		case <-time.After(500 * time.Millisecond):
+			return got
+		}
+	}
+	return got
+}
+
+// TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the pair
+// through the route-server rail to a client no connected subnet holds.
+//
+// VALIDATES: reactorForwardRS asks the multihop client to write the 16-octet
+// Global 2001:db8:1::1 alone, under next hop unchanged and under next hop auto.
+// PREVENTS: the route-server rail losing the cut the general rail makes: the
+// forwardUpdateCore units above never reach reactorForwardRS.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 positive -- a route received with the 32-octet Global 2001:db8:1::1 plus Link-Local fe80::9 next hop and relayed through the route-server rail (reactorForwardRS) to an external client no connected subnet holds (multihop EBGP), under next hop unchanged and under next hop auto, is written with the Global alone: a 16-octet Next Hop field holding no Link-Local.
+func TestLinkLocalRouteServerStripsReceivedPairForMultihopClient(t *testing.T) {
+	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
+	for _, mode := range []uint8{NextHopUnchanged, NextHopAuto} {
+		multihop := llnhExternalPeer(t, llnhMultihopAddr, llnhSegment, mode)
+
+		got := llnhForwardRS(t, llnhReceivedPairPayload(), multihop)
+
+		field, sent := got[netip.MustParseAddr(llnhMultihopAddr)]
+		require.True(t, sent, "mode %d: the route reached the multihop client", mode)
+		assert.Equal(t, global[:], field, "mode %d: the Global alone, no Link-Local", mode)
+	}
+}
+
+// TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient is the other side
+// on the route-server rail: a client on the advertiser's subnet.
+//
+// VALIDATES: reactorForwardRS still hands a directly attached client the
+// 32-octet pair with the received Link-Local fe80::9, so the rail's cut is
+// keyed on the hop count.
+// PREVENTS: a route-server fix that strips every received Link-Local.
+//
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 negative -- the same route relayed through the route-server rail (reactorForwardRS) to an external client one IP hop away (2001:db8:1::3, on the connected 2001:db8:1::/64) keeps the 32-octet field: the Global 2001:db8:1::1 followed by the received Link-Local fe80::9.
+func TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient(t *testing.T) {
+	attached := llnhExternalPeer(t, llnhOnSegmentAddr, llnhSegment, NextHopUnchanged)
+
+	got := llnhForwardRS(t, llnhReceivedPairPayload(), attached)
+
+	field, sent := got[netip.MustParseAddr(llnhOnSegmentAddr)]
+	require.True(t, sent, "the route reached the directly attached client")
 	global := netip.MustParseAddr(llnhAdvertiserAddr).As16()
 	linkLocal := netip.MustParseAddr("fe80::9").As16()
 	assert.Equal(t, append(global[:], linkLocal[:]...), field, "the Global then the received Link-Local")

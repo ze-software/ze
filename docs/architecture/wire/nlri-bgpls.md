@@ -109,7 +109,18 @@
 | 516 | BGP Router-ID | 4 |
 | 517 | Confederation Member | 4 |
 
+`NodeDescriptor` holds one value for each sub-TLV, and its encoder writes each type at
+most once, as RFC 9552 Section 5.2.1.4 requires: "At most, there MUST be one instance of
+each sub-TLV type present in any Node Descriptor." TLV 518 is not in this table. It is the
+RFC 9514 SRv6 SID Information TLV, one of the SRv6 SID NLRI's SRv6 SID Descriptors, which
+sit at NLRI level after the Local Node Descriptors container. `SRv6SIDDescriptor` holds it,
+the encoder writes it after the container, and `parseSRv6SIDDescriptorTLVs` reads it there
+on receive, keeping the first when a sender repeats it (RFC 9552 Section 8.2.2 forbids
+refusing the NLRI for that). The node walk ignores TLV 518 wherever it appears.
+
 <!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- NodeDescriptor struct, TLV constants -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- NodeDescriptor.WriteTo -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- parseSRv6SIDDescriptorTLVs -->
 
 ---
 

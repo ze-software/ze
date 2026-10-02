@@ -1,20 +1,21 @@
 {
-  "audited": "2026-10-01",
+  "audited": "2026-10-02",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC9552-5.1-1": {
-      "note": "rejudge 2026-09-30: the native Link producer (ls_export encodeNativeLink) is now driven. TestRFC9552NativeLinkTLVsCanonicalOrder asserts the exact TLV sequence 256,257,259,259,260,261,261,262,263 and a pairwise no-descending-Type sweep; TestRFC9552NativeLinkTLVsReorderedSource feeds addresses interleaved IPv6-before-IPv4 and descending, and asserts the same canonical sequence. Judge break (sort comparator Type key reversed) turns both red; revert records observed red. The nlri/ls descriptor-encoder units stay tagged as the second producer's cover.",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge): stale only because TestNoDescriptorEmitsADescendingTLVSequence lost its SRv6SIDs fixture line with the D-8 field deletion; every other descriptor and assertion kept, revert record on addressTLVs re-observed red. Finding of 2026-09-30 unchanged: TestRFC9552NativeLinkTLVsCanonicalOrder and TestRFC9552NativeLinkTLVsReorderedSource drive ls_export encodeNativeLink and assert the exact canonical sequence from an ascending and an interleaved descending source.",
       "requirement_sha": "a0422bad71d21de0",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "581497e4f2564ee5",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "581497e4f2564ee5",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "dc32e08a5b83301a",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "dc32e08a5b83301a"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "58e631b282c700b2",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "58e631b282c700b2"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "be0890353f240a48",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "24cf1b731770732b",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "ff4b440ca0d46180",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "0118bbd3e6cc59b0"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "a22361ffddd09437"
       },
       "verdict": "enforced"
     },
@@ -82,8 +83,8 @@
       "note": "R-7: drives only a modified address descriptor; adding or removing a TLV/sub-TLV is never driven, and the assertion is a \" del \" engine command, not MP_UNREACH_NLRI on the wire; negative (attribute-only change, no withdraw) is sound",
       "requirement_sha": "301c3e240cac344a",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "0a3283bf2950e533",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "0a3283bf2950e533"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "54a5a89330256fe3"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "4832ef0ecb775066",
@@ -115,18 +116,35 @@
       },
       "verdict": "weak"
     },
+    "RFC9552-5.2.1.1-1": {
+      "note": "First judgement 2026-10-02 (BGP c22 judge). Positive TestSameNodeHasOneKeyWhateverTheStorageOrder parses one node from two wire orders (512,514,515 and 515,514,512) and asserts both re-encode to the identical canonical bytes, equal to the ascending order: an order-dependent parse or encode goes red (revert record on parseNodeDescriptorTLVsAt observed red). Negative TestNodeDescriptorWriteToMatchesBytes asserts WriteTo and Bytes emit identical octets for one node, so the encoder choice cannot give a second key; it carries no record because Bytes/WriteTo repeat in types_descriptor.go and cannot be producer keys (journal row 2026-10-02).",
+      "requirement_sha": "8681cae084ee2329",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "ec80089366c68919",
+        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "ec80089366c68919"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "307f9fe101227dff",
+        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "9ee5ac17cad1dcb2"
+      },
+      "verdict": "enforced"
+    },
     "RFC9552-5.2.1.4-1": {
-      "note": "Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Finding unchanged: receive half proven (duplicate sub-TLV 512 NLRI discarded, sibling survives; distinct types kept); sender half unproven and the code violates it: NodeDescriptor.WriteTo (nlri/ls/types_descriptor.go) emits one sub-TLV 518 per SRv6SIDs entry inside the Node Descriptor with no refusal, and the RFC9552-5.1-2 units assert that repeated emission.",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge). D-8 fixed at the producer: NodeDescriptor.SRv6SIDs deleted, every Node Descriptor field single-valued and written at most once by NodeDescriptor.WriteTo; TLV 518 is read by parseSRv6SIDDescriptorTLVs into the SRv6 SID NLRI's own SRv6 SID Descriptor, where RFC 9514 Section 6 places it ('This field MUST contain a single SRv6 SID Information TLV'). Sender half: positive TestNodeDescriptorNeverRepeatsASubTLVType sets every field and asserts 512..517 each exactly once and six types; negative TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor encodes an SRv6 SID NLRI with a SID and asserts no type repeats inside the Local Node Descriptors container, no 518 there, one 518 at NLRI level. Judge overlay probe (WriteTo writing TLV 512 twice) turned BOTH units red naming 'sub-TLV type 512 written 2 times'. Receive half unchanged from c21 (duplicate 512 NLRI discarded, distinct types kept). Records: revert on types.go::writeTLV (positive) and types.go::WriteTLVBytes (negative) observed red; they prove reach, because NodeDescriptor.WriteTo cannot be a producer key (three WriteTo in the file, journal row 2026-10-02 gate-excludes-part-of-its-population) and gomu mutants inside it (report run 2026-10-02) are refused for the same reason. The receive units carry no record (pre-existing).",
       "requirement_sha": "ac5bc03a05270e4c",
       "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_node_descriptor_unique_test.go::TestNodeDescriptorNeverRepeatsASubTLVType": "ddd401ddc8aee418",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_node_descriptor_unique_test.go::TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor": "ddd401ddc8aee418",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "afc246c289705756"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_node_descriptor_unique_test.go::TestNodeDescriptorNeverRepeatsASubTLVType": "53c5d1d9d9e34288",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_node_descriptor_unique_test.go::TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor": "03682e7f7aa8f444",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0",
         "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "18db48dbc5cf6076"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2.1.4-2": {
       "note": "single-polarity positive per row annotation; asserts the exact ascending sub-TLV sequence 512..517 from NodeDescriptor.WriteTo",
@@ -143,7 +161,7 @@
       "note": "re-audit RA12: positives pin 259/262 and 261/260 exactly for links with global addresses, so omission fails; but the negative tag drives an invalid (zero) address being refused, a neighbouring input-validation rule, not an omitted address TLV, and the row carries no {single-polarity} marker",
       "requirement_sha": "5ba9071b16b330ad",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "0a3283bf2950e533",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "54a5a89330256fe3",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
@@ -156,7 +174,7 @@
       "note": "negative asserts TLV 258 absent from a link carrying global addresses and link IDs; positive asserts the link is still advertised by 261/260",
       "requirement_sha": "7bf0ef653c86b8ad",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "0a3283bf2950e533",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "54a5a89330256fe3",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
@@ -169,7 +187,7 @@
       "note": "negative asserts link-local 169.254/fe80 addresses absent from 259-262 (exact single global values), and a link-local-only link carries none of 259-262; positive pins the global addresses once each",
       "requirement_sha": "6ce3d136fd1b6463",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "0a3283bf2950e533",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "54a5a89330256fe3",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
@@ -179,34 +197,38 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2.2-4": {
-      "note": "re-audit RA12: second sentence proven (link with only link-local 169.254/fe80 addressing emits TLV 258 with ids 0/8 and none of 259-262); first clause, a link with NO interface/neighbor addresses and link ids present, is never driven, so no assertion goes red on that input",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge). First clause now driven: TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers exports an IS-IS link with no interface or neighbor address and link ids 7/9 and asserts TLV 258 == 00000007 00000009 and none of 259-262. Second clause (link-local-only addressing) stays on TestRFC9552NativeLinkIdentitySelection. Row carries {single-polarity: positive}, read against encodeNativeLink: no refusal input exists. Revert records on encodeNativeLink observed red for both units.",
       "requirement_sha": "a04f6f915788b3a4",
       "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "54a5a89330256fe3",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "97ef5987ccec2d51",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2.2-5": {
-      "note": "positive asserts TLV 263 MT-ID 2 on a topology-2 link; the negative loops over the same single captured command and re-asserts the same 263 value, so the pair is one assertion wearing two hats and carries no single-polarity annotation",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge). Genuine negative added: TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed feeds one IS-IS link in topologies 0, 2, 2 and asserts exactly two Link NLRIs, each with exactly one TLV 263, MT-IDs {0,2}: a producer collapsing onto the default topology or dropping 263 on the topology-2 NLRI goes red. Positive TestRFC9552NativeLinkNonDefaultTopology asserts 263 = MT-ID 2; its inline negative tag still re-asserts the same value and proves nothing on its own. Over-constraint noted: the negative also requires TLV 263 with MT-ID 0 on the default-topology NLRI, which RFC 9552 does not require (only the non-default case is a MUST). Revert records on encodeNativeLink observed red.",
       "requirement_sha": "260a5bccfdcc07a3",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "0a3283bf2950e533",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "0a3283bf2950e533"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "54a5a89330256fe3",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed": "54a5a89330256fe3"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "79859cfd2f05848c",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "79859cfd2f05848c"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "79859cfd2f05848c",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed": "ac662a38af2b5fd2"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.2.2.1-1": {
       "note": "positive: R bits set decode to the same MT-ID on Link and Prefix descriptors with the next TLV still read; negative: IS-IS MT-ID 4096 (R bit) refused at origination",
       "requirement_sha": "477054ca97395af9",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "0a3283bf2950e533",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "54a5a89330256fe3",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt": "801f7762d8983274"
       },
       "units": {
@@ -219,7 +241,7 @@
       "note": "negative: an unmasked 198.51.100.129/25 is emitted as 25,198.51.100.128; positive: a masked prefix is unchanged",
       "requirement_sha": "fc919baf0a851bcf",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "0a3283bf2950e533",
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "54a5a89330256fe3",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeTopologySeparation": "6886dddcc0644d09"
       },
       "units": {
@@ -232,7 +254,7 @@
       "note": "re-audit RA12: first clause proven only for one explicit type (OSPFv2 route type 1 -> TLV 264 value 1 on the ls_export NLRI); the second clause, a type not signaled explicitly but determinable via another LSA (Extended Prefix route type 0 or AS/NSSA external 1-vs-2, resolved by ospf/bgpls_export.go::v2PrefixRouteTypes), is driven by no tagged unit, and the {single-polarity} argument that zero means unsignaled ignores exactly that clause",
       "requirement_sha": "c518550f04f2281f",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "0a3283bf2950e533"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "54a5a89330256fe3"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "f0355b7bfd1485ad"
@@ -409,7 +431,7 @@
       "note": "single-polarity negative per row annotation; a private-use 65000 node attribute is refused with no UPDATE; the refusal is of every private type, not of a short Enterprise Code",
       "requirement_sha": "684450a7a2f9b6ff",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "0a3283bf2950e533"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "54a5a89330256fe3"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "3be9c059e238e689"

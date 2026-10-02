@@ -179,27 +179,34 @@ func TestNodeDescriptorWriteToMatchesBytes(t *testing.T) {
 }
 
 // TestSameNodeHasOneKeyWhateverTheStorageOrder covers requirement (A) directly.
-// A node's repeated sub-TLVs are held in a slice, and slice order is an
-// artifact of how the node was built rather than a property of the node, so
-// encoding it must not depend on that order.
+// The order in which a node's sub-TLVs arrived on the wire is an artifact of
+// the sender rather than a property of the node, so the key Ze encodes for a
+// received node must not depend on that order.
 //
-// RFC requirement: RFC9552-5.2.1.1-1 positive -- one node encodes to exactly one
-// key however its repeated sub-TLVs happen to be stored (§5.2.1.1).
+// RFC requirement: RFC9552-5.2.1.1-1 positive -- one node, received with its
+// Node Descriptor sub-TLVs in two different orders, encodes to exactly one key
+// (§5.2.1.1).
 func TestSameNodeHasOneKeyWhateverTheStorageOrder(t *testing.T) {
-	first := bytes.Repeat([]byte{0xfd}, 16)
-	second := bytes.Repeat([]byte{0xfe}, 16)
+	asn := []byte{0x00, 0x00, 0xfd, 0xe9}
+	area := []byte{0x00, 0x00, 0x00, 0x00}
+	routerID := []byte{10, 0, 0, 1}
 
-	oneWay := &NodeDescriptor{
-		ASN:           65001,
-		HasOSPFAreaID: true,
-		SRv6SIDs:      [][]byte{first, second},
+	ascending := append(append(tlv2(TLVAutonomousSystem, asn...),
+		tlv2(TLVOSPFAreaID, area...)...), tlv2(TLVIGPRouterID, routerID...)...)
+	descending := append(append(tlv2(TLVIGPRouterID, routerID...),
+		tlv2(TLVOSPFAreaID, area...)...), tlv2(TLVAutonomousSystem, asn...)...)
+
+	var oneWay, theOther NodeDescriptor
+	if err := parseNodeDescriptorTLVs(ascending, &oneWay); err != nil {
+		t.Fatalf("parse ascending: %v", err)
 	}
-	theOther := &NodeDescriptor{
-		ASN:           65001,
-		HasOSPFAreaID: true,
-		SRv6SIDs:      [][]byte{second, first},
+	if err := parseNodeDescriptorTLVs(descending, &theOther); err != nil {
+		t.Fatalf("parse descending: %v", err)
 	}
 
+	if !bytes.Equal(oneWay.Bytes(), ascending) {
+		t.Fatalf("the node re-encoded to % x, want the canonical % x", oneWay.Bytes(), ascending)
+	}
 	if !bytes.Equal(oneWay.Bytes(), theOther.Bytes()) {
 		t.Fatalf("the same node encoded to two keys, % x and % x. RFC 9552 Section "+
 			"5.2.1.1 (A): \"The same node MUST NOT be represented by two keys "+

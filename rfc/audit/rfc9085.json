@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -22,7 +23,7 @@
       "note": "rejudge 2026-09-30: defect fixed (D-8): isis srBlock copied the 3-octet SID/Label verbatim into sub-TLV 1161; it now clears the 4 leftmost bits. isis TestRFC9085OriginatedSRGBLabelTwentyBits (+: 003e80 -> 003e80) and TestRFC9085OriginatedSRGBLabelHighBitsCleared (-: f03e80 -> 003e80) assert the exact TLV 1034; judge break (mask removed) turns the negative red. Receipt: nlri/ls TestRFC9085SIDLabelMasksLeftmostFourBits (0xF12345 -> 0x12345). Marker removed.",
       "requirement_sha": "ff5636b73afaacaf",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "dba8a9f573873776",
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "31d7422e3822a335",
         "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "18e22c4038a33aa5",
         "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "18e22c4038a33aa5"
       },
@@ -37,7 +38,7 @@
       "note": "rejudge 2026-09-30 (independent): RFC9085-2.1.2-4 merged in (D-2, same \u00a72.1.2 sentence). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+, exact TLV 1034 bytes) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native RI reserved ff), duplicate -4 tag lines removed, bodies unchanged; earlier judge targeted break (Flags <- native reserved) turned the negative red. Ignored on receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved and attr_test TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (undefined flag 0x02 stored, I-flag intact, range decodes; retagged from -4), single-polarity by nature (any received value conforms); records observed red (revert decodeSRCapabilities). IS-IS 1034 flags are RFC 8667 flags, outside this OSPF clause.",
       "requirement_sha": "a74bf0b7fa9ba99b",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "dba8a9f573873776",
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "31d7422e3822a335",
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "d4e63b8eb9e26da6",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "e14c93300ea1c323"
@@ -54,7 +55,7 @@
       "note": "rejudge 2026-09-30 (independent): RFC9085-2.1.2-3 merged in (D-2, same \u00a72.1.2 sentence). Set-0: ospf TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero (+) / TestRFC9085OSPFSourceReservedNeverOriginated (-, native reserved ff); isis TestRFC9085ISISOriginatedCapabilitiesReservedZero (+) / TestRFC9085ISISAllOnesSourceNeverReachesReserved (-, flags ff, range ffffff); duplicate -3 tag lines removed, bodies unchanged; earlier judge targeted breaks turned each negative red. Receipt: nlri/ls TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved and attr_test TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags (Reserved ff skipped, range 1000 at 16000; retagged from -3), single-polarity by nature; records observed red.",
       "requirement_sha": "c8caa35ed95ab7d2",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "dba8a9f573873776",
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "31d7422e3822a335",
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "d4e63b8eb9e26da6",
         "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "18e22c4038a33aa5",
         "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "18e22c4038a33aa5",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC7752-3.1-1": {
       "note": "NLRI half holds: TestRFC7752UnknownTLVPreservedAndPropagated fails unless a Node NLRI with an unknown sub-TLV re-encodes byte-identically. Attribute half is proven only by AttrTLVsToJSON keeping the bytes under a generic key, not by the attribute TLV reaching a forwarded UPDATE, so 'propagated' is unasserted for the attribute. The negative TestRFC7752MalformedTLVNotPreserved exercises length-overrun framing (Section 6.2.2), a neighbouring rule, not this one. Same judgement as RFC9552-5.1-3.",
@@ -15,19 +15,19 @@
       "verdict": "weak"
     },
     "RFC7752-3.1-2": {
-      "note": "rejudge 2026-09-30: same units as RFC9552-5.1-1 now drive the native Link producer ls_export encodeNativeLink; exact canonical sequence asserted from an ascending and from an interleaved descending source. Judge break (Type key reversed) turns both red; revert records observed red.",
+      "note": "Re-judged 2026-10-02 (BGP c22 judge): stale only because TestNoDescriptorEmitsADescendingTLVSequence lost its SRv6SIDs fixture line with the RFC 9552 D-8 field deletion; revert record on addressTLVs re-observed red. Finding of 2026-09-30 unchanged: the native Link producer encodeNativeLink emits the exact canonical sequence from ascending and interleaved descending sources.",
       "requirement_sha": "78829d490d0e5cd2",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "581497e4f2564ee5",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "581497e4f2564ee5",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "dc32e08a5b83301a",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "dc32e08a5b83301a"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "58e631b282c700b2",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "58e631b282c700b2"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "be0890353f240a48",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "24cf1b731770732b",
         "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "ff4b440ca0d46180",
-        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "0118bbd3e6cc59b0"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "a22361ffddd09437"
       },
       "verdict": "enforced"
     },
