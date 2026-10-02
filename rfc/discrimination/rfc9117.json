@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc9117",
+  "records": [
+    {
+      "rid": "RFC9117-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates",
+      "unit-sha": "ac3fddc99a848728",
+      "claim-sha": "1b73a398e0b7f0a7",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates",
+      "unit-sha": "ac3fddc99a848728",
+      "claim-sha": "dc48bedf89c67f2f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates",
+      "unit-sha": "ac3fddc99a848728",
+      "claim-sha": "76cbf027e97a1926",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates",
+      "unit-sha": "ac3fddc99a848728",
+      "claim-sha": "28359151be5d44d0",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

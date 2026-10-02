@@ -6,7 +6,7 @@
   "source-sha": "ab2cc37046acae1d",
   "signed-off": "2026-09-21",
   "reviewer": "claude",
-  "resign-reason": "Site 6:3 moved from a mapping onto RFC8955-6-4 [MAY] to an advisory-in-context exclusion: its MUST is the consequent of the MAY in the preceding sentence, and a capitalised keyword mapped to an advisory row records an obligation as captured that nothing gates.",
+  "resign-reason": "Site 6:3 moved from a mapping onto RFC8955-6-4 [MAY] to an advisory-in-context exclusion: its MUST is the consequent of the MAY in the preceding sentence, and a capitalised keyword mapped to an advisory row records an obligation as captured that nothing gates. 2026-10-02: site 6:4 moved from a mapping onto RFC8955-6-2 to a cross-document exclusion, because RFC 9117 Section 4.2 replaces that sentence; the replacement rule is row RFC9117-4.2-1 and RFC8955-6-2 is retired under D-10.",
   "sections": [
     {
       "id": "front",
@@ -443,8 +443,9 @@
     {
       "id": "6:4",
       "quote": "BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute.",
-      "disposition": "mapped",
-      "mapped-to": "RFC8955-6-2"
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 9117 Section 4.2, which updates RFC 8955, quotes this sentence and replaces it: 'this document also redefines the [RFC8955] AS_PATH validation procedure referenced above as follows: BGP Flow Specification implementations MUST enforce that the AS in the left-most position of the AS_PATH attribute of a Flow Specification route received via the External Border Gateway Protocol (eBGP) matches the AS in the left-most position of the AS_PATH attribute of the best-match unicast route'. The obligation in force is RFC 9117's, row RFC9117-4.2-1; RFC 9117 Section 7 makes the original rule optional again. Row RFC8955-6-2 was retired 2026-10-02 (rfc/corrections/rfc8955.md)."
     },
     {
       "id": "6:5",

@@ -1,0 +1,32 @@
+{
+  "audited": "2026-10-02",
+  "requirements": {
+    "RFC9117-4.1-1": {
+      "note": "c35 judge: conditions b.1 and b.2 are each discriminated on TestFlowSpecAuthorizationFromReceivedUpdates: + matching ORIGINATOR_IDs, empty path, AS_CONFED_SEQUENCE, AS_CONFED_SET install; - non-empty AS_SEQUENCE with the originator differing by transport or by ORIGINATOR_ID gets no candidate. Author probes c35p/9117-a (b.2 ignored) and 9117-b (originator check removed) turn exactly those cases red; records are reach-only reverts of flowSpecAuthorized. Missing: the row's best-match definition (the unicast route with the longest prefix covering the destination). Every case has one covering route, so judge probe j35/shortest (flowSpecAuthorized picks the SHORTEST covering prefix) leaves every rib test green. Owed: a case with two covering unicast routes of different lengths and different originators, where a rule matching only the shorter one is not installed and one matching the longer one is.",
+      "requirement_sha": "68e37b051b521571",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ae78183347926044",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ae78183347926044"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "f56f1a529417e04e",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "f56f1a529417e04e"
+      },
+      "verdict": "weak"
+    },
+    "RFC9117-4.2-1": {
+      "note": "c35 judge: the left-most AS comparison is discriminated on TestFlowSpecAuthorizationFromReceivedUpdates: + eBGP rule from a route-server peer (peer AS 65100) whose left-most AS_SEQUENCE ASN 65001 equals the covering unicast route's installs; - left-most 65002 against 65001, and an AS_SET-first path with no left-most AS_SEQUENCE ASN, get no candidate with the originator matching, so the refusal is this rule's. Probes c35p/9117-c (comparison removed) turn both negatives red and 9117-d (old RFC 8955 rule: left-most vs peer ASN) turns the positive red. Missing: the comparison is against the BEST-MATCH unicast route, and every case has one covering route, so judge probe j35/shortest (selection picks the shortest covering prefix) stays green. Owed: two covering routes of different lengths with different left-most ASNs, the rule matching only the shorter one refused.",
+      "requirement_sha": "7413a96c1e8caade",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ae78183347926044",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ae78183347926044"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "f56f1a529417e04e",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "f56f1a529417e04e"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc9117"
+}

@@ -125,8 +125,10 @@ func flowValidationEvents(bus *testEventBus) []*ribevents.FlowSpecChange {
 // Observe authorization at the selected-rule event and candidate entrypoint.
 // RFC requirement: RFC8955-6-1 positive -- received rules with a matching covering unicast originator, or the RFC 9117 local-controller alternative, become selected installs.
 // RFC requirement: RFC8955-6-1 negative -- missing destinations, missing unicast, foreign originators and foreign more-specific routes remain retained but cannot become candidates or installs.
-// RFC requirement: RFC8955-6-2 positive -- under RFC 9117 Section 4, a route-server peer ASN may differ when the rule and covering unicast route have the same leftmost AS_SEQUENCE ASN.
-// RFC requirement: RFC8955-6-2 negative -- external rules with another leftmost ASN, or only an AS_SET, cannot be authorized by the covering unicast route.
+// RFC requirement: RFC9117-4.1-1 positive -- a rule whose ORIGINATOR_ID matches the covering unicast route's (b.1), or whose AS_PATH is empty or confederation-only (b.2), becomes a selected install.
+// RFC requirement: RFC9117-4.1-1 negative -- a rule with a non-empty AS_SEQUENCE path whose originator differs from the covering unicast route's (another transport, or an ORIGINATOR_ID the unicast route lacks) cannot become a candidate or install.
+// RFC requirement: RFC9117-4.2-1 positive -- an eBGP rule from a route-server peer (peer ASN 65100) whose leftmost AS_SEQUENCE ASN 65001 equals the covering unicast route's becomes a selected install.
+// RFC requirement: RFC9117-4.2-1 negative -- an eBGP rule whose leftmost ASN (65002) differs from the covering unicast route's, or whose path is only an AS_SET, cannot become a candidate or install.
 // Stored but infeasible UPDATEs remain available for later recovery.
 func TestFlowSpecAuthorizationFromReceivedUpdates(t *testing.T) {
 	unicastPeer := netip.MustParseAddr("192.0.2.1")

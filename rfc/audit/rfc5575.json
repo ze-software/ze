@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5575-4-1": {
       "note": "Forbidden: exchanging flow specification rules without the Multiprotocol (Code 1) capability in OPEN. TestIPv4FlowSpecNegotiatesMultiprotocolCapability only checks the plugin registers ipv4/flow and then builds a capability.Multiprotocol in the test itself, so mp.Code()==1 is tautological; no assertion reads a real OPEN, and nothing goes red if sendOpen omits the capability or flow routes go to a peer that did not negotiate it.",
@@ -59,8 +60,8 @@
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "fd0429028bee0447",
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "d72a880cb772843d",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "d72a880cb772843d"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "ae78183347926044",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "ae78183347926044"
       },
       "units": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",

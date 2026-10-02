@@ -1,6 +1,7 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -162,17 +163,17 @@
       "verdict": "enforced"
     },
     "RFC8955-6-1": {
-      "note": "table over the received-UPDATE path asserts eligibility, candidate availability and the selected install event for each of rules a, b and c (missing destination, missing covering unicast, originator mismatch, foreign more-specific) and for the feasible cases, including the RFC 9117 updates",
+      "note": "rejudge 2026-10-02 (c35 judge; stale because the doc comment of TestFlowSpecAuthorizationFromReceivedUpdates changed with the RFC8955-6-2 -> RFC9117 tag move, body unchanged). The table over the received-UPDATE path asserts eligibility, candidate availability and install for: (a) missing destination and missing covering unicast refused; (b) originator mismatch refused, matching ORIGINATOR_ID and the RFC 9117 local-domain cases installed; (c) foreign-AS more-specific refused, same-AS more-specific installed. Missing: rule (a)'s best-match route is the unicast route with the longest prefix covering the destination, and every case has exactly one covering route, so judge probe j35/shortest (flowSpecAuthorized picks the SHORTEST covering prefix, go -overlay) leaves every rib test green. Owed: two covering unicast routes of different lengths with different originators; a rule matching only the shorter route's originator must not install.",
       "requirement_sha": "c2145bef30dd5201",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "d72a880cb772843d",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "d72a880cb772843d"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ae78183347926044",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ae78183347926044"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "a1b576b3043ebced",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "a1b576b3043ebced"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "f56f1a529417e04e",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "f56f1a529417e04e"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC8955-6-2": {
       "note": "the row now quotes RFC 8955 Section 6 itself: an eBGP route's AS_PATH must carry the neighbouring AS (the peer's ASN) in the left-most position. The tagged unit TestFlowSpecAuthorizationFromReceivedUpdates proves the neighbouring rule RFC 9117 Section 4.2 put in its place (the rule's leftmost AS_SEQUENCE ASN equals the covering unicast route's), and its case 'external authorized through route server' (peerAS 65100, leftmost ASN 65001, want true) asserts acceptance of exactly the input the RFC 8955 sentence forbids. No tagged assertion goes red when an eBGP FlowSpec route lacks the peer AS leftmost. The tags belong on an RFC 9117 Section 4.2 row, which no summary in rfc/short holds",
@@ -191,8 +192,8 @@
       "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
       "requirement_sha": "508626fc308dfc4f",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "d72a880cb772843d",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "d72a880cb772843d"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "ae78183347926044",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "ae78183347926044"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "c358ea038139731d",
