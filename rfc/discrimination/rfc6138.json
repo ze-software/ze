@@ -22,6 +22,28 @@
       "producer": "internal/plugins/ospf/spf/cutedge.go::IsCutEdge",
       "producer-sha": "d164b33cab47e743",
       "break": "body of IsCutEdge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6138-x-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFNeverLeavesStaleCutEdge",
+      "unit-sha": "1e21dc560ad5fd38",
+      "claim-sha": "8478a20fb79a747d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/cutedge.go::flushPendingSPF",
+      "producer-sha": "7e6001596633a6c2",
+      "break": "body of flushPendingSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6138-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss",
+      "unit-sha": "eb90b18124d1b8d3",
+      "claim-sha": "d8d817ea4a66e7de",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/cutedge.go::flushPendingSPF",
+      "producer-sha": "7e6001596633a6c2",
+      "break": "body of flushPendingSPF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

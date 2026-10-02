@@ -259,9 +259,11 @@
       "verdict": "enforced"
     },
     "RFC8665-5-14": {
-      "note": "Re-judged 2026-10-02 (independent judge, ospf c27). The c26 gap for the inter-area and external cases is closed: rfc8665_mapped_sid_spf_test.go drives a real LSDB, eng.spf.Run and srInstallFromRoutes (10.0.0.2 ABR/ASBR, Summary-LSA 10.1.0.0/24, Type 2 external 10.2.0.0/24, Mapping Server M-Flag SIDs 9/10). + TestRFC8665MappedSIDPHPThroughSPFRoutes: A-Flag TLVs of the right class from the next hop -> no push, transit pops; - TestRFC8665MappedSIDKeepsLabelThroughSPFRoutesOutsideListedCases: wrong class from the next hop, right class from 10.0.0.3 -> push 16009/16010, swaps. Judge overlays on srRoutes: join deleted (route.Attached never set) -> + red (10.1.0.0/24 pushed 16009); route Type dropped -> + red. Revert records on srRoutes observed. Still weak on the intra-area clause ('The Prefix is intra-area type and the downstream neighbor is the originator of the prefix'): judge overlay dropping Origin from the srRoute that srRoutes builds left every RFC8665/RFC8666/SR test green, because the only intra-area mapped-SID units (TestRFC8665MappedSIDPHPInListedCases / KeepsLabelOutsideListedCases) feed hand-built srRoute values. Missing: an intra-area Mapping Server SID through spf.Run + srInstallFromRoutes (next hop the prefix originator -> pop; next hop a transit router -> push) that fails under that overlay. OSPFv3 inter-area/external cases unmet (LA-bit not read): disclosed in docs/guide/ospf.md and journaled.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c28). All three listed cases now go through a real LSDB, eng.spf.Run and srInstallFromRoutes. Intra-area (new rfc8665_mapped_sid_intra_spf_test.go): 10.0.0.1 p2p 10.0.0.2 (stub 10.3.0.0/24) p2p 10.0.0.3 (stub 10.4.0.0/24), Mapping Server M-Flag SIDs 11/12; + TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes: next hop is the prefix originator -> no push, 18011 pops; - TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter: originator 10.0.0.3 behind next hop 10.0.0.2 -> push 16012, 18012 swaps. Judge overlays: the c27 gap overlay (Origin dropped from the srRoute srRoutes builds) now turns the intra + red ('pushed label 16011 toward its originator'); srMappedSIDAction intra case PHP for any originated route -> intra - red and the hand-built - red, + green. Inter-area/external as judged in c27 (A-Flag TLVs from the next hop, both polarities, srRoutes overlays red). Revert records observed on srRoutes and srMappedSIDAction. OSPFv3 LA-bit cases are RFC 8666's, disclosed in docs/guide/ospf.md and journaled.",
       "requirement_sha": "95681a18d2e9ad02",
       "tests": {
+        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter": "2a4f1a5cd295ac54",
+        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes": "2a4f1a5cd295ac54",
         "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag": "6e5153eba70e9852",
         "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases": "6e5153eba70e9852",
         "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases": "6e5153eba70e9852",
@@ -269,13 +271,15 @@
         "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDPHPThroughSPFRoutes": "a7c81cb69c02b13c"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter": "a2d65bc6f415bea7",
+        "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes": "ae498603a62b72db",
         "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag": "3c6c8d76a08b4463",
         "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDKeepsLabelOutsideListedCases": "19fcc38369c41595",
         "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665MappedSIDPHPInListedCases": "996ada314ef98726",
         "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDKeepsLabelThroughSPFRoutesOutsideListedCases": "2b370444a9238c4c",
         "internal/plugins/ospf/rfc8665_mapped_sid_spf_test.go::TestRFC8665MappedSIDPHPThroughSPFRoutes": "699da9d5c116899d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-5-2": {
       "note": "forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7",

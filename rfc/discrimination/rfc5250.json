@@ -46,6 +46,28 @@
       "break": "body of ackForReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5250-3.1-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloOBitIgnoredOnReceipt",
+      "unit-sha": "a29f828d95cbfcb9",
+      "claim-sha": "f0f4e721cc98249f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/table.go::hello",
+      "producer-sha": "f16554cb0eee8ad8",
+      "break": "body of hello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-3.1-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloSentWithoutOBit",
+      "unit-sha": "a7c31a1f3e252bf4",
+      "claim-sha": "a5280680c02d3f40",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/iface/iface.go::buildHelloPacketLocked",
+      "producer-sha": "c688558c53837220",
+      "break": "body of buildHelloPacketLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5250-3.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",

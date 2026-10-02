@@ -124,6 +124,28 @@
     },
     {
       "rid": "RFC8665-5-14",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter",
+      "unit-sha": "a09251b7c5a1a0bc",
+      "claim-sha": "efa030cf0d0a3fb3",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::srMappedSIDAction",
+      "producer-sha": "352ef73bd17313c0",
+      "break": "body of srMappedSIDAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-14",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go::TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes",
+      "unit-sha": "976f8e8b96768d3f",
+      "claim-sha": "80035fed010db07c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr_install.go::srRoutes",
+      "producer-sha": "9d4788635586f9ac",
+      "break": "body of srRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-5-14",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_mapped_sid_php_test.go::TestRFC8665AttachedAdvertisersFromAFlag",
       "unit-sha": "699ab7aac49ed378",

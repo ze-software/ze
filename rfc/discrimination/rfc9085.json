@@ -4,6 +4,28 @@
     {
       "rid": "RFC9085-2.1-1",
       "polarity": "negative",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI",
+      "unit-sha": "aeaf69494379d4e8",
+      "claim-sha": "06f623d1fe078c6e",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::capabilities",
+      "producer-sha": "e56aea44220d4b85",
+      "break": "body of capabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode",
+      "unit-sha": "275bc3ff873d7097",
+      "claim-sha": "d229d0b7e36966ce",
+      "route": "revert",
+      "producer": "internal/plugins/isis/bgpls_export.go::capabilities",
+      "producer-sha": "e56aea44220d4b85",
+      "break": "body of capabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9085-2.1-1",
+      "polarity": "negative",
       "unit": "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnNoOtherNLRI",
       "unit-sha": "43a1462b60d87940",
       "claim-sha": "b403b43e388a50c0",

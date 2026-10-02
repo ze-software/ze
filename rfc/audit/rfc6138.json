@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC6138-4-1": {
       "note": "Re-judged 2026-09-29 (independent judge). The decision now reaches the originated LSA through the real SPF graph. Positive TestRFC6138CutEdgeTransitLinkNotDelayed: not synchronized, no alternate path in the SPF computer (cut-edge) -> production applyLDPSyncOverride plus OriginateRouter keep exactly 1 transit link. Negative TestRFC5443BroadcastCostOutCoversWholeSegment: the same not-synchronized segment with an alternate path (not a cut-edge) has its transit link withheld, so the cut-edge answer and not LDP alone decides. Revert records on spf IsCutEdge, observed red. Test race in the rfc6138SPF helper (field swap under the engine's own SPF goroutine) fixed by stopping the engine computer first; not a product race.",
@@ -19,17 +19,21 @@
       "verdict": "enforced"
     },
     "RFC6138-x-1": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: a cut-edge check answering from the graph while an SPF is still pending. TestLDPSyncCutEdgeUsesFreshSPF fails if SPFSnapshot is empty after IsCutEdge, so the flush clause has a red assertion. The tagged 'negative' is the same unit's precondition (SPFSnapshot empty before the query), which violates nothing; the row carries no {single-polarity} marker. Nothing shows the answer changes with the fresh graph (a stale graph and the fresh one both yield non-cut-edge here).",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c28). New spf/rfc6138_cutedge_pending_spf_test.go drives the Computer over a real LSDB: SPF run, the topology changed with newer Router-LSAs, a one-hour SPF armed through TriggerArea, then IsCutEdge on LAN 10.0.0.254. + TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss: parallel p2p withdrawn while pending -> true (stale graph says false); - TestRFC6138PendingSPFNeverLeavesStaleCutEdge: p2p pair added while pending -> false (stale graph says true), so a stale answer fails in each direction. Judge overlay: IsCutEdge reads lastGraphs before flushing -> both new units red with the stale answer (and the HEAD unit). Revert records on flushPendingSPF observed. The HEAD 'negative' tag on TestLDPSyncCutEdgeUsesFreshSPF#2 is that unit's precondition (snapshot empty before the query) and violates nothing; it is supplementary, the genuine negative is the new unit. The arming precondition in the new helper compares SPF state counts, which are equal in both topologies, so it is not load-bearing; the overlays prove the run stayed pending.",
       "requirement_sha": "3b339a011fded81d",
       "tests": {
         "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "6225a1a69420b6e6",
-        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "6225a1a69420b6e6"
+        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "6225a1a69420b6e6",
+        "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFNeverLeavesStaleCutEdge": "84d626d6fe8551bb",
+        "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss": "84d626d6fe8551bb"
       },
       "units": {
         "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "09c5834568d22da6",
-        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "09c5834568d22da6"
+        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "09c5834568d22da6",
+        "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFNeverLeavesStaleCutEdge": "51356ab0b3870519",
+        "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss": "012d4be5ca63a926"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc6138"

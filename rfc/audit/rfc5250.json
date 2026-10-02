@@ -88,17 +88,21 @@
       "verdict": "enforced"
     },
     "RFC5250-3.1-5": {
-      "note": "The negative in dd_opaque_test.go asserts a neighbor is not opaque-capable after Hellos, but HelloInput carries no Options field and the Hellos carry no O-bit, so no non-DD packet with the O-bit set is ever received: a NAS that read the O-bit from a Hello is not driven. The quoted \"SHOULD NOT be set\" clause (no O-bit sent in non-DD packets) has no assertion either.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c28). New rfc5250_obit_hello_test.go: real engine, opaque on, p2p eth0, recording transport; a wire Hello from 10.0.0.2 with Options E|O dispatched through eng.dispatch, waits for a sent Hello and a sent DD (both required, so not vacuous). + TestRFC5250HelloSentWithoutOBit (SHOULD NOT be set): every sent Hello has O clear while the DD has O set; - TestRFC5250HelloOBitIgnoredOnReceipt (MUST be ignored): neighbor 10.0.0.2 not OpaqueCapable after the O-bit Hello with no DD from it. Author overlay logs read (c28/o6, o7): Hello built with O -> + red only ('options 0x42'); neighbor Options get O on Hello -> - red only. HelloInput carries no Options, so today the received O-bit is dropped at the engine boundary; the end-to-end negative catches any future path that carries it into the neighbor. HEAD dd_opaque_test units (DD O-bit learned / Hello exchange) stay as supplementary. Revert records on buildHelloPacketLocked and neighbor/table.go hello observed.",
       "requirement_sha": "a5c3b164e64bbcc2",
       "tests": {
         "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD": "9685827d4b7dced5",
-        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD#2": "9685827d4b7dced5"
+        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD#2": "9685827d4b7dced5",
+        "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloOBitIgnoredOnReceipt": "db54e1373f85c28c",
+        "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloSentWithoutOBit": "db54e1373f85c28c"
       },
       "units": {
         "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD": "724a5a4a3d3908ea",
-        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD#2": "724a5a4a3d3908ea"
+        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD#2": "724a5a4a3d3908ea",
+        "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloOBitIgnoredOnReceipt": "3807b2f29d560031",
+        "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloSentWithoutOBit": "3bd3c4373372e2ac"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5250-3.2-1": {
       "note": "Production path databaseSummaryLocked over a real lsdb.LSDB at ExStart: positive lists all eight named types (Router, Network, Summary 3 and 4, type-9 on its interface, type-10, AS External, type-11); negative shows area 0.0.0.4's Router and type-10 and eth9's type-9 absent and the list exactly 8. Judge overlays: dropping link LSAs, Router or Network LSAs turns the positive red; appending another area's Router LSA turns only the negative red. Records observed red on databaseSummaryLocked; the lsdb units stay as supplementary.",
