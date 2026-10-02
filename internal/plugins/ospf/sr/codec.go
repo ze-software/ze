@@ -263,8 +263,15 @@ func EncodeAlgorithmValue(algos []uint8) []byte {
 	return b
 }
 
-// DecodeAlgorithmValue returns the advertised algorithm list.
+// DecodeAlgorithmValue returns the advertised algorithm list. A value with no algorithm
+// octet is an invalid length (ErrLength), which condemns the carrying LSA (RFC 8665 §9).
 func DecodeAlgorithmValue(v []byte) ([]uint8, error) {
+	// RFC 8665 Section 3.1: "Length: Variable, in octets, depending on the number of
+	// algorithms advertised" and "If the SR-Algorithm TLV is advertised, Algorithm 0 MUST
+	// be included." A Length of 0 advertises no algorithm, so it is not a valid length.
+	if len(v) == 0 {
+		return nil, ErrLength
+	}
 	out := make([]uint8, len(v))
 	copy(out, v)
 	return out, nil

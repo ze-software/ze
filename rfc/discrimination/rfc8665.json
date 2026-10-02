@@ -2,6 +2,39 @@
   "rfc": "rfc8665",
   "records": [
     {
+      "rid": "RFC8665-10-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go::TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA",
+      "unit-sha": "aca83c47c6f5671b",
+      "claim-sha": "278c1888030f43f7",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
+      "producer-sha": "1975ecce1f8d4cdb",
+      "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-10-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic",
+      "unit-sha": "a9c7784e49d8ca3f",
+      "claim-sha": "a39787bcfe7241b4",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/codec.go::DecodeAlgorithmValue",
+      "producer-sha": "67cde1704dfb0df2",
+      "break": "body of DecodeAlgorithmValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-10-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode",
+      "unit-sha": "38eff75a31bd3d20",
+      "claim-sha": "cd431251dad16a11",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/codec.go::DecodeAlgorithmValue",
+      "producer-sha": "67cde1704dfb0df2",
+      "break": "body of DecodeAlgorithmValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-3.2-14",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665NonReservedOctetIsRead",
@@ -273,7 +306,7 @@
       "claim-sha": "b66941d88c2538fc",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
-      "producer-sha": "f60e45a5bbbc0784",
+      "producer-sha": "1975ecce1f8d4cdb",
       "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +317,7 @@
       "claim-sha": "a0536d95f1484e7d",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
-      "producer-sha": "f60e45a5bbbc0784",
+      "producer-sha": "1975ecce1f8d4cdb",
       "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +328,7 @@
       "claim-sha": "fba7cf54338f6424",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
-      "producer-sha": "f60e45a5bbbc0784",
+      "producer-sha": "1975ecce1f8d4cdb",
       "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

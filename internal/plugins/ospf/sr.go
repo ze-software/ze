@@ -316,8 +316,9 @@ type srRemoteCapabilities struct {
 // address family. Ranges are concatenated in advertised order (RFC 8665 §3.2).
 //
 // Two kinds of bad TLV are told apart. A TLV whose length is invalid for its layout
-// (sr.ErrLength) makes the whole LSA malformed, so no capability from it is applied and
-// the empty result is returned. A range TLV of valid length whose content is rejected (a
+// (sr.ErrLength, including an SR-Algorithm TLV with no algorithm octet, wherever it
+// occurs) makes the whole LSA malformed, so no capability from it is applied and the
+// empty result is returned. A range TLV of valid length whose content is rejected (a
 // zero Range Size, other than one SID/Label sub-TLV, or the RFC 8665 §10 / RFC 8666 §11
 // reserved or out-of-space label hardening) is that TLV alone ignored, so it cannot source
 // a reserved label and the rest of the LSA still applies. Both are counted.
@@ -331,14 +332,21 @@ func srDecodeRemoteCapabilities(af string, body []byte) srRemoteCapabilities {
 	for _, tlv := range tlvs {
 		switch tlv.Type {
 		case sr.V4TypeSRAlgorithm:
+			// Every occurrence is length-checked, an ignored later one too, so a malformed
+			// TLV anywhere in the LSA is detected.
+			algos, aerr := sr.DecodeAlgorithmValue(tlv.Value)
+			if aerr != nil {
+				srMetrics.Load().observeMalformed(af, "sr-algorithm")
+				// RFC 8665 Section 9: "if the length is invalid, the LSA in which it is
+				// advertised is considered malformed and MUST be ignored."
+				return srRemoteCapabilities{}
+			}
 			// RFC 8665 §3.1: when a router advertises more than one SR-Algorithm TLV, the
 			// FIRST occurrence in the RI Opaque LSA is used and the rest are ignored.
 			if caps.Algorithms != nil {
 				continue
 			}
-			if algos, aerr := sr.DecodeAlgorithmValue(tlv.Value); aerr == nil {
-				caps.Algorithms = algos
-			}
+			caps.Algorithms = algos
 		case sr.V4TypeSRGB:
 			r, rerr := sr.DecodeRangeValue(tlv.Value)
 			if rerr != nil {

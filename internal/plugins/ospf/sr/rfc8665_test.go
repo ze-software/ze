@@ -444,6 +444,9 @@ type srTLVCase struct {
 // tests can truncate each in turn.
 func srWellFormedValues() []srTLVCase {
 	return []srTLVCase{
+		// SR-Algorithm (§3.1): one octet per algorithm, at least Algorithm 0, so a
+		// zero-length value carries no algorithm and is an invalid length.
+		{"sr-algorithm", EncodeAlgorithmValue([]uint8{0, 1}), 1, func(b []byte) error { _, err := DecodeAlgorithmValue(b); return err }},
 		// 4 fixed octets + a 4-octet sub-TLV header + a 3-octet label, padded to 12.
 		{"range", EncodeRangeValue(srgbRange(16000, 100)), 11, func(b []byte) error { _, err := DecodeRangeValue(b); return err }},
 		// Preference octet then 3 Reserved octets, which are ignored on reception.
