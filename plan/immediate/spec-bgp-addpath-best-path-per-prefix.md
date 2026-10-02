@@ -44,6 +44,10 @@ best path per (path id, prefix) (RFC8277-3.1-1, 2.5-2): home it in a new spec;
 both ids go to the BGP child's Blocked by. Whether it runs now: ask the owner
 when the spec exists."
 
+Thomas resolved that scheduling question on 2026-10-02: run this spec after
+`spec-rfc-verdict-test-fix-pass` and before release. The failing probe and the
+BGP child's named dependencies stay intact; this schedule does not claim a fix.
+
 ## Evidence
 
 | Item | Value |

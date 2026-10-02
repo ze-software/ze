@@ -187,3 +187,13 @@ Thomas answered the eleven pending questions after the stale-record repair:
 11. RFC5082-3-3: local-output proof only, with genuine configured egress evidence. Authorize single-positive coverage and removal of the misleading negative tag; retain the calibration test without that tag.
 
 The other two handoff items need no new ruling: R3 already governs the RFC9086-7-1 PeerNode/gap split; the RFC2866 Linux recording is being attempted through the existing local QEMU route. No push is authorized.
+
+### Clause-ledger design approval (2026-10-02)
+
+Thomas chose **Annotation plus partial verdict** for decision 10. The approved
+contract is `plan/pre-release/spec-rfc-clause-scoped-proof.md`: one tested span
+and one explicit gap span under the complete RFC requirement; scope-sensitive
+audit freshness; existing test and record identities retained; partial earns
+zero whole-requirement proof credit. Independent judgment remains mandatory.
+The alternative requiring separate clause identities and record migration was
+not chosen. Native SRv6 BGP EPE origination remains outside this work.

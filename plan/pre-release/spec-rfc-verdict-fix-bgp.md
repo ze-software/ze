@@ -317,6 +317,8 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC8277-3.1-1 | weak | `spec-bgp-addpath-best-path-per-prefix` AC-3, AC-5 (owner ruling 8 (c), 2026-10-02: under ADD-PATH the RIB elects one best per path id, so two paths of one session are never compared) |
 | RFC8277-2.5-2 | weak | `spec-bgp-addpath-best-path-per-prefix` AC-4, AC-5 (owner ruling 8 (c): label side-data is keyed per prefix, the RFC8277-2.5-3 gap, so path 9's binding cannot be isolated) |
 | DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 | weak | `spec-add-path-limit-send-receive` AC-21 (BGP c31, 2026-10-02: the unmet half is the ingress ceiling, "the maximum number of paths to accept from a sender"; no code drops a received path above PathsLimitRecv, and that spec builds the ceiling) |
+| RFC8669-6-3 | weak | `spec-bgp-prefix-sid-rfc-defects` AC-8/AC-9 (owner decision, 2026-10-02: discard duplicate recognized single-occurrence TLVs on relay, including types 5 and 6; preserve the existing red probe) |
+| RFC9252-5-3 | weak | `spec-vpp-srv6-service-policy` AC-1..AC-7 (owner decision, 2026-10-02: VPP needs an encapsulating SR policy and locally allocated binding SID before prefix steering; preserve the existing red probe) |
 
 - RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
 - RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.

@@ -32,6 +32,7 @@ quoted from `rfc/full/`. The fix makes Ze do what the quoted sentence says.
 | D3 | RFC 9252 Section 7 (RFC9252-3.2.1-3) | "The SRv6 SID value in the SRv6 SID Information Sub-TLV is invalid when the SID Structure Sub-Sub-TLV transposition length is greater than the number of bits of the label field or if any of the conditions for the fields of the Sub-Sub-TLV, as specified in Section 3.2.1, is not met." | `internal/component/bgp/plugins/rib/pool/srv6sid.go::parseSIDStructure`, read by `extractSIDFromServiceTLV` | An invalid SID Structure only clears the transposition fields; the SID itself is still returned as valid and installed | weak |
 | D4 | RFC 9252 Section 7 (RFC9252-5-1) | "The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix." | `internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible` | The candidate filter decides on `pool.ExtractSRv6SID`, which answers valid for an invalid SID Structure (D3) and never checks the transposition length against the label width. That bound is applied only later in `srv6SIDFromResult`, after selection, so such a path still wins | weak |
 | D5 | RFC 9252 Section 7 (RFC9252-7-1) | "If multiple instances of the SRv6 L3 Service TLV are encountered, all but the first instance MUST be ignored." | `internal/component/bgp/plugins/rib/pool/srv6sid.go::ExtractSRv6SIDFull` | The loop returns the first Service TLV that yields a valid SID, so when the first L3 (or L2) instance carries none, the second instance is used instead of ignored | weak |
+| D6 | RFC 8669 Section 6 (RFC8669-6-3), RFC 9252 Section 7 | "Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed." | Received UPDATE normalization and subsequent Prefix-SID forwarding; preserved probe `internal/component/bgp/reactor/rfc8669_duplicate_tlv_red_test.go` | First-wins extraction alone leaves later recognized single-occurrence TLVs in the relayed attribute. Types 5 and 6 are single-occurrence under RFC 9252 Section 7. | weak; owner transferred this defect here under P-3 on 2026-10-02 |
 
 Related specs, not duplicated here: `plan/immediate/spec-srv6-bestpath-resolvability.md`
 owns RFC9252-5-2 (reachability of the SID) at the same candidate filter, and
@@ -53,6 +54,10 @@ semantic-validity half that spec names as separate work.
 | Row | Question |
 |-----|----------|
 | - | None open: every row follows its RFC sentence and no reading is in doubt |
+
+On 2026-10-02 Thomas assigned D6 and RFC8669-6-3 to this existing spec rather
+than expanding the verdict pass. The earlier five-defect scope is extended by
+AC-8/AC-9; D1 through D5 remain unchanged.
 
 ## Required Reading
 
@@ -105,6 +110,8 @@ semantic-validity half that spec names as separate work.
 | AC-5 | two L3 Service TLVs, the first without a valid SID | the second is ignored; no SID is used |
 | AC-6 | the `weak` verdicts of RFC8669-6-1, RFC9252-3.4-1, RFC9252-3.2.1-3, RFC9252-5-1 and RFC9252-7-1, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
 | AC-7 | the `weak` verdicts of RFC9252-7-2 (the L2 Service half of D5), RFC8669-3.1-2 and RFC8669-3.2-4 (both turn on D1's validator), after this spec's producer fix | each verdict reaches `enforced`, re-judged as in AC-6. Moved here from the BGP child under parent P-3, 2026-09-30 |
+| AC-8 | Received Prefix-SID with repeated recognized single-occurrence TLVs, including Label-Index and SRv6 Service types 5 and 6 | Retain the first instance of each recognized type and discard later instances before re-advertisement; preserve unknown TLVs unmodified. A peer-level receive/relay proof checks the outgoing bytes, not only the extracted SID. Preserve `rfc8669_duplicate_tlv_red_test.go` until this fix makes it pass. |
+| AC-9 | RFC8669-6-3 after AC-8 | Both polarities and native discrimination prove discard of duplicates, and an independent judge stamps the row enforced. This is the BGP child's P-3 transfer approved on 2026-10-02, not an implementation claim by the audit pass. |
 
 ## 🧪 TDD Test Plan
 

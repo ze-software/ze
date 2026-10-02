@@ -1,8 +1,9 @@
 # SRv6 FIB Programming
 
-Both FIB backends read the `SRv6SID` field of a best-change entry and program
-SRv6 steering. The kernel backend builds a SEG6 encapsulation; the VPP backend
-adds an SR steering policy.
+Both FIB backends read the `SRv6SID` field of a best-change entry. The kernel
+backend builds a SEG6 encapsulation. The VPP backend issues a steering request
+but does not install the SR policy that request needs, so it does not yet
+provide an end-to-end SRv6 encapsulation path.
 
 ## Where the SID comes from
 
@@ -43,6 +44,12 @@ so the kernel never receives a silently reduced group.
 remove calls `delSRv6Steer`. The backend tracks installed prefixes so a removal
 of a prefix it never installed is a no-op rather than an error. A change with no
 SID is a no-op in the same verb switch.
+
+The received Service SID is used as the binding SID without a matching
+`sr_policy_add`. Sending this steering request is not evidence that VPP can
+forward the route. The owner assigned policy installation and local binding-SID
+allocation to a separate spec on 2026-10-02; the existing red
+`TestRFC9252VPPServiceRouteEncapsulatesTowardTheSID` probe remains open.
 
 <!-- source: internal/plugins/fib/vpp/srv6.go -- processSRv6Change, addSRv6Steer, delSRv6Steer -->
 

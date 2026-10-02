@@ -84,6 +84,13 @@ which both are accepted.
 | No `long-lived-stale-time` | Unchanged: no code 71, LLGR off for every family |
 | `long-lived-stale-time N` on a peer or group | Proposed: a one-shot config migration (`internal/component/config/migration/`) rewrites it into one per-family entry with stale time N for every family the peer carries, which is exactly what Ze advertises today, so the session's OPEN is byte-identical after the upgrade. A config that still names the old leaf after that is refused with an error naming the new syntax. The owner confirms migration versus a plain refusal at design (`plan/README.md`: config changes need automatic migration or a clear error) |
 
+Thomas approved the one-shot migration on 2026-10-02. It must preserve each
+existing session's advertised OPEN behavior while expressing the intent per
+family. This supersedes the pending migration-versus-refusal question above:
+there is no retained legacy leaf or runtime fallback. The per-family schema
+shape remains a design decision; code 64 and code 71 memberships stay
+independent.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.
