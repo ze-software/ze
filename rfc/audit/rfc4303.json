@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,7 +10,7 @@
       "note": "Re-judged after the R3 split: the row is now only the Section 1 clause 'MUST be configurable via management interfaces' (the IKE negotiation clause is the gap row RFC4303-1-2). Forbidden behaviour: the management interface refusing, or silently altering, an integrity-only ESP configuration. Positive: TestIPsecESPRequiresIntegrity drives esp + null cipher + sha256 through parseOSPFConfig/validateConfig and t.Fatalf on any refusal. Negative (R1(b), inputs pushed toward a refusal): TestRFC4303IntegrityOnlyESPIsConfigurable, for every integrity algorithm in ipsecAuthKeyLen x {cipher leaf omitted, explicit null}, validates and installs and asserts proto 50 (not AH), cipher null with no key, and the configured integrity algorithm and key length, so a validator requiring a cipher for ESP or accepting integrity-only for one algorithm only goes red. The old negative (null cipher with no integrity refused) proved RFC4303-3.2-1 and was removed from this row. Revert records on validateESPConfidentiality for both units observed red (positive recorded by this judge). Only the OSPFv3 manual-SA surface offers integrity-only ESP; IKE's absence is RFC4303-1-2.",
       "requirement_sha": "029162b34730685e",
       "tests": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "5c20e3c0dfa0036c",
         "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable": "01b10f93731e39a0"
       },
       "units": {
@@ -60,8 +61,8 @@
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI": "a9f7e73ec596693c",
         "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero": "61f8a26d3d189263",
         "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero#2": "61f8a26d3d189263",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary": "b4ec6d2f07dfacb6",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "b4ec6d2f07dfacb6",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary": "5c20e3c0dfa0036c",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecSPIBoundary#2": "5c20e3c0dfa0036c",
         "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused": "121ed1737048ba4f",
         "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused#2": "121ed1737048ba4f"
       },
@@ -121,8 +122,8 @@
       "note": "Re-judged: TestIPsecESPRequiresIntegrity changed only by removing the RFC4303-1-1 negative comment; its assertions are unchanged. Forbidden behaviour: an ESP SA with both encryption and integrity NULL. Negative: validateConfig(esp, encryption-algorithm null, no integrity) must return ErrIPsecAuthAlgo, t.Fatalf otherwise. Positive: null cipher + sha256 accepted (exactly one service). The only producer that admits a NULL cipher is the OSPFv3 manual path; the IKE ESP vocabulary has no ENCR_NULL (ike/ipsec/types.go encryptionNames), so every IKE Child SA carries encryption. Both clauses are the same obligation and both are covered.",
       "requirement_sha": "1d1b19364f28dbeb",
       "tests": {
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "b4ec6d2f07dfacb6",
-        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "b4ec6d2f07dfacb6"
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "5c20e3c0dfa0036c",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "5c20e3c0dfa0036c"
       },
       "units": {
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
