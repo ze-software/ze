@@ -178,6 +178,72 @@
       "break": "body of acceptsAt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7474-5-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding",
+      "unit-sha": "4728d26d6d54687c",
+      "claim-sha": "69c4d7c231a70968",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/auth_verify.go::apadSrc",
+      "producer-sha": "101ae7ee147f67ba",
+      "break": "body of apadSrc replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding",
+      "unit-sha": "4728d26d6d54687c",
+      "claim-sha": "cda15a10bdca1dcd",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/auth_verify.go::apadSrc",
+      "producer-sha": "101ae7ee147f67ba",
+      "break": "body of apadSrc replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474ReceiveApadFromIPHeaderSource",
+      "unit-sha": "913241f4ff9879fe",
+      "claim-sha": "119708d8a51d6ee3",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_wiring.go::verifyPacket",
+      "producer-sha": "7da6bd119065a469",
+      "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-5-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped",
+      "unit-sha": "5086a68e0fb2626d",
+      "claim-sha": "c53bcad325790204",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_wiring.go::verifyPacket",
+      "producer-sha": "7da6bd119065a469",
+      "break": "body of verifyPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474SentApadIsInterfaceSource",
+      "unit-sha": "8c5cf6da2c8be69e",
+      "claim-sha": "b025e2ca70ae51d1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_wiring.go::signPacket",
+      "producer-sha": "37b52f8c2a630f05",
+      "break": "body of signPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-5-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474SentApadNotRouterIDOrZero",
+      "unit-sha": "904af5b2e3478af8",
+      "claim-sha": "35a08ff45a43cab4",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_wiring.go::signPacket",
+      "producer-sha": "37b52f8c2a630f05",
+      "break": "body of signPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7474-6-2",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/packet/auth_rfc7474_test.go::TestRFC7474KoNonZeroPadRejected",
