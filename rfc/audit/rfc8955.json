@@ -175,19 +175,6 @@
       },
       "verdict": "weak"
     },
-    "RFC8955-6-2": {
-      "note": "the row now quotes RFC 8955 Section 6 itself: an eBGP route's AS_PATH must carry the neighbouring AS (the peer's ASN) in the left-most position. The tagged unit TestFlowSpecAuthorizationFromReceivedUpdates proves the neighbouring rule RFC 9117 Section 4.2 put in its place (the rule's leftmost AS_SEQUENCE ASN equals the covering unicast route's), and its case 'external authorized through route server' (peerAS 65100, leftmost ASN 65001, want true) asserts acceptance of exactly the input the RFC 8955 sentence forbids. No tagged assertion goes red when an eBGP FlowSpec route lacks the peer AS leftmost. The tags belong on an RFC 9117 Section 4.2 row, which no summary in rfc/short holds",
-      "requirement_sha": "e3d91b02d7ef324e",
-      "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "d72a880cb772843d",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "d72a880cb772843d"
-      },
-      "units": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "a1b576b3043ebced",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "a1b576b3043ebced"
-      },
-      "verdict": "wrong"
-    },
     "RFC8955-6-3": {
       "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
       "requirement_sha": "508626fc308dfc4f",

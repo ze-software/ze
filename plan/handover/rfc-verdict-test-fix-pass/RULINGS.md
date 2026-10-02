@@ -169,3 +169,21 @@ The Graceful Restart Capability lists an <AFI, SAFI> only when the running confi
 (g) RFC2328-8.1-1: unnumbered point-to-point is an absent feature: record it as a {gap} (implementation gap on the Support text); remove the tag from the test that asserts the refusal of an address-less interface (D-15, owner ruling 8) or retag it to the row it proves.
 (h) RFC8665-5-14 (SHOULD PHP): follow the RFC (PHP in the listed cases, including for an M-flag SID), after reading FRR's decision and quoting it; failing test first.
 ## R59 (2026-10-02, main thread): RFC9494-5-1 is this child's D-8 (spec-bgp-graceful-restart-rfc-defects D1..D5 do not name it): a received LLGR capability (code 71) is honoured for a family only when Ze configured LLGR for that peer and family (RFC 9494 section 5 "MUST require affirmative configuration per AFI/SAFI"). Red test exists: plugins/gr/rfc9494_helper_default_red_test.go. Fix docs/guide/graceful-restart.md "only active when both peers negotiate it".
+
+## Owner decisions (2026-10-02 continuation ba93202e)
+
+Thomas answered the eleven pending questions after the stale-record repair:
+
+1. Authorize the main thread to remove only the retired RFC8955-6-2 audit entry.
+2. Authorize reconciliation of the RFC8955 extraction exclusions and renewal of its sign-off after checking the recorded retirement; no unperformed walk may be claimed.
+3. RFC5575-6-1: disclose the gap and RFC9117 section 7 optionality; do not implement the optional check.
+4. ROUTE-REFRESH: retain config-static routes in ribOut with an origin flag; refresh includes them, peer-up replay skips them.
+5. VPP SRv6 policy installation: separate pre-release spec, with a local binding SID allocated from a local locator. Preserve the red test and disclose the missing behavior.
+6. Duplicate Prefix-SID types 5/6: add the defect and red test to spec-bgp-prefix-sid-rfc-defects acceptance criteria under P-3.
+7. Label-Index Reserved and Flags: clear them on transmission, including relay. Preserve Originator SRGB unchanged. This corrects HANDOFF.md: RFC8669 section 3.2's unchanged-propagation sentence binds Originator SRGB, not Label-Index.
+8. Run spec-bgp-addpath-best-path-per-prefix after this pass and before release.
+9. LLGR configuration: one-shot migration to explicit per-family intent, preserving the advertised OPEN behavior; remove the old shape.
+10. RFC9514-7.2-5/6: authorize a scoped clause-aware ledger representation that retains the RFC sentence, receive proof and explicit origination gap. Do not mark the whole obligation enforced.
+11. RFC5082-3-3: local-output proof only, with genuine configured egress evidence. Authorize single-positive coverage and removal of the misleading negative tag; retain the calibration test without that tag.
+
+The other two handoff items need no new ruling: R3 already governs the RFC9086-7-1 PeerNode/gap split; the RFC2866 Linux recording is being attempted through the existing local QEMU route. No push is authorized.
