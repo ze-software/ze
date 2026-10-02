@@ -4,6 +4,28 @@
     {
       "rid": "RFC4090-4.1-1",
       "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute",
+      "unit-sha": "88934e7218a0179a",
+      "claim-sha": "220ac18bc05f0632",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::encodeFastReroute",
+      "producer-sha": "85dc52c31482a0f4",
+      "break": "body of encodeFastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody",
+      "unit-sha": "7a3db1ab61d187ca",
+      "claim-sha": "a27d357e16867857",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::decodeFastReroute",
+      "producer-sha": "068de0523382f234",
+      "break": "body of decodeFastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-1",
+      "polarity": "positive",
       "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals",
       "unit-sha": "4b03ddac913cb749",
       "claim-sha": "c0e7670e12f9aebe",
@@ -22,6 +44,28 @@
       "producer": "internal/plugins/rsvpte/message_validation.go::knownCType",
       "producer-sha": "89b1704c6343ea26",
       "break": "body of knownCType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute",
+      "unit-sha": "c496a5ef5b176154",
+      "claim-sha": "9d8308737fce4207",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+      "producer-sha": "28c8753c8d789a15",
+      "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag",
+      "unit-sha": "ce229a1000250f43",
+      "claim-sha": "ccf22d8842406795",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+      "producer-sha": "28c8753c8d789a15",
+      "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-4.1-2",
@@ -91,6 +135,39 @@
     },
     {
       "rid": "RFC4090-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute",
+      "unit-sha": "c496a5ef5b176154",
+      "claim-sha": "408375de4a204a1b",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+      "producer-sha": "4b6d2a4ab23205bb",
+      "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName",
+      "unit-sha": "281e8559cd4d39b1",
+      "claim-sha": "4b44c161e3017b08",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::decodeSessionAttr",
+      "producer-sha": "5ad69377a4aa78d4",
+      "break": "body of decodeSessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags",
+      "unit-sha": "cfcdb267e2c91dbb",
+      "claim-sha": "494133789faa19dc",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+      "producer-sha": "4b6d2a4ab23205bb",
+      "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.3-2",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired",
       "unit-sha": "cbe1c3f3a0246445",
@@ -113,6 +190,28 @@
     },
     {
       "rid": "RFC4090-4.4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState",
+      "unit-sha": "f5cab09b59675519",
+      "claim-sha": "8740b96d261e0367",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+      "producer-sha": "f485360d9b8e2b03",
+      "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState",
+      "unit-sha": "f5cab09b59675519",
+      "claim-sha": "639f586d988295a0",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+      "producer-sha": "f485360d9b8e2b03",
+      "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.4-2",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RepairSetsInUseAndAvailable",
       "unit-sha": "bef03c21bab4e90e",
@@ -121,6 +220,28 @@
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
       "producer-sha": "43489f89cbda4243",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.4-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState",
+      "unit-sha": "f5cab09b59675519",
+      "claim-sha": "e947e24eb34f3ead",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+      "producer-sha": "f485360d9b8e2b03",
+      "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-4.4-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState",
+      "unit-sha": "f5cab09b59675519",
+      "claim-sha": "ac415919d1ceb840",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+      "producer-sha": "f485360d9b8e2b03",
+      "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-4.4-3",
@@ -546,6 +667,28 @@
       "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090FailureSwitchesToBackup",
       "unit-sha": "e2f4652889077a57",
       "claim-sha": "c839ee0ee20ecf61",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
+      "producer-sha": "43489f89cbda4243",
+      "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-6.5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown",
+      "unit-sha": "545e494b9801ceaa",
+      "claim-sha": "7914ccf1ea1855e4",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
+      "producer-sha": "43489f89cbda4243",
+      "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4090-6.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify",
+      "unit-sha": "a2916af5529da7f9",
+      "claim-sha": "411cc721318d7bd2",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
       "producer-sha": "43489f89cbda4243",

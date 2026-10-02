@@ -79,6 +79,17 @@
       "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1195-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix",
+      "unit-sha": "213ee42b651cedad",
+      "claim-sha": "30616da841483d94",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+      "producer-sha": "b5a4da90d430ea3e",
+      "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1195-3.4-2",
       "polarity": "positive",
       "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes",
@@ -110,6 +121,28 @@
       "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
       "producer-sha": "8c136abedada6b8d",
       "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-3.9-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare",
+      "unit-sha": "63e448d59af258cc",
+      "claim-sha": "c107806c4f75c745",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/auth_verify.go::verifyKey",
+      "producer-sha": "0c40faf47e16bca8",
+      "break": "body of verifyKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-3.9-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5",
+      "unit-sha": "10e0097ce51027a9",
+      "claim-sha": "ba62cb6933ad2510",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
+      "producer-sha": "0161e11c870b1404",
+      "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-4.1-1",
@@ -176,6 +209,28 @@
       "producer": "internal/plugins/isis/circuit/runtime.go::helloInput",
       "producer-sha": "bcd611a8af1b9e8c",
       "break": "body of helloInput replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+      "unit-sha": "3e899cc3c83f0b81",
+      "claim-sha": "e1d1fe0869902884",
+      "route": "revert",
+      "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+      "producer-sha": "2ff54a713a76969c",
+      "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-4.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+      "unit-sha": "3e899cc3c83f0b81",
+      "claim-sha": "53ac4a1a8c941d82",
+      "route": "revert",
+      "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+      "producer-sha": "2ff54a713a76969c",
+      "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-4.4-1",
@@ -279,6 +334,17 @@
     {
       "rid": "RFC1195-5.2-1",
       "polarity": "positive",
+      "unit": "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp",
+      "unit-sha": "06a38897c3491f72",
+      "claim-sha": "5b103ffbdd6ef950",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+      "producer-sha": "c3ebd1aa4af2c24f",
+      "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.2-1",
+      "polarity": "positive",
       "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive",
       "unit-sha": "f1a2526422b8829f",
       "claim-sha": "c7960a830f2501c5",
@@ -297,6 +363,28 @@
       "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
       "producer-sha": "1d45130d31599694",
       "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp",
+      "unit-sha": "06a38897c3491f72",
+      "claim-sha": "b02dd743c5db0011",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+      "producer-sha": "c3ebd1aa4af2c24f",
+      "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-5.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr",
+      "unit-sha": "d80c5135f8bbe90d",
+      "claim-sha": "a522aca671202f06",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV",
+      "producer-sha": "d53825749c50ffb3",
+      "break": "body of DecodeIPv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1195-5.2-2",
@@ -420,6 +508,17 @@
       "break": "body of refreshOwnLSPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1195-7-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate",
+      "unit-sha": "d62d136b6899fffd",
+      "claim-sha": "94245178173ceab8",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::refreshOwnLSPs",
+      "producer-sha": "a0f4731ca8b571dd",
+      "break": "body of refreshOwnLSPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1195-7-3",
       "polarity": "positive",
       "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix",
@@ -436,6 +535,17 @@
       "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalSetRetainedBesideInternal",
       "unit-sha": "168b33fca500468b",
       "claim-sha": "a32f3e61fcb72935",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::better",
+      "producer-sha": "f4abc0f4bc4d6ca9",
+      "break": "body of better replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1195-7-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal",
+      "unit-sha": "8b10bad9653aa1aa",
+      "claim-sha": "30e503136b4a744e",
       "route": "revert",
       "producer": "internal/plugins/isis/spf/route.go::better",
       "producer-sha": "f4abc0f4bc4d6ca9",

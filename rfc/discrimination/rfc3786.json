@@ -11,6 +11,28 @@
       "producer": "internal/plugins/isis/spf_wiring.go::Records",
       "producer-sha": "a879429846ef9467",
       "break": "body of Records replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3786-5-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero",
+      "unit-sha": "eefb8280ea60b11a",
+      "claim-sha": "e9dbc3041156cc86",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf_wiring.go::Records",
+      "producer-sha": "a879429846ef9467",
+      "break": "body of Records replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3786-5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero",
+      "unit-sha": "eefb8280ea60b11a",
+      "claim-sha": "3fa374b810f82a02",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf_wiring.go::Records",
+      "producer-sha": "a879429846ef9467",
+      "break": "body of Records replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

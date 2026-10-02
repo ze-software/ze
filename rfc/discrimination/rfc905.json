@@ -91,6 +91,28 @@
     },
     {
       "rid": "RFC905-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector",
+      "unit-sha": "bc3d417b262b574e",
+      "claim-sha": "e26e771da3776461",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+      "producer-sha": "b7682d9d907452de",
+      "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus",
+      "unit-sha": "47b51d4828e28d6c",
+      "claim-sha": "6bd9a2d7c30e798a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+      "producer-sha": "b7682d9d907452de",
+      "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused",
       "unit-sha": "8c508804ab3c5161",
@@ -110,6 +132,17 @@
       "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
       "producer-sha": "aaa4df5f75302408",
       "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC905-x-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors",
+      "unit-sha": "31224da1b1a49ce0",
+      "claim-sha": "2ef91827bd2a7349",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+      "producer-sha": "b7682d9d907452de",
+      "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC905-x-2",

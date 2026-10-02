@@ -79,6 +79,61 @@
       "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5305-4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth",
+      "unit-sha": "366e983cf8fa6413",
+      "claim-sha": "450ed121f9820d54",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+      "producer-sha": "7beede9dd623825b",
+      "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth",
+      "unit-sha": "366e983cf8fa6413",
+      "claim-sha": "ba44343b8ea5f0ef",
+      "route": "revert",
+      "producer": "internal/plugins/isis/spf/spf.go::Compute",
+      "producer-sha": "819f17307b651ed5",
+      "break": "body of Compute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination",
+      "unit-sha": "49bde07950d95024",
+      "claim-sha": "9662edb2fd02cb9a",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+      "producer-sha": "f4832c3a5aef6c22",
+      "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination",
+      "unit-sha": "49bde07950d95024",
+      "claim-sha": "82e41b6be16196ef",
+      "route": "revert",
+      "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+      "producer-sha": "f4832c3a5aef6c22",
+      "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected",
+      "unit-sha": "c5f3e0c81412ba39",
+      "claim-sha": "3e1910e397e85652",
+      "route": "revert",
+      "producer": "internal/plugins/isis/redistribute/consumer.go::InjectRoute",
+      "producer-sha": "092d358ab22aadd2",
+      "break": "body of InjectRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5305-4.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",

@@ -47,6 +47,17 @@
     },
     {
       "rid": "RFC3209-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/build_test.go::TestBuildPathRoundTrip",
+      "unit-sha": "f3a142494c14dec9",
+      "claim-sha": "8638a94893b0b22c",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/build.go::buildPath",
+      "producer-sha": "4d5759141b333cdd",
+      "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-4.2-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209NoLabelWithoutLabelRequest",
       "unit-sha": "401e9e3c2cfd1493",
@@ -187,6 +198,28 @@
       "producer": "internal/plugins/rsvpte/wire.go::decodeERO",
       "producer-sha": "5d67b00b76fb4592",
       "break": "body of decodeERO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-4.3.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding",
+      "unit-sha": "88e195edf59fad24",
+      "claim-sha": "db1a3a40cbb83606",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+      "producer-sha": "0deccc8d4603d01c",
+      "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-4.3.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/engine_test.go::TestEngineTransitNoUsableERONextHop",
+      "unit-sha": "5e22b0a1d4045c97",
+      "claim-sha": "263ac15c6dbe1608",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+      "producer-sha": "0deccc8d4603d01c",
+      "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3209-4.3.4-1",
@@ -382,9 +415,20 @@
       "unit-sha": "64a89f6937502396",
       "claim-sha": "d8f12ad2836be006",
       "route": "revert",
-      "producer": "internal/plugins/rsvpte/wire.go::encodeObjectHeader",
-      "producer-sha": "e5c27510c6dfb859",
-      "break": "body of encodeObjectHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/rsvpte/wire.go::encodeSessionIPv4",
+      "producer-sha": "bc4b162ccd175b02",
+      "break": "body of encodeSessionIPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-4.6.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding",
+      "unit-sha": "ceb79b193aaab230",
+      "claim-sha": "7885c5049fa766b8",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/wire.go::encodeSessionIPv4",
+      "producer-sha": "bc4b162ccd175b02",
+      "break": "body of encodeSessionIPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3209-4.7.3-1",
@@ -433,6 +477,28 @@
     {
       "rid": "RFC3209-6-1",
       "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare",
+      "unit-sha": "dab1006243d1a702",
+      "claim-sha": "544095207408d443",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/admission.go::reserve",
+      "producer-sha": "caa88868f9bd18a0",
+      "break": "body of reserve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-6-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/reroute_test.go::TestEngineMakeBeforeBreak",
+      "unit-sha": "24068595f39aaa6f",
+      "claim-sha": "0d4c4b4139a94ba4",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/reroute.go::reroute",
+      "producer-sha": "45e00f8c798f2136",
+      "break": "body of reroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-6-1",
+      "polarity": "negative",
       "unit": "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209RerouteNeverReusesLSPID",
       "unit-sha": "243b7b67508ab844",
       "claim-sha": "06df8d4f79ba93dd",
@@ -451,6 +517,17 @@
       "producer": "internal/plugins/rsvpte/reroute.go::reroute",
       "producer-sha": "45e00f8c798f2136",
       "break": "body of reroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3209-6-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/build_test.go::TestBuildResvRoundTrip",
+      "unit-sha": "63dfc2b05029fbe3",
+      "claim-sha": "4fbe801e63460012",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/wire.go::encodeStyle",
+      "producer-sha": "89df238e06c126d2",
+      "break": "body of encodeStyle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3209-6-2",

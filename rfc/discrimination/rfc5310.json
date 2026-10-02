@@ -57,11 +57,33 @@
       "break": "body of padHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5310-3.2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU",
+      "unit-sha": "06ddf49a87e6c60b",
+      "claim-sha": "1df2452918c72715",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::padHello",
+      "producer-sha": "7e8e98423ebf8209",
+      "break": "body of padHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5310-3.4-2",
       "polarity": "positive",
       "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU",
       "unit-sha": "cfc6c17ab715e379",
       "claim-sha": "b16dbdb94aeb3ca2",
+      "route": "revert",
+      "producer": "internal/plugins/isis/circuit/hello.go::padHello",
+      "producer-sha": "7e8e98423ebf8209",
+      "break": "body of padHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-3.4-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU",
+      "unit-sha": "06ddf49a87e6c60b",
+      "claim-sha": "2d721edd5683a3c8",
       "route": "revert",
       "producer": "internal/plugins/isis/circuit/hello.go::padHello",
       "producer-sha": "7e8e98423ebf8209",
@@ -161,6 +183,17 @@
       "unit": "internal/plugins/isis/packet/auth_lifetime_rfc5310_test.go::TestRFC5310LifetimeNotAuthenticated",
       "unit-sha": "0865716fb5c59333",
       "claim-sha": "bfea9c8c463aced3",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/auth_sign.go::lspAuthLayout",
+      "producer-sha": "7bec3c9bcb9de37b",
+      "break": "body of lspAuthLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5310-4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign",
+      "unit-sha": "577d0ffd745b5f2f",
+      "claim-sha": "6f53c2d891506035",
       "route": "revert",
       "producer": "internal/plugins/isis/packet/auth_sign.go::lspAuthLayout",
       "producer-sha": "7bec3c9bcb9de37b",
