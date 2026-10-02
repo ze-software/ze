@@ -12,19 +12,6 @@
       },
       "verdict": "enforced"
     },
-    "RFC4577-4.2.6-5": {
-      "note": "Forbidden: a route learned from a type 4 LSA reaching BGP. TestRFC4577Type4SummaryNotRedistributed asserts ComputeInterArea yields no RouteEntry for a Type 4 summary and TestRFC4577Type3SummaryBecomesRedistributableRoute that a Type 3 does. Neither drives the redistribution rail (redistribute/source.go emitDelta) to BGP; the note of the earlier pass itself says that link is structural and not exercised, so a redistribution source that read the LSDB directly would leave both green. Separately, the row binds the PE role the 2026-09-21 owner decision did not select.",
-      "requirement_sha": "ac8e7d47ae2dafd0",
-      "tests": {
-        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type3SummaryBecomesRedistributableRoute": "7f5aa5799736cf64",
-        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type4SummaryNotRedistributed": "7f5aa5799736cf64"
-      },
-      "units": {
-        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type3SummaryBecomesRedistributableRoute": "d6dc5d7b9783444c",
-        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type4SummaryNotRedistributed": "00d755eebd71c3c6"
-      },
-      "verdict": "weak"
-    },
     "RFC4577-6-1": {
       "note": "Re-judged 2026-09-30 (independent judge): stale only because the 6-2 tag comment was removed from TestRFC4577CryptographicAuthImplemented; its body and the 6-1 tags are unchanged. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The operator SHOULD is row 6-2.",
       "requirement_sha": "c8f72acc3b4a7f22",

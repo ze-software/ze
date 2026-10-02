@@ -75,7 +75,7 @@
       "claim-sha": "47ea4c3c9f48fbec",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
-      "producer-sha": "f60e45a5bbbc0784",
+      "producer-sha": "1975ecce1f8d4cdb",
       "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

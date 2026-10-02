@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc4577.txt",
   "source-sha": "3d9527c9cc48bead",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-10-02",
   "reviewer": "claude",
+  "resign-reason": "Main-thread ruling R2 (2026-10-02): site 4.2.6:9 addresses the VPN PE role, which the 2026-09-21 owner decision does not select and Ze does not implement, so the site moves from mapped to excluded as binds-another-role and row RFC4577-4.2.6-5 is retired (rfc/corrections/rfc4577.md). Every other site keeps its decision.",
   "sections": [
     {
       "id": "front",
@@ -462,8 +463,9 @@
     {
       "id": "4.2.6:9",
       "quote": "Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP.",
-      "disposition": "mapped",
-      "mapped-to": "RFC4577-4.2.6-5"
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence addresses the VPN PE that receives the CE's LSAs into a VRF and creates VPN-IPv4 routes in BGP (Section 4.2.6); the 2026-09-21 owner decision does not select that role and ze fills it nowhere. The role has no producer in this tree: internal/plugins/ospf/redistribute/source.go exports OSPF routes to BGP as plain ipv4/unicast, with no VRF and no VPN-IPv4 route. Row RFC4577-4.2.6-5 retired 2026-10-02 (rfc/corrections/rfc4577.md)."
     },
     {
       "id": "4.2.6:10",

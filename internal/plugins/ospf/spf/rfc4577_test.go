@@ -1,8 +1,12 @@
-// VALIDATES: RFC 4577 sec 4.2.6 -- a route learned from a Type 4 (ASBR Summary) LSA is
-// never turned into an OSPF route table entry, so it can never reach the OSPF -> BGP
+// VALIDATES: RFC 2328 sec 16.2 -- the inter-area calculation turns a Type 3 summary into a
+// network route entry and a Type 4 (ASBR Summary) into a border-router entry only, so ASBR
+// reachability never becomes an OSPF route table entry, and never reaches the OSPF -> BGP
 // redistribution export (which consumes spf.RouteDelta entries only).
 // PREVENTS: a regression where the inter-area computation turns an ASBR summary into a
 // forwarding prefix, which would leak router reachability into BGP as a route.
+// These units carry no RFC tag: RFC4577-4.2.6-5, which they were tagged to, binds the VPN
+// PE role Ze does not implement and was retired (rfc/corrections/rfc4577.md), and no RFC
+// 2328 row states this sec 16.2 split.
 package spf
 
 import (
@@ -15,11 +19,10 @@ import (
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
-// RFC requirement: RFC4577-4.2.6-5 positive -- the Type 3 (network) summary path IS the
-// redistributable one: ComputeInterArea turns a Type 3 Summary-LSA into a RouteEntry
+// The Type 3 (network) summary path IS the redistributable one: ComputeInterArea turns a Type 3 Summary-LSA into a RouteEntry
 // (interarea.go:157), and the OSPF redistribution source exports exactly those route-table
 // entries to BGP (emitDelta/addEntry, redistribute/source.go:99-137). This pins the
-// contrast case for the MUST NOT below: prefix summaries are exported, ASBR summaries are not.
+// contrast case for the test below: prefix summaries are exported, ASBR summaries are not.
 func TestRFC4577Type3SummaryBecomesRedistributableRoute(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	abr := testRID(t, "2.2.2.2")
@@ -38,8 +41,7 @@ func TestRFC4577Type3SummaryBecomesRedistributableRoute(t *testing.T) {
 	assert.Empty(t, border, "a Type 3 network summary is not a border-router record")
 }
 
-// RFC requirement: RFC4577-4.2.6-5 negative -- a route received in a Type 4 (ASBR Summary)
-// LSA is NOT redistributed to BGP: ComputeInterArea diverts every IsASBR summary into a
+// A route received in a Type 4 (ASBR Summary) LSA is NOT redistributed to BGP: ComputeInterArea diverts every IsASBR summary into a
 // BorderRouterEntry and `continue`s before the RouteEntry append (interarea.go:150-152,
 // decoded from LSTypeSummaryASBR at interarea.go:187), so no route-table entry exists for
 // it. The OSPF redistribution source emits ONLY spf.RouteDelta route entries
