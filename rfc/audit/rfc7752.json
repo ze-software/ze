@@ -46,17 +46,21 @@
       "verdict": "enforced"
     },
     "RFC7752-3.2-1": {
-      "note": "c23 rejudge after the unit's RFC9552-5.2-7 tag line changed (body and this row's tag unchanged): RFC7752-3.2-1 is still tagged only on the capability units, which assert the (16388, 71) encoding and that Negotiate keeps or drops the family; nothing under this row's tags drives the UPDATE send path. The send-side proof now exists under RFC9552-5.2-7 (reactor rfc9552_capability_test.go, enforced), the row this one is superseded by, but it is not tagged here",
+      "note": "Re-judged 2026-10-02 (BGP c31 judge) after the send path was tagged here. RFC 7752 Section 3.2: \"In order for two BGP speakers to exchange Link-State NLRI, they MUST use BGP Capabilities Advertisement to ensure that they are both capable of properly processing such NLRI.\" reactor rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer drives AnnounceNLRIBatch to an established peer that negotiated (16388, 71) and asserts one UPDATE whose MP_REACH_NLRI starts 40 04 47; ::TestRFC9552LinkStateNeverSentToIncapablePeer drives the same NLRI to an IPv4-unicast-only peer and asserts no UPDATE written and ErrNoPeersAcceptedFamily. The HEAD capability units keep the advertisement and the Negotiate intersection (unrecorded). Judge overlay: the per-peer gate `nc == nil || !nc.Has(batch.Family)` reduced to `nc == nil` turns the negative red and leaves the positive green; revert records exist on both new units. Row is superseded by RFC9552-5.2-7, whose verdict rests on the same two units. Receive side (an unnegotiated peer sending Link-State NLRI) is not driven, as on RFC9552-5.2-7; the sentence obliges the speaker to gate the exchange on the capability, which the send-path pair proves.",
       "requirement_sha": "3471b349f96fe2fe",
       "tests": {
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "a2650a4908556dc9",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "a2650a4908556dc9",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "421f3e1a06d77bc9",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "421f3e1a06d77bc9"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "af7d8f27dccc625e",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "ec21eebed7eef27f",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "2b30646c3e2cffd3",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "4b846e3c98810be5"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7752-3.2-4": {
       "note": "Forbidden: merging NLRIs that differ only in Identifier. TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse inserts two Node NLRIs identical except Identifier 0 and 1 and fails unless rib.Len() is 2, both are retrievable, and removing one leaves the other. Negative: TestRFC7752SameIdentifierIsOneRoutingUniverse fails unless a repeat with the same Identifier collapses to one route (Len 1), so the separation turns on the Identifier bytes.",

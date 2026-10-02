@@ -57,6 +57,28 @@
       "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7752-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer",
+      "unit-sha": "bf51265095f0307c",
+      "claim-sha": "aff0a7ef4fbf9e13",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+      "producer-sha": "30c94d2d7968d7b5",
+      "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer",
+      "unit-sha": "32a924711a8a2844",
+      "claim-sha": "325bdcb6def12adb",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+      "producer-sha": "30c94d2d7968d7b5",
+      "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7752-3.2-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71",

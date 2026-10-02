@@ -103,17 +103,17 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2-7": {
-      "note": "c23: send side driven through AnnounceNLRIBatch: + a peer with (16388,71) negotiated gets one UPDATE whose MP_REACH_NLRI starts 40 04 47; - an IPv4-only peer gets no UPDATE and ErrNoPeersAcceptedFamily. Records: revert on AnnounceNLRIBatch both polarities, Negotiate for the capability negative (prose narrowed to what Negotiate asserts, matching its body). Judge targeted probe: removing nc.Has(batch.Family) from the family gate turned the negative red and left the positive green, so the gate itself is what the negative proves. Receive side (an unnegotiated peer sending Link-State NLRI) not driven; the HEAD advertise/negotiate positive in capability holds no record",
+      "note": "c23: send side driven through AnnounceNLRIBatch: + a peer with (16388,71) negotiated gets one UPDATE whose MP_REACH_NLRI starts 40 04 47; - an IPv4-only peer gets no UPDATE and ErrNoPeersAcceptedFamily. Records: revert on AnnounceNLRIBatch both polarities, Negotiate for the capability negative (prose narrowed to what Negotiate asserts, matching its body). Judge targeted probe: removing nc.Has(batch.Family) from the family gate turned the negative red and left the positive green, so the gate itself is what the negative proves. Receive side (an unnegotiated peer sending Link-State NLRI) not driven; the HEAD advertise/negotiate positive in capability holds no record. Re-judged 2026-10-02 (BGP c31 judge): only an RFC7752-3.2-1 tag line was added to the doc comment of both reactor units; bodies and this row's tags are unchanged, and the judge re-ran the family-gate overlay (`nc == nil || !nc.Has(batch.Family)` reduced to `nc == nil`): negative red, positive green. Enforced stands.",
       "requirement_sha": "e9bcf2969c320ef2",
       "tests": {
-        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "8c26de005a4bd609",
-        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "8c26de005a4bd609",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "a2650a4908556dc9",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "a2650a4908556dc9",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "421f3e1a06d77bc9",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "421f3e1a06d77bc9"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "b88e58a9f2692200",
-        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "b43666617324f6ee",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer": "af7d8f27dccc625e",
+        "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer": "ec21eebed7eef27f",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "2b30646c3e2cffd3",
         "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "4b846e3c98810be5"
       },

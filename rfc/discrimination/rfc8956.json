@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc8956",
+  "records": [
+    {
+      "rid": "RFC8956-3.1-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress",
+      "unit-sha": "1922691544fe4b91",
+      "claim-sha": "67d59a8edca96dab",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/translate.go::extractPrefix",
+      "producer-sha": "3a988a83a45b41fb",
+      "break": "body of extractPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

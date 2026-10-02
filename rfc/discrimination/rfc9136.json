@@ -1,0 +1,38 @@
+{
+  "rfc": "rfc9136",
+  "records": [
+    {
+      "rid": "RFC9136-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength",
+      "unit-sha": "19b8bb97a5c2628e",
+      "claim-sha": "1f024d6eabd7c178",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams",
+      "producer-sha": "a5a7d7bc481e1851",
+      "break": "body of buildEVPNFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9136-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused",
+      "unit-sha": "472e2c1220123957",
+      "claim-sha": "4be6ddbafdf3e6c9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType5",
+      "producer-sha": "a0faa76e802daf07",
+      "break": "body of parseEVPNType5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9136-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58",
+      "unit-sha": "33b0ade952ce766a",
+      "claim-sha": "ad0f23b55c695168",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams",
+      "producer-sha": "a5a7d7bc481e1851",
+      "break": "body of buildEVPNFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

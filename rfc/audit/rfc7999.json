@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC7999-3.1-2": {
       "note": "Forbidden: advertising BLACKHOLE to a bilateral peer that did not agree. internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer / ::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree / ::TestAnnounceBlackholeReachesAMemberOfADynamicGroup / ::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup all drive handleAnnounceBlackhole only. The second originating path the enrolment names, send ... unicast community 65535:666, is tested by TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate, which carries no tag, and no unit covers re-advertising a received BLACKHOLE-tagged route to an un-agreed peer.",
@@ -51,9 +51,11 @@
       "verdict": "enforced"
     },
     "RFC7999-3.3-1": {
-      "note": "Forbidden: honoring BLACKHOLE when no equal or shorter authorized prefix covers the announced one. internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath (authorized /24 covers /32: stamped) and ::TestBlackholeNotStampedOutsideAuthorization (uncovered /32: not stamped); ::TestBlackholeRuleForDynamicGroup and rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent use the same /24 over /32. The 'equal' case (announced prefix equal to the authorized one) is never asserted, so a strict-shorter comparison stays green.",
+      "note": "Re-judged 2026-10-02 (BGP c31 judge). RFC 7999 Section 3.3: \"The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise.\" New rib rfc7999_equal_cover_test.go: ::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix (/24 authorized, /24 announced with 65535:666 -> Blackhole on the best-change and in the Loc-RIB) and ::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix (only /25 authorized, which holds the address: /24 stays type 0 on both rails), beside the HEAD /24-over-/32 and uncovered-/32 units and the FRR/BIRD interop scenario. Judge overlays on coveredByAuthorized: `a.Bits() > route.Bits()` made `>=` turns the equal positive red and leaves the negative green; the length test removed turns the longer-authorization negative red and leaves the positive green. Revert records on both new units. The equal and longer shapes duplicate rib_blackhole_rfc7999_cover_test.go (tagged 3.3-2 only); duplication, not a defect.",
       "requirement_sha": "7dede92b94f02a8a",
       "tests": {
+        "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "21e8ae7237b60916",
+        "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "21e8ae7237b60916",
         "internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
         "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "619a6a003fffd5d0",
         "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
@@ -62,6 +64,8 @@
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f04334a58fd00e7c"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "7572508169fe6f87",
+        "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "9fbf037f461af03d",
         "internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
         "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "0a7b4e0d15a24fd2",
         "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
@@ -69,7 +73,7 @@
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "b9baf6f830c148ce",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "b9baf6f830c148ce"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC7999-3.3-2": {
       "note": "Both conditions, both polarities, on the rib honoring path. Condition 1: positive TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix (equal /24 authorized: Blackhole on event rail and Loc-RIB); negative TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix with the session agreed, outside /32 and SHORTER /16 stay RouteType 0, isolating condition 1. Revert records on coveredByAuthorized. Condition 2: rib_blackhole_wiring/dynamic units both ways plus the FRR/BIRD interop scenario. The filter_modify next-hop units were retagged to 4-1 (D-15): an operator-written modify matching the community is operator policy, not Ze honoring BLACKHOLE, so it is not a condition-1 defect.",

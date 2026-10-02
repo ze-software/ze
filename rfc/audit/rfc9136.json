@@ -1,20 +1,26 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC9136-3.1-1": {
-      "note": "Receive half only. (a) forbidden: accepting an RT-5 whose Length is neither 34 nor 58; (b) TestEVPNType5InvalidLength require.Error on a 33-octet RT-5 goes red if the len(data)!=34&&!=58 guard in parseEVPNType5 is removed (the parser then slices past the buffer). But the assertion is a generic require.Error, not ErrEVPNInvalidAddress, and only one wrong length is driven. The positives decode 34 as IPv4 and 58 as IPv6. The send half (ze's encoder writes Length 34 for IPv4 and 58 for IPv6) has no tagged assertion, so an encoder writing any other Length stays green.",
+      "note": "Re-judged 2026-10-02 (BGP c31 judge). RFC 9136 Section 3.1: \"The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried).\" Send: evpn rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58 (EncodeNLRIHex type5, IPv4 with and without label -> 05 22 + 34 octets, IPv6 -> 05 3A + 58) and ::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength (two labels refused, nothing encoded). Receive: ::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused (Length 33/35/57/59 -> ErrorIs ErrEVPNInvalidAddress) beside the HEAD 34/58 decode positives. The InProcessRouteEncoder path (encode.go EncodeRoute) builds type 5 with exactly one label and shares (*EVPNType5).WriteTo, so the same Length holds there by construction; it is not driven by these units. Judge overlay: the parse guard reduced to `len(data) < 34` turns only the receive negative red. Records on buildEVPNFromParams (+/-) and parseEVPNType5 (-).",
       "requirement_sha": "4046509169a59356",
       "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength": "c5763befe78ef7f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused": "c5763befe78ef7f1",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58": "c5763befe78ef7f1",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "f73c00755f3c5f59",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "f73c00755f3c5f59",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "f73c00755f3c5f59"
       },
       "units": {
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength": "e85a5a2266c1e17d",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused": "05db58366eba9599",
+        "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58": "11eb2026c200ea1d",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "60cbb0884ac0e457",
         "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "35b5c224ba322436"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9136-3.1-3": {
       "note": "Single-polarity positive (row marker). (a) forbidden: decoding the RD or the Ethernet Tag ID at other than the RFC 7432 layout (8-octet RD, 4-octet tag after the 10-octet ESI); (b) TestEVPNType5IPv4 assert.Equal(\"0:65000:100\", evpn.RD().String()) and assert.Equal(uint32(10), evpn.EthernetTag()) go red on a misplaced or misdecoded field. Only a type-0 RD is driven; RD type decoding is the shared ParseRouteDistinguisher.",

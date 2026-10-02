@@ -52,6 +52,7 @@ func rfc9552AnnounceToPeer(t *testing.T, families map[family.Family]bool) ([][]b
 // PREVENTS: a negative unit below that passes because nothing is ever sent at all.
 //
 // RFC requirement: RFC9552-5.2-7 positive -- to an established peer that negotiated AFI 16388 / SAFI 71, an announced Link-State Node NLRI leaves in one UPDATE whose MP_REACH_NLRI names AFI 16388, SAFI 71.
+// RFC requirement: RFC7752-3.2-1 positive -- Link-State NLRI is exchanged once the capability is negotiated: to an established peer that negotiated AFI 16388 / SAFI 71 through the Multiprotocol capability, an announced Link-State Node NLRI leaves in one UPDATE whose MP_REACH_NLRI names AFI 16388, SAFI 71.
 func TestRFC9552LinkStateSentToCapablePeer(t *testing.T) {
 	bodies, err := rfc9552AnnounceToPeer(t, map[family.Family]bool{family.IPv4Unicast: true, lsFam: true})
 	require.NoError(t, err)
@@ -74,6 +75,7 @@ func TestRFC9552LinkStateSentToCapablePeer(t *testing.T) {
 // PREVENTS: Link-State NLRI sent to a speaker that never said it can process it.
 //
 // RFC requirement: RFC9552-5.2-7 negative -- to an established peer that negotiated IPv4 unicast only, the same announcement writes no UPDATE to the connection and returns ErrNoPeersAcceptedFamily.
+// RFC requirement: RFC7752-3.2-1 negative -- without the capability no Link-State NLRI is exchanged: to an established peer that negotiated IPv4 unicast only, the same announcement writes no UPDATE to the connection and returns ErrNoPeersAcceptedFamily.
 func TestRFC9552LinkStateNeverSentToIncapablePeer(t *testing.T) {
 	bodies, err := rfc9552AnnounceToPeer(t, map[family.Family]bool{family.IPv4Unicast: true})
 	require.ErrorIs(t, err, route.ErrNoPeersAcceptedFamily)
