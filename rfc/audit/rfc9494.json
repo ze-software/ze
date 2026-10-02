@@ -58,30 +58,40 @@
       "verdict": "enforced"
     },
     "RFC9494-4.2-1": {
-      "note": "Forbidden: purging the stale routes before re-establishment while the Restart Time plus LLST have not elapsed. TestLLSTTimerExpiry_LastFamily only waits (Eventually) for onLLGRComplete and then asserts the peer inactive: a manager that completed at once on session down would satisfy the Eventually on its first poll, so no assertion checks the peer is still retained during the window (the comment claims it, the body does not). The negative TestOnTimerExpired_WithoutLLGR proves a GR-only purge happens, not retention.",
+      "note": "Re-judged 2026-10-02 (BGP c26 judge). Positives drive the plugin's production session-down paths (json handleStateEvent and structured handleStructuredState) with the production wireStateCallbacks and read every RIB command: TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod (Restart Time 0, LLST 3600) requires the exact order purge-stale, retain-routes, mark-stale <peer> 0, then the LLGR entry (delete-with-community ffff0007, attach-community ffff0006, mark-stale <peer> 0 2, readvertise ipv4) with the peer still active, so no purge or release follows the retention; TestRFC9494RestartTimeThenLongLivedStaleTime (RT 1, LLST 1) asserts only the 3-command GR sequence during the Restart Time, no family purge or release at LLGR entry, and the purge only when the LLST fires, which closes the old hole that no assertion checked retention during the window. Negative TestRFC9494BothTimesZeroRetainsNothing: both times zero (Section 4.2 'only those of the base BGP specification') ends in release-routes with no retain after it, on both paths; HEAD TestOnTimerExpired_WithoutLLGR stays. Defect fixed here (D-8): the RT-0 LLGR entry fired inside onSessionDown before the session-down sequence, so purge-stale deleted the routes it had just marked and, with both times 0, retain-routes landed after release-routes; judge read gr_state.go::onSessionDownDeferred and both gr.go paths: the entry now fires after the sequence, GR-only (no LLGR cap) and the NOTIFICATION branch return no entry and behave as before (D1 of spec-bgp-graceful-restart-rfc-defects untouched). rib mark-stale with 0 arms no RIB timer, so the LLST timer alone bounds retention. Pre-fix run red on both RT-0 tests (author log c26-gr-red.log), which is the ordering probe the panic-revert records cannot give. Records: onSessionDownDeferred revert (+, -), handleTimerExpired revert (+). Residual: the RT1/LLST1 test checks the armed timer within a 1 s window, timing-sensitive under heavy load.",
       "requirement_sha": "8760148f130249ac",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "ec20eab4abe98191",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "ec20eab4abe98191",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "ec20eab4abe98191"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "e2533bf5e08b7686",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "d2d59c18e2f649d9"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "d2d59c18e2f649d9",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "9cde1d2fa85dd6e6",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "c8762ba5ffbe20cb",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "d340f64bc9703b0d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9494-4.2-2": {
-      "note": "Forbidden: no LLST timer for a family with a nonzero LLST. TestOnTimerExpired_WithLLGR asserts onLLGREnter fired for ipv4/unicast, no purge, peer still active; it ignores the llst argument and nothing asserts a timer is armed or its duration, so an enterLLGRLocked that never arms the timer (routes retained forever) stays green. The expiry itself is asserted only under RFC9494-4.2-3 tags. Negative (LLST 0 leaves no LLGR state) is asserted.",
+      "note": "Re-judged 2026-10-02 (BGP c26 judge). Positive TestRFC9494RestartTimeThenLongLivedStaleTime: after the Restart Time the LLGR entry holds an armed timer for IPv4 unicast in state.llgrFamilies, nothing is purged at entry, and the family purge is dispatched only when that timer fires, so an enterLLGRLocked that never arms the timer (routes kept forever) goes red. Negative TestRFC9494BothTimesZeroRetainsNothing: LLST 0 arms no timer, the family is purged at once and the peer leaves the LLGR state; HEAD TestOnSessionDown_ZeroGR_ZeroLLST and TestOnTimerExpired_WithLLGR stay. Records: enterLLGRLocked revert (+, -), observed red. The timer's duration is bounded only by the purge arriving after the 1 s LLST, not asserted as a value.",
       "requirement_sha": "1f2696c1a36dff3c",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "0c7f565215e037ef"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "ec20eab4abe98191",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "ec20eab4abe98191"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "f58c4b8954ec7213",
-        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "85f0475302cd6f6e"
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "85f0475302cd6f6e",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "9cde1d2fa85dd6e6",
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "c8762ba5ffbe20cb"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9494-4.2-3": {
       "note": "Forbidden: keeping a family's stale routes after its LLST elapsed with the session down. TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes runs the production callbacks and fails unless 'request bgp rib purge-stale <peer> ipv4/unicast' is dispatched, and fails if the ipv6 purge (LLST 3600) is; TestLLSTTimerExpiry_SingleFamily asserts the per-family expiry with ipv6 still active. Negative: TestRFC9494_NoLLSTExpiryAfterReestablish fails if a family expiry fires after re-establishment. The purge command's own deletion is proven by TestRIBPurgeStaleFamilyCommand, which carries no tag for this row.",
@@ -99,26 +109,30 @@
       "verdict": "enforced"
     },
     "RFC9494-4.2-4": {
-      "note": "The rib half is asserted: TestAttachCommunity fails unless attach-community appends the community to the stale route and raises StaleLevel, TestRFC9494_FreshRoutesDoNotGetLLGRStale fails if a fresh route gains it. No tagged unit asserts that entering the LLGR period dispatches 'request bgp rib attach-community <peer> <family> ffff0006' (gr.go): emptying that dispatch leaves every tagged unit green, which is the exact hole TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes closed for RFC9494-4.2-3.",
+      "note": "Re-judged 2026-10-02 (BGP c26 judge). The hole is closed: TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod runs the production wireStateCallbacks and fails unless LLGR entry dispatches 'request bgp rib attach-community <peer> ipv4/unicast ffff0006' after the routes are retained and marked stale (record: wireStateCallbacks revert, observed red). The rib half: TestAttachCommunity fails unless attach-community appends the community to the stale route and raises StaleLevel; negative TestRFC9494_FreshRoutesDoNotGetLLGRStale fails if a fresh route gains it.",
       "requirement_sha": "22bb80e0584de1a8",
       "tests": {
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "ec20eab4abe98191",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "e5d6319873861ae8",
         "internal/component/bgp/plugins/rib/rib_gr_test.go::TestAttachCommunity": "86fd60e2db71589a"
       },
       "units": {
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "d340f64bc9703b0d",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "7232e3ca91a2765f",
         "internal/component/bgp/plugins/rib/rib_gr_test.go::TestAttachCommunity": "518180aadd409d26"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9494-4.2-5": {
-      "note": "The rib command is asserted: TestDeleteWithCommunity fails unless delete-with-community ffff0007 removes the stale route, TestRFC9494_StaleRouteWithoutNoLLGRRetained fails if a route without NO_LLGR is removed. Not asserted: that LLGR entry dispatches the NO_LLGR sweep at all (gr.go), the 'result of a configured policy' clause, and removal 'as per the normal operation of RFC4271' (the withdrawal propagated downstream).",
+      "note": "Re-judged 2026-10-02 (BGP c26 judge). Now asserted: LLGR entry dispatches 'request bgp rib delete-with-community <peer> ipv4/unicast ffff0007' before LLGR_STALE is attached (TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, production wireStateCallbacks, wireStateCallbacks-revert record observed red); TestDeleteWithCommunity fails unless the sweep removes the stale NO_LLGR route from the peer RIB; negative TestRFC9494_StaleRouteWithoutNoLLGRRetained keeps a route without NO_LLGR. Still not asserted, hence weak: (1) 'MUST be removed as per the normal operation of [RFC4271]': deleteWithCommunityCommand runs checkBestPathChange and publishBestChanges for each removed NLRI (rib_commands_community.go), but no tagged unit asserts the best-path change or the downstream withdrawal; removal from the peer RIB alone is what is checked. (2) 'or as the result of a configured policy': no unit sets NO_LLGR through import policy and sees it swept; the author's argument that the sweep matches the stored post-policy community is plausible but unexercised.",
       "requirement_sha": "fac8847e101227fd",
       "tests": {
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "ec20eab4abe98191",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "e5d6319873861ae8",
         "internal/component/bgp/plugins/rib/rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a"
       },
       "units": {
+        "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "d340f64bc9703b0d",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "41bdc95fe854ca44",
         "internal/component/bgp/plugins/rib/rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451"
       },

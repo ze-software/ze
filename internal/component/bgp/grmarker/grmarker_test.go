@@ -259,12 +259,13 @@ func TestMaxRestartTime(t *testing.T) {
 // VALIDATES: 0x80 OR'd into byte 0 of copied code-64 Value.
 // PREVENTS: R-bit not set, peers don't know we restarted.
 //
-// RFC requirement: RFC4724-4.1-4 positive -- the Restarting Speaker sets the Restart State (R) bit
-// on the code-64 capability of its OPEN via SetRBit (internal/component/bgp/grmarker/grmarker.go:112),
-// which peer.go:574 invokes while inside the restart window.
-// RFC requirement: RFC4724-4.2-6 negative -- the contrast case for the "R bit MUST NOT be set unless
-// restarted" guard: when the restart mechanism does run (speaker has restarted), the R bit IS set, so
-// the guard in TestSetRBitTimeGatePattern is not a blanket suppression.
+// RFC requirement: RFC4724-4.1-4 positive -- SetRBit, the edit restartFlagsFor
+// (reactor/peer_gr_flags.go) applies to the code-64 capability inside the restart window, sets the
+// Restart State bit (0x80 of the first octet) and keeps the Restart Time 120. The window gate itself
+// is not driven here: reactor/rfc4724_restart_state_test.go proves it through the OPEN.
+// RFC requirement: RFC4724-4.2-6 negative -- the "unless it has restarted" exception at the edit:
+// SetRBit, the restarted path's edit, does set R, so the R-clear outcome outside the window comes
+// from skipping the edit, not from an edit that never sets the bit.
 func TestSetRBitOnCapability(t *testing.T) {
 	caps := []plugin.InjectedCapability{
 		{Code: grCapCode, Value: makeGRCapValue(120), Plugin: "gr", PeerAddr: "1.1.1.1"},
@@ -485,23 +486,25 @@ func TestMaxRestartTimeWithRBitSet(t *testing.T) {
 	}
 }
 
-// --- SetRBit simulates the time-gate logic in peer.go ---
+// --- SetRBit against the restart-window decision ---
 
-// VALIDATES: The time-gated R-bit logic: SetRBit called only when before deadline.
-// PREVENTS: R-bit applied when it shouldn't be (after deadline).
-// NOTE: The actual time gate lives in peer.go:574 (RestartUntil window); this tests the decision pattern.
+// VALIDATES: SetRBit sets R on the copy it returns and leaves the caller's caps with R=0.
+// PREVENTS: an R bit leaking into the payload a caller uses when it skips SetRBit.
+// NOTE: the window decision is copied here, not driven. The production gate is
+// Peer.getPluginCapabilities (reactor/peer.go) handing inRestartWindow to restartFlagsFor
+// (reactor/peer_gr_flags.go); reactor/rfc4724_restart_state_test.go drives it through the OPEN.
 //
-// RFC requirement: RFC4724-4.2-6 positive -- the Restart State bit is NOT set unless the speaker has
-// restarted: after the restart deadline, and for a zero RestartUntil (cold start), the caps are used
-// unmodified with R=0 (the peer.go:574 window check `!RestartUntil.IsZero() && now.Before(RestartUntil)`).
-// RFC requirement: RFC4724-4.1-4 negative -- the same gate proves the R bit is not blanket-set: outside
-// the restart window the Restarting Speaker leaves R=0, so R=1 is emitted only within the window.
+// RFC requirement: RFC4724-4.2-6 positive -- the caps handed to SetRBit keep R=0 after the call
+// (SetRBit edits a copy), so the payload a caller uses outside the restart window, where
+// restartFlagsFor skips SetRBit, carries R clear.
+// RFC requirement: RFC4724-4.1-4 negative -- R is set only on the copy SetRBit returns for the
+// restarted path, never blanket-set on the configured payload itself.
 func TestSetRBitTimeGatePattern(t *testing.T) {
 	caps := []plugin.InjectedCapability{
 		{Code: grCapCode, Value: makeGRCapValue(120)},
 	}
 
-	// Simulates peer.go:480 -- before deadline: apply SetRBit.
+	// Before the deadline: the restarted path applies SetRBit.
 	restartUntil := time.Now().Add(10 * time.Second)
 	if !restartUntil.IsZero() && time.Now().Before(restartUntil) {
 		result := SetRBit(caps)
@@ -512,7 +515,7 @@ func TestSetRBitTimeGatePattern(t *testing.T) {
 		t.Fatal("expected to be before deadline")
 	}
 
-	// Simulates peer.go:480 -- after deadline: skip SetRBit, use original caps.
+	// After the deadline: the caller skips SetRBit and uses its own caps.
 	restartUntil = time.Now().Add(-10 * time.Second)
 	if !restartUntil.IsZero() && time.Now().Before(restartUntil) {
 		t.Fatal("expected to be after deadline")
@@ -522,7 +525,7 @@ func TestSetRBitTimeGatePattern(t *testing.T) {
 		t.Error("original cap should have R=0")
 	}
 
-	// Simulates peer.go:480 -- zero RestartUntil (cold start): skip SetRBit.
+	// Zero RestartUntil (cold start): the caller skips SetRBit.
 	restartUntil = time.Time{}
 	if !restartUntil.IsZero() {
 		t.Fatal("zero time should be zero")

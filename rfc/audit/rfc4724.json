@@ -106,17 +106,17 @@
       "verdict": "weak"
     },
     "RFC4724-4.1-4": {
-      "note": "Re-judged 2026-10-02 (BGP c25 judge). rfc4724_restart_state_test.go builds the OPEN through Session.buildOpen with Peer.getPluginCapabilities wired as peer_run.go wires it, a bgp-gr code 64 value with R clear served by the test-only Reactor.pluginCapabilitySeam (nil in production; with it nil getPluginCapabilities behaves as at HEAD), and parses the sent capability: inside the restart window R is set with Restart Time and the IPv4 unicast tuple unchanged (positive); cold start and passed deadline leave R clear (negative, the bit is not blanket). Overlay probes: SetRBit removed reds only the positive, window forced true reds only the negative. Records: restartFlagsFor revert (+), getPluginCapabilities revert (-). The grmarker units stay as supplementary; their tag prose still cites peer.go:574, which no longer holds the gate (restartFlagsFor in peer_gr_flags.go does).",
+      "note": "Re-judged 2026-10-02 (BGP c25 judge). rfc4724_restart_state_test.go builds the OPEN through Session.buildOpen with Peer.getPluginCapabilities wired as peer_run.go wires it, a bgp-gr code 64 value with R clear served by the test-only Reactor.pluginCapabilitySeam (nil in production; with it nil getPluginCapabilities behaves as at HEAD), and parses the sent capability: inside the restart window R is set with Restart Time and the IPv4 unicast tuple unchanged (positive); cold start and passed deadline leave R clear (negative, the bit is not blanket). Overlay probes: SetRBit removed reds only the positive, window forced true reds only the negative. Records: restartFlagsFor revert (+), getPluginCapabilities revert (-). The grmarker units stay as supplementary. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units' tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller's caps keep R=0) and names the production gate Peer.getPluginCapabilities -> restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.",
       "requirement_sha": "869c311ad2e0caaa",
       "tests": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "2d46d625f5cd415d",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "2d46d625f5cd415d",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "44c716d6e34b104e",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "44c716d6e34b104e",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "2f635516005267d9",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "2f635516005267d9"
       },
       "units": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "7e956c4c3231da02",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "64f41fecb7ba6475",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "fd70be72ebae4fd8",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "a186dce965271faa",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "b6bfef2470cdbbfb",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "be3ceba3049e2527"
       },
@@ -219,17 +219,17 @@
       "verdict": "enforced"
     },
     "RFC4724-4.2-6": {
-      "note": "Re-judged 2026-10-02 (BGP c25 judge). Positive TestRFC4724OpenOutsideTheRestartWindowClearsRestartState: the OPEN built through the production getter on a cold start and after the deadline carries R clear; the overlay probe forcing the window true turns both subtests red. Negative TestRFC4724OpenInsideTheRestartWindowSetsRestartState pins the 'unless restarted' exception (R set inside the window), so the positive cannot pass by a getter that never sets R. Records: getPluginCapabilities revert (+), restartFlagsFor revert (-). Same seam and same supplementary grmarker units with stale peer.go:574 prose as RFC4724-4.1-4.",
+      "note": "Re-judged 2026-10-02 (BGP c25 judge). Positive TestRFC4724OpenOutsideTheRestartWindowClearsRestartState: the OPEN built through the production getter on a cold start and after the deadline carries R clear; the overlay probe forcing the window true turns both subtests red. Negative TestRFC4724OpenInsideTheRestartWindowSetsRestartState pins the 'unless restarted' exception (R set inside the window), so the positive cannot pass by a getter that never sets R. Records: getPluginCapabilities revert (+), restartFlagsFor revert (-). Same seam and same supplementary grmarker units as RFC4724-4.1-4. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units' tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller's caps keep R=0) and names the production gate Peer.getPluginCapabilities -> restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.",
       "requirement_sha": "3f66e2036378a8e6",
       "tests": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "2d46d625f5cd415d",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "2d46d625f5cd415d",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "44c716d6e34b104e",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "44c716d6e34b104e",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "2f635516005267d9",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "2f635516005267d9"
       },
       "units": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "7e956c4c3231da02",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "64f41fecb7ba6475",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "fd70be72ebae4fd8",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "a186dce965271faa",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "b6bfef2470cdbbfb",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "be3ceba3049e2527"
       },

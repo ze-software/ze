@@ -112,13 +112,31 @@ func (m *grStateManager) peerActive(peerAddr string) bool {
 // RFC 9494: If restart-time=0 and LLGR negotiated, enter LLGR immediately.
 // NOTIFICATION sessions use normal BGP procedures (no route retention).
 func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap *llgrPeerCap, wasNotification bool) bool {
+	activated, llgrEntry := m.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
+	if llgrEntry != nil {
+		llgrEntry.fire()
+	}
+	return activated
+}
+
+// onSessionDownDeferred is onSessionDown without firing the LLGR entry. When the
+// Restart Time is zero and LLGR was negotiated, the LLGR period begins at once and
+// the returned actions are non-nil: the caller MUST fire them AFTER it has
+// dispatched the session-down sequence (purge the previous cycle's stale routes,
+// retain, mark stale). Fired first, that sequence's "purge-stale <peer>" deletes
+// every route the entry has just marked LLGR-stale.
+//
+// RFC 9494 Section 4.2: "After the session goes down, and before the session is
+// re-established, the stale routes for an AFI/SAFI MUST be retained." The
+// deferral is what keeps the Restart-Time-zero case retained.
+func (m *grStateManager) onSessionDownDeferred(peerAddr string, cap *grPeerCap, llgrCap *llgrPeerCap, wasNotification bool) (bool, *llgrPendingActions) {
 	m.mu.Lock()
 
 	// No GR capability or NOTIFICATION -> standard BGP (no route retention)
 	if cap == nil || wasNotification {
 		m.clearPeerLocked(peerAddr)
 		m.mu.Unlock()
-		return false
+		return false, nil
 	}
 
 	// RFC 4724 Section 4.2: consecutive restart -- delete previously stale
@@ -132,7 +150,7 @@ func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap 
 
 	if len(staleFamilies) == 0 {
 		m.mu.Unlock()
-		return false
+		return false, nil
 	}
 
 	state := &grPeerState{
@@ -145,8 +163,7 @@ func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap 
 		m.peers[peerAddr] = state
 		pending := m.enterLLGRLocked(peerAddr, state)
 		m.mu.Unlock()
-		pending.fire()
-		return true
+		return true, pending
 	}
 
 	// Start GR restart timer
@@ -157,7 +174,7 @@ func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap 
 
 	m.peers[peerAddr] = state
 	m.mu.Unlock()
-	return true
+	return true, nil
 }
 
 // onSessionReestablished is called when a GR/LLGR-active peer reconnects.

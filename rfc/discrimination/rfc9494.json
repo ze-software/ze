@@ -1,0 +1,82 @@
+{
+  "rfc": "rfc9494",
+  "records": [
+    {
+      "rid": "RFC9494-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing",
+      "unit-sha": "b2a7b002027c0e2a",
+      "claim-sha": "5cf4d2d0494eb026",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
+      "producer-sha": "234fea99bea959c6",
+      "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime",
+      "unit-sha": "b8d41f148c2ea899",
+      "claim-sha": "fcf9a97586cfaf4d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::handleTimerExpired",
+      "producer-sha": "51330503aa9f7930",
+      "break": "body of handleTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod",
+      "unit-sha": "0d81f6e0b17c52cc",
+      "claim-sha": "4857e6140c67f2cf",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
+      "producer-sha": "234fea99bea959c6",
+      "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing",
+      "unit-sha": "b2a7b002027c0e2a",
+      "claim-sha": "2848e5e62f818d8d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked",
+      "producer-sha": "2bc7217502dee420",
+      "break": "body of enterLLGRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime",
+      "unit-sha": "b8d41f148c2ea899",
+      "claim-sha": "28235dca095433ec",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_state.go::enterLLGRLocked",
+      "producer-sha": "2bc7217502dee420",
+      "break": "body of enterLLGRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod",
+      "unit-sha": "0d81f6e0b17c52cc",
+      "claim-sha": "788786f47e415387",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks",
+      "producer-sha": "2697568cbaee741e",
+      "break": "body of wireStateCallbacks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9494-4.2-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod",
+      "unit-sha": "0d81f6e0b17c52cc",
+      "claim-sha": "462257841793ff2a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr.go::wireStateCallbacks",
+      "producer-sha": "2697568cbaee741e",
+      "break": "body of wireStateCallbacks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

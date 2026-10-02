@@ -243,7 +243,11 @@ The one arrangement that leaves the state permanently unread is `run "ze plugin 
 
 ### Special Case: Skip GR
 
-If `restart-time` is 0 but `long-lived-stale-time` is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately.
+If `restart-time` is 0 but `long-lived-stale-time` is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately, after the routes are retained and marked stale: the LLGR steps above run last, so the routes they mark LLGR-stale are the retained ones. When both times are 0 the peer's routes are released at once, as in base BGP.
+<!-- source: internal/component/bgp/plugins/gr/gr_state.go -- onSessionDownDeferred -->
+<!-- source: internal/component/bgp/plugins/gr/gr.go -- handleStructuredState, handleStateEvent -->
+
+Before 2026-10-02 the immediate LLGR entry ran first, and the session-down purge that follows it deleted every route it had just marked, so a peer advertising `restart-time 0` lost all its routes on a TCP failure.
 
 | restart-time | long-lived-stale-time | Behavior |
 |-------------|----------------------|----------|

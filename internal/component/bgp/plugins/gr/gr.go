@@ -413,11 +413,18 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		llgrCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		activated := gp.state.onSessionDown(peerAddr, cap, llgrCap, wasNotification)
+		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
 			gp.dispatchCommand("request bgp rib retain-routes", peerAddr)
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
+		}
+		// RFC 9494 Section 4.2: "After the session goes down, and before the session
+		// is re-established, the stale routes for an AFI/SAFI MUST be retained."
+		// A Restart Time of zero begins the LLGR period now: enter it only after the
+		// sequence above, whose purge-stale would otherwise delete the LLGR-stale routes.
+		if llgrEntry != nil {
+			llgrEntry.fire()
 		}
 
 	case rpc.SessionStateUp:
@@ -574,7 +581,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		llgrCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		activated := gp.state.onSessionDown(peerAddr, cap, llgrCap, wasNotification)
+		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
@@ -583,6 +590,13 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 			gp.dispatchCommand("request bgp rib retain-routes", peerAddr)
 			// 3. Mark remaining routes as stale for new GR cycle
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
+		}
+		// RFC 9494 Section 4.2: "After the session goes down, and before the session
+		// is re-established, the stale routes for an AFI/SAFI MUST be retained."
+		// A Restart Time of zero begins the LLGR period now: enter it only after the
+		// sequence above, whose purge-stale would otherwise delete the LLGR-stale routes.
+		if llgrEntry != nil {
+			llgrEntry.fire()
 		}
 
 	case "up":

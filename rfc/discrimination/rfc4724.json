@@ -81,6 +81,28 @@
     {
       "rid": "RFC4724-4.1-4",
       "polarity": "positive",
+      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability",
+      "unit-sha": "f521f8662fae7f15",
+      "claim-sha": "2fd4534d4d2b071d",
+      "route": "revert",
+      "producer": "internal/component/bgp/grmarker/grmarker.go::SetRBit",
+      "producer-sha": "ec9ad23299eff2fb",
+      "break": "body of SetRBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern",
+      "unit-sha": "51f50c2462a313c4",
+      "claim-sha": "e3eb2c5e62f8bfdb",
+      "route": "revert",
+      "producer": "internal/component/bgp/grmarker/grmarker.go::SetRBit",
+      "producer-sha": "ec9ad23299eff2fb",
+      "break": "body of SetRBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.1-4",
+      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState",
       "unit-sha": "ec31a313225d20a1",
       "claim-sha": "8d60a66582327e06",
@@ -152,7 +174,7 @@
       "claim-sha": "f8cf4394872a0710",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "e4d8ba4804db0315",
+      "producer-sha": "dac5c16ac290efc1",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +185,7 @@
       "claim-sha": "3768b563e1763230",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
-      "producer-sha": "e4d8ba4804db0315",
+      "producer-sha": "dac5c16ac290efc1",
       "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -176,6 +198,28 @@
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
       "producer-sha": "3301692037860930",
       "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability",
+      "unit-sha": "f521f8662fae7f15",
+      "claim-sha": "6e4d33c0043c2bc1",
+      "route": "revert",
+      "producer": "internal/component/bgp/grmarker/grmarker.go::SetRBit",
+      "producer-sha": "ec9ad23299eff2fb",
+      "break": "body of SetRBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4.2-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern",
+      "unit-sha": "51f50c2462a313c4",
+      "claim-sha": "4ba48850739a0243",
+      "route": "revert",
+      "producer": "internal/component/bgp/grmarker/grmarker.go::SetRBit",
+      "producer-sha": "ec9ad23299eff2fb",
+      "break": "body of SetRBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4724-4.2-6",
