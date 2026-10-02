@@ -14,8 +14,11 @@ import (
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
-// RFC requirement: RFC2328-8.1-1 positive -- resolving an active OSPF interface supplies
-// its assigned IPv4 address to the raw socket configuration as the packet source.
+// VALIDATES: resolving an active OSPF interface supplies its own assigned IPv4
+// address to the raw socket configuration as the packet source.
+// This is Ze's numbered-interface rule, not RFC 2328 section 8.1, whose
+// unnumbered point-to-point sourcing Ze does not implement (RFC2328-8.1-1 is a
+// {gap}, owner ruling 8 (g), 2026-10-02).
 func TestResolveOSPFInterfaceUsesIfaceResolverOSName(t *testing.T) {
 	oldBinding := resolveIfaceBinding
 	oldAddresses := resolveIfaceAddresses
@@ -98,8 +101,11 @@ func TestLinuxInterfaceCountsMalformedReceiveDrop(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2328-8.1-1 negative -- an interface without an assigned IPv4
-// source, including an unspecified or multicast value, cannot open an OSPF socket.
+// VALIDATES: an interface without an assigned IPv4 source, including an
+// unspecified or multicast value, cannot open an OSPF socket.
+// This is Ze policy, not RFC 2328 section 8.1: an unnumbered point-to-point
+// interface would source from another router address, a feature Ze does not
+// implement (RFC2328-8.1-1 is a {gap}, owner ruling 8 (g), 2026-10-02).
 func TestOSPFRefusesInterfaceWithoutIPv4Source(t *testing.T) {
 	oldAddresses := resolveIfaceAddresses
 	t.Cleanup(func() { resolveIfaceAddresses = oldAddresses })
