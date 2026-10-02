@@ -284,7 +284,11 @@ func checkAnswer() (any, int) {
 	if err != nil {
 		return &CheckReport{CannotRun: err.Error()}, 2
 	}
-	report, code := Check(tree)
+	approvals, err := sessionApprovals(tree)
+	if err != nil {
+		return &CheckReport{CannotRun: err.Error()}, 2
+	}
+	report, code := Check(tree, approvals)
 	return &report, code
 }
 

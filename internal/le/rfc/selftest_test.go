@@ -56,7 +56,7 @@ func TestRFCSelftestRealTreeRowMirrorsPublicCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	check, checkCode := Check(root)
+	check, checkCode := Check(root, nil)
 	report, err := Selftest()
 	if err != nil {
 		t.Fatal(err)

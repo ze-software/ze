@@ -315,8 +315,13 @@ func evidencePhrase(counts map[string]int) string {
 }
 
 // Check runs the complete read-only check over tree and returns its exit code.
-func Check(tree string) (CheckReport, int) {
-	report, err := check(tree, time.Now())
+//
+// approvals is the commit session's `./le rfc approve` rows, unit to reason,
+// and the coverage ratchet reads it for an owner-ruled tag move alone. A caller
+// with no commit session passes nil, which approves no move: the ratchet then
+// refuses every lost polarity, as it does for a session that recorded none.
+func Check(tree string, approvals map[string]string) (CheckReport, int) {
+	report, err := check(tree, time.Now(), approvals)
 	if err != nil {
 		return CheckReport{CannotRun: err.Error()}, 2
 	}
@@ -326,7 +331,7 @@ func Check(tree string) (CheckReport, int) {
 	return report, 0
 }
 
-func check(tree string, today time.Time) (CheckReport, error) {
+func check(tree string, today time.Time, approvals map[string]string) (CheckReport, error) {
 	collected, err := Collect(tree)
 	if err != nil {
 		return CheckReport{}, err
@@ -420,7 +425,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		findings = append(findings, notes(checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
 			levels, baseEnrolled))...)
 		findings = append(findings, notes(checkCoverageRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, baselinePolarities(committed.Tags), baseEnrolled))...)
+			collected.Enrolled, committed.Head, baseEnrolled, approvals))...)
 		findings = append(findings, notes(checkEvidenceRatchet(collected.Requirements, collected.Tags,
 			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled))...)
 	}

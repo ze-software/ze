@@ -353,7 +353,8 @@ var Gating = []string{suiteParse, suiteUI}
 	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{selftestRIDDrop: true}, nil, nil, true)
 	coverageLoss := checkCoverageRatchet(
 		[]Requirement{req}, nil, enrolled,
-		map[string]map[string]bool{req.RID: {PolarityNegative: true}}, baselineEnrolled,
+		map[Cover][]Tag{{RID: req.RID, Polarity: PolarityNegative, Unit: selftestSummaryRel}: nil},
+		baselineEnrolled, nil,
 	)
 	evidenceLoss := checkEvidenceRatchet(
 		[]Requirement{req}, nil, enrolled, selftestCarriers(),
@@ -421,7 +422,7 @@ func runCheckSelftest() ([]leroot.SelftestResult, error) {
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	refused := code == 2 && report.CannotRun != ""
 	refused = refused && strings.Contains(report.CannotRun, "polarity")
 	return []leroot.SelftestResult{
@@ -437,7 +438,7 @@ func runRealTreeSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	return []leroot.SelftestResult{
 		selftestResult("real-tree/public-check", code == 0, realTreeCheckDetail(&report)),
 	}, nil
@@ -961,7 +962,7 @@ func selftestQuoteCheck(prefix, text string) (CheckReport, error) {
 	if err := selftestCommit(root, "a new row"); err != nil {
 		return CheckReport{}, err
 	}
-	report, _ := Check(root)
+	report, _ := Check(root, nil)
 	return report, nil
 }
 

@@ -111,7 +111,7 @@ func TestCheckAuditRatchetSeesTipCommit(t *testing.T) {
 				one.tip(t, document)
 				return map[string]string{checkAuditBaselineRel: pyDump(document) + "\n"}
 			})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			joined := strings.Join(report.Violations, "\n")
 			for _, want := range one.violations {
 				if code != 2 || !strings.Contains(joined, want) {
@@ -122,7 +122,7 @@ func TestCheckAuditRatchetSeesTipCommit(t *testing.T) {
 	}
 
 	t.Run("audit untouched", func(t *testing.T) {
-		report, _ := Check(checkAuditBaselineTree(t, nil))
+		report, _ := Check(checkAuditBaselineTree(t, nil), nil)
 		joined := strings.Join(report.Violations, "\n")
 		for _, quiet := range []string{"carries none now", "was DELETED", "while every tagged unit stayed byte-identical"} {
 			if strings.Contains(joined, quiet) {
@@ -162,7 +162,7 @@ func TestCheckExtractionRatchetSeesTipCommit(t *testing.T) {
 			layFixture(t, root, files)
 			commitFixture(t, root, "tip")
 			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			seen := strings.Contains(strings.Join(report.Violations, "\n"), violation)
 			if one.deleted && (code != 2 || !seen) {
 				t.Fatalf("the tip commit's deletion was not seen, want %q, exit %d:\n%s", violation, code, report.Text())

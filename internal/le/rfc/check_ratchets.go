@@ -154,9 +154,16 @@ func checkEnrolment(tree string, current, baseline, summaries, signed map[string
 	return errs
 }
 
+// checkCoverageRatchet refuses a requirement that lost a polarity it held at
+// HEAD. held is HEAD's cover set, keyed by the unit each tag sat in, and
+// approvals is this commit session's `./le rfc approve` rows, unit to reason.
+//
+// The one accepted loss is an owner-ruled tag move (OWNER RULING 6(b),
+// 2026-10-02): ownerRuledMove says which.
 func checkCoverageRatchet(requirements []Requirement, tags []Tag, enrolled map[string]bool,
-	baseline map[string]map[string]bool, baselineEnrolled map[string]bool) []string {
+	held map[Cover][]Tag, baselineEnrolled map[string]bool, approvals map[string]string) []string {
 	current := baselinePolarities(tags)
+	baseline := heldPolarities(held)
 	seen := map[string]bool{}
 	var errs []string
 	for _, req := range requirements {
@@ -166,9 +173,13 @@ func checkCoverageRatchet(requirements []Requirement, tags []Tag, enrolled map[s
 		was := baseline[req.RID]
 		var lost []string
 		for polarity := range was {
-			if !current[req.RID][polarity] {
-				lost = append(lost, polarity)
+			if current[req.RID][polarity] {
+				continue
 			}
+			if ownerRuledMove(req, polarity, held, approvals) {
+				continue
+			}
+			lost = append(lost, polarity)
 		}
 		if len(lost) == 0 {
 			continue
@@ -178,7 +189,7 @@ func checkCoverageRatchet(requirements []Requirement, tags []Tag, enrolled map[s
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).
 			Str(" is no longer proven -- the ").Str(strings.Join(lost, "/")).
-			Str(" test(s) that covered it at HEAD are gone. Coverage is monotonic: evidence that existed cannot quietly stop existing. Restore the test, or retire the requirement id if the obligation itself is gone. An annotation does not substitute for proof that was already there").String())
+			Str(" test(s) that covered it at HEAD are gone. Coverage is monotonic: evidence that existed cannot quietly stop existing. Restore the test, or retire the requirement id if the obligation itself is gone. An annotation does not substitute for proof that was already there; the one exception is a tag move the owner ruled, which needs both an `./le rfc approve` row for every unit that lost the tag and a {single-polarity} annotation on this row, each citing the same `owner ruling <id>`").String())
 	}
 	return errs
 }

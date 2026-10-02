@@ -133,7 +133,7 @@ func signCheckFixture(t *testing.T, root string) {
 func TestRFCCheckReportsThePlantedViolation(t *testing.T) {
 	root := checkFixtureTree(t, nil)
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("a gated MUST with no test and no annotation answered %d, want 2:\n%s", code, report.Text())
 	}
@@ -163,7 +163,7 @@ func TestRFCCheckClearsTheViolationWhenBothPolaritiesAreProven(t *testing.T) {
 			"# RFC requirement: " + selftestRIDSend + " negative\n",
 	})
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" {
 		t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
 	}
@@ -238,7 +238,7 @@ func TestRFCCheckEnforcesPermanentIDAllocation(t *testing.T) {
 			files[selftestSourceRel] = checkFixtureSource + "\n    A speaker SHOULD count widgets.\n"
 			root := commitFixtureTree(t, files, nil)
 			commitFixtureEmptyTip(t, root)
-			baseline, baselineCode := Check(root)
+			baseline, baselineCode := Check(root, nil)
 			if baseline.CannotRun != "" {
 				t.Fatalf("the baseline fixture could not run: %s", baseline.CannotRun)
 			}
@@ -247,7 +247,7 @@ func TestRFCCheckEnforcesPermanentIDAllocation(t *testing.T) {
 			writeFixtureFiles(t, root, map[string]string{
 				selftestSummaryRel: checklist + one.current + highWater,
 			})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			if report.CannotRun != "" {
 				t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
 			}
@@ -327,12 +327,12 @@ func TestRFCCheckIDAllocationUnknownHistory(t *testing.T) {
 				commitFixtureEmptyTip(t, root)
 			}
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + original})
-			baseline, baselineCode := Check(root)
+			baseline, baselineCode := Check(root, nil)
 			if baseline.CannotRun != "" {
 				t.Fatalf("cannot check the control: %s", baseline.CannotRun)
 			}
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + corrected})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			if report.CannotRun != "" || code != baselineCode || !slices.Equal(report.Violations, baseline.Violations) {
 				t.Fatalf("unknown history accused a corrected ID, exit %d:\n%s", code, report.Text())
 			}
@@ -340,7 +340,7 @@ func TestRFCCheckIDAllocationUnknownHistory(t *testing.T) {
 
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + corrected +
 				"- [ ] [RFC9999-2-0] [SHOULD] A speaker SHOULD count widgets (§2)\n"})
-			report, code = Check(root)
+			report, code = Check(root, nil)
 			if report.CannotRun != "" || code != 2 ||
 				!strings.Contains(strings.Join(report.Violations, "\n"), "ordinal starts at 1") {
 				t.Fatalf("unknown history bypassed structural validation, exit %d:\n%s", code, report.Text())
@@ -365,7 +365,7 @@ func TestRFCCheckIDAllocationKnownEmptyHistory(t *testing.T) {
 			commitFixtureEmptyTip(t, root)
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist +
 				"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2.1)\n"})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			if report.CannotRun != "" || code != 2 ||
 				!strings.Contains(strings.Join(report.Violations, "\n"), "new id 'RFC9999-2-1'") {
 				t.Fatalf("known-empty history failed to anchor a new ID, exit %d:\n%s", code, report.Text())
@@ -397,7 +397,7 @@ func TestRFCCheckIDAllocationScopesUnreadableHistory(t *testing.T) {
 			"- [ ] [RFC9998-5-1] [SHOULD] A speaker SHOULD count widgets (§2)\n" +
 			"- [ ] [RFC9998-2-2] [SHOULD] A speaker SHOULD count widgets (§2)\n",
 	})
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	violations := strings.Join(report.Violations, "\n")
 	if report.CannotRun != "" || code != 2 ||
 		!strings.Contains(violations, "new id 'RFC9998-5-1'") ||
@@ -420,7 +420,7 @@ func TestRFCCheckCitationCorrectionPreservesRetirementGuard(t *testing.T) {
 	writeFixtureFiles(t, root, map[string]string{
 		selftestSummaryRel: checklist + strings.Replace(original, "(§2)", "(§2.1)", 1),
 	})
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	violations := strings.Join(report.Violations, "\n")
 	if report.CannotRun != "" || code != 2 ||
 		!strings.Contains(violations, "RFC9999-2-3 was in rfc/short/rfc9999.md at HEAD^ and is now gone") ||
@@ -465,7 +465,7 @@ func TestCheckRefusesRetiredRowWithoutCorrection(t *testing.T) {
 				working[retireFixtureRecord] = one.record
 			}
 			writeFixtureFiles(t, root, working)
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			violations := strings.Join(report.Violations, "\n")
 			if report.CannotRun != "" || code != 2 ||
 				!strings.Contains(violations, "RFC9999-2-3 was in rfc/short/rfc9999.md at HEAD^ and is now gone") ||
@@ -488,7 +488,7 @@ func TestCheckAcceptsRetiredRowWithCorrection(t *testing.T) {
 		selftestSummaryRel:  retireFixtureChecklist,
 		retireFixtureRecord: retirementParagraph,
 	})
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" || code != 0 || strings.Contains(strings.Join(report.Violations, "\n"), "RFC9999-2-3") {
 		t.Fatalf("the recorded retirement was refused, exit %d:\n%s", code, report.Text())
 	}
@@ -514,7 +514,7 @@ func TestCheckRefusesRetiredIDReuse(t *testing.T) {
 		writeFixtureFiles(t, root, map[string]string{
 			selftestSummaryRel: retireFixtureChecklist + retireFixtureRow,
 		})
-		report, code := Check(root)
+		report, code := Check(root, nil)
 		if report.CannotRun != "" || code != 2 ||
 			!strings.Contains(strings.Join(report.Violations, "\n"), "RFC9999-2-3 reuses a retired id") {
 			t.Fatalf("the retired id was allocated again, exit %d:\n%s", code, report.Text())
@@ -526,7 +526,7 @@ func TestCheckRefusesRetiredIDReuse(t *testing.T) {
 		root := commitFixtureTree(t, files, nil)
 		commitFixtureEmptyTip(t, root)
 		writeFixtureFiles(t, root, map[string]string{retireFixtureRecord: retirementParagraph})
-		report, code := Check(root)
+		report, code := Check(root, nil)
 		if report.CannotRun != "" || code != 2 ||
 			!strings.Contains(strings.Join(report.Violations, "\n"), "RFC9999-2-3 reuses a retired id") {
 			t.Fatalf("a row kept its id after the record retired it, exit %d:\n%s", code, report.Text())
@@ -542,7 +542,7 @@ func TestRFCCheckReportsUnknownRequirementInCommandTests(t *testing.T) {
 	files[path] = "package widget\n\nimport \"testing\"\n\n" +
 		"// RFC requirement: " + requirement + " positive -- the command rejects invalid input.\n" +
 		"func TestReject(t *testing.T) { t.Fatal(\"invalid input\") }\n"
-	report, code := Check(checkFixtureTree(t, files))
+	report, code := Check(checkFixtureTree(t, files), nil)
 	if report.CannotRun != "" {
 		t.Fatalf("cannot check command fixture: %s", report.CannotRun)
 	}
@@ -591,7 +591,7 @@ func TestRFCCheckReportsTheDrainFloorViolation(t *testing.T) {
 		t.Fatalf("rewrite the fixture ledger pages: %v", err)
 	}
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" {
 		t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
 	}
@@ -639,7 +639,7 @@ func TestRFCCheckRunsOverTheRealCheckout(t *testing.T) {
 		t.Fatalf("resolve checkout: %v", err)
 	}
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" {
 		t.Fatalf("the real tree could not run: %s", report.CannotRun)
 	}
@@ -1125,7 +1125,7 @@ func TestCheckReportCarriesDiscriminationCounters(t *testing.T) {
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof, escape)
 	root := checkFixtureTree(t, files)
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" {
 		t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
 	}
@@ -1171,7 +1171,7 @@ func TestCheckRefusesADiscriminationRecordForAnUndeclaredRequirement(t *testing.
 	files[selftestDiscriminationRel] = discriminationArtifact(t, undeclared)
 	root := checkFixtureTree(t, files)
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" {
 		t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
 	}
@@ -1208,7 +1208,7 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
 
-	if report, code := Check(checkFixtureTree(t, files)); code != 0 || len(report.Violations) > 0 {
+	if report, code := Check(checkFixtureTree(t, files), nil); code != 0 || len(report.Violations) > 0 {
 		t.Fatalf("the intact proof answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
@@ -1218,7 +1218,7 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 	// COMMITTED, because that is the only drift the ratchet refuses since the owner
 	// decision of 2026-08-31; the uncommitted half is its own test.
 	files[selftestProducerPath] = strings.Replace(selftestProducerSource, "return count", "return 0", 1)
-	report, code := Check(commitFixtureTree(t, files, nil))
+	report, code := Check(commitFixtureTree(t, files, nil), nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a broken proof answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1252,7 +1252,7 @@ func TestCheckRefusesAnUnreadableDiscriminationRecord(t *testing.T) {
 			`"unit":"internal/sample/widget_test.go::TestWidget","rout":"mutant"}]}`,
 	})
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("a malformed record answered %d, want 2:\n%s", code, report.Text())
 	}
@@ -1405,7 +1405,7 @@ func fixtureCorpus() map[string]string {
 // ratchet removed rather than obeyed (R-8).
 func TestCheckDiscriminationRequiresProofForNewTag(t *testing.T) {
 	unchanged := commitFixtureTip(t, fixtureCorpus(), fixtureCorpusNudge(), nil)
-	if report, code := Check(unchanged); code != 0 || len(report.Violations) != 0 {
+	if report, code := Check(unchanged, nil); code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("the unchanged corpus answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	} else if report.DiscriminationOwed != 0 {
@@ -1414,7 +1414,7 @@ func TestCheckDiscriminationRequiresProofForNewTag(t *testing.T) {
 
 	added := commitFixtureTip(t, fixtureCorpus(),
 		map[string]string{fixtureGadgetCIPath: fixtureGadgetCI}, nil)
-	report, code := Check(added)
+	report, code := Check(added, nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a tag the tip commit added answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1431,7 +1431,7 @@ func TestCheckDiscriminationRequiresProofForNewTag(t *testing.T) {
 	// every other session sharing this checkout would meet it as its own.
 	uncommitted := commitFixtureTip(t, fixtureCorpus(), fixtureCorpusNudge(),
 		map[string]string{fixtureGadgetCIPath: fixtureGadgetCI})
-	quiet, code := Check(uncommitted)
+	quiet, code := Check(uncommitted, nil)
 	if code != 0 || len(quiet.Violations) != 0 {
 		t.Fatalf("a tag nobody committed answered %d with %d violation(s):\n%s",
 			code, len(quiet.Violations), quiet.Text())
@@ -1466,7 +1466,7 @@ func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
 
-	if report, code := Check(checkFixtureTree(t, files)); code != 0 || len(report.Violations) != 0 {
+	if report, code := Check(checkFixtureTree(t, files), nil); code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("the intact proof answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
@@ -1476,7 +1476,7 @@ func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 		"expect=stdout:contains=gadget", "expect=stdout:contains=widget", 1)
 	// COMMITTED, because the ratchet judges the drift against HEAD: an edit
 	// nobody has committed is reported instead (owner decision, 2026-08-31).
-	report, code := Check(commitFixtureTree(t, changed, nil))
+	report, code := Check(commitFixtureTree(t, changed, nil), nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a changed tagged unit answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1506,7 +1506,7 @@ func TestCheckDiscriminationIgnoresCommentOnlyEdit(t *testing.T) {
 	// line directly below a tag continues that tag's claim, and this test is
 	// about the other kind of comment.
 	files[fixtureGadgetCIPath] = fixtureGadgetCI + "# The gadget carrier also prints its name.\n"
-	report, code := Check(checkFixtureTree(t, files))
+	report, code := Check(checkFixtureTree(t, files), nil)
 	if code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("a comment-only edit answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1539,7 +1539,7 @@ func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 	widened[fixtureGadgetCIPath] = strings.Replace(fixtureGadgetCI, fixtureGadgetClaim,
 		fixtureGadgetClaim+" and never sends a second one.", 1)
 	// COMMITTED, for the reason TestCheckDiscriminationFiresOnChangedUnit states.
-	report, code := Check(commitFixtureTree(t, widened, nil))
+	report, code := Check(commitFixtureTree(t, widened, nil), nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a reworded claim answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1555,7 +1555,7 @@ func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 
 	// The claim put back, byte for byte: the record verifies again, so what the
 	// gate followed was the sentence and not the edit.
-	if restored, code := Check(checkFixtureTree(t, files)); code != 0 || len(restored.Violations) != 0 {
+	if restored, code := Check(checkFixtureTree(t, files), nil); code != 0 || len(restored.Violations) != 0 {
 		t.Fatalf("the restored claim answered %d with %d violation(s):\n%s",
 			code, len(restored.Violations), restored.Text())
 	}
@@ -1578,7 +1578,7 @@ func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 
 	withdrawn := commitFixtureTree(t, committed,
 		map[string]string{selftestDiscriminationRel: fixtureRemoved})
-	report, code := Check(withdrawn)
+	report, code := Check(withdrawn, nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a withdrawn record answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1595,7 +1595,7 @@ func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 		selftestDiscriminationRel: fixtureRemoved,
 		fixtureGadgetCIPath:       fixtureRemoved,
 	})
-	if restored, code := Check(both); code != 0 || len(restored.Violations) != 0 {
+	if restored, code := Check(both, nil); code != 0 || len(restored.Violations) != 0 {
 		t.Fatalf("a record deleted beside its own tag answered %d with %d violation(s):\n%s",
 			code, len(restored.Violations), restored.Text())
 	}
@@ -1617,7 +1617,7 @@ func TestCheckDiscriminationOrphanRecordIsRemovable(t *testing.T) {
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
 	files[fixtureGadgetCIPath] = selftestCIDirective + "\nexpect=stdout:contains=gadget\n"
 
-	report, code := Check(checkFixtureTree(t, files))
+	report, code := Check(checkFixtureTree(t, files), nil)
 	if code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("an orphaned record answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1650,7 +1650,7 @@ func TestCheckReportsUnscannedProductionTags(t *testing.T) {
 		"\n// RFC requirement: " + selftestRIDSend + " -- no polarity at all.\n" +
 		"func SendOnce(count int) int { return SendWidget(count) }\n"
 
-	report, code := Check(checkFixtureTree(t, files))
+	report, code := Check(checkFixtureTree(t, files), nil)
 	if code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("production tags answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1693,7 +1693,7 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 	broken := strings.Replace(selftestProducerSource, "return count", "return 0", 1)
 
 	report, code := Check(commitFixtureTree(t, committed,
-		map[string]string{selftestProducerPath: broken}))
+		map[string]string{selftestProducerPath: broken}), nil)
 	if code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("an uncommitted edit under a record answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
@@ -1714,7 +1714,7 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 
 	// The same edit, committed. It is now the author's, and it reds.
 	committed[selftestProducerPath] = broken
-	refused, code := Check(commitFixtureTree(t, committed, nil))
+	refused, code := Check(commitFixtureTree(t, committed, nil), nil)
 	if code != 2 || len(refused.Violations) != 1 {
 		t.Fatalf("a committed edit under a record answered %d with %d violation(s):\n%s",
 			code, len(refused.Violations), refused.Text())
@@ -1746,7 +1746,7 @@ func TestCheckDiscriminationBacklogIsMeasuredNotBilled(t *testing.T) {
 
 	// Before the ref exists the branch is measured against nothing, and the
 	// report says nothing rather than guessing a baseline.
-	silent, code := Check(root)
+	silent, code := Check(root, nil)
 	if code != 0 || len(silent.Violations) != 0 {
 		t.Fatalf("a tip commit that added no tag answered %d with %d violation(s):\n%s",
 			code, len(silent.Violations), silent.Text())
@@ -1761,7 +1761,7 @@ func TestCheckDiscriminationBacklogIsMeasuredNotBilled(t *testing.T) {
 	}
 
 	gitFixture(t, root, []string{"update-ref", "refs/remotes/origin/main", "HEAD~2"})
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("the measured backlog answered %d with %d violation(s), and it enforces "+
 			"nothing:\n%s", code, len(report.Violations), report.Text())
@@ -1819,7 +1819,7 @@ func TestCheckDiscriminationDriftIsJudgedAtUnitGranularity(t *testing.T) {
 	elsewhere := strings.Replace(committed[selftestProducerPath], `return "widget"`, `return "gadget"`, 1)
 
 	report, code := Check(commitFixtureTree(t, committed,
-		map[string]string{selftestProducerPath: elsewhere}))
+		map[string]string{selftestProducerPath: elsewhere}), nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a committed drift beside an unrelated uncommitted edit answered %d with "+
 			"%d violation(s), want exit 2 and the one violation the commit owes:\n%s",
@@ -1847,7 +1847,7 @@ func TestCheckDiscriminationMeasuresChangedGrandfatheredUnits(t *testing.T) {
 	committed := fixtureCorpus()
 	committed[fixtureGadgetCIPath] = fixtureGadgetCI
 
-	clean, code := Check(commitFixtureTree(t, committed, nil))
+	clean, code := Check(commitFixtureTree(t, committed, nil), nil)
 	if code != 0 || len(clean.Violations) != 0 {
 		t.Fatalf("the committed corpus answered %d with %d violation(s):\n%s",
 			code, len(clean.Violations), clean.Text())
@@ -1859,7 +1859,7 @@ func TestCheckDiscriminationMeasuresChangedGrandfatheredUnits(t *testing.T) {
 	changed, code := Check(commitFixtureTree(t, committed, map[string]string{
 		fixtureGadgetCIPath: strings.Replace(fixtureGadgetCI,
 			"expect=stdout:contains=gadget", "expect=stdout:contains=widget", 1),
-	}))
+	}), nil)
 	if code != 0 || len(changed.Violations) != 0 {
 		t.Fatalf("a changed grandfathered unit answered %d with %d violation(s), and the "+
 			"measurement enforces nothing:\n%s", code, len(changed.Violations), changed.Text())
@@ -1871,7 +1871,7 @@ func TestCheckDiscriminationMeasuresChangedGrandfatheredUnits(t *testing.T) {
 
 	commented, code := Check(commitFixtureTree(t, committed, map[string]string{
 		fixtureGadgetCIPath: fixtureGadgetCI + "# The gadget carrier also prints its name.\n",
-	}))
+	}), nil)
 	if code != 0 || commented.DiscriminationChanged != 0 {
 		t.Errorf("a comment-only edit measured %d changed unit(s) and answered %d, want 0 and 0",
 			commented.DiscriminationChanged, code)
@@ -2095,7 +2095,7 @@ func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
 		t.Fatalf("regenerate the fixture ledger pages: %v", err)
 	}
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code == 0 {
 		t.Fatalf("the migration commit hid a coverage regression:\n%s", report.Text())
 	}
@@ -2372,7 +2372,7 @@ func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
 	commitFixtureEmptyTip(t, root)
 	layFixture(t, root, map[string]string{selftestSummaryRel: retired})
 
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code == 0 {
 		t.Fatalf("a deleted public row was not reported:\n%s", report.Text())
 	}
@@ -2536,7 +2536,7 @@ func TestCheckBaselineRatchetsSeeTipCommit(t *testing.T) {
 		t.Run(one.name, func(t *testing.T) {
 			root := commitFixtureTip(t, fixtureCorpus(), map[string]string{selftestSummaryRel: checklist + one.rows}, nil)
 			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), one.violation) {
 				t.Fatalf("the tip commit's change was not seen, want %q, exit %d:\n%s", one.violation, code, report.Text())
 			}
@@ -2584,7 +2584,7 @@ func TestCheckMetaRatchetsSeeTipCommit(t *testing.T) {
 			files[selftestSummaryRel] = base
 			root := commitFixtureTip(t, files, one.tip, nil)
 			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
-			report, code := Check(root)
+			report, code := Check(root, nil)
 			if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), one.violation) {
 				t.Fatalf("the tip commit's change was not seen, want %q, exit %d:\n%s", one.violation, code, report.Text())
 			}

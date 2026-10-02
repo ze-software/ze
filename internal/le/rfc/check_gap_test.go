@@ -73,7 +73,7 @@ func violationWith(report *CheckReport, wants ...string) string {
 // its unit, type-checked with the proof tags' packages and counted.
 func TestCheckAcceptsDemonstratedGap(t *testing.T) {
 	root := checkFixtureTree(t, gapFixtureFiles(true, gapFixtureTest(selftestRIDSend)))
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if report.CannotRun != "" {
 		t.Fatalf("cannot check the gap fixture: %s", report.CannotRun)
 	}
@@ -93,7 +93,7 @@ func TestCheckAcceptsDemonstratedGap(t *testing.T) {
 // PREVENTS: a gap tag that outlives its annotation (R-3).
 func TestCheckRefusesGapTagOnNonGapRow(t *testing.T) {
 	root := checkFixtureTree(t, gapFixtureFiles(false, gapFixtureTest(selftestRIDSend)))
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("a gap tag on a non-gap row answered %d:\n%s", code, report.Text())
 	}
@@ -108,7 +108,7 @@ func TestCheckRefusesGapTagOnNonGapRow(t *testing.T) {
 // PREVENTS: a gap tag that reads as demonstrated with nothing running it (R-4).
 func TestCheckRefusesGapTagWithoutHelper(t *testing.T) {
 	root := checkFixtureTree(t, gapFixtureFiles(true, gapFixtureTest("RFC9999-9-9")))
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("a gap tag without its helper call answered %d:\n%s", code, report.Text())
 	}
@@ -126,7 +126,7 @@ func TestCheckRefusesGapTagWithoutHelper(t *testing.T) {
 func TestCheckStillRefusesPolarityTagOnGapRow(t *testing.T) {
 	files := fixtureCorpus()
 	files[selftestSummaryRel] = gapFixtureSummary()
-	report, code := Check(checkFixtureTree(t, files))
+	report, code := Check(checkFixtureTree(t, files), nil)
 	if code != 2 {
 		t.Fatalf("polarity tags on a {gap} row answered %d:\n%s", code, report.Text())
 	}
@@ -144,7 +144,7 @@ func TestCheckRefusesGapTagInCI(t *testing.T) {
 		selftestCIPath: "# RFC requirement: " + selftestRIDSend + " gap -- the daemon sends no widget yet.\n" +
 			selftestCIDirective + "\n",
 	}
-	report, code := Check(checkFixtureTree(t, files))
+	report, code := Check(checkFixtureTree(t, files), nil)
 	if code != 2 {
 		t.Fatalf("a gap tag in a .ci file answered %d:\n%s", code, report.Text())
 	}
@@ -162,7 +162,7 @@ func TestGapTagOwesNoDiscrimination(t *testing.T) {
 	delete(base, gapFixtureTestPath)
 	tip := map[string]string{gapFixtureTestPath: gapFixtureTest(selftestRIDSend)}
 	root := commitFixtureTip(t, base, tip, nil)
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 0 {
 		t.Fatalf("a gap tag the tip added answered %d:\n%s", code, report.Text())
 	}

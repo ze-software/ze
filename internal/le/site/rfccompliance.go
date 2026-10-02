@@ -521,7 +521,7 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 		return rfcCompliance{}, err
 	}
 	// The exit code restates len(report.Violations), which the page counts.
-	report, _ := rfc.Check(tree)
+	report, _ := rfc.Check(tree, nil)
 	if report.CannotRun != "" {
 		return rfcCompliance{}, fmt.Errorf("the RFC gate cannot run: %s", report.CannotRun)
 	}

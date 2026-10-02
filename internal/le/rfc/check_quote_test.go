@@ -159,7 +159,7 @@ func TestCheckRefusesNewRowNotVerbatimInSection(t *testing.T) {
 	quoted := commitFixtureTip(t, fixtureCorpus(), map[string]string{selftestSummaryRel: quoteFixtureSummary(
 		"- [ ] [RFC9999-2-3] [SHOULD] A speaker MUST send the widget. (§2)")}, nil)
 	gitFixture(t, quoted, []string{"checkout", "-q", "--detach"})
-	if report, code := Check(quoted); code != 0 {
+	if report, code := Check(quoted, nil); code != 0 {
 		t.Fatalf("a verbatim row answered %d:\n%s", code, report.Text())
 	}
 
@@ -167,7 +167,7 @@ func TestCheckRefusesNewRowNotVerbatimInSection(t *testing.T) {
 	added := commitFixtureTip(t, fixtureCorpus(), map[string]string{selftestSummaryRel: quoteFixtureSummary(
 		"- [ ] [RFC9999-2-3] [SHOULD] " + paraphrase + " (§2)")}, nil)
 	gitFixture(t, added, []string{"checkout", "-q", "--detach"})
-	report, code := Check(added)
+	report, code := Check(added, nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("a paraphrased row the tip added answered %d with %d violation(s), want the row:\n%s",
 			code, len(report.Violations), report.Text())
@@ -197,7 +197,7 @@ func TestCheckRefusesUnchangedUnquotedRow(t *testing.T) {
 	base[selftestSourceRel] = selftestRFCSource
 	base[selftestSummaryRel] = quoteFixtureSummary("- [ ] [RFC9999-2-3] [SHOULD] " + paraphrase + " (§2)")
 	root := commitFixtureTip(t, base, fixtureCorpusNudge(), nil)
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 || len(report.Violations) != 1 {
 		t.Fatalf("an unquoted row the tip did not touch answered %d with %d violation(s), want the row:\n%s",
 			code, len(report.Violations), report.Text())
@@ -264,7 +264,7 @@ func TestCheckRefusesRowAnRFCTextChangeUnquoted(t *testing.T) {
 		t.Fatal("the fixture RFC text no longer carries the sentence this test rewrites")
 	}
 	root := commitFixtureTip(t, base, map[string]string{selftestSourceRel: changed}, nil)
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("an RFC text change that unquoted a row answered %d:\n%s", code, report.Text())
 	}
@@ -354,7 +354,7 @@ func TestCheckAcceptsWholeTextQuoteInUnnumberedStem(t *testing.T) {
 	base := wholeTextFixtureBase(t, unnumberedFixtureSource)
 	root := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(wholeTextRows...)}, nil)
 	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
-	if report, code := Check(root); code != 0 {
+	if report, code := Check(root, nil); code != 0 {
 		t.Fatalf("verbatim rows in a stem with no numbered heading answered %d:\n%s", code, report.Text())
 	}
 }
@@ -368,7 +368,7 @@ func TestCheckRefusesFrontCitationInNumberedStem(t *testing.T) {
 	base := wholeTextFixtureBase(t, unnumberedFixtureSource+"\n1.  Introduction\n\n   This document describes widgets.\n")
 	root := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(wholeTextRows...)}, nil)
 	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("front-matter citations in a numbered stem answered %d:\n%s", code, report.Text())
 	}
@@ -405,7 +405,7 @@ func TestCheckRefusesMissingSectionInIndentedStem(t *testing.T) {
 		"- [ ] [RFC9999-2-3] [SHOULD] A receiver MUST NOT drop the widget. (§2)",
 		"- [ ] [RFC9999-7-1] [SHOULD] A receiver MUST NOT drop the widget. (§7)")}, nil)
 	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
-	report, code := Check(root)
+	report, code := Check(root, nil)
 	if code != 2 {
 		t.Fatalf("a citation of a section the indented text lacks answered %d:\n%s", code, report.Text())
 	}
