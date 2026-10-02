@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7684-2.1-1": {
@@ -73,15 +73,15 @@
       "verdict": "enforced"
     },
     "RFC7684-5-3": {
-      "note": "Forbidden behaviour: a malformed Extended Prefix or Extended Link LSA stored, acknowledged, or reflooded. TestExtIngressMalformedDiscard drives both opaque types in link, area and AS scope through the router ingress with a TLV overrun, trailing data shorter than a TLV header, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated input, and fails on any LSDB lookup hit (stored) or any send after RetransmitTick (acknowledged or reflooded), so each of the three clauses goes red. TestExtIngressValidCarriage is the positive: valid bodies are stored byte-for-byte, acknowledged and flooded to the expected interfaces.",
+      "note": "Rejudged after the D-15 body fix in TestExtIngressValidCarriage (unknown-application body ff -> ff 00 00 00, assertions unchanged): a 1-octet Opaque body is no Opaque LSA under RFC 5250 Section 3, so the positive now carries a valid unknown application; it still proves valid extended LSAs and unknown applications are stored byte-for-byte, acked and flooded by scope after a malformed companion. Negative TestExtIngressMalformedDiscard unchanged: TLV overrun, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated cases are 4-octet aligned and reach validateExtLSA; revert record on ext.go validateExtLSA observed red. Its trailing-header case (valid + 1 octet) is now discarded first by the RFC 5250 alignment check, still the outcome this row forbids. Positive revert record on ReceiveUpdate.",
       "requirement_sha": "d8623840e3f394c8",
       "tests": {
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "09fd610e6e101893",
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "09fd610e6e101893"
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "26a56ecb4e9b3b65",
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "26a56ecb4e9b3b65"
       },
       "units": {
         "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "8d95e6edf616b3b9",
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "74d8a3bb844df5f2"
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "a5956e180b77842f"
       },
       "verdict": "enforced"
     }

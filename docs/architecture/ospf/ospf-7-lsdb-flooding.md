@@ -34,7 +34,9 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
   without storage or acknowledgment, and the next LSA of the same LS Update is
   processed. The decoder drops an unknown-type LSA but still counts it against
   the packet's `# LSAs` field; the checksum discard is per LSA in
-  `ReceiveUpdate`, so it records no packet drop reason.
+  `ReceiveUpdate`, so it records no packet drop reason. An Opaque LSA (types 9,
+  10 and 11) whose body is not a multiple of 4 octets is discarded the same
+  way, because RFC 5250 Section 3 defines its body as 32-bit aligned.
   <!-- source: internal/plugins/ospf/packet/lsa.go -- LSAIterator.Next -->
   <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
 - **Native link-scope extension LSAs share the interface lifetime.** E-Link

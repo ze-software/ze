@@ -210,7 +210,9 @@ func TestExtIngressValidCarriage(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			eng, recorder, receive := extIngressEngine(t)
-			body := []byte{0xff}
+			// RFC 5250 Section 3: an Opaque LSA body is 32-bit aligned, so the unknown
+			// application's body is one whole 4-octet word.
+			body := []byte{0xff, 0x00, 0x00, 0x00}
 			if tc.opaqueType != 42 {
 				body = append(extIngressBody(tc.opaqueType), 0, 99, 0, 1, 0xff, 0, 0, 0)
 				binary.BigEndian.PutUint16(body[2:4], uint16(len(body)-4))

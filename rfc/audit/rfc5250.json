@@ -2,21 +2,27 @@
   "audited": "2026-10-02",
   "requirements": {
     "RFC5250-3-1": {
-      "note": "Types 9/10/11 as Opaque and scope-by-type are enforced: lstype_test.go fatals if a standard type IsOpaque or an opaque type is not; TestOpaqueScopeRouting fatals if Type 11 is not AS-wide or a Type 9 is accepted into an area store. The quoted span also states that Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned body and that standard flooding mechanisms distribute them; no tagged unit asserts either.",
+      "note": "Every clause both polarities. LS types 9/10/11 as Opaque: lstype_test.go TestLSTypeKnownValues (+ opaque types IsOpaque, - standard types not), revert records on IsOpaque. Scope by LS type: TestOpaqueScopeRouting (+ Type 11 AS-wide, - Type 9 refused an area store), revert records on Install. 32-bit aligned body: TestRFC5250AlignedOpaqueStoredAndFlooded (+ 8-octet body stored, flooded out eth1 at length 28 with body intact, on the retransmission list) and TestRFC5250UnalignedOpaqueBodyDiscarded (- 5-octet body with a valid checksum not stored, acked or flooded; aligned companion in the same update stored), red on the pre-fix ReceiveUpdate (D-8 fixed at lsdb/flooding.go ReceiveUpdate). Standard flooding: the aligned unit plus TestRFC5250DuplicateOpaqueNotReflooded (- the same instance after MinLSArrival is acked, not reflooded), red under an equal-copies-reflooded overlay. Revert records on ReceiveUpdate for all three new units.",
       "requirement_sha": "4a020d013a84e5ad",
       "tests": {
         "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting": "458b73167251be99",
         "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting#2": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded": "102a24f8c54239aa",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded": "102a24f8c54239aa",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded": "102a24f8c54239aa",
         "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues": "7a2e79b1c9360264",
         "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues#2": "7a2e79b1c9360264"
       },
       "units": {
         "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting": "683f71e010417287",
         "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting#2": "683f71e010417287",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded": "994f313b490cce63",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded": "e0cabf6aaaf38cb9",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded": "ddccb3bdfd51d683",
         "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues": "f79766a5ed2da7cf",
         "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues#2": "f79766a5ed2da7cf"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5250-3-2": {
       "note": "Forbidden: a Link State ID split other than 8-bit type and 24-bit ID. TestOpaqueLinkStateIDSplit fatals if OpaqueTypeOf(AA BB CC DD) != 0xAA or OpaqueIDOf != 0x00BBCCDD, on a failed round trip, on a high id byte leaking into the type, and at the 0xFF/0xFFFFFF boundary. Row carries {single-polarity: positive}.",

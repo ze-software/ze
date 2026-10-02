@@ -161,6 +161,13 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 		if !lsa.VerifyChecksum() {
 			continue
 		}
+		// RFC 5250 Section 3: "Opaque LSAs consist of a standard LSA header followed
+		// by a 32-bit aligned application-specific information field." A body of
+		// another length is not an Opaque LSA: discard it like a checksum failure,
+		// unstored, unacknowledged and unflooded, and go on with the next LSA.
+		if lsa.Header.Type.IsOpaque() && len(lsa.Body)%4 != 0 {
+			continue
+		}
 		// RFC 7684 Section 5: "Malformed LSAs MUST NOT be stored in the Link
 		// State Database (LSDB), acknowledged, or reflooded."
 		// Validate before every scope and before MaxAge or self-originated handling.
