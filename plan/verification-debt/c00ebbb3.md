@@ -7,4 +7,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-10-02 | c00ebbb3 | rfc: renew LDP and OSPF discrimination records | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-10-02 | c00ebbb3 | rfc: renew LDP and OSPF discrimination records (+1 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

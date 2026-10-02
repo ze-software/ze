@@ -4,6 +4,17 @@
     {
       "rid": "RFC4555-4.2.5-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange",
+      "unit-sha": "c84057a1bfc223e6",
+      "claim-sha": "707713cb66e506bb",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::startMobikeRequest",
+      "producer-sha": "9666527bf71c7036",
+      "break": "body of startMobikeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4555-4.2.5-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds",
       "unit-sha": "03aaa11d5aa8c4de",
       "claim-sha": "cb5a07e4510c7ee4",

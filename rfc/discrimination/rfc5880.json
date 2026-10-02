@@ -219,7 +219,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/timers.go::ApplyEchoSlowdown",
       "producer-sha": "17a6b966760c734e",
-      "break": "line 402: \"!m.pollSequenceIdle()\" -> \"true\""
+      "break": "line 402: \"!m.pollSequenceIdle()\" -\u003e \"true\""
     },
     {
       "rid": "RFC5880-6.5-2",
@@ -329,7 +329,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/auth/simple.go::Verify",
       "producer-sha": "a10c28df7f3da2fa",
-      "break": "line 168: \"data[off+2] != v.keyID\" -> \"false\""
+      "break": "line 168: \"data[off+2] != v.keyID\" -\u003e \"false\""
     },
     {
       "rid": "RFC5880-6.7.2-3",
@@ -439,7 +439,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/auth/sha1.go::Verify",
       "producer-sha": "a96f098f3c6f9288",
-      "break": "line 160: \"data[off+0] != v.authType\" -> \"false\""
+      "break": "line 160: \"data[off+0] != v.authType\" -\u003e \"false\""
     },
     {
       "rid": "RFC5880-6.7.3-1",
@@ -824,7 +824,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/auth/meticulous.go::Check",
       "producer-sha": "0d7ec3911e063f57",
-      "break": "line 58: \"==\" -> \"!=\""
+      "break": "line 58: \"==\" -\u003e \"!=\""
     },
     {
       "rid": "RFC5880-6.7.3-7",
@@ -945,7 +945,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/auth/sha1.go::Verify",
       "producer-sha": "a96f098f3c6f9288",
-      "break": "line 160: \"data[off+0] != v.authType\" -> \"false\""
+      "break": "line 160: \"data[off+0] != v.authType\" -\u003e \"false\""
     },
     {
       "rid": "RFC5880-6.7.4-1",
@@ -1297,7 +1297,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/auth/meticulous.go::Check",
       "producer-sha": "0d7ec3911e063f57",
-      "break": "line 58: \"==\" -> \"!=\""
+      "break": "line 58: \"==\" -\u003e \"!=\""
     },
     {
       "rid": "RFC5880-6.7.4-5",
@@ -1517,7 +1517,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
       "producer-sha": "a78f25ff2c103765",
-      "break": "line 49: \"!=\" -> \"==\""
+      "break": "line 49: \"!=\" -\u003e \"==\""
     },
     {
       "rid": "RFC5880-6.8.1-5",
@@ -1638,7 +1638,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
       "producer-sha": "e4d315357f7abe7b",
-      "break": "line 179: \"m.vars.SessionState != packet.StateUp\" -> \"false\""
+      "break": "line 179: \"m.vars.SessionState != packet.StateUp\" -\u003e \"false\""
     },
     {
       "rid": "RFC5880-6.8.3-1",
@@ -1682,7 +1682,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
       "producer-sha": "e4d315357f7abe7b",
-      "break": "line 165: \"||\" -> \"&&\""
+      "break": "line 165: \"||\" -\u003e \"\u0026\u0026\""
     },
     {
       "rid": "RFC5880-6.8.3-2",
@@ -1693,7 +1693,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
       "producer-sha": "e4d315357f7abe7b",
-      "break": "line 186: \"!=\" -> \"==\""
+      "break": "line 186: \"!=\" -\u003e \"==\""
     },
     {
       "rid": "RFC5880-6.8.3-2",
@@ -1803,7 +1803,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/timers.go::DetectionInterval",
       "producer-sha": "c30900f2e9f01e47",
-      "break": "line 26: \"mult == 0\" -> \"true\""
+      "break": "line 26: \"mult == 0\" -\u003e \"true\""
     },
     {
       "rid": "RFC5880-6.8.3-8",
@@ -1825,7 +1825,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/timers.go::CheckDetection",
       "producer-sha": "1386b1ea81534415",
-      "break": "line 122: \"m.vars.SessionState != packet.StateInit && m.vars.SessionState != packet.StateUp\" -> \"true\""
+      "break": "line 122: \"m.vars.SessionState != packet.StateInit \u0026\u0026 m.vars.SessionState != packet.StateUp\" -\u003e \"true\""
     },
     {
       "rid": "RFC5880-6.8.4-1",
@@ -2100,7 +2100,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/timers.go::TransmitInterval",
       "producer-sha": "5c5ea965c6b8cc02",
-      "break": "line 48: \"tx == 0\" -> \"true\""
+      "break": "line 48: \"tx == 0\" -\u003e \"true\""
     },
     {
       "rid": "RFC5880-6.8.7-1",
@@ -2386,7 +2386,7 @@
       "route": "mutant",
       "producer": "internal/component/bfd/session/timers.go::EchoEnabled",
       "producer-sha": "a4608916499310d7",
-      "break": "line 268: \"!=\" -> \"==\""
+      "break": "line 268: \"!=\" -\u003e \"==\""
     },
     {
       "rid": "RFC5880-6.8.9-2",
@@ -2497,6 +2497,17 @@
       "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptionsV6",
       "producer-sha": "8b2167e5073107c7",
       "break": "body of applySocketOptionsV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5880-9-2",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum",
+      "unit-sha": "6b01b7991cea4157",
+      "claim-sha": "1ab90d6efaf14bae",
+      "route": "revert",
+      "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+      "producer-sha": "018c89e51ff3391c",
+      "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
