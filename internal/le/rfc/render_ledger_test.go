@@ -379,8 +379,16 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// sends, so the gap described a defect Ze does not have. The cell now
 	// spells no count because rfc1877 carries no {gap}: the row left because
 	// its gap is gone, which is the shrink this number exists to see argued.
-	if counted != 50 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 50",
+	// 51 since 2026-10-02. rfc2545 joined: 771fc01602 gated RFC2545-3-6 as
+	// its one {gap}, and the cell opens "One SHALL-level gap". Two rows had
+	// left in silence, each for a rewritten cell rather than a closed gap:
+	// rfc2661 in 60817da535 ("Ten rows carry {gap}") and rfc3579 in
+	// 189db75308 ("Fifteen requirements are unproven"). Neither spelled its
+	// count before MUST, so both cells now say "MUST and SHOULD" after the
+	// number and rejoin the population, their counts equal to their {gap}
+	// rows (ten and fifteen).
+	if counted != 51 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 51",
 			counted, len(rows))
 	}
 }
