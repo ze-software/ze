@@ -117,17 +117,19 @@
       "verdict": "enforced"
     },
     "RFC8665-3.2-6": {
-      "note": "SRGB.Label is asserted in order: index 5 over ranges 20000.. then 16000.. must be 16000 and the reversed order must differ at index 0, red on a sorted mapping. But the order the receiver adheres to is produced by srDecodeRemoteCapabilities, which appends decoded ranges into caps.SRGB, and no tagged unit decodes two SID/Label Range TLVs from an RI body and checks the resulting order; a decode that sorted or reordered ranges stays green (question 4)",
+      "note": "Reception path now driven end to end: TestRFC8665ReceivedRangesMappedInAdvertisedOrder installs two RI Opaque LSAs advertising 20000/5,16000/5 and the reverse, reads engine.srRemoteCapabilities (srDecodeRemoteCapabilities) and pins index 0/4/5/9 to literal labels per advertised order; judge overlay sorting decoded ranges by base before sr.NewSRGB turns it red (2.2.2.2 index 0 = 16000). SRGB.Label units keep advertised-order positive and the order-sensitivity/out-of-range negative; all three have observed-red records.",
       "requirement_sha": "2d36bad1eb889606",
       "tests": {
+        "internal/plugins/ospf/rfc8665_srgb_advertised_order_test.go::TestRFC8665ReceivedRangesMappedInAdvertisedOrder": "fe8e66ea3f7c1d90",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity": "279bf468c654f872",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexUsesAdvertisedOrder": "279bf468c654f872"
       },
       "units": {
+        "internal/plugins/ospf/rfc8665_srgb_advertised_order_test.go::TestRFC8665ReceivedRangesMappedInAdvertisedOrder": "897133dbb5dfe693",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity": "d8876cf7c725b9b6",
         "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexUsesAdvertisedOrder": "df58af508d2260be"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8665-3.2-7": {
       "note": "forbidden: advertising overlapping SRGB ranges. TestRFC8665OverlappingRangesRejected requires SRConfig.Validate to reject 16000+100 with 16050+100, red on a missing overlap check; Validate gates the config verify (validateSRConfig, register.go) so the advertised SRGB is only a validated one. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint ranges",

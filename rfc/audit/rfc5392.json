@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC5392-3.2.1-1": {
       "note": "Forbidden: a Type-6 Inter-AS-TE-v2 Link TLV that carries the Link ID sub-TLV (type 2). Red on it: TestInterAsTEOriginateScopePolicy asserts `if l.HasLinkID { t.Fatalf }` on the Link TLV teOriginateType6 emits, for both area and AS scope. Negative polarity: TestTEReceiveMalformedNoEntry feeds a type-6 Link TLV that is otherwise valid (Link Type, Remote AS, IPv4 Remote ASBR ID) plus a Link ID and asserts no TED entry (validateReceivedTELink rejects l.HasLinkID for InterAsTEOpaqueType).",
@@ -59,15 +59,17 @@
       "verdict": "enforced"
     },
     "RFC5392-3.3.2-2": {
-      "note": "Forbidden: an OSPFv2 inter-AS advertisement for a neighbor ASBR with no IPv4 address that lacks the IPv6 Remote ASBR ID sub-TLV. The only tagged unit, TestInterAsTEIPv6AsbrIdType24 (internal/plugins/ospf/packet/te_interas_test.go), hand-builds a TELSA with HasRemoteASBRv6 and checks the ENCODER writes sub-TLV 24 and no 22. It never drives origination (buildInterASTELink / teOriginateType6) from a v6-only inter-as config, so a defect that drops remote-asbr-ipv6 when building the originated Link TLV, or originates a v4-less link without it, stays green. The tag prose says 'origination emits', which the unit does not exercise.",
+      "note": "Origination now driven: v6-only inter-as config (remote-as 65001, remote-asbr-ipv6 2001:db8::9) through teOriginateType6/buildInterASTELink; originated body holds the literal sub-TLV 00 18 00 10 + address, decode shows v6 ID present, no v4 ID, Remote AS 65001. Judge overlay dropping HasRemoteASBRv6 in buildInterASTELink turns it red. {single-polarity: positive} on the row; record observed red on buildInterASTELink.",
       "requirement_sha": "dc0a43c190e81962",
       "tests": {
-        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "df389507e0340ff5"
+        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "df389507e0340ff5",
+        "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID": "bd6b04c1ae6dd838"
       },
       "units": {
-        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "0aa1a7c77d41c748"
+        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "0aa1a7c77d41c748",
+        "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID": "1414358db2798e32"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5392-4-1": {
       "note": "Re-judged 2026-09-27 by QF-2 after the row's trailing implementation note lost its parenthesis, so the quote ends at the \u00a74 sub-span 'Hellos MUST NOT be exchanged over the inter-AS link'. Forbidden: an inter-AS interface that runs Hellos. TestRFC5392InterASInterfaceIsPassive asserts `!ic.Passive || active` fails the test when parseInterface leaves an inter-as interface active, with an intra-AS TE control. Enforced stands.",

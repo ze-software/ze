@@ -35,6 +35,39 @@
       "break": "body of parseSegmentRouting replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8665-3.2-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8665_srgb_advertised_order_test.go::TestRFC8665ReceivedRangesMappedInAdvertisedOrder",
+      "unit-sha": "a0e14e31a70dba74",
+      "claim-sha": "47ea4c3c9f48fbec",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr.go::srDecodeRemoteCapabilities",
+      "producer-sha": "f60e45a5bbbc0784",
+      "break": "body of srDecodeRemoteCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-3.2-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity",
+      "unit-sha": "3aad6ed4e25bb1a0",
+      "claim-sha": "fde706e377cf119e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/srgb.go::Label",
+      "producer-sha": "dd16f1f3f00491a7",
+      "break": "body of Label replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-3.2-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665SRGBIndexUsesAdvertisedOrder",
+      "unit-sha": "f731d0de7ec72b1f",
+      "claim-sha": "b44d34a9d1a4457a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/srgb.go::Label",
+      "producer-sha": "dd16f1f3f00491a7",
+      "break": "body of Label replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8665-5-12",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero",

@@ -24,6 +24,28 @@
       "break": "body of Summary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5250-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryListsEntireAreaDatabase",
+      "unit-sha": "5fd4aa92e6a7706f",
+      "claim-sha": "8483969c8d9561c4",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/table.go::databaseSummaryLocked",
+      "producer-sha": "701d8345ab6988e0",
+      "break": "body of databaseSummaryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5250-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs",
+      "unit-sha": "019817f7a1036d99",
+      "claim-sha": "5c1966e2336c56de",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/neighbor/table.go::databaseSummaryLocked",
+      "producer-sha": "701d8345ab6988e0",
+      "break": "body of databaseSummaryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5250-3.2-3",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",

@@ -2,6 +2,17 @@
   "rfc": "rfc5709",
   "records": [
     {
+      "rid": "RFC5709-3-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go::TestRFC5709AnyAlgorithmUnderAnyKeyID",
+      "unit-sha": "4500916475a732e3",
+      "claim-sha": "cb2992e1a43655ab",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::resolveChainKeys",
+      "producer-sha": "9bcb54ef74f6867c",
+      "break": "body of resolveChainKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5709-3.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709AuthDataLengthIsHashOutputLength",

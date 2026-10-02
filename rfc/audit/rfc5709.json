@@ -21,15 +21,17 @@
       "verdict": "enforced"
     },
     "RFC5709-3-5": {
-      "note": "(a) forbidden: an operator config that refuses a supported algorithm under some KeyID, or fixes an algorithm per KeyID; (b) none: the tagged TestOSPFAuthSignVerifyCrypto builds packet.AuthKey directly with the single KeyID 7 and never goes through operator configuration (parseOSPFConfig/validateConfig), so a config path that rejected e.g. hmac-sha-1 at key-id 200 would stay green",
+      "note": "TestRFC5709AnyAlgorithmUnderAnyKeyID drives operator config: five key-chain texts rotate md5 and hmac-sha-1/256/384/512 over Key IDs 1,77,200,254,255 through parseOSPFConfig, validateConfig and the running engine's verifyPacket, auth failures 0. Judge overlay fixing the algorithm per Key ID in resolveChainKeys turns every shift red; Key ID 0 (not sampled) also passes under a judge overlay. {single-polarity: positive} on the row; record observed red on resolveChainKeys.",
       "requirement_sha": "22f0335cb9c59a25",
       "tests": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go::TestRFC5709AnyAlgorithmUnderAnyKeyID": "02be0738e6eb865d"
       },
       "units": {
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go::TestRFC5709AnyAlgorithmUnderAnyKeyID": "3fb5de4c1b95b278"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5709-3.1-1": {
       "note": "(a) forbidden: sending an HMAC-SHA packet whose Authentication Type is not Cryptographic Authentication (2); (b) TestEngineSignPacketCrypto asserts the on-wire AuType of eng.signPacket output equals AuTypeCryptographic; negative TestOSPFAuthStoreSignVerify asserts a non-crypto AuType packet is refused under crypto config",

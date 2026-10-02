@@ -24,6 +24,17 @@
       "break": "body of validateReceivedTELink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5392-3.3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID",
+      "unit-sha": "32892f163d52e682",
+      "claim-sha": "8cef3c9e8d4df78d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/te_originate.go::buildInterASTELink",
+      "producer-sha": "9107a9796118522c",
+      "break": "body of buildInterASTELink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5392-4-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive",

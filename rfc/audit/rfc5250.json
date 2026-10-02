@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC5250-3-1": {
       "note": "Types 9/10/11 as Opaque and scope-by-type are enforced: lstype_test.go fatals if a standard type IsOpaque or an opaque type is not; TestOpaqueScopeRouting fatals if Type 11 is not AS-wide or a Type 9 is accepted into an area store. The quoted span also states that Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned body and that standard flooding mechanisms distribute them; no tagged unit asserts either.",
@@ -97,17 +97,21 @@
       "verdict": "weak"
     },
     "RFC5250-3.2-1": {
-      "note": "The normal-area summary is asserted to list type-10, type-5 and type-11 LSAs (TestRFC5250SummaryListsOpaqueAndGlobalLSAs). The quoted list also names type-9 Opaque LSAs and Router, Network and Summary LSAs, and no tagged unit asserts any of them in the Database summary list; the tagged negative is the stub/NSSA omission of RFC5250-3.2-3.",
+      "note": "Production path databaseSummaryLocked over a real lsdb.LSDB at ExStart: positive lists all eight named types (Router, Network, Summary 3 and 4, type-9 on its interface, type-10, AS External, type-11); negative shows area 0.0.0.4's Router and type-10 and eth9's type-9 absent and the list exactly 8. Judge overlays: dropping link LSAs, Router or Network LSAs turns the positive red; appending another area's Router LSA turns only the negative red. Records observed red on databaseSummaryLocked; the lsdb units stay as supplementary.",
       "requirement_sha": "9756b7e959d1226f",
       "tests": {
         "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs": "210db371c1b4065b",
-        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "210db371c1b4065b"
+        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "210db371c1b4065b",
+        "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryListsEntireAreaDatabase": "470ebdcbcdb0e6e5",
+        "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs": "470ebdcbcdb0e6e5"
       },
       "units": {
         "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs": "04ee01da6ec704c2",
-        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "bae6679d4a6cc4a5"
+        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "bae6679d4a6cc4a5",
+        "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryListsEntireAreaDatabase": "42f83f64b5c6d624",
+        "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs": "17d51d6998d5f10a"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5250-5-1": {
       "note": "Re-judged 2026-09-30 (independent judge, c12) after the D-8 fix. Section 5 (2): 'the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.' Producer: spf/reachability.go ASBRReachable reads the SPF border entries of Kind asbr (intra-area Router-LSA E-bit, interarea.go intraAreaBorderRouters; inter-area Type-4 summaries, interarea.go:157), finite metric and a next hop, the same entries the Type-5 calculation reads (external.go); Computer.ASBRReachable gates on the config generation; opaque.go spfASBRReachable is the only production caller (grep: no other RouterReachable user changed; bgpls_export and nssa keep ReachabilitySnapshot.RouterReachable/RouterReachableAny). TestRFC5250Type11LooksUpOriginatorRoutingEntry over the engine's own seam: - pending SPF, reached router without the E-bit, unreached 10.0.0.9 all delivered not usable; + the same router re-originated with the E-bit is usable. Judge overlay (go test -overlay) restoring the old RouterReachableAny answer in Computer.ASBRReachable: red at the no-E-bit negative (scratch/judge-ospf-5250mut.log); author's red at HEAD agrees. Records +/- revert on ASBRReachable observed. The inter-area Type-4 source is not driven by this unit; it feeds the same border slice. opaque_reachability_test.go tags are supplementary (injected predicate). Related defect reported to the main thread: Ze does not set its own E-bit when it originates Type-11 LSAs (lsdb selfIsASBRLocked counts only Type-5/7), against Section 5 (1), so another Ze router now treats those LSAs as unusable.",
