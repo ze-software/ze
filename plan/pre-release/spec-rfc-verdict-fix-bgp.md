@@ -316,6 +316,7 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC4271-9.2-7 | weak | `spec-bgp-rs-replacement-on-withdrawal` AC-3 (R57(b), 2026-10-01: bgp-rs relays a source's withdrawal while another source's route for the prefix remains; the fix needs a per-source path store) |
 | RFC8277-3.1-1 | weak | `spec-bgp-addpath-best-path-per-prefix` AC-3, AC-5 (owner ruling 8 (c), 2026-10-02: under ADD-PATH the RIB elects one best per path id, so two paths of one session are never compared) |
 | RFC8277-2.5-2 | weak | `spec-bgp-addpath-best-path-per-prefix` AC-4, AC-5 (owner ruling 8 (c): label side-data is keyed per prefix, the RFC8277-2.5-3 gap, so path 9's binding cannot be isolated) |
+| DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7 | weak | `spec-add-path-limit-send-receive` AC-21 (BGP c31, 2026-10-02: the unmet half is the ingress ceiling, "the maximum number of paths to accept from a sender"; no code drops a received path above PathsLimitRecv, and that spec builds the ceiling) |
 
 - RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
 - RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.
