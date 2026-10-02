@@ -360,9 +360,10 @@ func TestRFC8665DuplicatePrefixSIDsAllIgnored(t *testing.T) {
 // RFC requirement: RFC8665-5-7 positive -- the outgoing label is computed from the NEXT-HOP
 // router's advertised state, and that next-hop's E/NP/M flags are applied when the next-hop is
 // the router that advertised the SID: with the next-hop equal to the originator and NP clear,
-// the penultimate-hop PHP rule fires and no label is pushed (srInstaller.forwarding,
-// sr_install.go:158-163). Both next-hops of an ECMP route are evaluated independently
-// (sr_install.go:103-111), so the decision does not depend on which one "wins" the best path.
+// the penultimate-hop PHP rule fires: no label is pushed toward it and its transit entry is a
+// pop (srInstaller.forwarding). The route lists a transit next-hop first; each next-hop of the
+// ECMP route is judged on its own (srInstaller.installRoutes), so the originator next-hop still
+// gets PHP.
 func TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised(t *testing.T) {
 	bus := &srCaptureBus{}
 	inst := newTestInstaller(bus)
@@ -400,8 +401,8 @@ func TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised(t *testing.T) {
 
 // RFC requirement: RFC8665-5-7 negative -- a next-hop router that did NOT advertise the SID has
 // no flags of its own to apply, so the originator's NP/E/M flags are not used there: the label is
-// taken from the transit next-hop's own SRGB and swapped on unconditionally, with no PHP
-// (sr_install.go:160-163). Applying the originator's flags at a transit hop would blackhole the
+// taken from the transit next-hop's own SRGB and pushed (17009), with no PHP
+// (srInstaller.forwarding). Applying the originator's flags at a transit hop would blackhole the
 // packet.
 func TestRFC8665OriginatorFlagsNotAppliedAtTransitHop(t *testing.T) {
 	bus := &srCaptureBus{}

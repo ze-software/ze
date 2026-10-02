@@ -266,6 +266,28 @@
       "break": "body of OriginateSummaries replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-12.4.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsIntraAndInterAreaSummaries",
+      "unit-sha": "a7bcfd42f9706b55",
+      "claim-sha": "435b6c0fcc766827",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/summary.go::summaryDesiredForArea",
+      "producer-sha": "c6bf5ba83d3c1c92",
+      "break": "body of summaryDesiredForArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-12.4.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes",
+      "unit-sha": "d9200c2c669d6645",
+      "claim-sha": "4b4f4a6f57f035da",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/summary.go::summaryDesiredForArea",
+      "producer-sha": "c6bf5ba83d3c1c92",
+      "break": "body of summaryDesiredForArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-13-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed",

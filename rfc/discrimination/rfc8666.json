@@ -97,7 +97,7 @@
       "claim-sha": "e6c68eb44d0f0916",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
-      "producer-sha": "b525d416a3d32786",
+      "producer-sha": "7957318333c8bc33",
       "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "873ad2e98cdf7a4d",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
-      "producer-sha": "b525d416a3d32786",
+      "producer-sha": "7957318333c8bc33",
       "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "751e4f1cf7804ce7",
       "route": "revert",
       "producer": "internal/plugins/ospf/sr_install.go::forwarding",
-      "producer-sha": "a9570e77c7e311a6",
+      "producer-sha": "38697233e4a239e2",
       "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -30,17 +30,21 @@
       "verdict": "enforced"
     },
     "RFC5250-3.1-1": {
-      "note": "Discard is enforced: TestOpaqueType9WrongInterfaceDiscarded fatals if a Type 9 received on eth0 is found in the eth1 link store, flooded as an LSUpdate out eth1, or queued for retransmission to the eth1 neighbor. The \"not acknowledged\" clause has no assertion: the send loop checks only s.pkt.LSUpdate, so an LSAck out eth1 passes.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c27). The 'not acknowledged' clause is now asserted: lsdb/rfc5250_type9_ack_test.go receives a Type 9 from 2.2.2.2 on eth0 through ReceiveUpdate (eth0, eth1 in area 0, Full neighbors), flushes both interfaces' delayed acks and decodes the sent packets. + TestRFC5250Type9AcknowledgedOnArrivalInterface: an LSAck carrying the header leaves eth0 (same-interface case); - TestRFC5250Type9NotAcknowledgedOnOtherInterface: no LSAck and no LS Update carrying it leaves eth1. Judge replayed overlays on flooding.go ackForReceive: ack queued on eth1 -> + and - red ('acknowledged out eth1'); ack dropped -> only + red. Discard clause: TestOpaqueType9WrongInterfaceDiscarded (not in the eth1 store, not flooded, not retransmit-queued), now with + and - revert records on link_scope.go installLinkLocked. All four records observed red.",
       "requirement_sha": "6e976d0429c3b770",
       "tests": {
         "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded": "458b73167251be99",
-        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded#2": "458b73167251be99"
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded#2": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go::TestRFC5250Type9AcknowledgedOnArrivalInterface": "d3a6818d9b9f4361",
+        "internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go::TestRFC5250Type9NotAcknowledgedOnOtherInterface": "d3a6818d9b9f4361"
       },
       "units": {
         "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded": "a76e64a33b6aa0ed",
-        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded#2": "a76e64a33b6aa0ed"
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded#2": "a76e64a33b6aa0ed",
+        "internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go::TestRFC5250Type9AcknowledgedOnArrivalInterface": "ea0fa7bd66fb1826",
+        "internal/plugins/ospf/lsdb/rfc5250_type9_ack_test.go::TestRFC5250Type9NotAcknowledgedOnOtherInterface": "6ee0b9510b1aa35d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5250-3.1-2": {
       "note": "Forbidden: a Type 10 flooded to or read from an area other than its own. TestOpaqueType10ConfinedToItsArea fatals if the LSA is readable (LookupLSA or Lookup) from area 0.0.0.2, if floodExcept emits anything but exactly one send, on eth0, which also refuses any acknowledgement out the other area interface, or if the eth1 neighbor is queued to retransmit it.",

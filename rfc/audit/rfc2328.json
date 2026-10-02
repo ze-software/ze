@@ -162,17 +162,21 @@
       "verdict": "enforced"
     },
     "RFC2328-12.4.3-1": {
-      "note": "OriginateSummaries is called directly with a fixed topology: nothing ties origination to the router becoming newly attached to the area, and only intra-area routes are exercised, not inter-area ones.",
+      "note": "Re-judged 2026-10-02 (independent judge, ospf c27). Section 12.4 event (7): 'The router must then originate summary-LSAs into the newly attached area for all pertinent intra-area and inter-area routes in the router's routing table.' New spf/rfc2328_newly_attached_area_test.go: real LSDB as Source and SummarySink, NewComputer, root 1.1.1.1 p2p to ABR 2.2.2.2; Run with area 0.0.0.1 configured but no Router-LSA of 1.1.1.1 in it (asserted: area holds 0 LSAs), then the area-1 Router-LSA installed (attachment; production triggers SPF via triggerSPF on the LSDB change) and Run again. + TestRFC2328NewlyAttachedAreaGetsIntraAndInterAreaSummaries: Type 3 for backbone intra-area 10.10.0.0/24 metric 7 and inter-area 10.30.0.0/24 metric 30 in area 1. - TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes ('pertinent', section 12.4.3): no Type 3 for area 1's own 10.20.0.0/24 into area 1 (present in the backbone, metric 3), no inter-area summary into the backbone. Judge replayed overlays on summaryDesiredForArea: inter-area loop off -> only + red; src==dst skip off -> only - red; inter-area into the backbone -> only - red. Revert records on summaryDesiredForArea observed. HEAD units (range condensation) keep their records.",
       "requirement_sha": "37a8178478162c9d",
       "tests": {
         "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange": "5ede1e726ce0b7bf",
-        "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "5ede1e726ce0b7bf"
+        "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "5ede1e726ce0b7bf",
+        "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsIntraAndInterAreaSummaries": "e07b5cfdf1c5e7f2",
+        "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes": "e07b5cfdf1c5e7f2"
       },
       "units": {
         "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange": "f5847611e8006063",
-        "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "9fafcd44a7a1a076"
+        "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "9fafcd44a7a1a076",
+        "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsIntraAndInterAreaSummaries": "cb560214ec9c9ef8",
+        "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes": "4891909cf1d6b6ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13-1": {
       "note": "Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).",
