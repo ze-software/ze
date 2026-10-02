@@ -46,6 +46,11 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 	if len(routes) == 0 || session == nil {
 		return nil
 	}
+	// RFC 4659 Section 3.4
+	routes = p.negotiatedStaticRoutes(routes)
+	if len(routes) == 0 {
+		return nil
+	}
 	if group {
 		return p.sendStaticRoutesGrouped(session, routes, maxMsgSize, prefixSIDAllowed)
 	}
@@ -79,6 +84,36 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 		routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
 	}
 	return sent
+}
+
+// negotiatedStaticRoutes answers the routes whose family this session
+// negotiated, in their configured order, and logs each route it leaves out.
+//
+// RFC 4659 Section 3.4: "In order for two PEs to exchange labeled IPv6 VPN
+// NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both
+// are capable of properly processing such NLRIs."
+//
+// The same holds for every family a configured route can name, so the filter
+// reads the negotiated set rather than a list of families. A route left out is
+// not sent and so not recorded in Peer.staticWire: a later reload neither
+// withdraws it nor claims the peer holds it. With no negotiated set there is no
+// session to send on, and nothing is answered.
+func (p *Peer) negotiatedStaticRoutes(routes []StaticRoute) []StaticRoute {
+	nc := p.negotiated.Load()
+	if nc == nil {
+		return nil
+	}
+	kept := make([]StaticRoute, 0, len(routes))
+	for i := range routes {
+		fam := routeFamily(&routes[i])
+		if !nc.Has(fam) {
+			routesLogger().Warn("static route not sent: family not negotiated with the peer",
+				"peer", p.addrString, "prefix", routes[i].Prefix.String(), "family", fam.String())
+			continue
+		}
+		kept = append(kept, routes[i])
+	}
+	return kept
 }
 
 // sendStaticRoutesGrouped is sendStaticRoutes for a peer that asks for grouping:

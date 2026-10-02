@@ -1,0 +1,93 @@
+{
+  "rfc": "rfc4659",
+  "records": [
+    {
+      "rid": "RFC4659-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteKeepsItsLabel",
+      "unit-sha": "f431afd9dc71a253",
+      "claim-sha": "7dc458d9047c38f8",
+      "route": "revert",
+      "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
+      "producer-sha": "86c77deb5dded014",
+      "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteWithoutLabelRefused",
+      "unit-sha": "88f40834ee01ae72",
+      "claim-sha": "d8fdd5bd391dac28",
+      "route": "revert",
+      "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
+      "producer-sha": "86c77deb5dded014",
+      "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementCarriesItsLabel",
+      "unit-sha": "7f1d26bf75f05d78",
+      "claim-sha": "1e2cac04bcbb3fc7",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/cmd/update/update_text_nlri.go::parseVPNNLRI",
+      "producer-sha": "3ae70a1f4d4f4418",
+      "break": "body of parseVPNNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementWithoutLabelRefused",
+      "unit-sha": "e450a3e781b2fc01",
+      "claim-sha": "0db9d2263902efe7",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/cmd/update/update_text_nlri.go::parseVPNNLRI",
+      "producer-sha": "3ae70a1f4d4f4418",
+      "break": "body of parseVPNNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteSentWhenNegotiated",
+      "unit-sha": "2e7d441e854cc958",
+      "claim-sha": "354b0b7de4bd381a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_static_wire.go::negotiatedStaticRoutes",
+      "producer-sha": "edc7119f4ce313e2",
+      "break": "body of negotiatedStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteWithheldWhenNotNegotiated",
+      "unit-sha": "69f3bb606de491ab",
+      "claim-sha": "62ad7764c4f5958b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_static_wire.go::negotiatedStaticRoutes",
+      "producer-sha": "edc7119f4ce313e2",
+      "break": "body of negotiatedStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6UpdateAcceptedWhenNegotiated",
+      "unit-sha": "ce249d1d344d633b",
+      "claim-sha": "b8b9d171cda3415b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::validateUpdateFamilies",
+      "producer-sha": "182720c5a9566e8f",
+      "break": "body of validateUpdateFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4659-3.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated",
+      "unit-sha": "62e0295cb6e75a70",
+      "claim-sha": "626bc95f344f8dea",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::validateUpdateFamilies",
+      "producer-sha": "182720c5a9566e8f",
+      "break": "body of validateUpdateFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

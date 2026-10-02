@@ -1,19 +1,30 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4659-3.2-1": {
-      "note": "Forbidden: an IPv6 VPN route advertised without an MPLS label. internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6WireRoundTrip proves an NLRI built with a label round-trips it; ::TestVPNv6RejectsLabellessEncode refuses a labelless route only at EncodeNLRIHex (errLabelRequiredForVpn has one producer, vpn.go EncodeNLRIHex). No assertion covers the UPDATE advertising path (message BuildVPN with empty Labels) or any other route source, so a labelless VPNv6 advertisement there stays green.",
+      "note": "Re-judged 2026-10-02 (BGP c34 judge). Both operator entry points that originate an IPv6 VPN route are proven. API: plugins/cmd/update/rfc4659_vpnv6_label_test.go, ParseUpdateText ipv6/mpls-vpn rd 65000:100 label 1000 yields the NLRI literal 88 003E81 0000FDE800000064 20010DB80001 (judge checked 1000<<4|BoS = 0x3E81, 136 bits) (positive); no label is refused with route.ErrMissingLabel and a nil result (negative). Config: bgp/config/rfc4659_vpnv6_label_test.go, YANG parse + PeersFromConfigTree keeps Labels [1000] on the VPN static route (positive; its wire form is asserted by the RFC4659-3.4-1 send unit, label 003e81 in MP_REACH), and a labelless configured route is refused at load with \"requires at least one label\" (negative). Records: parseVPNNLRI and patchStaticRoutes reverts, all four observed red; author probes dropping each label check red only the matching negative (scratch c34p/4659-a, 4659-b). message.BuildVPN still writes a labelless NLRI for empty Labels, but every shipped caller is guarded; its other caller is internal/chaos test tooling. HEAD vpn_test units stay as unrecorded supplementary tags.",
       "requirement_sha": "181820d07e1a791e",
       "tests": {
+        "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteKeepsItsLabel": "6c9d2e1d14bc2445",
+        "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteWithoutLabelRefused": "6c9d2e1d14bc2445",
+        "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementCarriesItsLabel": "640a40a18f4189a4",
+        "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementWithoutLabelRefused": "640a40a18f4189a4",
         "internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6RejectsLabellessEncode": "c196618df929fb2e",
         "internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6WireRoundTrip": "c196618df929fb2e"
       },
       "units": {
+        "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteKeepsItsLabel": "6f91d27c88f6041d",
+        "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteWithoutLabelRefused": "aa1d1d6644257c85",
+        "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementCarriesItsLabel": "71ba4cf679c851b8",
+        "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementWithoutLabelRefused": "47e01965121d1ac6",
         "internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6RejectsLabellessEncode": "759c78bc33919565",
         "internal/component/bgp/plugins/nlri/vpn/vpn_test.go::TestVPNv6WireRoundTrip": "bb0b091fcb79d939"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4659-3.2-2": {
       "note": "Forbidden: MP_REACH for a VPNv6 route with AFI != 2 or SAFI != 128. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6: afi != 2 and value[2] != 128 are Errorf. Single-polarity marker.",
@@ -38,21 +49,26 @@
       "verdict": "enforced"
     },
     "RFC4659-3.4-1": {
-      "note": "Forbidden: exchanging labeled VPN-IPv6 NLRIs with a peer that did not negotiate AFI 2/SAFI 128. internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability asserts the OPEN carries MP 2/128; ::TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability asserts SupportsFamily false. No tagged unit shows a VPNv6 UPDATE is withheld from, or refused from, a peer without the capability, so a send or receive path that ignores the negotiated set stays green.",
+      "note": "Re-judged 2026-10-02 (BGP c34 judge). DEFECT fixed (D-8): sendStaticRoutes sent every configured route whatever the session negotiated. Fix at the producer, judge-read: Peer.negotiatedStaticRoutes (reactor/peer_static_wire.go, RFC 4659 Section 3.4 quote above it) filters by routeFamily against the negotiated set at the top of sendStaticRoutes, so the per-route path, the grouped path and the reload delta (deliverStaticRouteDelta) are all covered; a skipped route is not in the answer, so it is not recorded in staticWire, a later reload never withdraws it (withdrawStaticRoutes reads only staticWire), and a new session with the family negotiated re-sends it from config. Implicit IPv4 unicast (no MP capability on either side) stays negotiated (capability.Negotiate FamilyImplicit), so plain IPv4 peers are unaffected. Send: rfc4659_vpnv6_negotiated_send_test.go, a session negotiating 2/128 carries MP_REACH 800e2f 000280 18 RD0 2001:db8::1 00 88 003e81 0000fde800000064 20010db80001 (positive); an ipv4-only session puts no UPDATE naming 2/128 on the wire, route or End-of-RIB (negative; failing-first observed before the fix, scratch c34p/4659s-green.log, and the filter-disabled probe reds only this unit). Receive: validateUpdateFamilies accepts a 2/128 MP_REACH on a session that negotiated it and refuses it with ErrFamilyNotNegotiated on one that did not. Records: negotiatedStaticRoutes and validateUpdateFamilies reverts, all four observed red. HEAD session_negotiate_test units stay as unrecorded supplementary tags.",
       "requirement_sha": "e5bc1bfec2078522",
       "tests": {
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteSentWhenNegotiated": "0eda1c5a5157c45f",
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteWithheldWhenNotNegotiated": "0eda1c5a5157c45f",
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6UpdateAcceptedWhenNegotiated": "0eda1c5a5157c45f",
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated": "0eda1c5a5157c45f",
         "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability": "e0c0ad55ea2bfdf9",
         "internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability": "e0c0ad55ea2bfdf9"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteSentWhenNegotiated": "104dd4a26ed3b945",
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteWithheldWhenNotNegotiated": "5e1c9f96aeef56f5",
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6UpdateAcceptedWhenNegotiated": "30559791a1b6624e",
+        "internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated": "e0dd44e93922acd4",
         "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability": "9c6bc5461cd0f4f8",
         "internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability": "e6780e3215c7673f"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
-  "rfc": "rfc4659",
-  "reaudit_history": [
-    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
-  ]
+  "rfc": "rfc4659"
 }
