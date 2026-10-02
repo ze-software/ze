@@ -317,7 +317,7 @@
       "claim-sha": "e8549a60f8648016",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +372,7 @@
       "claim-sha": "26449caea0ae82e6",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +383,7 @@
       "claim-sha": "c338c6a63a86bd01",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -394,7 +394,7 @@
       "claim-sha": "de1225fbdb54daa2",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "2b4215628a0dc666",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "f9e0e16c911c0e95",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,7 +427,7 @@
       "claim-sha": "ef488ec824f2cbc7",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -438,7 +438,7 @@
       "claim-sha": "e0c738f6885c397d",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::startTLSClient",
-      "producer-sha": "9ac063e486cda4f2",
+      "producer-sha": "dcfd4f1b0f5e2729",
       "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

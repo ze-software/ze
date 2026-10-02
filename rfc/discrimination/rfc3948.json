@@ -4,6 +4,28 @@
     {
       "rid": "RFC3948-2.1-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/child_test.go::TestGenerateESPSPI",
+      "unit-sha": "955f4b643b2086cd",
+      "claim-sha": "5c75afbfd0ebcf46",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+      "producer-sha": "bb8e37124734be7e",
+      "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/child_test.go::TestGenerateESPSPI",
+      "unit-sha": "955f4b643b2086cd",
+      "claim-sha": "35ebbaac3d638164",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+      "producer-sha": "bb8e37124734be7e",
+      "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.1-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero",
       "unit-sha": "88171684f37aa838",
       "claim-sha": "6d08831a42883442",
@@ -209,6 +231,17 @@
       "producer": "internal/component/ike/engine/established.go::startNATKeepalive",
       "producer-sha": "3bf275ef27b70529",
       "break": "body of startNATKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive",
+      "unit-sha": "b657d9efe4596ad8",
+      "claim-sha": "90cfc1c6f6571db8",
+      "route": "revert",
+      "producer": "internal/component/ike/transport/keepalive.go::Run",
+      "producer-sha": "3c8916370e7007ab",
+      "break": "body of Run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3948-4-1",

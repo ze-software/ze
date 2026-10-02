@@ -4,6 +4,28 @@
     {
       "rid": "RFC4555-4.2.5-1",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds",
+      "unit-sha": "03aaa11d5aa8c4de",
+      "claim-sha": "cb5a07e4510c7ee4",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+      "producer-sha": "7e6e24b9171154b9",
+      "break": "body of mobikeResponsePayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4555-4.2.5-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds",
+      "unit-sha": "03aaa11d5aa8c4de",
+      "claim-sha": "4a6b6a58e2ecccec",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::validateMobikeRequest",
+      "producer-sha": "c5c37e7759769d3e",
+      "break": "body of validateMobikeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4555-4.2.5-1",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4555_cookie2_test.go::TestRFC4555Cookie2IsTheRandomSourceOutput",
       "unit-sha": "35db1bdff49ffcad",
       "claim-sha": "9030f2e0052ad8b1",
@@ -11,6 +33,28 @@
       "producer": "internal/component/ike/engine/mobike.go::startMobikeRequest",
       "producer-sha": "9666527bf71c7036",
       "break": "body of startMobikeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4555-x-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation",
+      "unit-sha": "4c2e85512778a9aa",
+      "claim-sha": "5e8e323ae5584704",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::mobikeAuthOffer",
+      "producer-sha": "0322f2a488c92ec2",
+      "break": "body of mobikeAuthOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4555-x-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation",
+      "unit-sha": "4c2e85512778a9aa",
+      "claim-sha": "d012fc8c0c4aa231",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/mobike.go::acceptMobikeOffer",
+      "producer-sha": "0bf7acd4e3e6d5f9",
+      "break": "body of acceptMobikeOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4555-x-1",

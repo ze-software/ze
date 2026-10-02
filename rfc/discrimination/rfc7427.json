@@ -4,6 +4,17 @@
     {
       "rid": "RFC7427-3-4",
       "polarity": "positive",
+      "unit": "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14",
+      "unit-sha": "20c22b548e125c0e",
+      "claim-sha": "211ed16e6810b816",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+      "producer-sha": "c1712c246202024a",
+      "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7427-3-4",
+      "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc7427_notify_sent_test.go::TestRFC7427IKESAInitSendsTheSignatureHashAlgorithmsNotify",
       "unit-sha": "36ac3b612663b936",
       "claim-sha": "7db3f1d91dec0ee8",
@@ -11,6 +22,28 @@
       "producer": "internal/component/ike/engine/initiator.go::buildSignatureHashAlgosNotify",
       "producer-sha": "c3bd257487ab2a94",
       "break": "body of buildSignatureHashAlgosNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7427-3-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify",
+      "unit-sha": "f478b38d2839408d",
+      "claim-sha": "5537e76e9f384a03",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+      "producer-sha": "c1712c246202024a",
+      "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7427-3-4",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify",
+      "unit-sha": "f478b38d2839408d",
+      "claim-sha": "f96598fa00561288",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+      "producer-sha": "c1712c246202024a",
+      "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7427-3-5",
