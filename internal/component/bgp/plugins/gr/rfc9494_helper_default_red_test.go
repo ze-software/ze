@@ -26,11 +26,12 @@ var (
 
 // rfc9494Opens delivers the OPEN Ze sent to testPeer and the OPEN it received from it,
 // on the JSON or the structured path, then a TCP-failure session drop. Both OPENs carry
-// a Graceful Restart Capability with Restart Time 0 for IPv4 unicast, so the LLGR
-// procedures are the only ones that can retain anything. sentLLGR and receivedLLGR are
-// the LLGR Capability tuples of each OPEN; an empty list leaves code 71 out.
+// a Graceful Restart Capability with Restart Time 0 for IPv4 and IPv6 unicast, so the
+// LLGR procedures are the only ones that can retain anything, and either family can
+// enter the LLGR period when both OPENs list it in code 71. sentLLGR and receivedLLGR
+// are the LLGR Capability tuples of each OPEN; an empty list leaves code 71 out.
 func rfc9494Opens(gp *grPlugin, structured bool, sentLLGR, receivedLLGR [][7]byte) {
-	gr := buildGRCapTLV(0, 0, [][4]byte{{0x00, 0x01, 0x01, 0x80}})
+	gr := buildGRCapTLV(0, 0, [][4]byte{{0x00, 0x01, 0x01, 0x80}, {0x00, 0x02, 0x01, 0x80}})
 	for _, open := range []struct {
 		direction rpc.MessageDirection
 		tuples    [][7]byte
@@ -45,7 +46,7 @@ func rfc9494Opens(gp *grPlugin, structured bool, sentLLGR, receivedLLGR [][7]byt
 				RawMessage: &bgptypes.RawMessage{RawBytes: buildOpenBody(buildCapabilityParam(caps...))}})
 			continue
 		}
-		capsJSON := `{"code":64,"value":"000000010180"}`
+		capsJSON := `{"code":64,"value":"00000001018000020180"}`
 		if len(open.tuples) > 0 {
 			value := ""
 			for _, tuple := range open.tuples {
@@ -100,15 +101,18 @@ func TestRFC9494HelperProceduresOffWithoutLocalConfig(t *testing.T) {
 
 // TestRFC9494HelperProceduresOnPerConfiguredFamily drops a session where Ze's OPEN
 // declared LLGR for IPv4 unicast and the peer's declared it for IPv4 and IPv6 unicast.
+// Both OPENs list both families in the Graceful Restart Capability, so IPv6 unicast
+// reaches the LLGR decision and only Ze's missing configuration keeps it out.
 //
 // VALIDATES: RFC 9494 Section 5: "They MUST require affirmative configuration per
 // AFI/SAFI in order to enable them." The configured family enters the LLGR period
 // (NO_LLGR sweep and LLGR_STALE attach for IPv4 unicast) and the family Ze did not
-// configure does not (no LLGR command names IPv6 unicast), on both event paths.
+// configure does not: no NO_LLGR sweep or LLGR_STALE attach for IPv6 unicast, whose
+// stale routes are purged at the zero Restart Time instead, on both event paths.
 // PREVENTS: an all-or-nothing gate, where configuring LLGR for one family turns the
 // procedures on for every family the peer lists.
 //
-// RFC requirement: RFC9494-5-1 positive -- with LLGR configured for IPv4 unicast only (Ze's OPEN declares it), a TCP failure dispatches delete-with-community ffff0007 and attach-community ffff0006 for ipv4/unicast and no LLGR command for ipv6/unicast, which the peer also listed, on both event paths.
+// RFC requirement: RFC9494-5-1 positive -- with LLGR configured for IPv4 unicast only (Ze's OPEN declares it) and both families in both GR Capabilities, a TCP failure dispatches delete-with-community ffff0007 and attach-community ffff0006 for ipv4/unicast, neither for ipv6/unicast, which the peer also listed in LLGR, and purge-stale for ipv6/unicast, on both event paths.
 func TestRFC9494HelperProceduresOnPerConfiguredFamily(t *testing.T) {
 	ipv4 := family.IPv4Unicast.String()
 	ipv6 := family.IPv6Unicast.String()
@@ -120,9 +124,11 @@ func TestRFC9494HelperProceduresOnPerConfiguredFamily(t *testing.T) {
 			sent := rec.all()
 			assert.Contains(t, sent, "request bgp rib delete-with-community "+testPeer+" "+ipv4+" ffff0007")
 			assert.Contains(t, sent, "request bgp rib attach-community "+testPeer+" "+ipv4+" ffff0006")
-			for _, command := range sent {
-				assert.NotContains(t, command, ipv6, "LLGR entered for a family Ze did not configure")
-			}
+			assert.NotContains(t, sent, "request bgp rib delete-with-community "+testPeer+" "+ipv6+" ffff0007",
+				"LLGR entered for a family Ze did not configure")
+			assert.NotContains(t, sent, "request bgp rib attach-community "+testPeer+" "+ipv6+" ffff0006",
+				"LLGR entered for a family Ze did not configure")
+			assert.Contains(t, sent, "request bgp rib purge-stale "+testPeer+" "+ipv6)
 		})
 	}
 }

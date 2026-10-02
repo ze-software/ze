@@ -2,6 +2,116 @@
   "rfc": "rfc8277",
   "records": [
     {
+      "rid": "RFC8277-2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout",
+      "unit-sha": "af1d7b6b1a67e0aa",
+      "claim-sha": "961c94c96359d965",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelValues",
+      "producer-sha": "e7a1b2dd37fae5f3",
+      "break": "body of WriteLabelValues replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout",
+      "unit-sha": "af1d7b6b1a67e0aa",
+      "claim-sha": "4c138baab39aa127",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelValues",
+      "producer-sha": "e7a1b2dd37fae5f3",
+      "break": "body of WriteLabelValues replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten",
+      "unit-sha": "c846fd81e080548c",
+      "claim-sha": "fe416d6ef8277698",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelStack",
+      "producer-sha": "c2b19fa5d87a7d14",
+      "break": "body of WriteLabelStack replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout",
+      "unit-sha": "af1d7b6b1a67e0aa",
+      "claim-sha": "6ad65f5b63e4ef9a",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelValues",
+      "producer-sha": "e7a1b2dd37fae5f3",
+      "break": "body of WriteLabelValues replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-3",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack",
+      "unit-sha": "56e5e4e567a3ac34",
+      "claim-sha": "0a893b3e60ced834",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/nlrisplit/labeled.go::ExtractLabels",
+      "producer-sha": "a1e1a97195e6868f",
+      "break": "body of ExtractLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.2-3",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack",
+      "unit-sha": "56e5e4e567a3ac34",
+      "claim-sha": "70a8f00b6caf0c8c",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/nlrisplit/labeled.go::SplitLabeled",
+      "producer-sha": "8849706e48d572b6",
+      "break": "body of SplitLabeled replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout",
+      "unit-sha": "af1d7b6b1a67e0aa",
+      "claim-sha": "b58d762cb3ff90da",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelValues",
+      "producer-sha": "e7a1b2dd37fae5f3",
+      "break": "body of WriteLabelValues replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten",
+      "unit-sha": "c846fd81e080548c",
+      "claim-sha": "d3a74f01620939fb",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelStack",
+      "producer-sha": "c2b19fa5d87a7d14",
+      "break": "body of WriteLabelStack replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout",
+      "unit-sha": "af1d7b6b1a67e0aa",
+      "claim-sha": "c1ab95523c55b7cc",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelValues",
+      "producer-sha": "e7a1b2dd37fae5f3",
+      "break": "body of WriteLabelValues replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten",
+      "unit-sha": "c846fd81e080548c",
+      "claim-sha": "47c166d5d59bebed",
+      "route": "revert",
+      "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelStack",
+      "producer-sha": "c2b19fa5d87a7d14",
+      "break": "body of WriteLabelStack replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8277-3.2.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels",

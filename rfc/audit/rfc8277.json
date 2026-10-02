@@ -1,62 +1,82 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-02",
   "requirements": {
     "RFC8277-2-2": {
-      "note": "Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. TestLabeledSingleLabelSection22Encoding goes red on it for LabeledUnicast.WriteTo (require.Equal on the whole encoding, and the Length-octet assertion). The second transmit producer, UpdateBuilder.BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go), which the static-route and grouped-announce paths reach through BuildLabeledUnicast and which writes labels with nlri.WriteLabelValues, is not exercised by any tagged unit, so breaking its layout turns nothing red.",
+      "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. All three transmitters now covered with whole-NLRI literals: LabeledUnicast.WriteTo by TestLabeledSingleLabelSection22Encoding (HEAD, require.Equal on the whole encoding), and UpdateBuilder.BuildLabeledUnicastNLRIBytes (plain and ADD-PATH) and buildVPNNLRIBytes by TestRFC8277BuilderLabelLayout (20 000641 0a, 00000007 20 000641 0a, 60 000641 <RD> 0a; recorded revert of WriteLabelValues; judge overlay dropping the S line of WriteLabelValues reds every case). {single-polarity: positive} is valid: a one-label stack has one layout and Length is computed from the input, so no input reaches a non-Section-2.2 encoding; the reason now names all three transmitters (correction paragraph in rfc/corrections/rfc8277.md). Residual: the HEAD WriteTo unit has no discrimination record of its own.",
       "requirement_sha": "174d15118dbeada3",
       "tests": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "20798a2559b785cc"
       },
       "units": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "77e0c650c10c42ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-2.2-1": {
-      "note": "RA33 strict re-audit: stays weak (blind reader's final 'enforced' not adopted, with evidence). Forbidden: a single label entry transmitted with S=0. The tagged unit asserts got[3]&0x01==1 for LabeledUnicast.WriteTo via nlri.WriteLabelStack only. A second production transmitter, UpdateBuilder.BuildLabeledUnicastNLRIBytes (message/update_build_labeled.go:261,266) and the VPN builder (update_build_vpn.go:272,278), sets S through nlri.WriteLabelValues (helpers.go:97), which no tagged unit exercises; dropping that line stays green. The {single-polarity} argument names WriteLabelStack as the only encoder and is therefore incomplete.",
+      "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single label entry transmitted with S=0. Positive: TestRFC8277BuilderLabelLayout pins the one-label entry 000641 through both WriteLabelValues builders (labeled plain/ADD-PATH, VPN) as whole-NLRI literals, plus HEAD TestLabeledSingleLabelSection22Encoding for WriteTo. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo a lone entry 0x000640 with S=0, the relayed-entry input, and asserts 20 000641 0a. Judge overlays: dropping 'entry |= 1' in WriteLabelStack reds the negative (200006400a); dropping the S line of WriteLabelValues reds all five builder cases. The {single-polarity} marker is dropped (correction paragraph), records on both polarities.",
       "requirement_sha": "14e9407d18f45b31",
       "tests": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "06c2f61c2345346e",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "20798a2559b785cc"
       },
       "units": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "e3f38f06486d5120",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "77e0c650c10c42ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-2.2-3": {
-      "note": "The quoted sentence has two clauses. Reception clause: forbidden is rejecting or mis-decoding an NLRI whose Rsrv bits are non-zero; TestLabeledRsrvIgnoredOnReceive asserts NoError plus equal label, prefix and framing for Rsrv=0b111 through both ExtractLabels and SplitLabeled, so that clause is enforced. Transmission clause (SHOULD set Rsrv to zero): no tagged unit asserts the Rsrv bits ze transmits, so a sender writing non-zero Rsrv turns nothing red. The multi-label case of the same reception rule (Section 2.3) is also not exercised: every input carries one label.",
+      "note": "Re-judged 2026-10-02 (BGP c28 judge). Two clauses. Reception (MUST ignore): enforced, now including the Section 2.3 multi-label case. TestLabeledRsrvIgnoredOnReceive (one label) and TestRFC8277RsrvIgnoredOnReceiveLabelStack (three-label stack 50 00064e 000c8e 0012cf 0a followed by a second NLRI) assert NoError, labels 100/200/300, CIDR and framing of both NLRIs identical for Rsrv 000 and 111 through ExtractLabels and SplitLabeled; a judge overlay making the readers take any Rsrv bit as S reds the 111 case. Transmission (SHOULD zero): only a positive for ORIGINATED stacks (TestRFC8277BuilderLabelLayout, Rsrv 000 on every entry; an overlay leaking 0x0E into WriteLabelValues reds all five cases). On RELAY Ze transmits non-zero Rsrv on purpose: LabeledUnicast.WriteTo/WriteLabelStack copy received traffic-class bits and the forward rail copies the NLRI verbatim, so no negative exists and the clause is a SHOULD deviation awaiting the owner (disclose and split the transmit clause, or clear Rsrv on relay). Stays weak until that decision.",
       "requirement_sha": "4b854b57cc9edcda",
       "tests": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "c829ac5b6e0bd533",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "c829ac5b6e0bd533",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "185c8ef1c3f2dd5e",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "185c8ef1c3f2dd5e"
       },
       "units": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "56fbcef3cc2d414d",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "56fbcef3cc2d414d",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "29ca998daacf0c45",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "29ca998daacf0c45"
       },
       "verdict": "weak"
     },
     "RFC8277-2.3-1": {
-      "note": "Forbidden: a non-last label entry transmitted with S=1. TestLabeledLabelStackSBitPlacement asserts entry[2]&0x01 == 0 for every non-last entry of 2- and 3-label stacks, which goes red for LabeledUnicast.WriteTo via nlri.WriteLabelStack. The UpdateBuilder path (BuildLabeledUnicastNLRIBytes -> nlri.WriteLabelValues) places the S bit in separate code that no tagged unit exercises.",
+      "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a non-last label entry transmitted with S=1. Positive: TestRFC8277BuilderLabelLayout pins 50 000640 000c80 0012c1 0a and 78 000640 000c81 <RD> 0a through WriteLabelValues; HEAD TestLabeledLabelStackSBitPlacement covers WriteTo built from values. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo entries 0x000641, 0x000c81, 0x0012c0 (S=1 mid-stack) and asserts the S bits are cleared. Judge overlay dropping 'entry &^= 1' in WriteLabelStack reds the negative only (50000641000c810012c10a) while the HEAD placement test stays green, so the new unit is what discriminates the relay path. Marker dropped, records on both polarities.",
       "requirement_sha": "4c59029fd06aa859",
       "tests": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "06c2f61c2345346e",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "20798a2559b785cc"
       },
       "units": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "e3f38f06486d5120",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "21e8850ccf2757d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-2.3-2": {
-      "note": "Forbidden: the last label entry transmitted with S=0. TestLabeledLabelStackSBitPlacement asserts entry[2]&0x01 == 1 on the last entry of 1-, 2- and 3-label stacks, which goes red for LabeledUnicast.WriteTo via nlri.WriteLabelStack. The UpdateBuilder path (BuildLabeledUnicastNLRIBytes -> nlri.WriteLabelValues) sets the S bit in separate code that no tagged unit exercises.",
+      "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: the last label entry transmitted with S=0. Positive: the builder stacks in TestRFC8277BuilderLabelLayout end 0012c1 and 000c81 (WriteLabelValues), HEAD TestLabeledLabelStackSBitPlacement for WriteTo. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten gives the last entry 0x0012c0 (S=0) and the lone entry 0x000640, and asserts S=1 is transmitted. Judge overlay dropping 'entry |= 1' reds both subcases; dropping the WriteLabelValues S line reds both builder stacks. The negative shares its stack buffer with 2.3-1, but each break is isolated to its own octet and the whole NLRI is compared. Marker dropped, records on both polarities.",
       "requirement_sha": "269494b6a72a82ae",
       "tests": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "06c2f61c2345346e",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "20798a2559b785cc"
       },
       "units": {
+        "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "e3f38f06486d5120",
         "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "21e8850ccf2757d1"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-2.5-1": {
       "note": "Forbidden: keeping L1 bound, or holding two bindings, after U2 for the same prefix and next hop without ADD-PATH. TestLabeledImplicitWithdrawalNoAddPath feeds U1 then U2 through feedReceived and asserts Len()==1 (U1 no longer bound, goes red if a second entry is kept) and labelsFor==[200] (L2 bound, goes red if L1 survives). The negative is a boundary case rather than a violating input: an UPDATE for a different prefix must not withdraw the first binding (Len()==2, label 200 kept).",
