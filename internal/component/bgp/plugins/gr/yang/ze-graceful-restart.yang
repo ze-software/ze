@@ -58,7 +58,10 @@ module ze-graceful-restart {
                     governs the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart
                     capability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by
                     omitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64
-                    is how an operator asks for LLGR with no GR phase.";
+                    is how an operator asks for LLGR with no GR phase. In every state the capability names only
+                    families the RIB plugin can store, because RFC 4724 Section 4 lets a speaker list a family
+                    only when it can preserve it across a restart: a family it cannot store is left out with a
+                    warning, and the capability is still sent when none is left.";
                 ze:help "Address families Ze names in the Graceful Restart capability.";
 
                 leaf-list name {

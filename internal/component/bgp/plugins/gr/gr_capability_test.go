@@ -95,8 +95,8 @@ func grPayloadForConfig(t *testing.T, text string) string {
 //
 // RFC requirement: RFC4724-4-4 positive -- parseGRCapValue
 // (internal/component/bgp/plugins/gr/gr_capability.go) appends one <AFI, SAFI,
-// Flags> tuple for each address family the peer configures, after the Restart
-// Flags and Restart Time pair. The test asserts the exact payload
+// Flags> tuple for each address family the peer configures and the RIB plugin
+// stores, after the Restart Flags and Restart Time pair. The test asserts the exact payload
 // "012c" + "00010100" + "00020100" for a peer with restart-time 300 and the
 // families ipv4/unicast and ipv6/unicast.
 func TestRFC4724GRCapabilityListsTheFamiliesOfTheSession(t *testing.T) {

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -81,7 +82,10 @@ const (
 // sessionFamilies are the address families the session carries, in the form
 // collectPeerFamilies returns. Each one becomes a tuple, unless the "family"
 // container narrows the set, because a capability that lists none says the
-// opposite of what Ze means by it.
+// opposite of what Ze means by it. A family the RIB plugin cannot store is
+// left out of either set with a warning, and when none is left the capability
+// is still sent with no tuple, so the peer still runs its Receiving Speaker
+// procedures and End-of-RIB still applies.
 //
 // Caller MUST run refuseUncarriedGRFamilies over the same document first. That
 // walk is where a "family" container the session cannot carry is refused, and
@@ -140,6 +144,20 @@ func parseGRCapValue(capMap map[string]any, peerAddr string, sessionFamilies []s
 		fam, ok := family.LookupFamily(name)
 		if !ok {
 			logger().Warn("graceful-restart skips an address family the family index does not know",
+				"peer", peerAddr, "family", name)
+			continue
+		}
+		// RFC 4724 Section 4: "A BGP speaker MAY advertise the Graceful
+		// Restart Capability for an address family to its peer if it has the
+		// ability to preserve its forwarding state for the address family when
+		// BGP restarts." What Ze keeps across a restart is the RIB plugin's
+		// copy of the routes, which it sends again. bgp-rib is a Dependency of
+		// this plugin (register.go), so it is loaded wherever this runs, and it
+		// stores a family only through that family's NLRI splitter (rib.go,
+		// insertPoolNLRIs). Every compiled-in family has one; a family an
+		// external plugin registers at runtime may not, and is left out.
+		if !nlrisplit.Supported(fam) {
+			logger().Warn("graceful-restart omits an address family the RIB cannot store",
 				"peer", peerAddr, "family", name)
 			continue
 		}

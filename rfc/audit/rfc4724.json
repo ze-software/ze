@@ -93,17 +93,21 @@
       "verdict": "weak"
     },
     "RFC4724-4-4": {
-      "note": "the tests prove the configured families are listed with F clear on a cold start, but not the MAY's condition (the family is listed only when the speaker can preserve its forwarding state for it), so a tuple for a family ze cannot preserve would still pass",
+      "note": "Re-judged 2026-10-02 (BGP c29 judge), owner rulings 7 and 8(a). parseGRCapValue now lists a family only when nlrisplit.Supported (the RIB plugin, a hard Dependency of bgp-gr resolved by ResolveDependencies at autoload, can store and re-send it). Negative TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores registers ipv4/rib-less (SAFI 241, no splitter, preconditions asserted) and pins 007800010100 for the session list and 0078 (capability still sent, no tuple) for a configured list naming only it, each with the Warn carrying peer and family; HEAD negative ClaimsNoFamilyItDoesNotCarry keeps the uncarried-family refusal. Positives: TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores (ipv4/flow + ipv4/unicast, 00780001850000010100, no Warn) and ListsTheFamiliesOfTheSession (exact two-tuple payload). Four observed-red records (revert parseGRCapValue); author probe inverting the condition reds all four, and the pre-fix run reds only the negative, so the pair discriminates the condition itself.",
       "requirement_sha": "e75e23c1c2e8a7b7",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "cd62d88923bda233",
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "cd62d88923bda233"
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "ce3c5eff2f3d3893",
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "ce3c5eff2f3d3893",
+        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "81cb1be2900d94ab",
+        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "81cb1be2900d94ab"
       },
       "units": {
         "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "4035e6d18bdb61eb",
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "87e6d750ced694ad"
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "2490057e784184d3",
+        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "98577b935a086f0c",
+        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "3094c882236d7e06"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC4724-4.1-4": {
       "note": "Re-judged 2026-10-02 (BGP c25 judge). rfc4724_restart_state_test.go builds the OPEN through Session.buildOpen with Peer.getPluginCapabilities wired as peer_run.go wires it, a bgp-gr code 64 value with R clear served by the test-only Reactor.pluginCapabilitySeam (nil in production; with it nil getPluginCapabilities behaves as at HEAD), and parses the sent capability: inside the restart window R is set with Restart Time and the IPv4 unicast tuple unchanged (positive); cold start and passed deadline leave R clear (negative, the bit is not blanket). Overlay probes: SetRBit removed reds only the positive, window forced true reds only the negative. Records: restartFlagsFor revert (+), getPluginCapabilities revert (-). The grmarker units stay as supplementary. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units' tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller's caps keep R=0) and names the production gate Peer.getPluginCapabilities -> restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.",

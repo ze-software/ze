@@ -64,7 +64,7 @@
       "claim-sha": "e53359c07bab6278",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-      "producer-sha": "36d383b432a0939a",
+      "producer-sha": "00ce493dd7bea190",
       "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -72,10 +72,32 @@
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession",
       "unit-sha": "54c0ede9da31256b",
-      "claim-sha": "dd76ddb47c5d5a87",
+      "claim-sha": "f8cb2866fb968d9a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
-      "producer-sha": "36d383b432a0939a",
+      "producer-sha": "00ce493dd7bea190",
+      "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores",
+      "unit-sha": "ecc70f522348be44",
+      "claim-sha": "7104a9249f4641af",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
+      "producer-sha": "00ce493dd7bea190",
+      "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores",
+      "unit-sha": "0cf180df0e575bf0",
+      "claim-sha": "8379e58370351e68",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
+      "producer-sha": "00ce493dd7bea190",
       "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

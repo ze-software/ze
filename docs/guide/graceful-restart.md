@@ -53,9 +53,21 @@ The code-64 capability Ze sends carries the Restart Time, then one
 `<AFI, SAFI, Flags>` tuple for each address family the peer carries. A peer
 configured for `ipv4/unicast` and `ipv6/unicast` with the default restart time
 receives `0078 00010100 00020100`. The family list is the peer's own `family`
-configuration, so the code-64 and the code-71 (LLGR) capabilities list the same
-families. RFC 9494 Section 4.2 reads a family that code 64 omits as a Restart
-Time of zero.
+configuration, which the code-71 (LLGR) capability lists too. RFC 9494 Section
+4.2 reads a family that code 64 omits as a Restart Time of zero.
+
+A tuple tells the peer that Ze can preserve that family across a restart, and
+what Ze keeps is the RIB plugin's copy of the routes, which it sends again once
+the session is back. RFC 4724 Section 4: "A BGP speaker MAY advertise the
+Graceful Restart Capability for an address family to its peer if it has the
+ability to preserve its forwarding state for the address family when BGP
+restarts." So code 64 lists a family only when the RIB plugin can store it,
+which is when an NLRI splitter frames that family. `bgp-gr` always loads
+`bgp-rib`, and every family compiled into Ze has a splitter, so the check
+removes nothing from a stock build. A family an external plugin registers at
+runtime with no splitter is left out, and Ze logs a warning naming the peer and
+the family. When no family is left, Ze still sends the capability, with no
+tuple.
 
 The `graceful-restart family` container narrows that list, and it governs code
 64 alone:
@@ -75,6 +87,8 @@ carries. Writing the container with no `name` in it makes Ze name no address
 family at all, which RFC 4724 Section 3 reads as a speaker that runs the
 Receiving Speaker procedures and preserves nothing of its own. Writing no
 container is the default, and the default names every family the peer carries.
+The container only narrows: a `name` the RIB plugin cannot store is left out
+with the same warning, never added.
 
 A `name` the peer's own `family` list does not carry is refused, because RFC
 4724 Section 3 scopes a tuple to routes "advertised with the same AFI and SAFI"
