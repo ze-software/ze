@@ -253,17 +253,19 @@
       "verdict": "enforced"
     },
     "RFC2328-13-6": {
-      "note": "the tagged units start from TriggerArea and show every area is recalculated; no unit installs an LSA with changed contents to trigger it, nor shows that unchanged contents trigger nothing, nor the summary/AS-external best-route recalculation.",
+      "note": "c21 judge (independent). Positive TestRFC2328ChangedContentsRecalculateEveryArea drives the production wiring (newEngine -> initSPF: lsdb.SetOnChange -> Computer.TriggerArea -> Run), nothing triggers by hand: a changed router-LSA and a changed network-LSA installed in area 0.0.0.1 each withdraw the neighbor stub 203.0.113.64/26 and move BOTH areas last-run stamps past the settled baseline; not-advertised ranges keep the ABR summary origination from triggering the backbone, so only the 13.2 whole-table behaviour recalculates area 0 (isolated). Judge re-ran the dirty-only Computer.Run overlay: both subtests red \"area 0.0.0.0 was not recalculated\"; record on TriggerArea observed red. Run is monolithic (every configured area, then summary and external steps), so the entire table follows. TestSPFRecalculatesEveryAreaOnOneAreaChange stays as unit-level supplement. Negative TestSPFRecalculationBoundedToConfiguredAreas bounds the recalculation to configured areas; 13.2 offers no refusal path (unchanged contents is a permission, not an obligation), so the row is judged on its positive, the negative held as supplementary.",
       "requirement_sha": "244a38bae13ed753",
       "tests": {
+        "internal/plugins/ospf/rfc2328_contents_change_recalc_test.go::TestRFC2328ChangedContentsRecalculateEveryArea": "3e811d64399f491a",
         "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculatesEveryAreaOnOneAreaChange": "498067c5c0bbcb76",
         "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculationBoundedToConfiguredAreas": "498067c5c0bbcb76"
       },
       "units": {
+        "internal/plugins/ospf/rfc2328_contents_change_recalc_test.go::TestRFC2328ChangedContentsRecalculateEveryArea": "009432bc26a6de46",
         "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculatesEveryAreaOnOneAreaChange": "eda8f70bcaae06ec",
         "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculationBoundedToConfiguredAreas": "7d11149d6e47437d"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-13-7": {
       "note": "c20 judge: discard without ack and keep the earlier copy proven by TestRFC2328MinLSArrivalDiscardsWithoutAck (negative) and the elapsed case by TestRFC2328MinLSArrivalElapsedAccepts; the 'examine the next LSA' clause now by TestRFC2328TooSoonDiscardThenNextLSAExamined: one LS Update [too-soon 4.4.4.4, new 5.5.5.5], 4.4.4.4 keeps its sequence and is not flooded, 5.5.5.5 installed, flooded and the ONLY header acknowledged. Author overlay (continue->return on the TooSoon branch) red on the new unit only; revert record on ReceiveUpdate.",
@@ -558,17 +560,19 @@
       "verdict": "enforced"
     },
     "RFC2328-4.4-3": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: interface up/down transitions not reaching OSPF. TestOSPFTransportPassesLinkIndicationsToOSPF fails unless HandleLinkUp/HandleLinkDown call a callback the test registers, and the negative shows a non-OSPF interface produces none. No tagged unit drives the engine: that OSPF registers these callbacks (instance.go:307-308) and reacts to them is a code reading, so an engine that stopped registering, and so never heard of a link change, leaves both units green.",
+      "note": "c21 judge (independent). New positive TestRFC2328LinkIndicationsReachTheOSPFEngine builds the engine over the real transport.New(fakeBackend): an up neighbor on p2p eth0, then Transport.HandleLinkDown puts the OSPF interface in Down and the neighbor in down, and HandleLinkUp brings a running eth0 back to Point-to-point. Judge diffed the overlay that drops only instance.go OnInterfaceDown registration: red \"state point-to-point, want Down\"; dropping both registrations reds at setup while the transport-level TestOSPFTransportPassesLinkIndicationsToOSPF stays green, which was the old gap. Record on onInterfaceDown observed red. Transport-level positive kept. Negative TestOSPFTransportPassesNoIndicationForNonOSPFInterface: a non-OSPF interface link-up/down passes no indication, recorded.",
       "requirement_sha": "f510a36de096f7f0",
       "tests": {
+        "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine": "f7916aad840139ac",
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "efe755c93a105af7",
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "efe755c93a105af7"
       },
       "units": {
+        "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine": "fd63e4c7c2b5d13d",
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "aa5761fb3233d05a",
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "a0d3410e7725cfc8"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-8.1-1": {
       "code": {
@@ -786,17 +790,19 @@
       "verdict": "enforced"
     },
     "RFC2328-D.3-1": {
-      "note": "Clauses: the digest is NOT counted in the OSPF Packet Length, and IS counted in the IP header length. The first is proven: TestOSPFAuthSignVerifyCrypto fails unless Packet Length stays plen and len(signed) == plen + digest length, and TestOSPFAuthCryptoRejectsExtraTrailerBytes fails if a mismatched trailer framing is accepted. The second is not: no unit asserts that the whole signed buffer, digest included, is what Ze hands to the socket, which is the boundary Ze owns for the IP length. The note's 'the kernel sends the whole buffer' is a claim no tagged unit checks.",
+      "note": "c21 judge (independent). Clause 1 (digest not in Packet Length): TestOSPFAuthSignVerifyCrypto fails unless Packet Length stays plen and len(signed) == plen + digest. Clause 2 (digest in the IP length): new TestRFC2328DigestCountedInIPLengthNotPacketLength, both send paths (SendPacket, SendPacketRouted) with packet.Sign keyed MD5 as signer: the socket receives 44+16 octets, Packet Length still 44, trailer equals an independent D.4.3 MD5; a raw proto-89 socket (backend_linux Sendto, no IP_HDRINCL) builds the IP header around exactly that payload. Trim-after-signer overlay red on both subtests (author log, judge diffed the overlay); record on SendPacket observed red. engine.signPacket returns Sign output unchanged and its framing is pinned by the untagged TestEngineSignPacketCrypto Verify round-trip (Verify requires plen+L == len). Negative TestOSPFAuthCryptoRejectsExtraTrailerBytes refuses a wire whose trailer exceeds the digest framing, now with a Verify record observed red.",
       "requirement_sha": "370e9cd4bc70ea72",
       "tests": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go::TestRFC2328DigestCountedInIPLengthNotPacketLength": "96da2a96ea2ca7d3"
       },
       "units": {
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
-        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go::TestRFC2328DigestCountedInIPLengthNotPacketLength": "9ec6545303efc4f3"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-D.3-2": {
       "code": {
