@@ -314,7 +314,11 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC7854-x-10 | weak | `spec-bmp-sflow-export-rfc-defects` AC-4 (§4.9 cause-to-reason tie in `peerDownFor`; reason 4 is its D1) |
 | RFC7854-4.9-1 | weak | `spec-bmp-sflow-export-rfc-defects` AC-5 (§4.9 reason 2 FSM event code: the event must reach `peerDownFor` across `rpc.StructuredEvent`; lands with D1) |
 | RFC4271-9.2-7 | weak | `spec-bgp-rs-replacement-on-withdrawal` AC-3 (R57(b), 2026-10-01: bgp-rs relays a source's withdrawal while another source's route for the prefix remains; the fix needs a per-source path store) |
+| RFC8277-3.1-1 | weak | `spec-bgp-addpath-best-path-per-prefix` AC-3, AC-5 (owner ruling 8 (c), 2026-10-02: under ADD-PATH the RIB elects one best per path id, so two paths of one session are never compared) |
+| RFC8277-2.5-2 | weak | `spec-bgp-addpath-best-path-per-prefix` AC-4, AC-5 (owner ruling 8 (c): label side-data is keyed per prefix, the RFC8277-2.5-3 gap, so path 9's binding cannot be isolated) |
 
+- RFC9494-5-2 is a `{gap}` with no verdict in `rfc/audit/rfc9494.json`, so it is not in the derived listing and not a blocked verdict; owner ruling 8 (e) homes it in `spec-bgp-llgr-per-family-config` AC-6.
+- RFC8277-2.5-3 is a `{gap}` with no weak or wrong verdict; `spec-bgp-addpath-best-path-per-prefix` AC-6 owns it.
 - RFC9494-4.3-2 has no verdict in `rfc/audit/rfc9494.json` and RFC9494-4.3-3 is `enforced`, so neither is a blocked verdict; the graceful-restart spec still owns both defects.
 - RFC9252-5-2 is `unimplemented`, not weak or wrong.
 - RFC 2545 Section 3 (update-propagation D6) and RFC 7854 Section 4.9 reason 4 (bmp-sflow D1) have no row. RFC7854-4.9-1 quotes reasons 1 and 2 only, so it is not blocked, but the D1 producer change stales its records: the committing spec re-records them (R-6 of the parent).
