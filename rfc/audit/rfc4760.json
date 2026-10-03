@@ -2,6 +2,7 @@
   "audited": "2026-10-01",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,8 +12,8 @@
       "requirement_sha": "84e34e3fa72a90c7",
       "tests": {
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "2d5c4702ca88dcc3",
-        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedIsWrittenNotInherited": "8ee1ba8bd33e41ab",
-        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedSurvivesBufferReuse": "8ee1ba8bd33e41ab"
+        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedIsWrittenNotInherited": "13ebce8c0ccb7616",
+        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedSurvivesBufferReuse": "13ebce8c0ccb7616"
       },
       "units": {
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "25748e2690ae75be",
@@ -28,21 +29,21 @@
         "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "d2eeb2e25557e522",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "e95a22c6a645c4b7",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "e95a22c6a645c4b7",
-        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "bd147ba04b9bb229",
-        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "bd147ba04b9bb229",
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "2d5c4702ca88dcc3",
         "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "2d5c4702ca88dcc3",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "2d5c4702ca88dcc3"
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "2d5c4702ca88dcc3",
+        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "bd147ba04b9bb229",
+        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "bd147ba04b9bb229"
       },
       "units": {
         "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "78903c0eef755206",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "b70843ccf60a1782",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "8db455227021d870",
-        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "4d9d50563d47ebad",
-        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "f353248e1c90348b",
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "25748e2690ae75be",
         "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "f8a2e70b53e57961",
-        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "7a3d2d2e2acca2ba"
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "7a3d2d2e2acca2ba",
+        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "4d9d50563d47ebad",
+        "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "f353248e1c90348b"
       },
       "verdict": "enforced"
     },

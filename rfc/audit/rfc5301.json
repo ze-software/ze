@@ -1,12 +1,13 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5301-3-8": {
       "note": "(a) a TLV 137 value carrying a NUL terminator; (b) TestISISHostnameTLVFraming: bytes.IndexByte(value,0)>=0 errors, len(value)!=len(name) errors, and the [137][len+1][name,0] run errors; TestISISHostnameTLVIsPrintableASCII rejects any octet outside 0x20..0x7e and requires exactly one [137][len][value] run.",
       "requirement_sha": "9d61db2578036272",
       "tests": {
-        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "1c2f6a347217b7d4",
-        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVIsPrintableASCII": "1c2f6a347217b7d4"
+        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "31b999ef8b6e4be9",
+        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVIsPrintableASCII": "31b999ef8b6e4be9"
       },
       "units": {
         "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "5a5bb2cdc914f175",
