@@ -539,17 +539,21 @@
       "verdict": "enforced"
     },
     "RFC2328-4.4-1": {
-      "note": "only the receive side is shown (AllSPFRouters membership installed, foreign group refused); nothing asserts the sending side of IP multicast (multicast interface selection or a send to the group).",
+      "note": "Independent judgment: RFC 2328 section 4.4 says, \"Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.\" The production raw protocol-89 backend now has proof on both sides: TestOSPFTransportVethMulticastRoundTrip reads IP_MULTICAST_IF == 192.0.2.1 and TTL 1, sends AllSPFRouters over a real veth into a peer namespace, and asserts receiving interface, source and exact payload. TestOSPFTransportAllDRoutersReceive first receives on that same link, leaves AllDRouters and requires subsequent delivery to be absent. The original duplicate-join/drop errno assertions prove actual socket membership installation/removal; the foreign-group refusal is supplementary OSPF API confinement, not a general IP multicast forwarding obligation. Inspected runInNS: caller pins its thread, namespace entry and deferred restoration each load the real netlink backend, LoadBackend closes the old counter socket and the replacement lazily opens in its lookup namespace; no fake resolver bypass. Inspected four native recorded producer-halt observations and fresh records. This proves Ze's configured socket/send/receive boundary, not Linux multicast forwarding (expressly not required by this section). No new judge test run.",
       "requirement_sha": "05e902724dc37c8e",
       "tests": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "d5c94aa47f4b6b51",
-        "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "d5c94aa47f4b6b51"
+        "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "d5c94aa47f4b6b51",
+        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "313376fa53f2d457",
+        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "313376fa53f2d457"
       },
       "units": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "3e6caeb689ba2dcb",
-        "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "56831eb81b6e1311"
+        "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "56831eb81b6e1311",
+        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "9428ea71742dc605",
+        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "7973a094508486e9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC2328-4.4-2": {
       "note": "Forbidden: a classful routing table (mask derived from address class) that cannot carry variable-length subnets or supernets. Red: TestRFC2328ClasslessPrefixesReachIPRIB fails unless 192.0.0.0/16 (a supernet of class-C networks), 192.0.2.0/24 and 192.0.2.128/25 (a variable-length subnet) each reach the IP Loc-RIB with its own next hop. Other polarity: TestRFC2328ClasslessWithdrawalPreservesOverlaps fails if withdrawing the /24 removes the /16 or the /25. Both the VLSM and the supernet clause have a prefix that a classful table would lose.",

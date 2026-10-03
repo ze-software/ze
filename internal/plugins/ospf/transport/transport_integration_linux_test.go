@@ -28,6 +28,9 @@ func TestOSPFTransportRawSocketCap(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2328-4.4-1 positive -- the production backend selects the
+// configured multicast egress and sends AllSPFRouters across a veth to a peer
+// namespace, whose OSPF socket receives the unchanged datagram.
 func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
 	if !rawSocketAvailable() {
 		t.Skip("CAP_NET_RAW unavailable")
@@ -41,6 +44,17 @@ func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
 		}
 		defer ha.Close() //nolint:errcheck // best-effort cleanup
 		expectTransmitTTL(t, ha)
+		tx, ok := ha.(*linuxInterface)
+		if !ok {
+			t.Fatalf("handle type = %T, want *linuxInterface", ha)
+		}
+		selected, err := unix.GetsockoptInet4Addr(tx.txFD, unix.IPPROTO_IP, unix.IP_MULTICAST_IF)
+		if err != nil {
+			t.Fatalf("getsockopt IP_MULTICAST_IF: %v", err)
+		}
+		if selected != [4]byte{192, 0, 2, 1} {
+			t.Fatalf("multicast egress = %v, want 192.0.2.1", selected)
+		}
 
 		var hb InterfaceHandle
 		runInNS(t, lab.peerNS, func() {
@@ -64,6 +78,9 @@ func TestOSPFTransportVethMulticastRoundTrip(t *testing.T) {
 	})
 }
 
+// RFC requirement: RFC2328-4.4-1 negative -- after the receiver leaves
+// AllDRouters, a datagram to that group is no longer delivered, with successful
+// receipt before leaving as the positive control over the same peer link.
 func TestOSPFTransportAllDRoutersReceive(t *testing.T) {
 	if !rawSocketAvailable() {
 		t.Skip("CAP_NET_RAW unavailable")
@@ -219,7 +236,15 @@ func runInNS(t *testing.T, target netns.NsHandle, fn func()) {
 		if err := netns.Set(orig); err != nil {
 			t.Fatalf("restore namespace: %v", err)
 		}
+		if err := iface.LoadBackend("netlink"); err != nil {
+			t.Fatalf("restore namespace's iface backend: %v", err)
+		}
 	}()
+	// The real backend's counter socket belongs to the namespace in which
+	// it first resolves an interface. A thread namespace switch cannot move it.
+	if err := iface.LoadBackend("netlink"); err != nil {
+		t.Fatalf("load peer namespace's iface backend: %v", err)
+	}
 	fn()
 }
 

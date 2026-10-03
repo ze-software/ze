@@ -381,6 +381,14 @@ LSDB change or SPF run. Removing an area or stopping an engine withdraws its
 previous snapshot.
 <!-- source: internal/plugins/ospf/bgpls_export.go -- startBGPLS, publishBGPLSLocked, stopBGPLS -->
 
+For RFC 9552 Section 5.2.3.1, OSPFv2 Extended Prefix advertisements inherit
+their route type from matching base LSAs when the Extended Prefix leaves it
+unspecified. AS-external and NSSA advertisements also use the base LSA to
+distinguish Type 1 from Type 2. Correlation follows the originating router and
+prefix, including an NSSA LSA in another area bucket for an AS-scoped Extended
+Prefix; the snapshot carries the resolved type to the BGP-LS Route Type TLV.
+<!-- source: internal/plugins/ospf/bgpls_export.go -- v2PrefixRouteTypes -->
+
 The [BGP-LS architecture](../architecture/wire/nlri-bgpls.md) describes export
 configuration and how those snapshots become BGP Link-State NLRIs.
 

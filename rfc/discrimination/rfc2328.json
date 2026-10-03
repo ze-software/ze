@@ -858,6 +858,28 @@
       "break": "body of joinGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2328-4.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive",
+      "unit-sha": "ef6d98cf4176c0e4",
+      "claim-sha": "b53cd731e3140e51",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/transport/backend_linux.go::leaveGroup",
+      "producer-sha": "ff9420d8aea721a6",
+      "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2328-4.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip",
+      "unit-sha": "912dc70cf6c0619d",
+      "claim-sha": "af086876a33744e9",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
+      "producer-sha": "45343f40e3b5681d",
+      "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2328-4.4-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine",

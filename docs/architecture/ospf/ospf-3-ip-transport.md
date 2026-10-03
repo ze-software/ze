@@ -61,3 +61,10 @@ the OSPF multicast groups and carries datagrams to and from the engine.
   import fails the test.
   <!-- source: internal/plugins/ospf/transport/register.go -- init -->
   <!-- source: internal/plugins/ospf/transport/doctor.go -- checkOSPFRawSocket -->
+- **Multicast evidence crosses a peer namespace.** The veth round-trip test
+  reads the production transmit socket's `IP_MULTICAST_IF` and observes the
+  datagram at the peer. The AllDRouters test first receives on that link, then
+  leaves the group and proves that subsequent group traffic is not delivered.
+  The single-process fixture reloads the real interface backend on each
+  namespace transition: its persistent netlink counter socket does not move
+  when the calling thread changes namespace.

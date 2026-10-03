@@ -165,37 +165,69 @@ func TestIPsecInstallerXFRMEndToEnd(t *testing.T) {
 // support the anti-replay service, though its use may be enabled or disabled by the
 // receiver on a per-SA basis." The kernel is what performs the per-packet check, so the
 // window Ze installs for it is the whole of Ze's part.
+// RFC requirement: RFC4302-3.4.3-1 positive -- parsing and validating replay-window 64
+// installs three AH states whose kernel replay windows are all 64.
+// RFC requirement: RFC4302-3.4.3-1 negative -- explicit zero and the absent leaf
+// install all three AH states with replay disabled, rather than forcing it on.
 func TestIPsecInstallerXFRMReplayWindow(t *testing.T) {
 	requireXFRM(t)
-	const spi = 0x4552b3
-	inst := newIPsecInstaller(nil, nil)
-	inst.setTransportSource(func(string) (netip.Addr, int, bool) {
-		return netip.MustParseAddr("fe80::1"), 1, true
-	})
-	inst.setConfig([]interfaceConfig{{
-		Name: "ipsec-replay",
-		IPsec: &ipsecInterfaceConfig{
-			SPI: spi, Protocol: "ah", AuthAlgo: "sha256", AuthKey: hexKey(32), ReplayWindow: 64,
-		},
-	}})
+	for _, tc := range []struct {
+		name   string
+		leaf   string
+		window int
+	}{
+		{name: "enabled", leaf: `,"replay-window":64`, window: 64},
+		{name: "disabled", leaf: `,"replay-window":0`},
+		{name: "default"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const spi = 0x4552b3
+			cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
+				`"protocol":"ah","spi":4543155,"algorithm":"sha256","key":"`+hexKey(32)+`"`+tc.leaf, "")), nil)
+			if err != nil {
+				t.Fatalf("parseOSPFConfig: %v", err)
+			}
+			if err := validateConfig(cfg); err != nil {
+				t.Fatalf("validateConfig: %v", err)
+			}
+			if cfg.V6 == nil {
+				t.Fatal("IPv6 configuration missing")
+			}
+			inst := newIPsecInstaller(nil, nil)
+			inst.setTransportSource(func(string) (netip.Addr, int, bool) {
+				return netip.MustParseAddr("fe80::1"), 1, true
+			})
+			inst.setConfig(cfg.V6.Interfaces)
+			// RFC 4302 Section 3.4.3: exercise the configured receiver's installer.
+			inst.onInterfaceUp(1, "eth1")
+			defer inst.onInterfaceDown(1, "eth1")
 
-	inst.onInterfaceUp(1, "ipsec-replay")
-	defer inst.onInterfaceDown(1, "ipsec-replay")
-
-	states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
-	if err != nil {
-		t.Fatalf("XfrmStateList: %v", err)
-	}
-	var found *netlink.XfrmState
-	for i := range states {
-		if states[i].Spi == spi {
-			found = &states[i]
-		}
-	}
-	if found == nil {
-		t.Fatal("installed AH SA not found in kernel")
-	}
-	if found.ReplayWindow != 64 {
-		t.Errorf("kernel SA ReplayWindow = %d, want 64 (the configured replay-window)", found.ReplayWindow)
+			states, err := netlink.XfrmStateList(netlink.FAMILY_ALL)
+			if err != nil {
+				t.Fatalf("XfrmStateList: %v", err)
+			}
+			destinations := map[string]bool{"ff02::5": false, "ff02::6": false, "fe80::1": false}
+			for i := range states {
+				state := &states[i]
+				if state.Spi != spi {
+					continue
+				}
+				if state.Proto != netlink.XFRM_PROTO_AH {
+					t.Fatalf("state protocol = %v, want AH", state.Proto)
+				}
+				if state.ReplayWindow != tc.window {
+					t.Errorf("kernel SA %s ReplayWindow = %d, want %d", state.Dst, state.ReplayWindow, tc.window)
+				}
+				if seen, ok := destinations[state.Dst.String()]; !ok || seen {
+					t.Fatalf("unexpected or duplicate AH destination %s", state.Dst)
+				}
+				destinations[state.Dst.String()] = true
+			}
+			for dst, found := range destinations {
+				if !found {
+					t.Errorf("installed AH SA for %s not found in kernel", dst)
+				}
+			}
+		})
 	}
 }

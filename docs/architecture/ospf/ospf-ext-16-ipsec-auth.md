@@ -66,6 +66,10 @@ This path is Linux-only.
   `dataplane.SAParams.ReplayWin`.
   <!-- source: internal/plugins/ospf/config_ipsec.go -- validateIPsecReplayWindow -->
   <!-- source: internal/plugins/ospf/ipsec_install.go -- buildIPsecSA -->
+  `TestIPsecInstallerXFRMReplayWindow` parses and validates the operator's leaf,
+  installs the AH states, and reads every multicast and local-unicast state's
+  replay window from Linux XFRM: 64 when enabled, zero when explicitly disabled
+  or omitted. This tests the kernel boundary, not only the SA builder.
 - **The shared IKE dataplane gained additive, zero-valued fields** for the
   selector, the upper protocol, the ifindex, policy removal and the algorithm
   plan. IKE is byte-identical with them at their zero values.

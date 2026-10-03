@@ -222,6 +222,28 @@
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4302-3.4.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
+      "unit-sha": "f64493fffbd0cce7",
+      "claim-sha": "2a4dfd806024f167",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+      "producer-sha": "20b949de8627ad06",
+      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-3.4.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
+      "unit-sha": "f64493fffbd0cce7",
+      "claim-sha": "70d435f16ff2e785",
+      "route": "revert",
+      "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+      "producer-sha": "20b949de8627ad06",
+      "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4302-3.4.3-5",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange",
@@ -231,17 +253,6 @@
       "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecReplayWindow",
       "producer-sha": "5b69594e269c2512",
       "break": "line 167: \"w \u003e= ipsecReplayWindowMin \u0026\u0026 w \u003c= ipsecReplayWindowMax\" -\u003e \"false\""
-    },
-    {
-      "rid": "RFC4302-3.4.3-5",
-      "polarity": "negative",
-      "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange",
-      "unit-sha": "affb2aed15dcd271",
-      "claim-sha": "05625fa629861d8a",
-      "route": "mutant",
-      "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecReplayWindow",
-      "producer-sha": "5b69594e269c2512",
-      "break": "line 167: \"w \u003e= ipsecReplayWindowMin \u0026\u0026 w \u003c= ipsecReplayWindowMax\" -\u003e \"true\""
     },
     {
       "rid": "RFC4302-3.4.3-5",
