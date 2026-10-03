@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-03",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
@@ -163,17 +163,23 @@
       "verdict": "weak"
     },
     "RFC8669-6-3": {
-      "note": "Tagged units pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins and ::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst prove first-wins reading of duplicate SRv6 L3 Service TLVs in ExtractSRv6SIDFull, which is the RFC 9252 rule 'all but the first instance MUST be ignored'. Unasserted: that the later occurrences are DISCARDED (they stay in the attribute bytes forwarded on, same shape as the RFC8669-6-2 gap), and duplicates of RFC 8669's own single-occurrence TLV (Label-Index) are never driven.",
+      "note": "Re-judged against rfc/full/rfc8669.txt Section 6. The earlier weak verdict rested on two gaps, both now closed by a41bf6a186: the reactor positive TestRFC8669DuplicateServiceTLVDiscardedOnReceive drives repeated SRv6 L3 Service, SRv6 L2 Service and Label-Index TLVs (one case with an unknown TLV between the copies, one under an Extended Length header) through enforceRFC7606 on an internal and a route-server-client session, and asserts no error, RFC7606ActionNone, exactly one attribute 40 whose value is the exact received TLVs less the repeat in received order, the peer's header width, and the same bytes on a peer's socket via fwdBatchHandler; so no-discard, last-wins, reorder, length-field and rs-client-skip mutants all go red. The negative TestRFC8669SingleOccurrencePrefixSIDKeptWhole pins the 'only allows for a single occurrence' qualifier and the Section 6 unknown-TLV MUST ('ignored and propagated unmodified'): each type once, an unknown TLV twice and an Originator SRGB TLV twice must publish octet-equal and forward every TLV, so an over-discarding walk goes red. test/plugin/prefixsid-duplicate-tlv-relay.ci proves the user path, session in to session out, with an unknown-repeat control byte-identical and a Label-Index repeat trimmed. The pool tests still pin first-wins on the read side. Discrimination records exist for all three reactor/.ci tags (producer disabled, red observed); interop bgp-prefix-sid-duplicate-tlv-frr (0c6ae07e69, untagged) adds FRR as an outside judge. Readings recorded, not findings against the tests: RFC 8669 states no explicit occurrence limit for Label-Index, Ze treats it as single from 'the label index for a given prefix' (types 5/6 are single by RFC 9252 Section 7); a malformed repeat is still validated first and treat-as-withdraw (untagged TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn), an RFC 9252 reading outside this row. The PrefixSIDTLVSingleOccurrence comment justifies excluding type 3 with the Section 3.2 sentence about the SRGB FIELD repeating inside one TLV, which says nothing about TLV count; the conclusion (no stated limit) stands, the quoted support does not.",
       "requirement_sha": "f72d6db1a19968f4",
       "tests": {
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "880d4dcf544fb926",
-        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "880d4dcf544fb926"
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "880d4dcf544fb926",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "0778938268d0e0b4",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "0778938268d0e0b4",
+        "test/plugin/prefixsid-duplicate-tlv-relay.ci": "775c4d408ea8b699"
       },
       "units": {
         "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "98375fef4cd15f32",
-        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "99938dd144ab230b"
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "99938dd144ab230b",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669DuplicateServiceTLVDiscardedOnReceive": "7e52a34117e4b5d1",
+        "internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go::TestRFC8669SingleOccurrencePrefixSIDKeptWhole": "25828dd4d9394ca3",
+        "test/plugin/prefixsid-duplicate-tlv-relay.ci": "775c4d408ea8b699"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc8669"
