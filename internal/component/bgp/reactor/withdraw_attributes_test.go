@@ -1,6 +1,6 @@
 // Design: docs/architecture/update-building.md -- what a withdrawal carries
 // Overview: reactor_api_batch.go -- buildBatchWithdrawUpdate and planBatchAttrs
-// Related: reactor_batch_test.go -- the announce rail's own build tests
+// Related: rfc4271_reactor_batch_test.go -- the announce rail's own build tests
 
 package reactor
 

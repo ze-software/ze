@@ -48,12 +48,12 @@
       "note": "Forbidden: a sender writing a non-zero Reserved octet, or a receiver acting on it. Sender: TestRFC2918SentRequestReservedOctetIsZero reads the four body octets written by both request producers (sendRouteRefresh, SoftClearPeer) and asserts exactly 00 01 00 01. Receiver: TestRFC2918ReservedOctetIgnoredOnReceive asserts delivery, Established and no NOTIFICATION for octets 00/01/02/AA/FF; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. The sender half is single-polarity by nature (no violating input exists for an emitter).",
       "requirement_sha": "cd4c55554fb5f84e",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc2918_test.go::TestRFC2918SentRequestReservedOctetIsZero": "808d5a26b55d68e9",
+        "internal/component/bgp/reactor/rfc2918_reactor_b_test.go::TestRFC2918SentRequestReservedOctetIsZero": "808d5a26b55d68e9",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "cae94db0eba23b03",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "cae94db0eba23b03"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc2918_test.go::TestRFC2918SentRequestReservedOctetIsZero": "9b0a8247bdcb2ad0",
+        "internal/component/bgp/reactor/rfc2918_reactor_b_test.go::TestRFC2918SentRequestReservedOctetIsZero": "9b0a8247bdcb2ad0",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "7f67b93b46ae7e65",
         "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "c3bb43d68138be87"
       },

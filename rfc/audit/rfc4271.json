@@ -273,17 +273,17 @@
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "65ed9271dab3a1ea",
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "65ed9271dab3a1ea",
         "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "125e31687892a371",
-        "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
-        "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
-        "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
+        "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "1b2ce2e6c980df3e",
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "1b2ce2e6c980df3e",
         "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "8d9d9ce35844f8cf",
-        "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
-        "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",
-        "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "073483cbcad85930"
+        "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "073483cbcad85930"
       },
       "verdict": "enforced"
     },
@@ -291,9 +291,9 @@
       "note": "Re-judged 2026-10-01 (BGP c15 judge). The c14 gap is closed: TestRFC4271ForwardExportASPathEditsSkipInternalPeers drives the general forward rail (forwardUpdateCore -> forwardUpdateSection) with the policy-chain egress step answering 'as-path-prepend 2' and 'remove-private strip'; the internal destination (AS 65000) and the RFC 7705 migration-internal destination (AS 64999 = MigrationAS) are sent the received AS_PATH [64512 64496] byte for byte, while the external control in the same fan-out is sent [65000 65000 65000 64512 64496] and [65000 64496]. Judge overlay (forwardUpdateSection passes false instead of !facts.isEBGP, judge j15-ov-fwd.log) reddens all four internal and migration-internal assertions, so the forward rail is now discriminated. With the c14 units (exportFilterForBody/runEgressPolicyChain guard, migration-aware verdict, policy dry-run agreement, announce rail reactor_wire, batch IBGP verbatim) every rail that edits AS_PATH toward an internal peer has a unit that reddens when it does. Judge re-recorded the two producer-changed revert records of TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer on forwardUpdateSection. rfc4271_test.go and reactor_batch_test.go tags still carry no record (reach unproven by record, semantic by c13/c14 overlays).",
       "requirement_sha": "0cfcf537b0aafcec",
       "tests": {
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
-        "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "9a11af33ccbe070c",
@@ -302,9 +302,9 @@
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "94aa07ebd53dcc5b"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "3bda13eecdff18dc",
-        "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "3bda13eecdff18dc",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "d2f77b2acbc479db",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "cf1b7a86f8549355",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "c7e558adc71200ee",
@@ -318,8 +318,8 @@
       "note": "Re-judged 2026-10-01 (c10 judge). Every clause now has a tagged unit: case 1 (leading AS_SEQUENCE gets the local AS) HEAD TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS and the wireu advertise units; case 1 overflow TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull (255-AS segment: new AS_SEQUENCE [65000] in front, full segment intact); case 2 TestASPathSlotPrependsBeforeALeadingASSet (AS_SET-led path gets a new AS_SEQUENCE [65000], set unchanged); case 3 TestASPathSlotInsertsWhenAbsent (absent path becomes one AS_SEQUENCE [64510]). Negatives: IBGP verbatim and withdraw-only (no advertise). The wireu units drive ASPathEdit.Record, which the reactor forward and RS paths call in production (reactor_api_forward.go, forward_rs.go); records observed red on recordPrepend. Tag lines were inserted by python: re-checked, comment-only diff.",
       "requirement_sha": "a13562e6f3b2682e",
       "tests": {
-        "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
-        "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "35bb93fe81f0bf3d",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "35bb93fe81f0bf3d",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "6da7ca3641c9fc13",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
         "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "52bf19846926dcc3",
@@ -329,8 +329,8 @@
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f04334a58fd00e7c"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
-        "internal/component/bgp/reactor/reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "15816d2dbe772dca",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "15816d2dbe772dca",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "de030e26301a9b3a",
         "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "de030e26301a9b3a",
         "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "62d51cc914f09baf",
@@ -345,34 +345,34 @@
       "note": "originated-route units (writeUpdateGated/SendAnnounce tests and originated-nexthop-peer-own.ci) assert the route naming the peer own address is withheld from that peer while other next hops are written; forward-rail units extend the refusal to relayed routes, which this sentence does not name",
       "requirement_sha": "709993367485dd2d",
       "tests": {
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress#2": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress#2": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress#2": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "175193db88069db5",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress#2": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress#2": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress#2": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "175193db88069db5",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "175193db88069db5",
         "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "f04334a58fd00e7c",
         "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
         "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
       },
       "units": {
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "ca018b40b86e5b81",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress#2": "ca018b40b86e5b81",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress": "29b1f5a5bdfb6805",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress#2": "29b1f5a5bdfb6805",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress": "dcba8af1e887fabd",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress": "a394c4f3f384b634",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress#2": "a394c4f3f384b634",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop": "1c1a5448f1378870",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "1c1a5448f1378870",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "d5f44c5890b3470d",
-        "internal/component/bgp/reactor/forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "d5f44c5890b3470d",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "ca018b40b86e5b81",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress#2": "ca018b40b86e5b81",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress": "29b1f5a5bdfb6805",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress#2": "29b1f5a5bdfb6805",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress": "dcba8af1e887fabd",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress": "a394c4f3f384b634",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress#2": "a394c4f3f384b634",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop": "1c1a5448f1378870",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "1c1a5448f1378870",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "d5f44c5890b3470d",
+        "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "d5f44c5890b3470d",
         "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "b5d635479a9b6635",
         "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "b5d635479a9b6635",
         "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
@@ -470,18 +470,18 @@
       "note": "Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its body and its 5.1.5-1 negative claim are unchanged. SHALL include LOCAL_PREF in all UPDATEs to internal peers. Originated rails: WriteAnnounceUpdate, batch and queued API units (existing). Forward rails: TestRFC4271ForwardAddsLocalPrefTowardInternalPeer relays an eBGP-learned route with no LOCAL_PREF on the general rail and the route-server rail and asserts the internal destination is sent exactly 00000064 while the external destination in the same fan-out is sent none, so a blanket add or a blanket strip each go red. Producer applyFactsLocalPref adds 100 only when the base carries none and no egress mod set one. Observed-red records on applyFactsLocalPref both polarities, and on buildRIBRouteUpdate. The negative's external half overlaps RFC4271-5.1.5-2; it is kept because it is what shows the add follows the internal classification.",
       "requirement_sha": "0c6d672c9f901595",
       "tests": {
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "ffc03f8e67362cde",
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "ffc03f8e67362cde",
-        "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b"
       },
       "units": {
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "569d309f461689b4",
-        "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "569d309f461689b4",
-        "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "49ee700ba438d96c",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "569d309f461689b4",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "569d309f461689b4",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "49ee700ba438d96c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "d9f9d0718c76e7d9"
       },
@@ -491,10 +491,10 @@
       "note": "Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its 5.1.5-2 positive claim and body are unchanged. Announce (WriteAnnounceUpdate), API batch and queued rails, forward rail and local-pref-strip-ebgp.ci assert no attribute 5 toward an external peer, including over a filter Set; ze has no confederation surface, so the exception is unreachable.",
       "requirement_sha": "82f98f8417a1cee3",
       "tests": {
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "33e3a14230a4a91e",
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "33e3a14230a4a91e",
-        "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "33e3a14230a4a91e",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "33e3a14230a4a91e",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b",
         "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "f04334a58fd00e7c",
@@ -502,10 +502,10 @@
         "test/plugin/local-pref-strip-ebgp.ci#2": "5a4fff5cffb8e210"
       },
       "units": {
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "c19c725eeb824ac2",
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
-        "internal/component/bgp/reactor/forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "635195b862c7b4e2",
-        "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "49ee700ba438d96c",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStripBeatsAFilterSet": "c19c725eeb824ac2",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
+        "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestLocalPrefAllowedToIsTheOnlyAnswer": "635195b862c7b4e2",
+        "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "49ee700ba438d96c",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "d9f9d0718c76e7d9",
         "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip": "a8c131ab25086c17",
@@ -645,14 +645,14 @@
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "94aa07ebd53dcc5b",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "ab53111fff0e5b7d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "0a127f4f78abb98f",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa"
       },
       "verdict": "enforced"
@@ -661,12 +661,12 @@
       "note": "RFC 7606 (Updates: 4271) revises this: the error is handled by treat-as-withdraw, so no NOTIFICATION, subcode or Data field is sent. multicast NEXT_HOP 224.0.0.1 (not a valid host address) withdraws the prefix exactly (7.3); unicast NEXT_HOP announces it",
       "requirement_sha": "1e31ca92b16e9768",
       "tests": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -674,20 +674,20 @@
       "note": "criterion a) receiver's own address (eBGP and iBGP) and b) off-link next hop on a one-hop eBGP session each withhold the legacy announcement on the live receive path; sender address and on-subnet third party accepted; multihop and iBGP accept off-link; interface snapshot change flips the verdict. The reaction (ignore, no NOTIFICATION) is RFC4271-6.3-2/6.3-3",
       "requirement_sha": "e730a75419c960f7",
       "tests": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271NextHopSemantics": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271NextHopSemantics#2": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271IBGPNextHop": "c17f1f0fbcc638b5",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271IBGPNextHop#2": "c17f1f0fbcc638b5",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange": "c17f1f0fbcc638b5",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange#2": "c17f1f0fbcc638b5"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics#2": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop": "c17f1f0fbcc638b5",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop#2": "c17f1f0fbcc638b5",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange": "c17f1f0fbcc638b5",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange#2": "c17f1f0fbcc638b5"
       },
       "units": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271NextHopSemantics": "b1fb1b76d83d0a77",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271NextHopSemantics#2": "b1fb1b76d83d0a77",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271IBGPNextHop": "8de46d102e3ad050",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271IBGPNextHop#2": "8de46d102e3ad050",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange": "e5e3b11267e8cba1",
-        "internal/component/bgp/reactor/session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange#2": "e5e3b11267e8cba1"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics": "b1fb1b76d83d0a77",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics#2": "b1fb1b76d83d0a77",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop": "8de46d102e3ad050",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop#2": "8de46d102e3ad050",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange": "e5e3b11267e8cba1",
+        "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange#2": "e5e3b11267e8cba1"
       },
       "verdict": "enforced"
     },
@@ -695,12 +695,12 @@
       "note": "RFC 7606 (Updates: 4271) revises this: the error is handled by treat-as-withdraw, so no NOTIFICATION, subcode or Data field is sent. unknown segment type, zero segment count, segment overrun and trailing octet each withdraw the prefix exactly (7.2); a well-framed AS_SEQUENCE announces",
       "requirement_sha": "8ffb5ddf64762dd2",
       "tests": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -723,14 +723,14 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -739,13 +739,13 @@
       "requirement_sha": "3539db1d6a53507b",
       "tests": {
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4",
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
       },
       "units": {
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa",
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
       },
       "verdict": "enforced"
     },
@@ -753,12 +753,12 @@
       "note": "impossible prefix length and truncated NLRI (and truncated withdrawn) reset with NOTIFICATION 3/10 read off the socket after a good UPDATE was accepted on the same session; a valid prefix is announced 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestSessionRFC4271RetainedUpdateNotifications gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged.",
       "requirement_sha": "358a61c3b3f2f598",
       "tests": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "fdc816af536ef714"
       },
       "units": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "4a613c4e4d1f16d9"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "4a613c4e4d1f16d9"
       },
       "verdict": "enforced"
     },
@@ -785,12 +785,12 @@
       "note": "positive drives Total Attribute Length and Withdrawn Routes Length overruns through enforceRFC7606 and asserts SessionReset plus NOTIFICATION 3/1 read off the written bytes (RFC 7606 3(b) keeps this subcode); negative: consistent lengths draw no NOTIFICATION",
       "requirement_sha": "6a04c2aaed92eb12",
       "tests": {
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
       },
       "units": {
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
-        "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
       },
       "verdict": "enforced"
     },
@@ -800,14 +800,14 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -815,20 +815,20 @@
       "note": "Revised by RFC 7606 to per-attribute outcomes. Every attribute whose length its type code fixes now has a length case against its expected length: ORIGIN (withdraw, 7.1), NEXT_HOP (withdraw, 7.3) and MED in TestSessionRFC4271RevisedAttributeErrors, ATOMIC_AGGREGATE and AGGREGATOR (attribute discard, prefix kept, 7.6/7.7) in TestRFC4271RecognizedAttributeErrorsBeyondTheFirst, and LOCAL_PREF in TestRFC4271LocalPrefLengthFromInternalPeer: an iBGP session over the real receive path, length 3 yields exactly the withdrawal of the prefix with the session still Established (7.5), length 4 before and after keeps the prefix with LOCAL_PREF byte-identical. The LOCAL_PREF buffer is otherwise valid, so only the length rule can fire. Observed-red records on validateLocalPrefAttr, validateAggregatorAttr and validateNextHopAttr, both polarities.",
       "requirement_sha": "1e5216d329f6dc3e",
       "tests": {
-        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "f2b979b76233652e",
-        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "f2b979b76233652e",
+        "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "f2b979b76233652e",
+        "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "f2b979b76233652e",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "3e727a80b7b28f0b",
-        "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "3e727a80b7b28f0b",
+        "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "3e727a80b7b28f0b",
+        "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "3e727a80b7b28f0b",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
         "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -838,14 +838,14 @@
       "tests": {
         "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms": "4d20a2664cf9e755",
         "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms#2": "4d20a2664cf9e755",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
         "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms": "7100273683108ac2",
         "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms#2": "7100273683108ac2",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -853,12 +853,12 @@
       "note": "Subcode clause: unknown well-known code 250 (flags 0x50, extended length) asserts the NOTIFICATION body equals 3/2 exactly, red on any other subcode. Data clause: the same Equal pins Data to the whole attribute, header and extended length included, red on a truncated or absent Data field. Negative: the same code with flags 0xd0 (optional transitive) is accepted and its NLRI announced. 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestSessionRFC4271RetainedUpdateNotifications gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged.",
       "requirement_sha": "19d125fbdb913dc7",
       "tests": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "fdc816af536ef714"
       },
       "units": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "4a613c4e4d1f16d9"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "4a613c4e4d1f16d9"
       },
       "verdict": "enforced"
     },
@@ -866,12 +866,12 @@
       "note": "RFC 7606 Section 7.1 (Updates: 4271) replaces the subcode and Data clauses with treat-as-withdraw for an undefined ORIGIN. ORIGIN 3, the first undefined value, require.Equals the payload to a withdrawal (red on a keep) and the following good UPDATE is received (red on a reset). Negative: ORIGIN IGP announces the prefix.",
       "requirement_sha": "ff8f1dc2be6fe7ba",
       "tests": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
       "units": {
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
-        "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
       },
       "verdict": "enforced"
     },
@@ -1137,12 +1137,12 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "3893958fa17fe9dc",
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632"
+        "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "f225cfa65db52a63",
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection": "59fb68bf664a9233",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b"
+        "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b"
       },
       "verdict": "enforced"
     },
@@ -1152,13 +1152,13 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection": "3893958fa17fe9dc",
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
+        "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection": "db7ecc5b18e77647",
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection": "ed3b22baa86d7900",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b",
+        "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
       "verdict": "enforced"
@@ -1304,7 +1304,7 @@
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
+        "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
       "units": {
@@ -1312,7 +1312,7 @@
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "4491801f7f2ae4bd",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection": "c7d76a0c73fca4a4",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b",
+        "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
       "verdict": "enforced"

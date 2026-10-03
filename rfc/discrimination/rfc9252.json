@@ -72,7 +72,7 @@
     {
       "rid": "RFC9252-3.3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit": "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
       "unit-sha": "3e7680adf25fe34f",
       "claim-sha": "e6c1ce3c9401dcde",
       "route": "revert",
@@ -83,7 +83,7 @@
     {
       "rid": "RFC9252-3.3-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit": "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
       "unit-sha": "3e7680adf25fe34f",
       "claim-sha": "fd8b104514f18728",
       "route": "revert",
@@ -105,7 +105,7 @@
     {
       "rid": "RFC9252-3.3-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit": "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
       "unit-sha": "3e7680adf25fe34f",
       "claim-sha": "d3abe16149d1ba94",
       "route": "revert",
@@ -116,7 +116,7 @@
     {
       "rid": "RFC9252-3.3-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
+      "unit": "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop",
       "unit-sha": "3e7680adf25fe34f",
       "claim-sha": "555ef3e758900a70",
       "route": "revert",

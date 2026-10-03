@@ -26,7 +26,7 @@
     {
       "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_bfd_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN",
       "unit-sha": "f5d6e2c6a8517c51",
       "claim-sha": "2e13b8c558ca4386",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_bfd_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN",
       "unit-sha": "f5d6e2c6a8517c51",
       "claim-sha": "4fff4a47b0d41dbd",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_bfd_pending_test.go::TestDraftBFDDisabledConfigChangeReleasesPendingSession",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDDisabledConfigChangeReleasesPendingSession",
       "unit-sha": "e76ce757dfb45663",
       "claim-sha": "ae898575421c9710",
       "route": "revert",

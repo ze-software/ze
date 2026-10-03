@@ -22,16 +22,16 @@
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "f1e61f246e4da117",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "35c12d1922010b90",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "35c12d1922010b90",
-        "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "38048ce0e9d32912",
-        "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "38048ce0e9d32912"
+        "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "38048ce0e9d32912",
+        "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "38048ce0e9d32912"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "0b773d1066af9ac2",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "0b773d1066af9ac2",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "7242167016f52975",
         "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "9b3d4d582a609e8d",
-        "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "dd7ea18f18423fca",
-        "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "dd7ea18f18423fca"
+        "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "dd7ea18f18423fca",
+        "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "dd7ea18f18423fca"
       },
       "verdict": "enforced"
     },

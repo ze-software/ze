@@ -21,7 +21,7 @@ import (
 // returns what each one was asked to write. A client absent from the map was written
 // nothing at all.
 //
-// It is wkForwardParts (forward_wellknown_test.go) with ONE difference, and the
+// It is wkForwardParts (rfc1997_forward_wellknown_test.go) with ONE difference, and the
 // difference is why this is a second harness rather than an argument added to that
 // one: globalLocalAS is the route server's own AS, which forwardUpdateCore reads as
 // rsLocalAS, and RFC 7947's gate is inert while it is zero. wkForwardParts is inside

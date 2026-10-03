@@ -48,7 +48,7 @@
     {
       "rid": "RFC9830-2.1-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes",
+      "unit": "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes",
       "unit-sha": "626d1ab29e2fbd67",
       "claim-sha": "bc8e391d1f3306ba",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC9830-2.1-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_a_rfc9830_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes",
+      "unit": "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes",
       "unit-sha": "626d1ab29e2fbd67",
       "claim-sha": "fbd32ad074d938b0",
       "route": "revert",

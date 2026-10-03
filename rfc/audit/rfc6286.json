@@ -21,11 +21,11 @@
       "requirement_sha": "e566efc1c1dda428",
       "tests": {
         "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "a1fc7aaeb89a3796",
-        "internal/component/bgp/reactor/routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "4972055763b676a4"
+        "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "4972055763b676a4"
       },
       "units": {
         "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "0bb5bef2a07737c8",
-        "internal/component/bgp/reactor/routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "89120e6676ad8fd9"
+        "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "89120e6676ad8fd9"
       },
       "verdict": "enforced"
     },
@@ -35,14 +35,14 @@
       "tests": {
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "5792605e48ba6d19"
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "5792605e48ba6d19"
       },
       "units": {
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "7f9fc7a89465a4eb"
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "7f9fc7a89465a4eb"
       },
       "verdict": "enforced"
     },
@@ -52,14 +52,14 @@
       "tests": {
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "5792605e48ba6d19"
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "5792605e48ba6d19"
       },
       "units": {
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
         "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
-        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "d591fe02f97c155a"
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+        "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "d591fe02f97c155a"
       },
       "verdict": "enforced"
     },

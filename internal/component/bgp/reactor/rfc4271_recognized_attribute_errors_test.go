@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/messages.md -- RFC 4271 receive error handling
-// Related: session_core4271_test.go -- the ORIGIN flags, NEXT_HOP and MED cases of the same rules
+// Related: rfc4271_session_core4271_test.go -- the ORIGIN flags, NEXT_HOP and MED cases of the same rules
 
 package reactor
 

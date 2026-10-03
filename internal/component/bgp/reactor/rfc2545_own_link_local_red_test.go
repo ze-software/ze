@@ -1,6 +1,6 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- the next hop an originated route carries
 // Related: link_scope.go -- linkScope.linkLocalNextHop, which appends the configured Link-Local
-// Related: rfc_draft_linklocal_announce_test.go -- newOneHopInternalPeer, the fixture
+// Related: draft_ietf_idr_linklocal_capability_announce_test.go -- newOneHopInternalPeer, the fixture
 // RFC: rfc/short/rfc2545.md
 //
 // Written red by BGP c18 as a defect probe; green since the R55/R56 fix in

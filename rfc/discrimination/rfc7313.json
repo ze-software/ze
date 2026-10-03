@@ -81,7 +81,7 @@
     {
       "rid": "RFC7313-5-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc7313_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
+      "unit": "internal/component/bgp/reactor/rfc7313_reactor_b_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
       "unit-sha": "2f946ea90cbc886e",
       "claim-sha": "9ffce23af0de80c5",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC7313-5-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc7313_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
+      "unit": "internal/component/bgp/reactor/rfc7313_reactor_b_test.go::TestRouteRefreshUnknownSubtypeNeverDelivered",
       "unit-sha": "2f946ea90cbc886e",
       "claim-sha": "721340ce2df1341f",
       "route": "revert",

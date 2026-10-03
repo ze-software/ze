@@ -4,7 +4,7 @@
     {
       "rid": "RFC7911-2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates",
+      "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDStableAcrossUpdates",
       "unit-sha": "2af33fa71c7639d1",
       "claim-sha": "b0aec10e857341c3",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC7911-2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources",
+      "unit": "internal/component/bgp/reactor/rfc7911_forward_path_id_test.go::TestForwardPathIDsDifferForCollidingSources",
       "unit-sha": "25f9b6338f43c354",
       "claim-sha": "304ace729e348b12",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC7911-5-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily",
+      "unit": "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily",
       "unit-sha": "e9c09c4d141494b6",
       "claim-sha": "e34ca0475abffbf6",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC7911-5-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily",
+      "unit": "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily",
       "unit-sha": "e9c09c4d141494b6",
       "claim-sha": "feac7a4b8a167aff",
       "route": "revert",

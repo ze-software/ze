@@ -27,7 +27,7 @@ import (
 // against code that treats both the same way.
 //
 // The third rail, forwardUpdateCore (reactor_api_forward.go), already read both
-// returns and is covered by reactor_api_relay_test.go.
+// returns and is covered by rfc7947_reactor_api_relay_test.go.
 
 // panicEgressFilter panics for one destination address and accepts every other.
 func panicEgressFilter(victim netip.Addr) filterapi.EgressFilterFunc {

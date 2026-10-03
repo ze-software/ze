@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/capabilities.md -- RFC 8950 extended next hop
 // Related: peer.go -- rfc8950Family, Peer.resolveNextHop
 // Related: forward_next_hop.go -- egressNextHopLacksExtendedNextHop
-// Related: reactor_a2_rfc8950_forward_test.go -- the forward rail helpers a2Dest and a2Forward
+// Related: rfc8950_reactor_a2_forward_test.go -- the forward rail helpers a2Dest and a2Forward
 
 package reactor
 

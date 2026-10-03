@@ -87,18 +87,18 @@
       "note": "The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier's exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim \u00a73 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. Enforced stands.",
       "requirement_sha": "269b2ebb1239d058",
       "tests": {
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState": "d01cb0754ccf1f43",
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState#2": "d01cb0754ccf1f43",
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates": "d01cb0754ccf1f43",
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates#2": "d01cb0754ccf1f43",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "d01cb0754ccf1f43",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "d01cb0754ccf1f43",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "d01cb0754ccf1f43",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "d01cb0754ccf1f43",
         "test/plugin/paths-limit-live.ci": "8d71d32092695538",
         "test/plugin/paths-limit-live.ci#2": "8d71d32092695538"
       },
       "units": {
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState": "c5e97c978335c423",
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState#2": "c5e97c978335c423",
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates": "52da5bc261d30ab4",
-        "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates#2": "52da5bc261d30ab4",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "c5e97c978335c423",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "c5e97c978335c423",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "52da5bc261d30ab4",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "52da5bc261d30ab4",
         "test/plugin/paths-limit-live.ci": "8d71d32092695538",
         "test/plugin/paths-limit-live.ci#2": "8d71d32092695538"
       },
@@ -108,13 +108,13 @@
       "note": "The pair over TestConfiguredPathsLimitOpen is a strong test of half the sentence and nothing tests the other half. What it checks: the container knob `session > capability > add-path > limit`, the per-family override, and the interaction with disabled, refused and required families decide the tuples encoded in the OPEN, with an omitted limit advertising none and a disabled or refused family unable to carry an orphan tuple. parseAddPathFromTree (internal/component/bgp/reactor/config_capabilities.go) derives the tuples from addPath.Families, the same slice that reaches the wire. What nothing checks, because no code does it: the draft asks for a knob that specifies \"the maximum number of paths to accept from a sender\", and ze's knob states a number to the peer without bounding what ze accepts. EncodingCaps.PathsLimitRecv is read by internal/core/bgp/context/context.go, internal/component/bgp/format/json.go and internal/component/bgp/reactor/negotiated.go, all of which carry it into a negotiated context or into show output, and no reader drops a received path above it. A peer that ignores the request is not policed. The verdict is weak rather than enforced because the tag ties this body to the whole requirement, and the reading under which \"accept\" means local enforcement is not proven by anything. The absent behavior is disclosed on the summary's Support remaining row. No discrimination record was written, because the owner's open decision on building the receive side can reword this claim, and rewording stales a record. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim \u00a73 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. Weak stands: the receive-side clause, 'the maximum number of paths to accept from a sender', has no enforcing code and no assertion.",
       "requirement_sha": "02645766ca857604",
       "tests": {
-        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen": "a6ede23ac2972069",
-        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen#2": "a6ede23ac2972069",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen": "a6ede23ac2972069",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "a6ede23ac2972069",
         "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "e69a1c11cdd2986d"
       },
       "units": {
-        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen": "adcfd3f308d14d77",
-        "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen#2": "adcfd3f308d14d77",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen": "adcfd3f308d14d77",
+        "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "adcfd3f308d14d77",
         "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "373e6f57b2e78b02"
       },
       "verdict": "weak"

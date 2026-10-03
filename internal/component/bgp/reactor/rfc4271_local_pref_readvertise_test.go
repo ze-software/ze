@@ -1,7 +1,7 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- what a forwarded route carries
 // Related: filter_ordered.go -- runIngressPolicyChain, where an import policy computes the preference
 // Related: forward_local_pref.go -- applyFactsLocalPref, the LOCAL_PREF a forwarded route leaves with
-// Related: reactor_a2_rfc8950_forward_test.go -- a2Forward and a2Parts, the harness
+// Related: rfc8950_reactor_a2_forward_test.go -- a2Forward and a2Parts, the harness
 
 package reactor
 

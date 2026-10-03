@@ -147,7 +147,7 @@
     {
       "rid": "RFC5882-4.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown",
+      "unit": "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown",
       "unit-sha": "783dda3cc3accaa2",
       "claim-sha": "d778aea04312eda0",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC5882-4.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown",
+      "unit": "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown",
       "unit-sha": "ff2fa2784300b175",
       "claim-sha": "3bcb305523931909",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC5882-4.2.2.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown",
+      "unit": "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown",
       "unit-sha": "49259461fd5a28dc",
       "claim-sha": "0d79ec4eb9f4074d",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC5882-4.2.2.1-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown",
+      "unit": "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown",
       "unit-sha": "49259461fd5a28dc",
       "claim-sha": "cebca53ad455ea21",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC5882-4.2.2.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown",
+      "unit": "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown",
       "unit-sha": "49259461fd5a28dc",
       "claim-sha": "017c413fb97ccb0e",
       "route": "revert",

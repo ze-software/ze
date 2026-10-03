@@ -163,16 +163,16 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes": "a175c0306331c18a",
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "a175c0306331c18a",
-        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "ce590389e4bbbd78",
-        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "ce590389e4bbbd78",
+        "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "ce590389e4bbbd78",
+        "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "ce590389e4bbbd78",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "6b2760c11598d15e",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "6b2760c11598d15e"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes": "977fced45ca931f5",
         "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "977fced45ca931f5",
-        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "0ffaafa1dae93609",
-        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "0ffaafa1dae93609",
+        "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "0ffaafa1dae93609",
+        "internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "0ffaafa1dae93609",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "5208f23ea0e3c2ec",
         "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "5208f23ea0e3c2ec"
       },

@@ -43,16 +43,16 @@
       "tests": {
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "c179cec33f80bf77",
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "c179cec33f80bf77",
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "741ef04b97554cc2",
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "741ef04b97554cc2",
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "741ef04b97554cc2",
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "741ef04b97554cc2",
         "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "cbd459350ebb4f75",
         "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "cbd459350ebb4f75"
       },
       "units": {
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "e12a0686a3d133a5",
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "e5b5a7f67c6a711f",
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "ebe1208a859067ee",
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "399a8434eb38227f",
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "ebe1208a859067ee",
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "399a8434eb38227f",
         "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "a64467f5c3048d7c",
         "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "18f69cf21051ee7d"
       },
@@ -62,10 +62,10 @@
       "note": "Judge rejudge 2026-09-30 (last five). + reactor TestBFDClient_TeardownOnDown: a non-initial BFD Down StateChange (DiagControlDetectExpired) on an Established peer puts Cease / BFD Down on the wire and moves the session to Idle; asserts the wire, not the opQueue. Producer Peer.runBFDSubscriber -> Session.bfdTeardown (Established arm). MP-BGP is the multi-data-protocol client; ending the session considers the path failed for every family, which is the shared-topology action. {single-polarity: positive} accepted: the obligation is to act on Up->Down and its violation is inaction, which no input presents for refusal; the only no-action boundaries are Up->AdminDown / remote AdminDown (RFC5882-4.2-1, enforced on its own tags, a neighbour row) and the Initial snapshot (not a transition), neither violates this row; no negative existed at HEAD. Record: bfdTeardown revert observed red; author's targeted overlay (Established arm off) red.",
       "requirement_sha": "255570c619693fb4",
       "tests": {
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
       },
       "verdict": "enforced"
     },
@@ -73,10 +73,10 @@
       "note": "Judge rejudge 2026-09-30 (last five). + TestBFDClient_TeardownOnDown: BGP has no per-path announcement short of the session, so Ze emulates the hold-timer outcome: NOTIFICATION then Idle, with RFC 9384 Cease subcode 10 as the code (msg[19]/msg[20] asserted, state polled to Idle). {single-polarity: positive} accepted: action-on-event SHOULD, failure is inaction, no refusal path; the AdminDown no-action case is RFC5882-4.2-1's. Record: bfdTeardown revert observed red.",
       "requirement_sha": "4549c338d453b700",
       "tests": {
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
       },
       "verdict": "enforced"
     },
@@ -84,10 +84,10 @@
       "note": "Judge rejudge 2026-09-30 (last five). Earlier weak note said Ze acts on the whole session rather than one topology. Re-read \u00a74.2.2.2: the SHOULD is 'action SHOULD be taken in the control protocol to signal the lack of connectivity for the path in the topology over which BFD is running'; the next sentence 'Generally, this can be done without impacting the connectivity of other topologies' carries no keyword and states feasibility, not an obligation to spare the others; \u00a710.2 asks the EBGP session 'should be torn down in accordance with Section 3.2'. Ending the BGP session signals the loss in the BFD topology, so the author's reading holds. + TestBFDClient_TeardownOnDown (Cease/BFD Down on the wire, Idle). {single-polarity: positive} accepted for the same reason as 4.2.2.1-1. Record: bfdTeardown revert observed red.",
       "requirement_sha": "8a1d333ce5fbaa4e",
       "tests": {
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "741ef04b97554cc2"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+        "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
       },
       "verdict": "enforced"
     },

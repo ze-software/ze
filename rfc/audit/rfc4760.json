@@ -26,7 +26,7 @@
       "note": "The one multi-protocol case Ze encodes is IPv4 NLRI over an IPv4 or an IPv6 next hop (RFC 5549/8950), plus RD-prefixed VPN hops. (a) forbidden: an encoding whose Length of Next Hop does not tell which protocol the hop is, e.g. an IPv6 hop under AFI 1 written with length 4, or a zero-length field. (b) TestMPReachNextHopLengthCountsTheOctetsWritten asserts buf[3]==16 for \"ipv4 unicast over an ipv6 next hop\" and 4 for the IPv4 hop, and that the written span equals Len(); negatives: TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm (ErrUnencodableNextHop, nothing written), TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm and TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm (no UPDATE on the commit and RIB-replay rails), TestParseMPReachNLRI_InvalidNextHopLength (length 5 refused). Tag-prose note: TestParseMPReachNLRI claims the parser derives the family from the length, but its cases are AFI 2 only and assert counts, not the family.",
       "requirement_sha": "328f6e02c6ab0927",
       "tests": {
-        "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "d2eeb2e25557e522",
+        "internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "d2eeb2e25557e522",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "e95a22c6a645c4b7",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "e95a22c6a645c4b7",
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "2d5c4702ca88dcc3",
@@ -36,7 +36,7 @@
         "internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "bd147ba04b9bb229"
       },
       "units": {
-        "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "78903c0eef755206",
+        "internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "78903c0eef755206",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "b70843ccf60a1782",
         "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "8db455227021d870",
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "25748e2690ae75be",

@@ -5,14 +5,14 @@
       "note": "Forbidden: keeping ACCEPT_OWN on a route in a family with no RD. TestACCEPTOwnFamilyBoundary covers IPv4 in the body NLRI; TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach drives enforceRFC7606 with IPv6 unicast and IPv4 labeled unicast in MP_REACH_NLRI and asserts the COMMUNITY attribute shrinks to exactly 65001:100 (or disappears when ACCEPT_OWN was the only value) with MP_REACH byte-identical; negative VPN-IPv6 (RD present) keeps both copies. Red on a non-RD MP family keeping ACCEPT_OWN or an RD family losing it.",
       "requirement_sha": "40551716bc61b191",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "e0442639e52779a5",
-        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "e0442639e52779a5",
+        "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "e0442639e52779a5",
+        "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "e0442639e52779a5",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary": "d5d815e033ccfd90",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary#2": "d5d815e033ccfd90"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "184aa4bb3c891061",
-        "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "184aa4bb3c891061",
+        "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach": "184aa4bb3c891061",
+        "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach#2": "184aa4bb3c891061",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary": "4ab71e01f42857c8",
         "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnFamilyBoundary#2": "4ab71e01f42857c8"
       },

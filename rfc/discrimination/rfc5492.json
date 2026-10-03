@@ -4,7 +4,7 @@
     {
       "rid": "RFC5492-3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
+      "unit": "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
       "unit-sha": "43fe6069ea0ebe3f",
       "claim-sha": "0f143621f65def20",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC5492-3-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
+      "unit": "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
       "unit-sha": "43fe6069ea0ebe3f",
       "claim-sha": "46d379a421c4daf0",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC5492-5-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
+      "unit": "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
       "unit-sha": "43fe6069ea0ebe3f",
       "claim-sha": "f65c563a23826b0e",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC5492-5-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
+      "unit": "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet",
       "unit-sha": "43fe6069ea0ebe3f",
       "claim-sha": "01e369a9b2db90d7",
       "route": "revert",

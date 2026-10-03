@@ -224,7 +224,7 @@
     {
       "rid": "RFC4271-5-7",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder",
       "unit-sha": "cce79f53a51296b7",
       "claim-sha": "01074b6d80e47efa",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC4271-5-8",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/forward_rfc4271_section5_test.go::TestForwardNeverTransmitsTheSupersededWellKnownAttributes",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_section5_test.go::TestForwardNeverTransmitsTheSupersededWellKnownAttributes",
       "unit-sha": "8ed5d9a3df2ffb84",
       "claim-sha": "b1a8a63522e0b4e4",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC4271-5-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/forward_rfc4271_section5_test.go::TestForwardTransmitsUpdatedWellKnownAttributes",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_section5_test.go::TestForwardTransmitsUpdatedWellKnownAttributes",
       "unit-sha": "44e2d4dfd8809730",
       "claim-sha": "bdd2fec81794b815",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC4271-5.1.2-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
       "unit-sha": "b6fa3fad17efe456",
       "claim-sha": "d4b1767cc7186788",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC4271-5.1.2-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
       "unit-sha": "b6fa3fad17efe456",
       "claim-sha": "dbeb1b27ab055f3a",
       "route": "revert",
@@ -422,7 +422,7 @@
     {
       "rid": "RFC4271-5.1.5-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer",
       "unit-sha": "5bcc19241b394cbb",
       "claim-sha": "45117385af08d1ba",
       "route": "revert",
@@ -433,7 +433,7 @@
     {
       "rid": "RFC4271-5.1.5-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_a2_rfc4271_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer",
       "unit-sha": "5bcc19241b394cbb",
       "claim-sha": "b27e40e1f1ee8674",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "RFC4271-5.1.5-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer",
       "unit-sha": "98b46360b675fbd6",
       "claim-sha": "afb72dca8718102f",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC4271-5.1.5-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer",
       "unit-sha": "98b46360b675fbd6",
       "claim-sha": "60e4ca966739aef2",
       "route": "revert",
@@ -664,7 +664,7 @@
     {
       "rid": "RFC4271-6.2-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "7b61153b4b297e5c",
       "route": "revert",
@@ -675,7 +675,7 @@
     {
       "rid": "RFC4271-6.2-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "aaa49847b8d954b9",
       "route": "revert",
@@ -686,7 +686,7 @@
     {
       "rid": "RFC4271-6.2-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "7fb1417ee81c1df9",
       "route": "revert",
@@ -697,7 +697,7 @@
     {
       "rid": "RFC4271-6.2-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "df03ea9da0935f71",
       "route": "revert",
@@ -708,7 +708,7 @@
     {
       "rid": "RFC4271-6.2-7",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "4480de7f9f8ccd01",
       "route": "revert",
@@ -719,7 +719,7 @@
     {
       "rid": "RFC4271-6.2-7",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "bfa7e29f9cfa00cd",
       "route": "revert",
@@ -730,7 +730,7 @@
     {
       "rid": "RFC4271-6.2-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "f47f299b132e1a0c",
       "route": "revert",
@@ -741,7 +741,7 @@
     {
       "rid": "RFC4271-6.2-8",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
       "unit-sha": "4a9c96647ef297b7",
       "claim-sha": "64b229a89758901c",
       "route": "revert",
@@ -763,7 +763,7 @@
     {
       "rid": "RFC4271-6.3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications",
       "unit-sha": "1378e88f502866aa",
       "claim-sha": "8e96f3a469bf15a7",
       "route": "revert",
@@ -840,7 +840,7 @@
     {
       "rid": "RFC4271-6.3-15",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList",
       "unit-sha": "574a04ab71acf83f",
       "claim-sha": "69fa694a96474321",
       "route": "revert",
@@ -851,7 +851,7 @@
     {
       "rid": "RFC4271-6.3-15",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList",
       "unit-sha": "574a04ab71acf83f",
       "claim-sha": "07c96ff50def4bc3",
       "route": "revert",
@@ -862,7 +862,7 @@
     {
       "rid": "RFC4271-6.3-17",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateWithoutNLRIIsValid",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateWithoutNLRIIsValid",
       "unit-sha": "8ce1e5862ccc28e0",
       "claim-sha": "b828a0a3ff2a9f4c",
       "route": "revert",
@@ -873,7 +873,7 @@
     {
       "rid": "RFC4271-6.3-17",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateWithoutNLRIIsValid",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateWithoutNLRIIsValid",
       "unit-sha": "8ce1e5862ccc28e0",
       "claim-sha": "a3eb0c56ec6fff8d",
       "route": "revert",
@@ -928,7 +928,7 @@
     {
       "rid": "RFC4271-6.3-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList",
       "unit-sha": "574a04ab71acf83f",
       "claim-sha": "d88de7a853d7cbf5",
       "route": "revert",
@@ -939,7 +939,7 @@
     {
       "rid": "RFC4271-6.3-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList",
       "unit-sha": "574a04ab71acf83f",
       "claim-sha": "c189aa59e119c468",
       "route": "revert",
@@ -972,7 +972,7 @@
     {
       "rid": "RFC4271-6.3-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer",
       "unit-sha": "c60c22489328cae6",
       "claim-sha": "c75a187dd4b6569f",
       "route": "revert",
@@ -983,7 +983,7 @@
     {
       "rid": "RFC4271-6.3-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_a_rfc4271_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer",
       "unit-sha": "c60c22489328cae6",
       "claim-sha": "7ac268582f547add",
       "route": "revert",
@@ -1016,7 +1016,7 @@
     {
       "rid": "RFC4271-6.3-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors",
       "unit-sha": "ebaa4dda19f5212d",
       "claim-sha": "02340b5bebcf5397",
       "route": "revert",
@@ -1027,7 +1027,7 @@
     {
       "rid": "RFC4271-6.3-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors",
+      "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors",
       "unit-sha": "ebaa4dda19f5212d",
       "claim-sha": "9e880409af587de1",
       "route": "revert",
@@ -1478,7 +1478,7 @@
     {
       "rid": "RFC4271-8.2.2-22",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+      "unit": "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
       "unit-sha": "9ecf268c07e1e1a6",
       "claim-sha": "1aabc441c8784661",
       "route": "revert",
@@ -1511,7 +1511,7 @@
     {
       "rid": "RFC4271-8.2.2-23",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+      "unit": "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
       "unit-sha": "9ecf268c07e1e1a6",
       "claim-sha": "b30b8aef684287e2",
       "route": "revert",
@@ -1765,7 +1765,7 @@
     {
       "rid": "RFC4271-8.2.2-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+      "unit": "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
       "unit-sha": "9ecf268c07e1e1a6",
       "claim-sha": "f611ebbf1edf6183",
       "route": "revert",

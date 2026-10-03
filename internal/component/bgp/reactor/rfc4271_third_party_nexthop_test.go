@@ -1,6 +1,6 @@
 // Design: docs/architecture/route-selection.md -- the next hop a forwarded route leaves with
 // Related: peer_forward_facts.go -- precomputeNextHop and applyFactsNextHop, the next-hop-self rewrite and its withhold guard
-// Related: reactor_a2_rfc8950_forward_test.go -- a2Forward and a2Parts, the harness
+// Related: rfc8950_reactor_a2_forward_test.go -- a2Forward and a2Parts, the harness
 
 package reactor
 

@@ -18,13 +18,13 @@
       "note": "Forbidden: a SendHoldTimer left armed after a transition out of Established. Tagged units drive four transitions over the real Run loop and assert armed() false after: Event 29 expiry, local Cease (TestRFC9687TeardownStopsTheSendHoldTimer), a NOTIFICATION received from the peer and a peer TCP close (TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer), each with armed() true as precondition. The stop lives in closeConn and in Run's deferred stopSendHoldTimer, which every exit path shares; HoldTimer expiry and a ze-sent error NOTIFICATION are not driven but reach the same two stop sites.",
       "requirement_sha": "0354590c6557e9a7",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "1c6abec57f3d0efd"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "ae87532b2b40a28d",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "ae87532b2b40a28d",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "5be88dd1ee980e68"
@@ -48,14 +48,14 @@
       "note": "Forbidden: BGP resources kept after Event 29. TestRFC9687Event29ReleasesHoldTimerAndConnection asserts HoldTimer and KeepaliveTimer stopped (and the connection gone) after SendHoldTimer_Expires, all held one nanosecond short; the connection half is really the separate 'drops the TCP connection' item. Missing: the routes learned over the connection, released through Peer state and the RIB plugin; no tagged unit goes red if they stay installed after Event 29.",
       "requirement_sha": "83340d1ef8b36846",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "c0faef65febf2aca",
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "1c6abec57f3d0efd"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "fc3f1c5978108b49",
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "fc3f1c5978108b49",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection": "fc3f1c5978108b49",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection#2": "fc3f1c5978108b49",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
       },
@@ -117,12 +117,12 @@
       "note": "Forbidden: a BGP message sent without restarting the SendHoldTimer. TestRFC9687SendRestartsTheSendHoldTimer (SendRawMessage) and TestRFC9687EveryWriterRestartsTheSendHoldTimer (writeMessage/writeMessageWithin, SendUpdate, sendWithdraw, sendRawUpdateBody) each prove the restart by surviving 1.2x SendHoldTime with one send in the middle; the silence negative is sound. Still undriven writers that carry their own resetSendHoldTimer call: the forward pool (forward_pool.go fwdBatchHandler, session_write.go flushFwdDirty), SendAnnounce and SendUpdateHeld; dropping the restart from any of them leaves every tagged unit green.",
       "requirement_sha": "e84a6c54182b7346",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "c0faef65febf2aca",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "c0faef65febf2aca",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "1c6abec57f3d0efd",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "1c6abec57f3d0efd"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
+        "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "ef727ea44a115c14",
         "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "7581328442f256ff"
       },

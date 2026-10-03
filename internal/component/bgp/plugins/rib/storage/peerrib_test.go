@@ -187,7 +187,7 @@ func TestPeerRIB_Clear(t *testing.T) {
 //
 // This is receive-side keying of the Adj-RIB-In. The RFC 7911 Section 2 assignment of
 // identifiers ze advertises is proven by the reactor forward path-id units
-// (internal/component/bgp/reactor/forward_path_id_test.go).
+// (internal/component/bgp/reactor/rfc7911_forward_path_id_test.go).
 func TestPeerRIB_AddPath(t *testing.T) {
 	rib := NewPeerRIB("192.0.2.1")
 	defer rib.Release()

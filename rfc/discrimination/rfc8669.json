@@ -180,7 +180,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",
       "unit-sha": "9343da215f64dfb3",
       "claim-sha": "643538bc48b0a49b",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain",
       "unit-sha": "9343da215f64dfb3",
       "claim-sha": "887df5ef8ae86fb8",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain",
       "unit-sha": "c8c9618dacbac10d",
       "claim-sha": "447b34618fc9b3d9",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain",
       "unit-sha": "c8c9618dacbac10d",
       "claim-sha": "77a3c065b42400ff",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_test.go::TestPrefixSIDEgressBoundary",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go::TestPrefixSIDEgressBoundary",
       "unit-sha": "fb0fb34cf8d35c64",
       "claim-sha": "ce24b3f27b3ec3b0",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_test.go::TestPrefixSIDEgressBoundary",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go::TestPrefixSIDEgressBoundary",
       "unit-sha": "fb0fb34cf8d35c64",
       "claim-sha": "3b4a1a4e39d3888c",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_test.go::TestPrefixSIDOriginationBoundary",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go::TestPrefixSIDOriginationBoundary",
       "unit-sha": "4dcbc9512572879e",
       "claim-sha": "9b33b9332c6f01ef",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC8669-8-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/forward_prefix_sid_test.go::TestPrefixSIDOriginationBoundary",
+      "unit": "internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go::TestPrefixSIDOriginationBoundary",
       "unit-sha": "4dcbc9512572879e",
       "claim-sha": "e41d579b43a92231",
       "route": "revert",

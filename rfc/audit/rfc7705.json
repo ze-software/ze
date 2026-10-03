@@ -84,16 +84,16 @@
       "note": "Forbidden: refusing the OPEN of a configured iBGP peer presenting the global or the locally configured ASN, or not establishing an iBGP session from it. TestRFC7705MigratingPeerEstablishesAsIBGP drives handleOpen then handleKeepalive for both ASNs and asserts Established, no NOTIFICATION and isIBGPWith(advertised) true; negative: a third ASN draws OPEN Message Error / Bad Peer AS and never reaches Established even after a KEEPALIVE. TestMigrationAcceptsEitherASN remains as OpenConfirm-level support.",
       "requirement_sha": "b3425945803177f4",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "d715a5b49c437051",
-        "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "d715a5b49c437051",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN": "d6180a68148ebe31",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "d6180a68148ebe31"
+        "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "d715a5b49c437051",
+        "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "d715a5b49c437051",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN": "d6180a68148ebe31",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "d6180a68148ebe31"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "003a1f67dbd4d0ea",
-        "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "003a1f67dbd4d0ea",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN": "cdae0c923c9c77ff",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "cdae0c923c9c77ff"
+        "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "003a1f67dbd4d0ea",
+        "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "003a1f67dbd4d0ea",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN": "cdae0c923c9c77ff",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "cdae0c923c9c77ff"
       },
       "verdict": "enforced"
     },
@@ -101,12 +101,12 @@
       "note": "Forbidden: sending an OPEN whose My Autonomous System is neither the global nor the locally configured ASN. TestMigrationOpenCarriesResolvedASN reads the OPEN buildOpen produces and asserts My AS and the Four-octet AS capability equal the global ASN before a Bad Peer AS and the locally configured ASN after it (assert.Equal MyAS, ASN4, capability ASN), red on any other AS. Negative: without migration configured the local AS is sent whatever the fallback flag holds.",
       "requirement_sha": "8e37aa0e967dc55b",
       "tests": {
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "d6180a68148ebe31",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "d6180a68148ebe31"
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "d6180a68148ebe31",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "d6180a68148ebe31"
       },
       "units": {
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "c42b9fa1f72a9f86",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "c42b9fa1f72a9f86"
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "c42b9fa1f72a9f86",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "c42b9fa1f72a9f86"
       },
       "verdict": "enforced"
     },
@@ -114,12 +114,12 @@
       "note": "Forbidden: handling UPDATEs sent to or received from the migrating peer as eBGP, or otherwise unlike a native iBGP session under RFC 4271 and RFC 4456. TestMigrationSessionIsIBGP asserts only the classification (IsIBGP, IsEBGP) and localASPrependFor(settings).owed() && IsEBGP(), which is derived from IsEBGP itself. No tagged unit sends or receives an UPDATE on such a session: nothing asserts the absence of an eBGP AS_PATH prepend on the wire, LOCAL_PREF handling, iBGP split horizon, or the RFC 4456 reflection rules.",
       "requirement_sha": "c44d77b7a82e5df7",
       "tests": {
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationSessionIsIBGP": "4e9d34dbf686a042",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationSessionIsIBGP#2": "4e9d34dbf686a042"
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP": "4e9d34dbf686a042",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP#2": "4e9d34dbf686a042"
       },
       "units": {
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationSessionIsIBGP": "012c128db34a3c67",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationSessionIsIBGP#2": "012c128db34a3c67"
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP": "012c128db34a3c67",
+        "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationSessionIsIBGP#2": "012c128db34a3c67"
       },
       "verdict": "weak"
     }

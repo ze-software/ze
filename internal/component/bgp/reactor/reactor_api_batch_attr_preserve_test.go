@@ -19,7 +19,7 @@ import (
 
 // Attribute PRESERVATION across the two announce rails.
 //
-// reactor_api_batch_attr_order_test.go pins the ORDER the two rails emit, and its
+// rfc4271_reactor_api_batch_attr_order_test.go pins the ORDER the two rails emit, and its
 // TestAnnounceRailsAgreeByteForByte pins that they agree. It could not see this
 // defect: every case in its table carries only attributes the queued rail's type
 // switch listed, so the switch's DEFAULT behavior -- silently dropping anything

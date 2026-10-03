@@ -5,14 +5,14 @@
       "note": "Forbidden: an Unsupported Capability NOTIFICATION that omits a causing capability or lists one that did not cause it. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet drives handleOpen on a session requiring Route Refresh and Extended Message and reads the wire: none sent -> one 2/7 NOTIFICATION with Data exactly 02 00 06 00; Route Refresh plus unknown 254 sent -> Data exactly 06 00 (sent and unknown capabilities excluded); both sent -> no NOTIFICATION, OpenConfirm.",
       "requirement_sha": "701c0995c59ceebb",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
         "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "933b3c0fcb7d9bad",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "ac1b8bb6f2a0be51"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
         "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "24f0040111395614",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "bbd9fec0afd6bd13"
       },
@@ -91,15 +91,15 @@
       "note": "Forbidden: Data that does not list the set of capabilities that caused the NOTIFICATION. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet asserts the sent NOTIFICATION's Data octets exactly: both missing -> 02 00 06 00 (the whole set), one missing -> 06 00 only (the causing set, not the required set). Builder-level units remain as supporting evidence.",
       "requirement_sha": "9bc3c195e5857c2d",
       "tests": {
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
         "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "933b3c0fcb7d9bad",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "ac1b8bb6f2a0be51",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ac1b8bb6f2a0be51"
       },
       "units": {
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
-        "internal/component/bgp/reactor/reactor_b_rfc5492_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
+        "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
         "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "aa9265b2087c9bf9",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "8bc8182d4b9a945a",
         "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "ab4bea63254fbb32"

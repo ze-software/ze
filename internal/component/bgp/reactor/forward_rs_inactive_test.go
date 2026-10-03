@@ -2,7 +2,7 @@
 // Related: forward_rs.go -- reactorForwardRS and hasActiveFilter, the code under test
 //
 // The deactivated-filter half of the route-server fast path lives in its own
-// file. forward_rs_test.go carries RFC 7947 tags, and adding a function to a
+// file. rfc7947_forward_rs_test.go carries RFC 7947 tags, and adding a function to a
 // tagged file reads to the commit gate as a change to the evidence behind a
 // published compliance claim (internal/le/commit/rfcchange.go). This test
 // asserts nothing about RFC 7947: it asserts that an `inactive:` ref applies no

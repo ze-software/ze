@@ -4,7 +4,7 @@
     {
       "rid": "RFC9687-4.3-10",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer",
+      "unit": "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer",
       "unit-sha": "90f2d4e1b2658ea4",
       "claim-sha": "bc18d7cb9fb5028f",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC9687-4.3-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection",
+      "unit": "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection",
       "unit-sha": "85ccb6ff75a2bd00",
       "claim-sha": "7b759cd420af5a40",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC9687-4.3-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection",
+      "unit": "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687Event29ReleasesHoldTimerAndConnection",
       "unit-sha": "85ccb6ff75a2bd00",
       "claim-sha": "fd8e9f2aef23bf9e",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC9687-4.3-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc9687_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer",
+      "unit": "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer",
       "unit-sha": "d0cb71eaaa801a81",
       "claim-sha": "471a013e16aa4cd9",
       "route": "revert",

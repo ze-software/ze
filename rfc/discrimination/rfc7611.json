@@ -26,7 +26,7 @@
     {
       "rid": "RFC7611-2.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach",
+      "unit": "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach",
       "unit-sha": "dab40c1dc76d82e1",
       "claim-sha": "c9a2d11d195b6134",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC7611-2.2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc7611_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach",
+      "unit": "internal/component/bgp/reactor/rfc7611_reactor_b_test.go::TestRFC7611AcceptOwnDiscardedForEveryNonRDFamilyInMPReach",
       "unit-sha": "dab40c1dc76d82e1",
       "claim-sha": "a767404eef3d685e",
       "route": "revert",

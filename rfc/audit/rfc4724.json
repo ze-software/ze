@@ -63,7 +63,7 @@
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "02487edfbf589113",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "02487edfbf589113",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "02487edfbf589113",
-        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48",
+        "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "f04334a58fd00e7c"
       },
       "units": {
@@ -74,7 +74,7 @@
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "bb281df1bb3cb7e8",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "f55af084daac0b0e",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "e2d1e536367f28dc",
-        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9",
+        "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "dc3b6dc2d2cdd55f"
       },
       "verdict": "enforced"
@@ -282,13 +282,13 @@
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
         "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
-        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48"
+        "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48"
       },
       "units": {
         "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
         "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2",
-        "internal/component/bgp/reactor/reactor_b_rfc4724_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9"
+        "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9"
       },
       "verdict": "enforced"
     }

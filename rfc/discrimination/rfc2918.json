@@ -15,7 +15,7 @@
     {
       "rid": "RFC2918-3-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_b_rfc2918_test.go::TestRFC2918SentRequestReservedOctetIsZero",
+      "unit": "internal/component/bgp/reactor/rfc2918_reactor_b_test.go::TestRFC2918SentRequestReservedOctetIsZero",
       "unit-sha": "daa396542b1a1818",
       "claim-sha": "b0749257598c16d4",
       "route": "revert",

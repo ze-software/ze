@@ -1,6 +1,6 @@
 // Design: docs/guide/bfd.md -- Enabling BFD on a BGP peer, and Authentication
 // Related: config_bfd_profile_commit_test.go -- the commit check this test runs
-// Related: peer_bfd_test.go -- fakeBFDService, the Service stand-in
+// Related: rfc5882_peer_bfd_test.go -- fakeBFDService, the Service stand-in
 //
 // RFC 5882 Section 10.2 asks that an EBGP session advised by BFD use BFD
 // authentication. Ze's route to it runs through two components: the BGP peer

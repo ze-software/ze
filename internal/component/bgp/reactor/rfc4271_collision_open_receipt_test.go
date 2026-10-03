@@ -1,5 +1,5 @@
 // Design: docs/architecture/behavior/fsm-open-confirm.md — collision detection on a second connection
-// Related: collision_test.go — setupOpenConfirmSession; session_core4271_test.go — core4271ReadMessage
+// Related: collision_test.go — setupOpenConfirmSession; rfc4271_session_core4271_test.go — core4271ReadMessage
 // RFC: rfc/short/rfc4271.md — Section 6.8, connection collision detection
 
 package reactor

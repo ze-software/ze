@@ -26,7 +26,7 @@
     {
       "rid": "RFC9384-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/peer_last_error_test.go::TestNotificationDeliveredIsNotRecordedAsUnsent",
+      "unit": "internal/component/bgp/reactor/rfc9384_peer_last_error_test.go::TestNotificationDeliveredIsNotRecordedAsUnsent",
       "unit-sha": "8e073f9b0899a087",
       "claim-sha": "75b2232569f03e7c",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC9384-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/peer_last_error_test.go::TestNotificationRefusedBySocketStillRecordsTheReason",
+      "unit": "internal/component/bgp/reactor/rfc9384_peer_last_error_test.go::TestNotificationRefusedBySocketStillRecordsTheReason",
       "unit-sha": "a225ec37b3cf60f9",
       "claim-sha": "1aef9a55ae4dbf91",
       "route": "revert",

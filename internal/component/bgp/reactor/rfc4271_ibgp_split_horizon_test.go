@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- egress route decisions on the forward rails
 // Related: reactor_api_forward.go -- forwardUpdateSection, the split-horizon refusal under test
-// Related: reactor_a2_rfc8950_forward_test.go -- a2ForwardWith and a2Parts, the harness
+// Related: rfc8950_reactor_a2_forward_test.go -- a2ForwardWith and a2Parts, the harness
 
 package reactor
 

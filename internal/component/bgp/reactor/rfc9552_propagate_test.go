@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- BGP-LS NLRI and attribute propagation
 // RFC: rfc/short/rfc9552.md -- Section 5.1, unknown and unsupported types are preserved and propagated
 // Overview: reactor_api_forward.go -- forwardUpdateCore, the rail that propagates a received UPDATE
-// Related: rfc_draft_linklocal_reflect_test.go -- the forward harness this file follows
+// Related: draft_ietf_idr_linklocal_capability_reflect_test.go -- the forward harness this file follows
 
 package reactor
 

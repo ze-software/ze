@@ -19,12 +19,12 @@
       "note": "Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).",
       "requirement_sha": "933e18e1df1672f1",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "972da5b60cad2ef0",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "972da5b60cad2ef0"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "972da5b60cad2ef0",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "972da5b60cad2ef0"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "1e6c97deb3cf5f1c",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "d06814d74bc447bc"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "1e6c97deb3cf5f1c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "d06814d74bc447bc"
       },
       "verdict": "enforced"
     },
@@ -32,16 +32,16 @@
       "note": "Re-judged 2026-10-01 (BGP c21 judge). The c19 finding is closed: TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo reads the MP_REACH_NLRI Length of Next Hop octet off the bytes sendStaticRoutes wrote to the one-hop internal peer's connection and asserts 0x20 followed by exactly 2001:db8:1::1 then fe80::1 (both clauses: length 32, both addresses); TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen asserts 0x10 and the lone global for a route through another router, so the 32-octet length is tied to sending both. mpReachNextHopField slices exactly the octets the length announces and fails when none is written. Records observed red on mpnlri.go::nextHopLen. The older facts-level units stay tagged; their assert.Len over a [32]byte array is vacuous and carries no weight in this verdict.",
       "requirement_sha": "4af2fb7eef0b4feb",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "eda240ce7fd2c20c",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "eda240ce7fd2c20c",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "8b6df8728f9a616d",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "8b6df8728f9a616d"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "eda240ce7fd2c20c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "eda240ce7fd2c20c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "8b6df8728f9a616d"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "444d14cf9d062586",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "bc461ac88770e007",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "dca4ee3b28586c6f",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "bf1c6ea9e32ea6e8"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "444d14cf9d062586",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "bc461ac88770e007",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "dca4ee3b28586c6f",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "bf1c6ea9e32ea6e8"
       },
       "verdict": "enforced"
     },
@@ -49,12 +49,12 @@
       "note": "Forbidden: advertising a route that is left with no IPv6 next hop AFTER the Section 4 procedures run. TestLinkLocalRouteWithNoNextHopIsNotAdvertised asserts assert.Nil on buildRIBRouteUpdate fed a zero netip.Addr, so it proves only that the RIB-replay builder refuses an empty address. The clause 'after completing these procedures' has no assertion: no tagged unit feeds a route whose procedures strip every address (for example a Link-Local-only next hop toward a multihop peer, where the Link-Local must not be included), and the forward rail (forwardUpdateCore) is not driven. A procedure that dropped the Link-Local and still sent an empty next hop leaves both units green.",
       "requirement_sha": "b4a8a2902cdd2961",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "fbbc388ab95f6372"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "92c01210a50eb8f0",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "6be599755e049d98"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "92c01210a50eb8f0",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "6be599755e049d98"
       },
       "verdict": "weak"
     },
@@ -68,12 +68,12 @@
       "note": "Forbidden: including any Link-Local next hop toward an internal peer more than one hop away. TestLinkLocalNotIncludedForPeerMoreThanOneHopAway asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only for a peer configured next-hop-self, where ze would append its OWN configured link-local. The third-party case is not asserted: under next-hop unchanged (nhModeNone, the iBGP default) applyFactsNextHop (peer_forward_facts.go) returns without touching the received MP_REACH next hop, so a received Global+Link-Local field forwarded to a multihop internal peer keeps its Link-Local address, and no tagged unit feeds that input.",
       "requirement_sha": "0484129d31f8abcf",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForPeerOneHopAway": "8b6df8728f9a616d",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "8b6df8728f9a616d"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "8b6df8728f9a616d"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForPeerOneHopAway": "4630c7a31a65cda7",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "cf2dc79a791333e4"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway": "4630c7a31a65cda7",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "cf2dc79a791333e4"
       },
       "verdict": "weak"
     },
@@ -83,20 +83,20 @@
       "tests": {
         "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "52228b2fd5d81dde",
         "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "52228b2fd5d81dde",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "eda240ce7fd2c20c",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "eda240ce7fd2c20c",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "8b6df8728f9a616d",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "8b6df8728f9a616d",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "8b6df8728f9a616d"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "eda240ce7fd2c20c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "eda240ce7fd2c20c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "8b6df8728f9a616d"
       },
       "units": {
         "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "9a117eec472d8b16",
         "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "67d7879a8992500a",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "e601b387c8bfbd8a",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "d006104036f3194f",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "71cf6e0c76b63ec2",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "951f8278ecb9412d",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "889cc8ffe6f9cb44"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "e601b387c8bfbd8a",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "d006104036f3194f",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "71cf6e0c76b63ec2",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress": "951f8278ecb9412d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "889cc8ffe6f9cb44"
       },
       "verdict": "enforced"
     },
@@ -104,12 +104,12 @@
       "note": "Forbidden: announcing to an internal peer a route left with no IPv6 next hop after the internal-peer procedures. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer asserts assert.Nil on buildRIBRouteUpdate's internal rail for a zero netip.Addr only. 'After evaluating the above procedures' is not an input: no unit feeds a route whose Link-Local is removed toward a multihop internal peer and then leaves nothing, and the forward rail is not driven. The '(Treat-as-withdraw.)' clause, a withdrawal of a previously announced route, has no assertion.",
       "requirement_sha": "85d358b2f23809f2",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "fbbc388ab95f6372"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "e7c0912e3ea5374e",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "69a8c4e0c2796a81"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "e7c0912e3ea5374e",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "69a8c4e0c2796a81"
       },
       "verdict": "weak"
     },
@@ -117,12 +117,12 @@
       "note": "Forbidden: a reflector advertising a link-local-only route to a client off the original advertiser's segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore with a 16-octet fe80::1 next hop and asserts assert.NotContains(got, off-segment client); delivering to it turns the test red. The same function (negative tag) asserts the on-segment client does receive the link-local-only next hop, so the refusal is keyed on the segment.",
       "requirement_sha": "01dd2f11bbcb64db",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "a8caf0b26c61ea23",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "a8caf0b26c61ea23"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "a8caf0b26c61ea23",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "a8caf0b26c61ea23"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "7feb6579d8c4f4b2",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "7feb6579d8c4f4b2"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "7feb6579d8c4f4b2",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "7feb6579d8c4f4b2"
       },
       "verdict": "enforced"
     },
@@ -130,12 +130,12 @@
       "note": "Forbidden: for an off-segment client, sending the link-local-only route neither rewritten nor withheld. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives 2001:db8:1::254 and not a link-local-only field (rewrite arm) and that the client without rewrite receives nothing (ineligible arm); passing the link-local through to either turns it red. The negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld shows a Global next hop is untouched.",
       "requirement_sha": "3878bc1d729469f9",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "a8caf0b26c61ea23",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "a8caf0b26c61ea23"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "a8caf0b26c61ea23",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "a8caf0b26c61ea23"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "657bbc397ffff782",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "817c76108060c4ec"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "657bbc397ffff782",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "817c76108060c4ec"
       },
       "verdict": "enforced"
     },
@@ -143,12 +143,12 @@
       "note": "Forbidden: announcing to a one-hop external peer a route with no next hop, and not treating it as a withdrawal. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer asserts assert.Nil on buildRIBRouteUpdate's external rail for a zero netip.Addr, which proves the builder builds nothing. The '(treat-as-withdraw)' clause has no assertion: no unit announces the route with a next hop first and then checks that losing it sends a withdrawal. Only the RIB-replay rail is driven; the forward rail is not.",
       "requirement_sha": "559ca70e99101ad3",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "fbbc388ab95f6372"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "65c510d00af439fa",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "2c78d9232aa3cd34"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "65c510d00af439fa",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "2c78d9232aa3cd34"
       },
       "verdict": "weak"
     },
@@ -156,20 +156,20 @@
       "note": "Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author's overlay disabling only the forward_rs.go call (strip && false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.",
       "requirement_sha": "7a157c343d0362b5",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "23787ae23d680369",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "23787ae23d680369",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "23787ae23d680369",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "23787ae23d680369",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "8b6df8728f9a616d",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "8b6df8728f9a616d"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "23787ae23d680369",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "23787ae23d680369",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "23787ae23d680369",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "23787ae23d680369",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "8b6df8728f9a616d"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "f545278a231f2e90",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "16721b3aa7f9e99a",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "6422352eb874ecc7",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "455ec9701962d1ad",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "45b3b0a054c9b3d1",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "405e2a4b4f76cdf8"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "f545278a231f2e90",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "16721b3aa7f9e99a",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "6422352eb874ecc7",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "455ec9701962d1ad",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "45b3b0a054c9b3d1",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "405e2a4b4f76cdf8"
       },
       "verdict": "enforced"
     },
@@ -177,12 +177,12 @@
       "note": "Forbidden: advertising to a multihop external peer a route that carries no Global IPv6 next hop, typically one whose next hop is Link-Local only. TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer feeds a ZERO next hop to buildRIBRouteUpdate and asserts nil, which is the no-next-hop-at-all rule of 4-1/4-7; its facts half (no Link-Local appended under next-hop-self) is not connected to the builder call. No tagged unit offers a Link-Local-only (fe80::) next hop toward a multihop external peer, which is the input the sentence forbids.",
       "requirement_sha": "95e549321443334b",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer": "08a22c0a0b2832ed",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "d626a5e598bf0051"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer": "08a22c0a0b2832ed",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "d626a5e598bf0051"
       },
       "verdict": "weak"
     },
@@ -190,12 +190,12 @@
       "note": "Forbidden: sending the 16-octet Link-Local-only field for IPv4 NLRI when capability 77 plus RFC 8950 were not both negotiated. TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination asserts require.ErrorIs(err, ErrNextHopLinkLocalOnly) from resolveNextHop and assert.Len(field, 32) with Global then Link-Local; admitting the 16-octet form turns it red. The negative TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination shows the 16-octet form is sent once both are negotiated.",
       "requirement_sha": "d69e7eae06afe95f",
       "tests": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "972da5b60cad2ef0",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "972da5b60cad2ef0"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "972da5b60cad2ef0",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "972da5b60cad2ef0"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "6a1150812b851024",
-        "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "efb9b6b9dfdfc4e8"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "6a1150812b851024",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "efb9b6b9dfdfc4e8"
       },
       "verdict": "enforced"
     },

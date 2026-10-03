@@ -248,9 +248,9 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "41fae6472d6a1c4d",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "933b3c0fcb7d9bad",
-        "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "25c96de03fee2bc0",
-        "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
-        "internal/component/bgp/reactor/session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a"
+        "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "25c96de03fee2bc0",
+        "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
+        "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "e8d83289676a1ed9",
@@ -258,9 +258,9 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "826916eb61da357d",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "fbb3440e0706de73",
-        "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "b2a21ea860c6a050",
-        "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "96ca1d9cb26b0ea9",
-        "internal/component/bgp/reactor/session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "4d880456e07a5960"
+        "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "b2a21ea860c6a050",
+        "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "96ca1d9cb26b0ea9",
+        "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "4d880456e07a5960"
       },
       "verdict": "enforced"
     },
@@ -460,8 +460,8 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIEscalation": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "41fae6472d6a1c4d",
-        "internal/component/bgp/reactor/session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
-        "internal/component/bgp/reactor/session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18"
+        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
+        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachMinValid": "2ef0df6447b80465",
@@ -469,8 +469,8 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIEscalation": "0db3fdf749b07c00",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "826916eb61da357d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "826916eb61da357d",
-        "internal/component/bgp/reactor/session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "3af9ff5f8e051dbf",
-        "internal/component/bgp/reactor/session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "0e1529d7d8a7be8d"
+        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "3af9ff5f8e051dbf",
+        "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "0e1529d7d8a7be8d"
       },
       "verdict": "enforced"
     },
@@ -566,13 +566,13 @@
         "internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "3e9eae7b68be5834",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "ddf20aa815d433a8",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "ddf20aa815d433a8",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "9c2f954e0033529f",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "9c2f954e0033529f",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "9c2f954e0033529f",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "9c2f954e0033529f",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "f93919c811918dd2",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "f93919c811918dd2",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "f93919c811918dd2",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "9c2f954e0033529f",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "9c2f954e0033529f",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "9c2f954e0033529f",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "9c2f954e0033529f",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "f93919c811918dd2",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "f93919c811918dd2",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "f93919c811918dd2",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "f04334a58fd00e7c",
         "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
         "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "16e711f7338cba75",
@@ -583,13 +583,13 @@
         "internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "1ea3fe9667cecd52",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "08ab9f726126abad",
         "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "1e89a4919af9496b",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "8724841c177bbac1",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "1543c449876af45d",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "f3d69167c28a318a",
-        "internal/component/bgp/reactor/session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "81e8736cd6b83252",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "5f1508f4aebe0dc4",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "48632ed613df2cc2",
-        "internal/component/bgp/reactor/session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "89a40615f8985adf",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "8724841c177bbac1",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "1543c449876af45d",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "f3d69167c28a318a",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "81e8736cd6b83252",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "5f1508f4aebe0dc4",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "48632ed613df2cc2",
+        "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "89a40615f8985adf",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "5939f163938e3d95",
         "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
         "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "16e711f7338cba75",

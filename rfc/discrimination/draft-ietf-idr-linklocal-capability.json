@@ -4,7 +4,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone",
       "unit-sha": "2333756d678fd4a1",
       "claim-sha": "64a7a540c8a14432",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets",
       "unit-sha": "bef2844b062b1917",
       "claim-sha": "4c914426e65328d4",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo",
       "unit-sha": "2712bcc177979816",
       "claim-sha": "f943ab27b1e650d5",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen",
       "unit-sha": "376da1e4275f5447",
       "claim-sha": "becdfa8c8b442cd7",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets",
       "unit-sha": "99154c5b91e01f56",
       "claim-sha": "c8e9640dbfd63331",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets",
       "unit-sha": "3ea112c65000b49b",
       "claim-sha": "e1f7704337350a7a",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised",
       "unit-sha": "77a5550b75f8c3f2",
       "claim-sha": "c0d2a2c46c8e296c",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised",
       "unit-sha": "a79302188ff833bc",
       "claim-sha": "2f5ab70e7ded6a86",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForPeerOneHopAway",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway",
       "unit-sha": "9878412e96ce7d93",
       "claim-sha": "195d8222253c77d9",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway",
       "unit-sha": "b5aabd114df9d68d",
       "claim-sha": "d7865d63bd4f9b2d",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute",
       "unit-sha": "d782d91028f60f6d",
       "claim-sha": "4ce31e9e8c7bae64",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter",
       "unit-sha": "563fa5eeec3f14a1",
       "claim-sha": "c1a6e869347ea484",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker",
       "unit-sha": "c71d9a1403507bc8",
       "claim-sha": "652a5d865948fdfb",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedUnderAutoLocalAddress",
       "unit-sha": "2b3a31cbafdc7295",
       "claim-sha": "14c11588111ada14",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop",
       "unit-sha": "728c05a57a64175c",
       "claim-sha": "ce24aebb0cee391f",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer",
       "unit-sha": "cf830a4504b9a780",
       "claim-sha": "7f20f0e2fc51dd93",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer",
       "unit-sha": "5c96463610ccad67",
       "claim-sha": "9431d924a07ca3eb",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
       "unit-sha": "a427134fa2d3be8c",
       "claim-sha": "ab34af15b1739cd6",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
       "unit-sha": "a427134fa2d3be8c",
       "claim-sha": "704c09945c1666ac",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld",
       "unit-sha": "6f81906f6290a0bf",
       "claim-sha": "8c2c331fd049ee87",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients",
       "unit-sha": "bb4ff73b4c32e8ec",
       "claim-sha": "bae32fbf0075d840",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer",
       "unit-sha": "da1d742a4aaf0eeb",
       "claim-sha": "6d6f9c5df3715caa",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer",
       "unit-sha": "35e219044b5eedb4",
       "claim-sha": "40432f7d4e7ad99c",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer",
       "unit-sha": "fb0d61908af62273",
       "claim-sha": "2c1aad3d4a625b64",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer",
       "unit-sha": "9a49085f27e08a3b",
       "claim-sha": "8755929699952e52",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient",
       "unit-sha": "570ecde6a8b007dd",
       "claim-sha": "e5310a9f8cd4b72f",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient",
       "unit-sha": "0715036833756334",
       "claim-sha": "260c4404ca8be907",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer",
       "unit-sha": "42698e42d02c0119",
       "claim-sha": "40e8eb1fa231b313",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer",
       "unit-sha": "9e84b16af33e17e5",
       "claim-sha": "a06ece5a0d9329f0",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer",
       "unit-sha": "91da411e77d3c1db",
       "claim-sha": "4eaafbe47c0c539a",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer",
       "unit-sha": "e5d73557ea62467c",
       "claim-sha": "520504fbeb30486b",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination",
       "unit-sha": "1c758c7e3fef94e9",
       "claim-sha": "579320df808ac79d",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc_draft_linklocal_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination",
+      "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination",
       "unit-sha": "ce4667dac8a13ab7",
       "claim-sha": "d49204e02927d2b0",
       "route": "revert",

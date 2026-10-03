@@ -15,7 +15,7 @@
     {
       "rid": "RFC8950-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/reactor_a2_rfc8950_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
+      "unit": "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
       "unit-sha": "a00e28eac1b4abb3",
       "claim-sha": "40b17fb879a7486e",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC8950-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/reactor_a2_rfc8950_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
+      "unit": "internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair",
       "unit-sha": "a00e28eac1b4abb3",
       "claim-sha": "130590b45afdfdab",
       "route": "revert",

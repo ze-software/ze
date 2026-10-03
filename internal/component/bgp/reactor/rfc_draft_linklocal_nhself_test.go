@@ -1,7 +1,7 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- forwarded routes and next-hop self
 // Related: forward_next_hop.go -- egressNextHopLinkLocalOnlyRefused, the forward rails' gate
 // Related: peer.go -- linkLocalOnlyNextHopRefused, the predicate the announce rail asks too
-// Related: reactor_a2_rfc8950_forward_test.go -- a2Forward and a2Parts, the harness
+// Related: rfc8950_reactor_a2_forward_test.go -- a2Forward and a2Parts, the harness
 
 package reactor
 
