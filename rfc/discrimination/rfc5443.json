@@ -48,7 +48,7 @@
     {
       "rid": "RFC5443-2-5",
       "polarity": "negative",
-      "unit": "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive",
+      "unit": "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive",
       "unit-sha": "8939f9bcce046a3a",
       "claim-sha": "9a76bee07c7cfd3b",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC5443-2-5",
       "polarity": "positive",
-      "unit": "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443SessionUpOnPeerKeepAlive",
+      "unit": "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443SessionUpOnPeerKeepAlive",
       "unit-sha": "e0b88dd26d457e83",
       "claim-sha": "d18d26f6a29442c6",
       "route": "revert",

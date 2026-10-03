@@ -4,7 +4,7 @@
     {
       "rid": "RFC5561-6-4",
       "polarity": "negative",
-      "unit": "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification",
+      "unit": "internal/plugins/ldp/rfc5561_capability_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification",
       "unit-sha": "e4d8fefa9cf5a234",
       "claim-sha": "5647d92672cb8c05",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC5561-6-4",
       "polarity": "positive",
-      "unit": "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored",
+      "unit": "internal/plugins/ldp/rfc5561_capability_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored",
       "unit-sha": "71c766a9988965d5",
       "claim-sha": "7cd3270359c7f194",
       "route": "revert",

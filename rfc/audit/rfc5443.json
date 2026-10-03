@@ -40,14 +40,14 @@
       "note": "Three clauses: a hello adjacency exists, a session matching its LDP Identifier is established, all bindings exchanged. Established (RULINGS R4 fix, c29): TestRFC5443NoSessionUpBeforePeerKeepAlive drives runSession with a peer that completes TCP and the Initialization exchange but sends no KeepAlive, and requires zero SessionUp and state open-received; TestRFC5443SessionUpOnPeerKeepAlive sends the KeepAlive and requires exactly one SessionUp naming the adjacency's interface eth0 and LDP Identifier 10.0.0.2:0. Revert records (handleInit, keepaliveReceived) prove reach; author overlays with HEAD's OPENSENT->OPERATIONAL handleInit and a KeepAlive that makes no transition turned each red with the clause-specific message (judge read the job logs). Adjacency and LDP Identifier: SessionUp is published only by runSession for the adjacency startSessionForAdj dialed, from the operational transition, and an Initialization from another LSR ID or label space is refused before OPENREC (RFC5036-3.5.3-9 units), so no SessionUp is published for a non-matching session. Bindings exchanged (hold-down estimate): TestLDPSyncSubscribesSessionEvents and TestLDPSyncRestoresAfterHoldDown drive the real ldpSyncManager (SessionUp -> hold-down at LSInfinity, Synchronized only on timer expiry), with revert records on onSessionUp and onHoldDownExpiry added by the judge. Interop ospf-ldp-sync-frr passed with the fix (2026-10-02). Not this row: onDone emits SessionDown also for a session that never published SessionUp (journal state-read-after-teardown-reset-it.md).",
       "requirement_sha": "2c576a81baba359d",
       "tests": {
-        "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "631eb3d34c22ecaa",
-        "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "631eb3d34c22ecaa",
+        "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "631eb3d34c22ecaa",
+        "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "631eb3d34c22ecaa",
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "9e546619d1947e81",
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "9e546619d1947e81"
       },
       "units": {
-        "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "a9b9b12914b313b3",
-        "internal/plugins/ldp/sessionup_rfc5443_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "d007b0a2f3389165",
+        "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "a9b9b12914b313b3",
+        "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "d007b0a2f3389165",
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "ec139fedd0f6a412",
         "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "1382e1c0b510a3c2"
       },

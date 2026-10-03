@@ -5,12 +5,12 @@
       "note": "RFC5561 section 6 requires silently ignoring unsupported U=1 Capability Parameters and allowing establishment. Both dynamic-capability-announcement and unassigned code point fixtures encode U=1, F=0, S=1 beside valid Common Session Parameters. Positive checks decoded parameters, processes Initialization plus KeepAlive to Operational and pins 30s; negative requires nil processMessages error and strict deadline-timeout silence, rejecting EOF as well as Notification. Reviewed DecodeInit/skipTLV and the new common initialization message-type guard: an unknown TLV inside an expected Initialization remains accepted, unlike an unknown message during initialization. Native producer-halt evidence is supplemental, not the semantic verdict.",
       "requirement_sha": "7ac90ef5ee36edcc",
       "tests": {
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "86ec408b7a4d1ed8",
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "86ec408b7a4d1ed8"
+        "internal/plugins/ldp/rfc5561_capability_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "86ec408b7a4d1ed8",
+        "internal/plugins/ldp/rfc5561_capability_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "86ec408b7a4d1ed8"
       },
       "units": {
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "ce3f3668d6de6281",
-        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "8ba96e88f7f19743"
+        "internal/plugins/ldp/rfc5561_capability_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "ce3f3668d6de6281",
+        "internal/plugins/ldp/rfc5561_capability_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "8ba96e88f7f19743"
       },
       "verdict": "enforced"
     }
