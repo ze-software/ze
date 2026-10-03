@@ -10,7 +10,10 @@ package rfc
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"go/build"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -38,11 +41,18 @@ type RenameRewrite struct {
 }
 
 // RenameReport is what `./le rfc rename` answers after it wrote.
+//
+// Moves, Evidence and Citations name only what was written. When a write failed
+// part-way, Stopped carries the failure and Linked names each target created
+// whose source is still in place, so the operator sees the tree as it is.
 type RenameReport struct {
 	Moves     []renamePair    `json:"moves"`
 	Evidence  []RenameRewrite `json:"evidence"`
 	Citations []string        `json:"citations"`
 	Mentions  []string        `json:"mentions"`
+	Stale     []string        `json:"stale"`
+	Linked    []renamePair    `json:"linked,omitempty"`
+	Stopped   string          `json:"stopped,omitempty"`
 }
 
 // renameNextStep is the command the derived ledgers need after a rename.
@@ -63,6 +73,15 @@ func (r RenameReport) Text() string {
 	for _, where := range r.Mentions {
 		tb.Str("plain mention left unchanged, read it: ").Str(where).Byte('\n')
 	}
+	for _, where := range r.Stale {
+		tb.Str("citation still names the old path, edit it by hand: ").Str(where).Byte('\n')
+	}
+	for _, link := range r.Linked {
+		tb.Str("created ").Str(link.Target).Str(", source still in place: ").Str(link.Source).Byte('\n')
+	}
+	if r.Stopped != "" {
+		tb.Str("stopped part-way, nothing above this line was undone: ").Str(r.Stopped).Byte('\n')
+	}
 	return tb.Str("next: ").Str(renameNextStep).Byte('\n').String()
 }
 
@@ -82,6 +101,7 @@ type renamePlan struct {
 	Cited     []renameFile
 	Citations []string
 	Mentions  []string
+	Stale     []string
 }
 
 // renameFiles plans and applies a batch of moves: every refusal is judged for
@@ -114,8 +134,13 @@ func planRename(tree string, pairs []renamePair) (renamePlan, error) {
 	if err != nil {
 		return renamePlan{}, err
 	}
+	table, err := carriers(tree)
+	if err != nil {
+		return renamePlan{}, err
+	}
+	judged := renameJudgement{TagStems: stemsByFile, Stems: stems, Carriers: table, Platforms: platforms}
 	for _, pair := range pairs {
-		refusals = append(refusals, refusePair(tree, pair, stemsByFile[pair.Source], stems, platforms)...)
+		refusals = append(refusals, refusePair(tree, pair, judged)...)
 	}
 	if len(refusals) > 0 {
 		return renamePlan{}, errors.New(strings.Join(refusals, "\n"))
@@ -149,8 +174,20 @@ func refuseBatchShape(pairs []renamePair) []string {
 	return out
 }
 
+// renameJudgement is what every pair of one batch is judged against.
+type renameJudgement struct {
+	TagStems  map[string]map[string]bool
+	Stems     map[string]bool
+	Carriers  []Carrier
+	Platforms []goPlatform
+}
+
 // refusePair answers every reason one pair is refused, each naming its path.
-func refusePair(tree string, pair renamePair, tagStems, stems map[string]bool, platforms goPlatformSet) []string {
+//
+// The naming rule judges a target only where the check judges it: a file
+// CarrierFor holds as a unit carrier (testFileNameVerdicts). A file the check
+// never names cannot be refused a name the check would accept.
+func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	var out []string
 	refuse := func(rel, why string) {
 		var tb textbuf.Buffer
@@ -168,8 +205,12 @@ func refusePair(tree string, pair renamePair, tagStems, stems map[string]bool, p
 	if path.Dir(pair.Source) != path.Dir(pair.Target) {
 		refuse(pair.Target, "is in another directory than its source; a rename stays in its package")
 	}
-	if platforms.suffix(path.Base(pair.Source)) != platforms.suffix(path.Base(pair.Target)) {
-		refuse(pair.Target, "changes the GOOS/GOARCH file-name suffix, so other platforms would compile it")
+	moves, err := buildSuffixMoves(path.Base(pair.Source), path.Base(pair.Target), judged.Platforms)
+	if err != nil {
+		refuse(pair.Target, err.Error())
+	}
+	if moves {
+		refuse(pair.Target, "changes the GOOS/GOARCH file-name suffix, so another set of platforms would compile it")
 	}
 	if _, err := os.Lstat(treePath(tree, pair.Target)); err == nil {
 		refuse(pair.Target, "already exists")
@@ -180,13 +221,17 @@ func refusePair(tree string, pair renamePair, tagStems, stems map[string]bool, p
 	if len(out) > 0 {
 		return out
 	}
+	if carrier, held := CarrierFor(pair.Target, judged.Carriers); !held || carrier.Kind != kindUnit {
+		return out
+	}
 	src, err := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a cleaned repo-relative path
 	if err != nil {
 		refuse(pair.Source, "cannot be read")
 		return out
 	}
-	file := namedTestFile{Rel: pair.Target, TagStems: tagStems, Marker: readNamingMarker(string(src))}
-	if verdict, refused := judgeTestFileName(file, stems); refused {
+	file := namedTestFile{Rel: pair.Target, TagStems: judged.TagStems[pair.Source],
+		Marker: readNamingMarker(string(src))}
+	if verdict, refused := judgeTestFileName(file, judged.Stems); refused {
 		var tb textbuf.Buffer
 		why := tb.Str("fails the test file naming rule: ").Str(verdict.Problem)
 		if verdict.Target != "" {
@@ -231,12 +276,16 @@ func sourceDiffersFromHead(tree, rel string) string {
 // planEvidence rewrites every path key and field naming a source in the
 // discrimination records and the audit verdicts.
 //
-// The rewrite is textual and exact: a JSON string equal to the source, or
-// opening with the source then `::`. Formatting and every other byte, another
-// session's hunks included, stay where they are.
+// The rewrite is by field and in place: in a discrimination file the `unit` and
+// `producer` of each record, in an audit file each key of a requirement's
+// `tests`, `units` and `code` maps, when it equals the source or opens with the
+// source then `::`. Every other string keeps its bytes, however it reads, and so
+// does the formatting and every other byte, another session's hunks included.
 func planEvidence(tree string, pairs []renamePair) ([]renameFile, error) {
 	var out []renameFile
-	for _, dir := range []string{discriminationRel, auditRel} {
+	for dir, fields := range map[string]func(evidenceString) bool{
+		discriminationRel: discriminationPathField, auditRel: auditPathKey,
+	} {
 		entries, err := os.ReadDir(treePath(tree, dir))
 		if os.IsNotExist(err) {
 			continue
@@ -255,32 +304,177 @@ func planEvidence(tree string, pairs []renamePair) ([]renameFile, error) {
 				var tb textbuf.Buffer
 				return nil, parseErr(tb.Str(rel).Str(": cannot read: ").Err(err))
 			}
-			updated, keys := rewriteEvidencePaths(original, pairs)
+			updated, keys, err := rewriteEvidencePaths(original, pairs, fields)
+			if err != nil {
+				var tb textbuf.Buffer
+				return nil, parseErr(tb.Str(rel).Str(": ").Err(err))
+			}
 			if keys > 0 {
 				out = append(out, renameFile{Rel: rel, Original: original, Updated: updated, Keys: keys})
 			}
 		}
 	}
+	slices.SortFunc(out, func(a, b renameFile) int { return strings.Compare(a.Rel, b.Rel) })
 	return out, nil
 }
 
-// rewriteEvidencePaths answers text with every quoted path key moved, and how
-// many it moved.
-func rewriteEvidencePaths(text []byte, pairs []renamePair) ([]byte, int) {
-	keys := 0
-	for _, pair := range pairs {
-		for _, suffix := range []string{`"`, `::`} {
-			from := []byte(`"` + pair.Source + suffix)
-			keys += bytes.Count(text, from)
-			text = bytes.ReplaceAll(text, from, []byte(`"`+pair.Target+suffix))
+// discriminationPathField holds a record's `unit` and `producer` values.
+func discriminationPathField(found evidenceString) bool {
+	if found.Key || len(found.Path) != 3 {
+		return false
+	}
+	if found.Path[0] != "records" || found.Path[1] != evidenceArrayStep {
+		return false
+	}
+	return found.Path[2] == "unit" || found.Path[2] == "producer"
+}
+
+// auditPathKey holds the keys of a requirement's `tests`, `units` and `code`
+// fingerprint maps.
+func auditPathKey(found evidenceString) bool {
+	if !found.Key || len(found.Path) != 3 || found.Path[0] != "requirements" {
+		return false
+	}
+	switch found.Path[2] {
+	case "tests", "units", fingerprintCode:
+		return true
+	}
+	return false
+}
+
+// evidenceArrayStep stands in an evidenceString path for one array element.
+const evidenceArrayStep = "[]"
+
+// evidenceString is one JSON string of an evidence file: the chain of object
+// keys (and evidenceArrayStep for an array element) that leads to it, whether it
+// is itself an object key, its decoded value, and the offset just past it.
+type evidenceString struct {
+	Path  []string
+	Key   bool
+	Value string
+	End   int
+}
+
+// evidenceFrame is one open object or array while evidenceStrings walks.
+type evidenceFrame struct {
+	Object  bool
+	WantKey bool
+	Key     string
+}
+
+// evidenceStrings answers every string of text in order, keys included, and an
+// error when text is not one JSON value.
+func evidenceStrings(text []byte) ([]evidenceString, error) {
+	decoder := json.NewDecoder(bytes.NewReader(text))
+	decoder.UseNumber()
+	var stack []evidenceFrame
+	var out []evidenceString
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if delim, ok := token.(json.Delim); ok {
+			if delim == '{' || delim == '[' {
+				stack = append(stack, evidenceFrame{Object: delim == '{', WantKey: delim == '{'})
+				continue
+			}
+			stack = stack[:len(stack)-1]
+		}
+		if value, ok := token.(string); ok {
+			key := len(stack) > 0 && stack[len(stack)-1].WantKey
+			out = append(out, evidenceString{Path: evidencePath(stack, key), Key: key, Value: value,
+				End: int(decoder.InputOffset())})
+			if key {
+				stack[len(stack)-1].Key, stack[len(stack)-1].WantKey = value, false
+				continue
+			}
+		}
+		// A value just ended, so the object holding it expects its next key.
+		if len(stack) > 0 && stack[len(stack)-1].Object {
+			stack[len(stack)-1].WantKey = true
 		}
 	}
-	return text, keys
+}
+
+// evidencePath answers the chain leading to the next string; a key's chain
+// stops at the object holding it.
+func evidencePath(stack []evidenceFrame, key bool) []string {
+	frames := stack
+	if key {
+		frames = stack[:len(stack)-1]
+	}
+	out := make([]string, 0, len(stack))
+	for _, frame := range frames {
+		if frame.Object {
+			out = append(out, frame.Key)
+			continue
+		}
+		out = append(out, evidenceArrayStep)
+	}
+	return out
+}
+
+// rewriteEvidencePaths answers text with every string fields holds that names a
+// source moved to its target, and how many it moved. A matching string whose
+// bytes are not its plain quoted value (an escape inside it) is refused rather
+// than rewritten in a second spelling.
+func rewriteEvidencePaths(text []byte, pairs []renamePair, fields func(evidenceString) bool) ([]byte, int, error) {
+	found, err := evidenceStrings(text)
+	if err != nil {
+		return nil, 0, errors.New("not JSON the rename can rewrite: " + err.Error())
+	}
+	var out []byte
+	written, keys := 0, 0
+	for _, candidate := range found {
+		if !fields(candidate) {
+			continue
+		}
+		moved, ok := movedEvidencePath(candidate.Value, pairs)
+		if !ok {
+			continue
+		}
+		start := candidate.End - len(candidate.Value) - 2
+		if start < written || string(text[start:candidate.End]) != `"`+candidate.Value+`"` {
+			return nil, 0, errors.New("the path " + candidate.Value + " is escaped, so it is not rewritten in place")
+		}
+		out = append(out, text[written:start]...)
+		out = append(out, '"')
+		out = append(out, moved...)
+		out = append(out, '"')
+		written = candidate.End
+		keys++
+	}
+	if keys == 0 {
+		return text, 0, nil
+	}
+	return append(out, text[written:]...), keys, nil
+}
+
+// movedEvidencePath answers value with its source path replaced by the target,
+// when value is a source or a source then `::`.
+func movedEvidencePath(value string, pairs []renamePair) (string, bool) {
+	for _, pair := range pairs {
+		if value == pair.Source {
+			return pair.Target, true
+		}
+		if rest, scoped := strings.CutPrefix(value, pair.Source+"::"); scoped {
+			return pair.Target + "::" + rest, true
+		}
+	}
+	return "", false
 }
 
 // planCitations rewrites every citation of a source in a tracked file, through
 // the link sweep's own grammar (citation.Paths), and lists every other
 // line that mentions a source's base name.
+//
+// A citation the grammar expands from braces (`dir/widget{_test,}.go`) holds no
+// literal source path to replace, so after the rewrite every line that still
+// cites a source is listed as stale, for a reader to edit.
 //
 // A moved file is never rewritten, and neither is an evidence file, which
 // planEvidence owns: a citation inside a moved file is listed instead, because
@@ -312,6 +506,9 @@ func planCitations(tree string, plan *renamePlan) error {
 			}
 			var where textbuf.Buffer
 			where.Str(rel).Byte(':').Int(int64(index + 1))
+			if !moved[rel] && citesAnySource(tree, rewritten, plan.Pairs) {
+				plan.Stale = append(plan.Stale, where.String())
+			}
 			if rewritten != line {
 				lines[index], changed = rewritten, true
 				plan.Citations = append(plan.Citations, where.String())
@@ -364,6 +561,21 @@ func citationCount(tree, line, rel string) int {
 	return count
 }
 
+// citesAnySource reports whether the citation grammar reads line as citing a
+// source. Only a line holding a brace can, once rewriteLineCitations replaced
+// every literal citation, so no other line pays for the grammar.
+func citesAnySource(tree, line string, pairs []renamePair) bool {
+	if !strings.Contains(line, "{") {
+		return false
+	}
+	for _, pair := range pairs {
+		if citationCount(tree, line, pair.Source) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func mentionsAny(line string, pairs []renamePair) bool {
 	for _, pair := range pairs {
 		if strings.Contains(line, path.Base(pair.Source)) {
@@ -378,15 +590,16 @@ func isEvidenceFile(rel string) bool {
 }
 
 // trackedFilesMentioning answers every tracked file under the checkout whose
-// working-tree text holds a source's base name, vendor/ excluded. git grep
+// working-tree text holds a source's base name or its directory, vendor/
+// excluded: the directory is what a brace citation of the source still spells. git grep
 // answers 1 for no match and anything else above it for a failure, and the
 // two are told apart, because "no file mentions it" is an answer and a failed
 // search is not.
 func trackedFilesMentioning(tree string, pairs []renamePair) ([]string, error) {
-	args := make([]string, 0, 5+2*len(pairs)+3)
+	args := make([]string, 0, 5+4*len(pairs)+3)
 	args = append(args, "grep", "-l", "-z", "-I", "-F")
 	for _, pair := range pairs {
-		args = append(args, "-e", path.Base(pair.Source))
+		args = append(args, "-e", path.Base(pair.Source), "-e", path.Dir(pair.Source)+"/")
 	}
 	args = append(args, "--", ".", ":(exclude)vendor")
 	cmd := exec.Command("git", args...) //nolint:gosec,noctx // this developer tool searches the checkout it was given
@@ -436,21 +649,41 @@ func applyRename(tree string, plan renamePlan) (RenameReport, error) {
 		}
 		linked = append(linked, pair.Target)
 	}
-	report := RenameReport{Moves: plan.Pairs, Citations: plan.Citations, Mentions: plan.Mentions}
-	for _, pair := range plan.Pairs {
+	report := RenameReport{Mentions: plan.Mentions, Stale: plan.Stale}
+	for index, pair := range plan.Pairs {
 		if err := os.Remove(treePath(tree, pair.Source)); err != nil {
-			return report, err
+			report.Linked = plan.Pairs[index:]
+			return stopRename(report, err)
 		}
-	}
-	for _, file := range slices.Concat(plan.Evidence, plan.Cited) {
-		if err := replaceFileAtomically(treePath(tree, file.Rel), file.Updated); err != nil {
-			return report, err
-		}
+		report.Moves = append(report.Moves, pair)
 	}
 	for _, file := range plan.Evidence {
+		if err := replaceFileAtomically(treePath(tree, file.Rel), file.Updated); err != nil {
+			return stopRename(report, err)
+		}
 		report.Evidence = append(report.Evidence, RenameRewrite{File: file.Rel, Keys: file.Keys})
 	}
+	for _, file := range plan.Cited {
+		if err := replaceFileAtomically(treePath(tree, file.Rel), file.Updated); err != nil {
+			return stopRename(report, err)
+		}
+		prefix := file.Rel + ":"
+		for _, where := range plan.Citations {
+			if strings.HasPrefix(where, prefix) {
+				report.Citations = append(report.Citations, where)
+			}
+		}
+	}
 	return report, nil
+}
+
+// stopRename answers the report of the writes made before err, marked as
+// stopped, with err: a rename that failed part-way has changed the tree, and
+// dropping the report would hide which part.
+func stopRename(report RenameReport, err error) (RenameReport, error) {
+	var tb textbuf.Buffer
+	report.Stopped = tb.Err(err).String()
+	return report, errors.New("rfc rename: stopped part-way: " + report.Stopped)
 }
 
 // replaceFileAtomically writes body beside target and renames it over target,
@@ -479,47 +712,72 @@ func replaceFileAtomically(target string, body []byte) error {
 	return os.Rename(name, target)
 }
 
-// goPlatformSet is the GOOS and GOARCH names the toolchain knows, which decide
-// what file-name suffix constrains a build.
-type goPlatformSet struct {
-	OS   map[string]bool
-	Arch map[string]bool
+// goPlatform is one GOOS/GOARCH pair the toolchain builds for.
+type goPlatform struct {
+	OS   string
+	Arch string
 }
 
 // goPlatforms asks the toolchain for its platform list rather than holding a
 // copy of it, so a new port is known the day the toolchain knows it.
-func goPlatforms() (goPlatformSet, error) {
+func goPlatforms() ([]goPlatform, error) {
 	out, err := exec.Command("go", "tool", "dist", "list").Output() //nolint:gosec,noctx // fixed argv
 	if err != nil {
-		return goPlatformSet{}, errors.New("rfc rename: cannot list the Go platforms: " + err.Error())
+		return nil, errors.New("rfc rename: cannot list the Go platforms: " + err.Error())
 	}
-	set := goPlatformSet{OS: map[string]bool{}, Arch: map[string]bool{}}
+	var platforms []goPlatform
 	for line := range strings.SplitSeq(string(out), "\n") {
 		goos, goarch, found := strings.Cut(strings.TrimSpace(line), "/")
 		if found {
-			set.OS[goos], set.Arch[goarch] = true, true
+			platforms = append(platforms, goPlatform{OS: goos, Arch: goarch})
 		}
 	}
-	if len(set.OS) == 0 {
-		return goPlatformSet{}, errors.New("rfc rename: the Go platform list is empty")
+	if len(platforms) == 0 {
+		return nil, errors.New("rfc rename: the Go platform list is empty")
 	}
-	return set, nil
+	return platforms, nil
 }
 
-// suffix answers the build-constraint suffix of a Go file name, `_os`, `_arch`
-// or `_os_arch`, or empty. It follows go/build's rule: the name less `.go` and
-// `_test`, split on underscores, where the first element never counts.
-func (s goPlatformSet) suffix(base string) string {
-	name := strings.TrimSuffix(strings.TrimSuffix(base, ".go"), "_test")
-	parts := strings.Split(name, "_")
-	count := len(parts)
-	if count >= 3 && s.OS[parts[count-2]] && s.Arch[parts[count-1]] {
-		return "_" + parts[count-2] + "_" + parts[count-1]
+// platformsBuilding answers, for each platform in order, whether go/build
+// compiles a Go file named base there, judging the name alone.
+//
+// go/build itself decides, through build.Context.MatchFile, so its own list of
+// known GOOS and GOARCH names applies: that list is wider than the toolchain's
+// ports (`_sparc` and `_zos` constrain a file no port builds), and it carries
+// the implied names (`_linux` builds for android, `_solaris` for illumos).
+// OpenFile answers a bare package clause, so no build tag is read and the file
+// need not exist.
+func platformsBuilding(base string, platforms []goPlatform) ([]bool, error) {
+	out := make([]bool, len(platforms))
+	for index, platform := range platforms {
+		judge := build.Default
+		judge.GOOS, judge.GOARCH = platform.OS, platform.Arch
+		judge.BuildTags, judge.ToolTags, judge.ReleaseTags = nil, nil, nil
+		judge.UseAllFiles = false
+		judge.OpenFile = func(string) (io.ReadCloser, error) {
+			return io.NopCloser(strings.NewReader("package p\n")), nil
+		}
+		match, err := judge.MatchFile(".", base)
+		if err != nil {
+			return nil, errors.New("rfc rename: go/build cannot judge " + base + ": " + err.Error())
+		}
+		out[index] = match
 	}
-	if count >= 2 && (s.OS[parts[count-1]] || s.Arch[parts[count-1]]) {
-		return "_" + parts[count-1]
+	return out, nil
+}
+
+// buildSuffixMoves reports whether renaming source to target changes the set
+// of platforms that compile the file.
+func buildSuffixMoves(source, target string, platforms []goPlatform) (bool, error) {
+	before, err := platformsBuilding(source, platforms)
+	if err != nil {
+		return false, err
 	}
-	return ""
+	after, err := platformsBuilding(target, platforms)
+	if err != nil {
+		return false, err
+	}
+	return !slices.Equal(before, after), nil
 }
 
 // ProposeReport is what `./le rfc rename propose` answers.
@@ -700,6 +958,9 @@ func renameAnswer(args leaction.Arguments) (any, int) {
 	report, err := renameFiles(tree, pairs)
 	if err != nil {
 		leaction.ReportError(err)
+		if report.Stopped != "" {
+			return report, 2
+		}
 		return nil, 2
 	}
 	return report, 0

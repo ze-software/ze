@@ -501,10 +501,10 @@ func readCommittedTags(tree string, index *scopeIndex) committedTags {
 	}
 	out := committedTags{Tags: tags, Blobs: blobs, Head: coversOfTags(index, tags, blobs)}
 	if revisionExists(tree, priorRevision) {
-		out.Prior, out.PriorKnown = coversAt(tree, priorRevision, carriers, index)
+		out.Prior, out.PriorKnown = coversAt(tree, priorRevision, carriers, index, exactRenamesSince)
 	}
 	if revisionExists(tree, backlogRevision) {
-		if found, ok := coversAt(tree, backlogRevision, carriers, index); ok {
+		if found, ok := coversAt(tree, backlogRevision, carriers, index, exactRenamesSince); ok {
 			out.Backlog, out.BacklogRef = found, backlogRevision
 		}
 	}
@@ -540,12 +540,14 @@ func coversOfTags(index *scopeIndex, tags []Tag, blobs map[string]string) map[Co
 // This is the one place a baseline cover is minted, so the HEAD^ obligation and
 // the origin/main backlog both follow it. A rename map git cannot read leaves
 // the whole baseline unknown, because "no renames" would bill every moved cover.
-func coversAt(tree, revision string, carriers []Carrier, index *scopeIndex) (map[Cover]bool, bool) {
+// renamesOf is exactRenamesSince in every caller but the test that drives an
+// unreadable map over a readable baseline.
+func coversAt(tree, revision string, carriers []Carrier, index *scopeIndex, renamesOf renameReader) (map[Cover]bool, bool) {
 	tags, blobs, known := baselineTaggedAt(tree, revision, carriers)
 	if !known {
 		return nil, false
 	}
-	renames, known := exactRenamesSince(tree, revision, carriers)
+	renames, known := renamesOf(tree, revision, carriers)
 	if !known {
 		return nil, false
 	}
@@ -557,6 +559,10 @@ func coversAt(tree, revision string, carriers []Carrier, index *scopeIndex) (map
 	}
 	return out, true
 }
+
+// renameReader answers the byte-pure renames between revision and HEAD, and
+// false when they cannot be read.
+type renameReader func(tree, revision string, carriers []Carrier) (map[string]string, bool)
 
 // exactRenamesSince answers every carrier file git reports renamed between
 // revision and HEAD with an unchanged blob id, old path to new path, and false

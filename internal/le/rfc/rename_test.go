@@ -249,11 +249,46 @@ func TestRenameRefusesDirectoryChange(t *testing.T) {
 		Target: "internal/other/rfc9999_widget_test.go"}}, "another directory")
 }
 
-// VALIDATES: AC-7 and R-8 -- a target whose GOOS/GOARCH suffix differs is refused.
+// VALIDATES: AC-7 and R-8 -- a target whose GOOS/GOARCH suffix differs is refused,
+// including a suffix go/build knows and no toolchain port carries (`_sparc`,
+// `_zos`), which `go tool dist list` alone does not name.
 func TestRenameRefusesBuildSuffixChange(t *testing.T) {
 	root := renameFixture(t)
-	assertRenameRefused(t, root, []renamePair{{Source: selftestTestPath,
-		Target: "internal/sample/rfc9999_widget_linux_test.go"}}, "GOOS/GOARCH")
+	for _, target := range []string{"internal/sample/rfc9999_widget_linux_test.go",
+		"internal/sample/rfc9999_widget_sparc_test.go", "internal/sample/rfc9999_widget_zos_test.go"} {
+		assertRenameRefused(t, root, []renamePair{{Source: selftestTestPath, Target: target}}, "GOOS/GOARCH")
+	}
+}
+
+// VALIDATES: R-8 -- the suffix judgement is go/build's own: a name go/build
+// constrains to a platform no port builds still moves the platform set when the
+// suffix is dropped, and a suffix kept across the rename moves nothing.
+func TestBuildSuffixMovesFollowsGoBuild(t *testing.T) {
+	platforms, err := goPlatforms()
+	if err != nil {
+		t.Fatalf("platforms: %v", err)
+	}
+	cases := []struct {
+		source, target string
+		moves          bool
+	}{
+		{"x_sparc_test.go", "rfc1_x_test.go", true},
+		{"x_zos_test.go", "rfc1_x_test.go", true},
+		{"x_hurd_amd64p32_test.go", "rfc1_x_test.go", true},
+		{"x_android_test.go", "rfc1_x_linux_test.go", true},
+		{"x_linux_test.go", "rfc1_x_linux_test.go", false},
+		{"x_linux_arm64_test.go", "rfc1_x_linux_arm64_test.go", false},
+		{"widget_test.go", "rfc1_widget_test.go", false},
+	}
+	for _, c := range cases {
+		moves, err := buildSuffixMoves(c.source, c.target, platforms)
+		if err != nil {
+			t.Fatalf("%s -> %s: %v", c.source, c.target, err)
+		}
+		if moves != c.moves {
+			t.Errorf("%s -> %s moves the platform set: %v, want %v", c.source, c.target, moves, c.moves)
+		}
+	}
 }
 
 // VALIDATES: AC-7 -- a source or a target that is not a _test.go file is refused.
@@ -466,4 +501,120 @@ func setRenameRoot(t *testing.T, root string) {
 	t.Setenv("ZE_REPO_ROOT", root)
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
+}
+
+// VALIDATES: N-4 of review round 1 -- a write that fails part-way answers the
+// report of what was written, through the action, rather than dropping it: the
+// move happened, so the operator must be told.
+// METHOD: the discrimination directory is made read-only, so the plan reads it,
+// the source moves, the audit file is rewritten, and the discrimination rewrite
+// fails.
+func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
+	root := renameFixture(t)
+	evidence := filepath.Join(root, filepath.FromSlash(discriminationRel))
+	if err := os.Chmod(evidence, 0o500); err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(evidence, 0o700) }) //nolint:errcheck // TempDir cleanup needs the bit back
+
+	setRenameRoot(t, root)
+	payload, code := Answer([]string{"rename", keyFrom, selftestTestPath, keyTo, renameTarget})
+	if code != 2 {
+		t.Fatalf("a rename that stopped part-way answered %d, want 2", code)
+	}
+	report, ok := payload.(RenameReport)
+	if !ok {
+		t.Fatalf("the action answered %T, want the partial RenameReport", payload)
+	}
+	// The audit file sorts before the discrimination file, so it was rewritten
+	// before the write that failed, and the report must say so.
+	want := []RenameRewrite{{File: renameAuditRel, Keys: 2}}
+	if report.Stopped == "" || !slices.Equal(report.Moves, renameOne()) || !slices.Equal(report.Evidence, want) {
+		t.Errorf("the partial report reads moves %v, evidence %v, stopped %q; want the move, %v, a reason",
+			report.Moves, report.Evidence, report.Stopped, want)
+	}
+	for _, want := range []string{"moved " + selftestTestPath, "stopped part-way"} {
+		if !strings.Contains(report.Text(), want) {
+			t.Errorf("the partial report omits %q:\n%s", want, report.Text())
+		}
+	}
+}
+
+// VALIDATES: N-5 of review round 1 -- the evidence rewrite moves the path fields
+// and keys only: a record's `unit` and `producer`, an audit requirement's
+// `tests`, `units` and `code` keys. A `break`, a note or a fingerprint value
+// spelling the old path keeps its bytes, and so does the formatting.
+func TestRenameEvidenceRewriteTouchesPathFieldsOnly(t *testing.T) {
+	const source, target = "internal/sample/widget_test.go", "internal/sample/rfc9999_widget_test.go"
+	pairs := []renamePair{{Source: source, Target: target}}
+	records := "{\n  \"rfc\": \"rfc9999\",\n  \"records\": [\n    {\n" +
+		"      \"unit\": \"%s::TestWidget\",\n      \"producer\":   \"%s\",\n" +
+		"      \"break\": \"" + source + "\",\n      \"route\": \"" + source + "::TestWidget\",\n" +
+		"      \"claim-sha\": \"" + source + "x::T\"\n    }\n  ]\n}\n"
+	audit := "{\n  \"reaudit_note\": \"" + source + "\",\n  \"requirements\": {\n" +
+		"    \"RFC9999-2-1\": {\n      \"note\": \"" + source + "::TestWidget\",\n" +
+		"      \"tests\": {\"%s::TestWidget\": \"" + source + "\"},\n" +
+		"      \"units\": {\"%s::TestWidget\": \"bb\"},\n      \"code\": {\"%s\": 1}\n    }\n  }\n}\n"
+	for _, c := range []struct {
+		name   string
+		layout string
+		fields func(evidenceString) bool
+		keys   int
+	}{
+		{"discrimination", records, discriminationPathField, 2},
+		{"audit", audit, auditPathKey, 3},
+	} {
+		spell := func(path string) string {
+			return strings.ReplaceAll(c.layout, "%s", path)
+		}
+		got, keys, err := rewriteEvidencePaths([]byte(spell(source)), pairs, c.fields)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if keys != c.keys || string(got) != spell(target) {
+			t.Errorf("%s moved %d path(s), want %d, and reads:\n%s\nwant:\n%s", c.name, keys, c.keys,
+				got, spell(target))
+		}
+	}
+}
+
+// VALIDATES: N-6 of review round 1 -- a citation the grammar expands from braces
+// holds no literal path to replace, so the rename lists it as stale for a reader
+// rather than leaving it citing a file that is gone.
+func TestRenameListsBraceCitationsLeftOnTheOldPath(t *testing.T) {
+	root := renameFixture(t)
+	const braceRel = "docs/brace-notes.md"
+	layFixture(t, root, map[string]string{braceRel: "The pair is `internal/sample/widget{_test,}.go`.\n"})
+	commitFixture(t, root, "a brace citation")
+	report, err := renameFiles(root, renameOne())
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if !slices.Contains(report.Stale, braceRel+":1") {
+		t.Errorf("the brace citation is not listed as stale: %v\n%s", report.Stale, report.Text())
+	}
+}
+
+// VALIDATES: N-8 of review round 1 (AC-17 scope) -- the naming rule refuses a
+// target only where the check would judge it, a unit carrier: the same name is
+// refused under internal/sample/ and accepted under internal/le/, which no
+// carrier holds.
+func TestRenameJudgesTheNameOfUnitCarriersOnly(t *testing.T) {
+	root := renameFixture(t)
+	const looseHeld, looseTool = "internal/sample/loose_test.go", "internal/le/sample/loose_test.go"
+	layFixture(t, root, map[string]string{looseHeld: "package sample\n", looseTool: "package sample\n"})
+	commitFixture(t, root, "two untagged tests")
+	table, err := carriers(root)
+	if err != nil {
+		t.Fatalf("carriers: %v", err)
+	}
+	if _, held := CarrierFor(looseTool, table); held {
+		t.Fatalf("%s is held by a carrier, so it cannot show the scope", looseTool)
+	}
+	assertRenameRefused(t, root, []renamePair{{Source: looseHeld,
+		Target: "internal/sample/rfc9999_loose_test.go"}}, "naming rule")
+	if _, err := renameFiles(root, []renamePair{{Source: looseTool,
+		Target: "internal/le/sample/rfc9999_loose_test.go"}}); err != nil {
+		t.Errorf("a file no carrier holds was refused a name: %v", err)
+	}
 }

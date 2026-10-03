@@ -383,7 +383,15 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// polarities when it now carries a {gap} citing the owner ruling every lost
 	// unit's approval cites (OWNER RULING 8(g)). No verdict over an unchanged
 	// record moved: only a row that carries such a {gap} is judged differently.
-	const want = "7543026accc391e8bff50b1bcaaeeb899aad878f86eadd5f1c1424276503345c"
+	//
+	// Re-sealed 2026-10-03 for e87b8bb205 and for the review fixes that follow
+	// it, computed over the bytes this fix commit commits. It also absorbs
+	// 4576f2ee8d, another session's commit, which named no re-seal; this value
+	// covers its bytes and does not vouch for them. One verdict moved, as
+	// intended: the HEAD^ and origin/main baselines follow a byte-pure rename,
+	// so the covers of a renamed file are owed only when its bytes changed. The
+	// rest is `./le rfc rename`, which judges no record. No record verdict moved.
+	const want = "1fa114798a5311e70e3bb3810655ff2d01037b1a99d07087b83de1d2164418db"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

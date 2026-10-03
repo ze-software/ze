@@ -1226,20 +1226,30 @@ anything.
 The move is byte-pure, so the HEAD^ and origin/main baselines follow it (see
 the obligation row above), the weakened-test audit and the RFC-change commit
 gate read it as no change, and it needs no `RFC-approved:` trailer. After the
-move the action rewrites every `unit` and `producer` naming the old path in
-`rfc/discrimination/`, and every `tests`, `units` and `code` key naming it in
-`rfc/audit/`, textually and nothing else, so another session's hunks in those
-files stay where they are. It rewrites every backtick or link citation of the
-old path in a tracked file, by the link sweep's own grammar (`Paths` in
+move the action rewrites every record's `unit` and `producer` naming the old
+path in `rfc/discrimination/`, and every requirement's `tests`, `units` and
+`code` key naming it in `rfc/audit/`. It finds those fields by walking the JSON
+and edits their bytes in place, so a `break`, a note or any other string that
+spells the old path keeps its bytes, and so do the formatting and another
+session's hunks in those files. It rewrites every backtick or link citation of
+the old path in a tracked file, by the link sweep's own grammar (`Paths` in
 `internal/le/doc/citation`), and lists every other line that mentions the
-file's base name, for a reader to judge. A moved file is never edited.
+file's base name, for a reader to judge. A citation the grammar expands from
+braces holds no literal path to rewrite, so a line that still cites the old
+path after the rewrite is listed as stale, to be edited by hand. A moved file
+is never edited. When a write fails part-way, the action answers 2 with the
+report of what it did write: the moves, the rewrites, and each target created
+whose source is still in place.
 
 It refuses the whole batch, and writes nothing, for a target that exists,
 leaves its source's directory, changes the GOOS/GOARCH file-name suffix or is
 not a `_test.go` file; a source that is untracked or differs from HEAD; two
-pairs sharing a source or a target; a target the naming rule below refuses for
-the source's tags; and an evidence or cited file another session changed while
-the rename ran. `propose` writes a plan of one pair per misnamed file the naming
+pairs sharing a source or a target; a target the unit carrier holds that the
+naming rule below refuses for the source's tags; and an evidence or cited file
+another session changed while the rename ran. The suffix is judged by
+`go/build` itself: the rename is refused when the source and the target names
+build on different sets of the platforms `go tool dist list` names, so a suffix
+`go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too. `propose` writes a plan of one pair per misnamed file the naming
 rule finds, each target being the rename the finding names. A target that
 already exists or that two findings share is left out and named, and so is a
 file named for another RFC, which has to be read before it moves. The output

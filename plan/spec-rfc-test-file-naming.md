@@ -531,10 +531,13 @@ Each target stays in its source's directory. Every target was checked absent on 
 → Decision (Phase 1, 2026-10-03): `propose` takes its output path as its value, `propose <file>`, and an optional `under <dir>` narrows it to one component, because Phase 2 runs one plan per component. The output file is created with `O_EXCL`, never overwritten.
 → Decision (Phase 1): `propose` leaves out a file already named for ANOTHER stem (the name/tag mismatches), lists it in its report, and writes no pair for it, because Phase 3 reads each of those before anything moves.
 → Decision (Phase 1): R-2 is enforced batch-wide: `applyRename` re-reads every evidence and cited file it will rewrite before it links any target, and refuses the whole batch, writing nothing, when one moved. Targets are created by `os.Link`, so an existing file can never be overwritten.
-→ Decision (Phase 1): the evidence rewrite is textual: a JSON string equal to the old path, or opening with the old path then `::`, is rewritten and nothing else is touched, so formatting and foreign hunks survive (R-4).
+→ Decision (review round 1, N-5, replaces the Phase 1 textual rewrite): the evidence rewrite is by field and in place. A JSON token walk (`evidenceStrings`) names each string by its key chain, and only a discrimination record's `unit` and `producer` and an audit requirement's `tests`, `units` and `code` keys are rewritten, when equal to the old path or opening with it then `::`. The bytes between those strings are copied, so formatting and foreign hunks survive (R-4), and a `break`, a note or a fingerprint value that spells the old path keeps its bytes. A matching string written with an escape is refused rather than rewritten in a second spelling. Chosen over a decode and re-encode, which would reformat every file it touched.
 → Decision (Phase 1): a moved file is never edited, even where it cites itself or another moved file, because the move must stay byte-pure; such a line is listed as a mention instead. A citation is an occurrence whose replacement removes one citation of the old path under `citation.Paths`, so a plain mention on the same line is left alone.
-→ Decision (Phase 1): the GOOS/GOARCH suffix sets come from `go tool dist list` at run time rather than a copied list (`goPlatforms`).
-→ Decision (Phase 1): `TestCheckRenameMapUnreadableAccusesNobody` proves the unknown case at the function level (`exactRenamesSince` over no repository and over an unresolvable revision, `parseExactRenames` over truncated output, `coversAt` over no repository), because no fixture makes `git diff` fail while `git grep` at the same revision succeeds.
+→ Decision (review round 1, I-1, replaces the Phase 1 suffix parse): `go/build` judges the suffix. For every pair `go tool dist list` names, `build.Context.MatchFile` (OpenFile answering a bare package clause, so only the name is read) answers whether the source name and the target name build there, and the rename is refused when the two answer sets differ. `go/build`'s own known-name list is wider than the ports (`_sparc`, `_zos`, `_hurd`, `_amd64p32`) and carries the implied names (`_linux` for android), so no list is copied and no parse of the rule is kept beside it.
+→ Decision (review round 1, I-3, replaces the Phase 1 function-level proof): `coversAt` takes its rename reader as a parameter (`renameReader`, `exactRenamesSince` in both production callers), so `TestCheckRenameMapUnreadableAccusesNobody` drives a readable baseline with a failing reader and reaches the map guard, which no git fixture can, because `git diff` and `git grep` at one revision fail together.
+→ Decision (review round 1, N-4): a write that fails after the first source is removed answers exit 2 WITH the report of what was written (`Stopped`, and `Linked` for a target whose source is still in place); a refusal before any write still answers no report.
+→ Decision (review round 1, N-6): after the rewrite, a line holding a brace that still cites an old path under `citation.Paths` is listed as stale (`Stale`), and the tracked-file search also matches the source's directory, which is what a brace citation still spells.
+→ Decision (review round 1, N-8): the rename applies the naming rule only to a target `CarrierFor` holds as a unit carrier, the population `testFileNameVerdicts` judges (AC-17).
 
 ## Known Limitations
 
@@ -549,14 +552,22 @@ Each target stays in its source's directory. Every target was checked absent on 
 
 | Field | Value |
 |-------|-------|
-| Artifact | |
+| Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | |
-| Reviewer lenses used | |
+| Rounds | 1 (scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package) |
+| Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| I-1 | ISSUE | The suffix refusal knew only `go tool dist list` names, so `_sparc`, `_zos` and the other names `go/build` knows without a port were not refused | `internal/le/rfc/rename.go` `goPlatformSet.suffix` | `platformsBuilding`, `buildSuffixMoves` over `build.Context.MatchFile`; `TestRenameRefusesBuildSuffixChange` (`_sparc`, `_zos`), `TestBuildSuffixMovesFollowsGoBuild` |
+| I-2 | ISSUE | No fixture reached the `::` branch of `followRename` | `internal/le/rfc/check_baseline.go` | `TestCheckFollowsBytePureRenameOfTaggedGoFunction` (HEAD^ and backlog) |
+| I-3 | ISSUE | The unreadable-map test never reached the guard after the rename reader in `coversAt` | `internal/le/rfc/check_baseline.go` `coversAt` | injectable `renameReader`; `TestCheckRenameMapUnreadableAccusesNobody` |
+| N-4 | NOTE | A failure mid-apply dropped the report of the writes already made | `internal/le/rfc/rename.go` `applyRename`, `renameAnswer` | `stopRename`; `TestRenameReportsPartialWritesWhenItStops` |
+| N-5 | NOTE | The textual evidence rewrite also moved any other string spelling the old path | `internal/le/rfc/rename.go` `rewriteEvidencePaths` | field walk; `TestRenameEvidenceRewriteTouchesPathFieldsOnly` |
+| N-6 | NOTE | A brace citation kept citing the old path, unlisted | `internal/le/rfc/rename.go` `planCitations` | `citesAnySource`, `Stale`; `TestRenameListsBraceCitationsLeftOnTheOldPath` |
+| N-8 | NOTE | The naming rule was applied to targets no carrier judges | `internal/le/rfc/rename.go` `refusePair` | `CarrierFor` unit gate; `TestRenameJudgesTheNameOfUnitCarriersOnly` |
+| N-9 | NOTE | No unit case for unequal blob ids | `internal/le/rfc/check_baseline.go` `parseExactRenames` | `TestParseExactRenamesSkipsUnequalBlobs` |
 
 ## Checklist
 

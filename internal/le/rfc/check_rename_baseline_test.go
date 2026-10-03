@@ -116,7 +116,9 @@ func assertRenameOwesOne(t *testing.T, root string) {
 // empty: "no renames" would be a silent wrong answer (ai/rules/principles.md).
 // METHOD: the reader over a directory that is no repository, over a revision
 // that does not resolve, and the parser over truncated raw output each answer
-// false; and coversAt, which needs the map, answers false over the same tree.
+// false; and coversAt answers false both over the tree with no git and over a
+// fixture whose baseline reads while an injected rename reader fails, which is
+// the only way to reach the map guard rather than the baseline guard before it.
 func TestCheckRenameMapUnreadableAccusesNobody(t *testing.T) {
 	plain := t.TempDir()
 	if err := os.WriteFile(filepath.Join(plain, "note.txt"), []byte("not a repository\n"), 0o600); err != nil {
@@ -130,7 +132,7 @@ func TestCheckRenameMapUnreadableAccusesNobody(t *testing.T) {
 	if renames, ok := exactRenamesSince(root, "no-such-revision", nil); ok || renames != nil {
 		t.Errorf("an unresolvable revision answered %v, %v, want nil, false", renames, ok)
 	}
-	if covers, ok := coversAt(plain, priorRevision, nil, nil); ok || covers != nil {
+	if covers, ok := coversAt(plain, priorRevision, nil, nil, exactRenamesSince); ok || covers != nil {
 		t.Errorf("coversAt over a tree with no git answered %v, %v, want nil, false", covers, ok)
 	}
 
@@ -144,9 +146,108 @@ func TestCheckRenameMapUnreadableAccusesNobody(t *testing.T) {
 	if err != nil {
 		t.Fatalf("carriers: %v", err)
 	}
+	unreadable := func(string, string, []Carrier) (map[string]string, bool) { return nil, false }
+	if _, _, known := baselineTaggedAt(root, priorRevision, carriers); !known {
+		t.Fatal("the fixture baseline is unreadable, so the map guard below is never reached")
+	}
+	if covers, ok := coversAt(root, priorRevision, carriers, newScopeIndex(), unreadable); ok || covers != nil {
+		t.Errorf("coversAt over a readable baseline and an unreadable map answered %v, %v, want nil, false",
+			covers, ok)
+	}
 	renames, ok := exactRenamesSince(root, priorRevision, carriers)
 	if !ok || renames[fixtureGadgetCIPath] != fixtureGizmoCIPath || len(renames) != 1 {
 		t.Errorf("the byte-pure rename read as %v, %v, want exactly %s -> %s",
 			renames, ok, fixtureGadgetCIPath, fixtureGizmoCIPath)
+	}
+}
+
+// goRenameFixture is a committed tree holding the selftest's tagged Go unit
+// test with NO discrimination record, so its gated cover is unproven.
+func goRenameFixture(t *testing.T) string {
+	t.Helper()
+
+	files := goRenameCorpus()
+	files[selftestTestPath] = renameTestSource
+	root := checkFixtureTree(t, files)
+	gitFixture(t, root, []string{"init", "-q"})
+	commitFixture(t, root, "base")
+	return root
+}
+
+// goRenameCorpus is the check corpus as a Go module, because the tag scanner
+// type-checks every tagged Go package.
+func goRenameCorpus() map[string]string {
+	files := fixtureCorpus()
+	files["go.mod"] = "module example.com/widget\n\ngo 1.27.0\n"
+	return files
+}
+
+// VALIDATES: AC-1 and AC-2 for a function-scoped cover -- a byte-pure rename of a
+// tagged Go _test.go file owes nothing at HEAD^ and adds nothing to the backlog,
+// because followRename moves the `<path>::<Func>` key's path and keeps the
+// function.
+// METHOD: the .ci fixtures above key file-scoped covers, so they never reach the
+// `::` branch; this one tags TestWidget and carries no record, so a cover the
+// baseline failed to follow reads as owed. The same tag added by the tip is
+// first shown to owe one, so a zero below cannot be an uncounted cover.
+func TestCheckFollowsBytePureRenameOfTaggedGoFunction(t *testing.T) {
+	moved := map[string]string{selftestTestPath: fixtureRemoved, renameTarget: renameTestSource}
+
+	// The same tag added by the tip owes one, so the zeros below are a followed
+	// rename and not a cover the gate never counts.
+	added := commitFixtureTip(t, goRenameCorpus(), map[string]string{selftestTestPath: renameTestSource}, nil)
+	if report, _ := Check(added, nil); report.DiscriminationOwed != 1 {
+		t.Fatalf("the tagged Go test added by the tip owes %d, want 1:\n%s",
+			report.DiscriminationOwed, report.Text())
+	}
+
+	prior := goRenameFixture(t)
+	layFixture(t, prior, moved)
+	commitFixture(t, prior, "byte-pure rename")
+	report, code := Check(prior, nil)
+	if code != 0 || report.DiscriminationOwed != 0 {
+		t.Errorf("the HEAD^ baseline answered %d owing %d, want 0 owing 0:\n%s",
+			code, report.DiscriminationOwed, report.Text())
+	}
+
+	backlog := goRenameFixture(t)
+	layFixture(t, backlog, moved)
+	commitFixture(t, backlog, "unpushed, byte-pure rename")
+	layFixture(t, backlog, fixtureCorpusNudge())
+	commitFixture(t, backlog, "unpushed, nothing tagged")
+	gitFixture(t, backlog, []string{"update-ref", "refs/remotes/origin/main", "HEAD~2"})
+	report, code = Check(backlog, nil)
+	if report.DiscriminationBacklog == nil {
+		t.Fatalf("origin/main resolves, so the backlog must be measured:\n%s", report.Text())
+	}
+	if code != 0 || *report.DiscriminationBacklog != 0 {
+		t.Errorf("the backlog answered %d with backlog %d, want 0 and 0:\n%s",
+			code, *report.DiscriminationBacklog, report.Text())
+	}
+}
+
+// VALIDATES: R-1 -- a rename record whose old and new blob ids differ is not
+// followed, even at a similarity score of 100, because only an identical blob is
+// a byte-pure move; the same record with equal ids is followed.
+func TestParseExactRenamesSkipsUnequalBlobs(t *testing.T) {
+	root := renameFixtureTip(t, fixtureGadgetCI)
+	carriers, err := headCarriers(root)
+	if err != nil {
+		t.Fatalf("carriers: %v", err)
+	}
+	record := func(source, target string) string {
+		return ":100644 100644 " + source + " " + target + " R100\x00" +
+			fixtureGadgetCIPath + "\x00" + fixtureGizmoCIPath + "\x00"
+	}
+	same, other := strings.Repeat("a", 40), strings.Repeat("b", 40)
+
+	renames, ok := parseExactRenames([]byte(record(same, other)), carriers)
+	if !ok || len(renames) != 0 {
+		t.Errorf("unequal blob ids answered %v, %v, want an empty map and true", renames, ok)
+	}
+	renames, ok = parseExactRenames([]byte(record(same, same)), carriers)
+	if !ok || renames[fixtureGadgetCIPath] != fixtureGizmoCIPath {
+		t.Errorf("equal blob ids answered %v, %v, want %s -> %s", renames, ok,
+			fixtureGadgetCIPath, fixtureGizmoCIPath)
 	}
 }
