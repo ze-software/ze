@@ -212,9 +212,10 @@ The configured local address is read only when the session holds no endpoint,
 and the socket is bound to it, so the two never differ.
 
 When no address of Ze exists for the destination, the announcement is withheld
-from it, the withdrawals in the same UPDATE still go, and a warning names the
-peer: "withholding route: next-hop self is configured and the session has no
-local address". The received third-party next hop is never sent in its place.
+from it and a warning names the peer: "withholding route: next-hop self is
+configured and the session has no local address". The received third-party
+next hop is never sent in its place. The destination is sent a withdrawal
+instead, as under every withhold gate (below).
 
 On a session that runs over an IPv6 link-local address, the connected endpoint
 is link-local, and `next-hop self` writes it alone: the 16-octet Link-Local-only
@@ -222,10 +223,10 @@ Next Hop of draft-ietf-idr-linklocal-capability Section 3. The forward rails
 send that form only where the announce rail would: the session negotiated the
 Link-Local Next Hop capability (code 77), and for IPv4 NLRI RFC 8950 Extended
 Next Hop Encoding as well. Both rails ask the one predicate the announce rail
-asks. On any other session the announcement is withheld, the withdrawals still
-go, and a warning names the peer: "withholding route: its next hop is
-link-local-only and this peer did not negotiate the Link-Local Next Hop
-capability".
+asks. On any other session the announcement is withheld, the destination is
+sent a withdrawal instead, and a warning names the peer: "withholding route:
+its next hop is link-local-only and this peer did not negotiate the Link-Local
+Next Hop capability".
 
 The speaker's own Link-Local address is appended behind a next-hop-self Global
 address (RFC 2545 Section 3, draft-ietf-idr-linklocal-capability Section 4)
@@ -257,6 +258,45 @@ away, and RFC 2545 Section 3 includes it only when the speaker shares a subnet
 with the peer. A filter that writes a pair is cut the same way. A directly
 attached destination still receives the pair as it arrived. Both forward rails
 (general and route server) apply it.
+
+When the received next hop is Link-Local-only (16 octets, or 24 with the RD)
+there is no Global to keep. Towards a destination more than one hop away the
+route is then withheld, under any next-hop mode that leaves the received next
+hop in place, and a warning names the peer: "withholding route: its next hop is
+link-local-only and this peer is more than one IP hop away". Section 4: "If,
+after completing these procedures, there are no IPv6 next hop addresses included
+in the next hop, the BGP route MUST not be advertised to its peer. Instead,
+treat-as-withdraw (Section 2 of [RFC7606]) is used." A directly attached
+destination receives the Link-Local-only next hop unchanged. A next-hop rewrite
+(`self`, a filter) replaces the address before the question is asked, so it
+passes. Rewriting to self under `auto` towards an external peer is not done yet.
+
+## Withheld routes are withdrawn
+
+Every egress gate that refuses a destination an announcement sends it the
+withdrawal of every route the UPDATE names instead: RFC 1997 well-known
+communities, RFC 7947 control communities, a genuine egress policy reject, and
+the next-hop gates (next-hop self with no local address, a next hop that is the
+peer's own address, a reflected Link-Local-only next hop off the advertiser's
+segment, a Link-Local-only next hop towards a multihop peer, RFC 8950 without
+Extended Next Hop, a Link-Local-only next hop without capability 77). The
+destination may hold the previous generation of the route, and neither rail
+keeps a per-peer Adj-RIB-Out that could say it does not, so the withdrawal is
+unconditional: RFC 7606 Section 2 treat-as-withdraw, "as though all contained
+routes had been withdrawn". A withdrawal of a route the destination never held
+changes nothing for it. A filter step that could not run is a drop, not a
+reject, and sends nothing.
+
+The withdrawal is the RFC 9494 LLGR conversion (`buildWithdrawalPayload`). It
+carries the source UPDATE's own Withdrawn Routes and MP_UNREACH_NLRI beside the
+converted announcement, in one Withdrawn Routes field and one MP_UNREACH_NLRI.
+A source whose MP_UNREACH_NLRI and MP_REACH_NLRI name different families would
+need two messages, and is refused (the destination is sent nothing). The two
+rails ask the next-hop gates through one function, so they cannot answer
+differently.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopWithheld -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->

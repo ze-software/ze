@@ -108,8 +108,8 @@ func TestForwardRSWithdrawsFromClientRefusedByControlCommunity(t *testing.T) {
 
 	parts, reached := got[netip.MustParseAddr(rsRefusedClientAddr)]
 	require.True(t, reached, "the withdrawal must reach the excluded client")
-	assert.Equal(t, wkWithdrawnPrefix, parts.withdrawn,
-		"the route being taken back was never tagged, so the exclusion does not cover it")
+	assert.Equal(t, append(append([]byte(nil), wkWithdrawnPrefix...), wkAnnouncedPrefix...), parts.withdrawn,
+		"the route being taken back was never tagged, so the exclusion does not cover it, and the excluded announcement is withdrawn beside it")
 	assert.NotContains(t, string(parts.nlri), string(wkAnnouncedPrefix),
 		"the announcement the control community excludes must not reach that client")
 
@@ -123,13 +123,12 @@ func TestForwardRSWithdrawsFromClientRefusedByControlCommunity(t *testing.T) {
 		"a client the control community does not name receives both halves")
 }
 
-// VALIDATES: an UPDATE that only announces still reaches nobody the control community
-// excludes, so the withdrawal path adds no route rather than weakening the gate.
-// PREVENTS: reading the test above as "RFC 7947 now sends something to every excluded
-// client". A pure announcement has no withdrawal half, so the excluded client is written
-// nothing at all. That silence is also what makes the assertion above evidence, rather
-// than a message arriving for its own reasons.
-func TestForwardRSSendsNothingToRefusedClientWithoutWithdrawal(t *testing.T) {
+// VALIDATES: an UPDATE that only announces is written to the client the control community
+// excludes as the withdrawal of its prefix, with nothing announced (RFC 7606 Section 2
+// treat-as-withdraw), while the client it does not name receives the announcement.
+// PREVENTS: the excluded client keeping the previous generation of a route the community
+// now excludes it from: no per-peer Adj-RIB-Out says it never held it.
+func TestForwardRSWithdrawsAnnouncementFromRefusedClient(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
@@ -139,11 +138,13 @@ func TestForwardRSSendsNothingToRefusedClientWithoutWithdrawal(t *testing.T) {
 
 	got := rsCommunityForward(t, wkTestPayload(rsBlacklist(rsRefusedClientAS)), refused, allowed)
 
-	assert.NotContains(t, got, netip.MustParseAddr(rsRefusedClientAddr),
-		"an announcement-only UPDATE leaves an excluded client nothing to write")
+	excluded, written := got[netip.MustParseAddr(rsRefusedClientAddr)]
+	require.True(t, written, "the excluded client must be written the withdrawal")
+	assert.Empty(t, excluded.nlri, "nothing is announced to the excluded client")
+	assert.Equal(t, wkAnnouncedPrefix, excluded.withdrawn, "the excluded announcement is withdrawn")
 
 	// The control: the same UPDATE, the same rail, the client the community does not
-	// name. A silence above is only evidence once this one is not silent.
+	// name. The withdrawal above is only evidence once this one is announced.
 	both, reached := got[netip.MustParseAddr(rsAllowedClientAddr)]
 	require.True(t, reached)
 	assert.Equal(t, wkAnnouncedPrefix, both.nlri)

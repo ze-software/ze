@@ -180,8 +180,9 @@ op-queue drain, the announce batch, and the RFC 9494 stale re-advertise.
 The route is withheld from that one peer, and the refusal logs the peer, the next
 hop and the section. Ze does not rewrite the address: rewriting would invent a
 next hop nobody configured. Other peers matched by the same selector still
-receive the route, and withdrawals in the same UPDATE still reach the withheld
-peer.
+receive the route. A relayed route refused this way is withdrawn from the
+withheld peer instead, together with the withdrawals in the same UPDATE, so the
+peer drops any earlier copy.
 
 The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.

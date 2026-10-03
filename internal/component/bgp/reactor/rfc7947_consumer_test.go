@@ -78,7 +78,7 @@ func TestRouteServerTransparencyStopsAtOrdinaryPeer(t *testing.T) {
 // fallback copy. The second round reverses the decisions on the same clients.
 // RFC 7947 Section 2.1: "The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy."
 // RFC requirement: RFC7947-x-4 positive -- a route-server client deferred by the fast path receives the actual UPDATE when its own export policy accepts it, including after that client's policy changes from reject to accept.
-// RFC requirement: RFC7947-x-4 negative -- the same deferred client receives no announcement when its own policy rejects it; acceptance by a different client does not bypass that rejection.
+// RFC requirement: RFC7947-x-4 negative -- the same deferred client receives no announcement when its own policy rejects it, only the withdrawal of the prefix; acceptance by a different client does not bypass that rejection.
 func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 	f := newAIGPReplayFixture(t, nil)
 	other, otherConn := newAnnouncePeer(t, "198.18.232.3")
@@ -124,7 +124,14 @@ func TestRFC7947ClientPolicyControlsWire(t *testing.T) {
 			if calls[p.settings.Address.String()] != 1 { t.Fatalf("policy calls by client = %v", calls) }
 			bodies := aigpSocketBodies(t, conn)
 			if i != round {
-				if len(bodies) != before[i] { t.Fatal("policy-rejected client received an UPDATE") }
+				// A rejected client is announced nothing. It is written the
+				// withdrawal of the prefix instead (RFC 7606 Section 2
+				// treat-as-withdraw), because it may hold an earlier generation.
+				if len(bodies) != before[i]+1 { t.Fatalf("policy-rejected client received %d additional UPDATEs, want the one withdrawal", len(bodies)-before[i]) }
+				w, err := message.UnpackUpdate(bodies[len(bodies)-1])
+				if err != nil { t.Fatal(err) }
+				if len(w.NLRI) != 0 { t.Fatalf("policy-rejected client was announced %x", w.NLRI) }
+				if !bytes.Equal(w.WithdrawnRoutes, prefix) { t.Fatalf("policy-rejected client withdrawal %x, want %x", w.WithdrawnRoutes, prefix) }
 				continue
 			}
 			if len(bodies) != before[i]+1 { t.Fatalf("accepted client received %d additional UPDATEs, want 1", len(bodies)-before[i]) }

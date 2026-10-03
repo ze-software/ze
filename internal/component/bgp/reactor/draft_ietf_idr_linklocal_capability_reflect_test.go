@@ -116,8 +116,23 @@ func llnhReflect(t *testing.T, payload []byte, clients ...*Peer) map[netip.Addr]
 // llnhForward sends one UPDATE from the advertiser, described by source, through
 // forwardUpdateCore toward every destination, and returns the MP_REACH Next Hop
 // field each one was asked to write. A destination absent from the map received
-// nothing at all.
+// nothing at all; one mapped to an empty field was written no MP_REACH_NLRI (a
+// refused destination is written the withdrawal of the route).
 func llnhForward(t *testing.T, payload []byte, source forwardSourceInfo, clients ...*Peer) map[netip.Addr][]byte {
+	t.Helper()
+	return llnhForwardRead(t, payload, source, llnhItemNextHopField, clients...)
+}
+
+// llnhForwardWritten is llnhForward reading both the announced next hop and the
+// withdrawal each destination was written (llnhItemWritten).
+func llnhForwardWritten(t *testing.T, payload []byte, source forwardSourceInfo, clients ...*Peer) map[netip.Addr]llnhWritten {
+	t.Helper()
+	return llnhForwardRead(t, payload, source, llnhItemWritten, clients...)
+}
+
+// llnhForwardRead is the harness both read through: read runs inside the pool
+// callback, while the item's buffers are still owned.
+func llnhForwardRead[T any](t *testing.T, payload []byte, source forwardSourceInfo, read func(*testing.T, []fwdItem) T, clients ...*Peer) map[netip.Addr]T {
 	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
@@ -130,11 +145,11 @@ func llnhForward(t *testing.T, payload []byte, source forwardSourceInfo, clients
 
 	type delivery struct {
 		addr  netip.Addr
-		field []byte
+		field T
 	}
 	delivered := make(chan delivery, 8)
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), field: llnhItemNextHopField(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), field: read(t, items)}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -155,7 +170,7 @@ func llnhForward(t *testing.T, payload []byte, source forwardSourceInfo, clients
 
 	_ = adapter.forwardUpdateCore(update, id, clients, source)
 
-	got := make(map[netip.Addr][]byte, len(clients))
+	got := make(map[netip.Addr]T, len(clients))
 	for range clients {
 		select {
 		case d := <-delivered:
@@ -205,7 +220,7 @@ func llnhItemNextHopField(t *testing.T, items []fwdItem) []byte {
 // (forward_next_hop.go) classifies the field about to be written and
 // sameLinkLayerSegment (link_scope.go) answers the segment half against the subnets
 // this speaker is attached to; forwardUpdateCore withholds the announcement from the
-// client off the segment.
+// client off the segment and writes it the withdrawal.
 //
 // RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5 negative -- the refusal is
 // keyed on the segment and is not a blanket refusal of link-local-only routes: the
@@ -221,8 +236,8 @@ func TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment(t *testin
 
 	got := llnhReflect(t, llnhReflectedPayload("fe80::1"), offSegment, onSegment)
 
-	assert.NotContains(t, got, netip.MustParseAddr(llnhOffSegmentAddr),
-		"a client off the advertiser's segment is written nothing")
+	assert.Empty(t, got[netip.MustParseAddr(llnhOffSegmentAddr)],
+		"a client off the advertiser's segment is advertised nothing: it is written the withdrawal")
 
 	field, reached := got[netip.MustParseAddr(llnhOnSegmentAddr)]
 	require.True(t, reached, "the client on the advertiser's segment is owed the route")
@@ -240,7 +255,7 @@ func TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment(t *testin
 // peer" (Section 4). applyFactsNextHop (peer_forward_facts.go) records the rewrite for
 // the client configured next-hop-self, so the field it receives is this speaker's own
 // Global IPv6 address and no longer link-local-only; the client with no rewrite is
-// made ineligible by the same gate and is written nothing.
+// made ineligible by the same gate and is written the withdrawal instead.
 //
 // PREVENTS: a reflector that could only suppress. Both arms of the sentence run on
 // one rail, so a deployment that rewrites keeps its reachability.
@@ -257,8 +272,8 @@ func TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients(t *te
 	assert.False(t, attribute.IsLinkLocalOnlyNextHop(field),
 		"what that client receives is no longer a link-local-only next hop")
 
-	assert.NotContains(t, got, netip.MustParseAddr("2001:db8:9::5"),
-		"the client with no rewrite is considered ineligible for this route")
+	assert.Empty(t, got[netip.MustParseAddr("2001:db8:9::5")],
+		"the client with no rewrite is considered ineligible for this route: it is written the withdrawal")
 }
 
 // VALIDATES: neither answer is applied to a route whose next hop is not

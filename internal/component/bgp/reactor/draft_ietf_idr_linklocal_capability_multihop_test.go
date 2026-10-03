@@ -134,6 +134,19 @@ func TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer(t *testing.T) 
 // and returns the MP_REACH Next Hop field each client was asked to write.
 func llnhForwardRS(t *testing.T, payload []byte, clients ...*Peer) map[netip.Addr][]byte {
 	t.Helper()
+	return llnhForwardRSRead(t, payload, llnhItemNextHopField, clients...)
+}
+
+// llnhForwardRSWritten is llnhForwardRS reading both the announced next hop and
+// the withdrawal each client was written (llnhItemWritten).
+func llnhForwardRSWritten(t *testing.T, payload []byte, clients ...*Peer) map[netip.Addr]llnhWritten {
+	t.Helper()
+	return llnhForwardRSRead(t, payload, llnhItemWritten, clients...)
+}
+
+// llnhForwardRSRead is the harness both read through.
+func llnhForwardRSRead[T any](t *testing.T, payload []byte, read func(*testing.T, []fwdItem) T, clients ...*Peer) map[netip.Addr]T {
+	t.Helper()
 
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -144,11 +157,11 @@ func llnhForwardRS(t *testing.T, payload []byte, clients ...*Peer) map[netip.Add
 
 	type delivery struct {
 		addr  netip.Addr
-		field []byte
+		field T
 	}
 	delivered := make(chan delivery, 8)
 	pool := newFwdPool(func(k fwdKey, items []fwdItem) {
-		delivered <- delivery{addr: k.peerAddr.Addr(), field: llnhItemNextHopField(t, items)}
+		delivered <- delivery{addr: k.peerAddr.Addr(), field: read(t, items)}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	t.Cleanup(pool.Stop)
 
@@ -170,7 +183,7 @@ func llnhForwardRS(t *testing.T, payload []byte, clients ...*Peer) map[netip.Add
 	}
 	reactorForwardRS(r, update, id, source.Settings().Address, source)
 
-	got := make(map[netip.Addr][]byte, len(clients))
+	got := make(map[netip.Addr]T, len(clients))
 	for range clients {
 		select {
 		case d := <-delivered:

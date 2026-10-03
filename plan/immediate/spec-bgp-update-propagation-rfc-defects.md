@@ -31,7 +31,7 @@ at its producer in HEAD on 2026-09-27.
 | D3 | draft-ietf-bess-mup-safi Section 3.1.3.1 (rows 3.1.3.1-6, -7, -10) | "the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw." and "any TLV parsing error MUST result in Treat-as-withdraw" | `internal/core/bgp/nlri/nlrisplit/mup.go::SplitMUP` with `RecognizeNLRI` at ingress | Ingress frames the NLRI on its length and stores it; `ParseMUP`'s truncation and TLV errors are reached only by the decoder, so a malformed ST1 route is kept instead of withdrawn | weak, code gap with no `{gap}` marker |
 | D4 | RFC 9234 Section 3.1 (RFC9234-3.1-1) | "Customer: MAY propagate any route learned from a Customer, or that is locally originated, to a Provider. All other routes MUST NOT be propagated." | `internal/component/bgp/plugins/role/otc.go::OTCEgressFilter` | Suppresses sources whose local role is customer, peer or rs-client; a route learned from an RS-Client (local role rs) is propagated to a Provider, Peer or RS. `TestOTCEgressFilter` subtest `src_role_rs_to_provider_accept` pins the same reading | weak; OWNER DECISION |
 | D5 | RFC 7999 Section 3.1 (RFC7999-3.1-2) | "In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it." | `internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go::agreedSelector`; `internal/component/bgp/plugins/filter_community/config.go` `blackholeGuardToken` (default none) | The agreement gate covers origination by command only; a received BLACKHOLE route is re-advertised to a peer that never agreed, since the Section 3.2 propagation guard is off by default | weak; OWNER DECISION |
-| D6 | RFC 2545 Section 3; draft-ietf-idr-linklocal-capability-06 Section 4 item 1 (DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2) when capability 77 is negotiated | RFC 2545: "The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to." Draft: "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop." | `internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop` (next-hop auto and unchanged map to `nhModeNone`) and `applyFactsNextHop` (`nhModeNone` returns with no attribute 14 op); `reactor_api_forward.go::applyNextHopMod` (auto: no op) | A received 32-octet Global plus Link-Local next hop is forwarded to an internal peer as received, whether or not that peer is on the link. The `peerOnLink` gate in `link_scope.go::linkLocalNextHop` covers only Ze's own configured link-local under next-hop self or explicit | weak (the 4-2 tags test next-hop self only); read at the producer, not reproduced |
+| D6 | RFC 2545 Section 3; draft-ietf-idr-linklocal-capability-06 Section 4 item 1 (DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2) when capability 77 is negotiated | RFC 2545: "The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to." Draft: "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop." | `internal/component/bgp/reactor/forward_next_hop.go::egressNextHopGlobalHalf` (the 32-octet cut, landed in 20fec75f48 on both rails); the withhold gates of `reactor_api_forward.go::forwardUpdateCore` and `forward_rs.go::reactorForwardRS`; `forward_build.go::buildWithdrawalPayload`. `applyNextHopMod` has no production caller and decides nothing | The 32-octet pair is cut to its Global towards a peer off the link, but a received Link-Local-only next hop still crossed to a multihop peer under `unchanged`/`auto`, and every withhold gate sent nothing (or only the source's own withdrawals) where the destination may hold the previous generation | 4-2 had no relay test; 4-1, -4-4, -4-7, -4-9 reproduced red (below) |
 
 D6 also owns the missing-next-hop outcomes for
 `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1`, `-4-4` and `-4-9`
@@ -73,6 +73,70 @@ untagged, with no enforced verdict claimed.
 | Real entry point | `.ci` tests: a peer sends the UPDATE, a second peer receives the re-advertisement |
 | D6 cases | a received Global plus Link-Local next hop forwarded under next-hop auto to a multihop internal peer carries the global address only (red against HEAD); to an internal peer on the same link it may keep the link-local. The multihop EBGP twin (4-8, "Link-Local IPv6 next hops MUST NOT be included.") goes through the eBGP next-hop rewrite, which was not traced: the same test covers it |
 | Interop | D1, D2 against FRR or BIRD as the receiving peer; D4 against a Role-capable FRR; D6 with FRR as a multihop iBGP receiver |
+
+## D6 design (owner decisions 2026-10-03)
+
+Owner authorised the fix without claiming the spec. This section covers D6 and
+the owner-widened withdrawal fix only; D1 to D5 stay open.
+
+-> Decision: (owner, 2026-10-03, "the analysis lgtm") a route whose next hop
+about to be written is Link-Local-only is WITHHELD, as treat-as-withdraw, from a
+destination that is not on-link, on both rails. Research behind it: draft
+Section 4 forbids a Link-Local next hop towards a peer more than one hop away
+("If the internal peer is more than one IP hop away, the BGP speaker MUST NOT
+include a Link-Local IPv6 next hop.") and forbids announcing a route left with
+no next hop ("If, after completing these procedures, there are no IPv6 next hop
+addresses included in the next hop, the BGP route MUST not be advertised to its
+peer. Instead, treat-as-withdraw (Section 2 of [RFC7606]) is used."). Its
+default under the other modes is rewriting to self, which FRR and BIRD do; under
+`next-hop unchanged` the operator configured propagation, so withholding is the
+conformant act. By mode: unchanged and multihop, withhold; unchanged and
+on-link, sent unchanged; auto and eBGP, rewrite to self, which is
+`plan/immediate/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` and NOT this fix;
+self and RR next-hop-self, rewritten (existing).
+-> Decision: the gate is mode-independent: "destination not on-link" (the hop
+test egressNextHopGlobalHalf uses; a nil link scope proves no shared subnet) and
+"the next hop about to be written is Link-Local-only" (egressNextHopIsLinkLocalOnly
+over mods then base; the 24-octet RD plus Link-Local VPN field counts, because
+nextHopAddr leaves its second address invalid). Under `auto` it withholds until
+the auto-rewrite spec records a rewrite in mods, and then stops firing with no
+edit. Placed after egressNextHopGlobalHalf and before RFC 8950.
+-> Decision: the RR reflected-only gate is NOT merged into it: it asks a
+different question (the client against the ORIGINAL ADVERTISER's segment), so
+an on-link client off the advertiser's segment is refused by it and passed by
+the new gate. The route-server rail gains the RR gate as well, because it
+injects the RFC 4456 reflection attributes for the same pairs and the two rails
+must answer alike.
+-> Decision: (owner) every withhold gate that suppresses a route the destination
+may already hold WITHDRAWS it: next-hop-self withheld, the new Link-Local-only
+gate, peer-own NEXT_HOP, RR Link-Local-only, RFC 8950, Link-Local-only refused,
+RFC 1997 well-known communities, RFC 7947 control communities, and a genuine
+egress policy reject (a step that could not run stays a drop, unchanged). Reuse:
+mods.SetWithdraw() and buildWithdrawalPayload, the RFC 9494 LLGR conversion;
+wireu.WithdrawalsOnly loses its forward-rail callers. The reactor rail holds no
+per-peer Adj-RIB-Out, so the withdrawal is unconditional: RFC 7606 Section 2
+treat-as-withdraw, which BIRD also does. A withdrawal of a route the destination
+never held is a no-op for it, and its family is one the announcement would have
+been sent in.
+-> Decision: buildWithdrawalPayload merges the source UPDATE's own Withdrawn
+Routes and MP_UNREACH_NLRI with the converted announcement. HEAD dropped them,
+a latent LLGR defect in the same function (an LLGR conversion of a mixed UPDATE
+lost its withdrawals), fixed here. One MP_UNREACH_NLRI is emitted (RFC 7606
+Section 3(g) refuses two); when the source's MP_UNREACH and MP_REACH name
+different AFI/SAFI the result needs two messages, and the function refuses that
+shape rather than send half of it.
+-> Constraint: the next-hop withhold sequence is one function both rails call
+(egressNextHopWithheld, forward_next_hop.go), so the rails cannot diverge.
+
+### D6 tests
+
+| Test | Proves |
+|------|--------|
+| TestDraftLinkLocalOnlyRouteCannotCrossMultihopEgress (+ RS twin) | 4-1/4-4/4-9: LL-only to a multihop internal or external peer is withdrawn, global control sent |
+| TestDraftLinkLocalOneHopLostNextHopWithdraws (+ RS twin) | 4-7: lost next-hop-self addresses withdraw the advertised generation |
+| relay 4-2 test | 32-octet pair to a multihop internal peer carries the Global alone (red by reverting egressNextHopGlobalHalf) |
+| per-gate withdraw tests | each gate class sends a withdrawal of the announced NLRI |
+| buildWithdrawalPayload merge tests | source withdrawals kept beside the converted announcement |
 
 ## Owner decisions
 

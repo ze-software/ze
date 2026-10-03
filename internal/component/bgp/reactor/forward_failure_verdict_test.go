@@ -147,19 +147,31 @@ func TestForwardZeroDispatchFailureIsADropNotASuppression(t *testing.T) {
 			"nothing decided against this peer; the prepend could not be recorded")
 	})
 
-	// The control. The same rail, the same fixture, a destination an egress filter
-	// genuinely refuses. Without it every NotErrorIs above could pass because the
-	// suppression sentinel is never returned at all.
+	// The control. The same rail, the same fixture, a destination RFC 4456 refuses: an
+	// internal source and an internal destination, neither a reflection client. Without it
+	// every NotErrorIs above could pass because the suppression sentinel is never returned.
 	t.Run("a policy decision IS a suppression", func(t *testing.T) {
 		dst := makeNextHopSelfIBGPPeer(t, "10.0.0.5", srcCtx, srcCtxID)
+		f := newVerdictFixture(t, dst, modBufTestPayload(), srcCtxID)
+
+		got := f.adapter.forwardUpdateCore(f.update, f.id, []*Peer{f.dst}, forwardSourceInfo{
+			resolved: true, isIBGP: true, globalLocalAS: 65000,
+		})
+		assert.ErrorIs(t, got, errAllDestinationsSuppressed,
+			"a route RFC 4456 does not reflect is policy, and the caller may treat it as success")
+	})
+
+	// An egress filter that refuses a destination sends it the withdrawal of the route
+	// (RFC 7606 Section 2 treat-as-withdraw), so that destination was reached: neither a
+	// drop nor a suppression.
+	t.Run("an egress filter reject is a withdrawal", func(t *testing.T) {
+		dst := makeNextHopSelfIBGPPeer(t, "10.0.0.6", srcCtx, srcCtxID)
 		f := newVerdictFixture(t, dst, modBufTestPayload(), srcCtxID)
 		f.reactor.orderedEgressSteps = orderedEgressStepsFromFuncs(
 			func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
 				return false
 			})
 
-		got := f.forward()
-		assert.ErrorIs(t, got, errAllDestinationsSuppressed,
-			"a filter that decided against this peer is policy, and the caller may treat it as success")
+		assert.NoError(t, f.forward(), "the withdrawal was dispatched")
 	})
 }

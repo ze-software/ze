@@ -321,23 +321,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// would leak on whichever path the deployment happens to select.
 	srcWellKnown := r.scanWellKnownEgress(update.WireUpdate.Payload(), sourcePeerAddr)
 
-	// The withdrawal half, for the clients an egress gate refuses. Same derivation
-	// and same nil meaning as the general rail. Nil means the UPDATE withdraws
-	// nothing, and then a refused client receives nothing at all
-	// (wireu.WithdrawalsOnly).
-	//
-	// TWO gates share it, so a flag guards the derivation rather than either gate's
-	// own condition. RFC 1997 asks its question of every client, so the part is
-	// derived up front for an UPDATE carrying a well-known community. RFC 7947
-	// below derives it on its first refusal, because a control community refuses a
-	// subset of the clients rather than all of them.
-	var srcWithdrawOnly *wireu.WireUpdate
-	withdrawOnlyDerived := false
-	if srcWellKnown != 0 {
-		withdrawOnlyDerived = true
-		srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
-	}
-
+	// A client an egress gate refuses the announcement is sent a WITHDRAWAL of
+	// every route this UPDATE names instead (mods.SetWithdraw, then
+	// buildWithdrawalPayload), never nothing, for the reason the general rail
+	// gives (forwardUpdateCore, reactor_api_forward.go): RFC 7606 Section 2
+	// treat-as-withdraw, unconditional because no per-peer Adj-RIB-Out says the
+	// client never held the route.
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -348,16 +337,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		// policy. A route-server client is an external peer, so a route received
 		// carrying NO_EXPORT reaches none of them.
 		//
-		// The prohibition covers the ANNOUNCEMENT only, so a refused client still
-		// receives the withdrawal half of a mixed UPDATE; see the general rail for
-		// why that is not optional.
-		destBaseWire := update.WireUpdate
-		if !r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
-			if srcWithdrawOnly == nil {
-				continue
-			}
-			destBaseWire = srcWithdrawOnly
-		}
+		// The prohibition covers the ANNOUNCEMENT only, so a refused client is
+		// sent the withdrawal of every route the UPDATE names; see the general
+		// rail for why that is not optional.
+		withhold := !r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP)
 
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
 		if facts.rsClient && facts.peerAS != 0 {
@@ -377,25 +360,25 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			// until the session resets. Same reasoning, and the same repair, as
 			// RFC 1997 above and on the general rail.
 			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
-				if !withdrawOnlyDerived {
-					withdrawOnlyDerived = true
-					srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
-				}
-				if srcWithdrawOnly == nil {
-					continue
-				}
-				destBaseWire = srcWithdrawOnly
+				withhold = true
 			}
 		}
 
-		// RFC 4456: Route reflection forwarding rules.
-		if srcIsIBGP && !facts.isEBGP {
+		// RFC 4456: Route reflection forwarding rules. reflected says this
+		// destination receives the route by reflection, which the RFC 4456
+		// attribute injection and the draft-ietf-idr-linklocal-capability
+		// Section 4 reflection gate both read.
+		reflected := srcIsIBGP && !facts.isEBGP
+		if reflected {
 			if !srcIsRRClient && !facts.rrClient {
 				continue
 			}
 		}
 
 		mods.Reset()
+		if withhold {
+			mods.SetWithdraw()
+		}
 
 		// ONE operation carrying EVERY control community; see the identical site
 		// on the general rail (reactor_api_forward.go) for why the multi-value
@@ -405,9 +388,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
 		}
-		if len(r.egressFilters) > 0 {
+		if len(r.egressFilters) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
-			payload := destBaseWire.Payload()
+			payload := update.WireUpdate.Payload()
 			suppressed := false
 			filterFailed := false
 			for _, filter := range r.egressFilters {
@@ -438,168 +421,73 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 					fwdLogger().Warn("rs fast path: egress filter panicked, deferring the destination to the plugin rail",
 						"id", updateID, "peer", facts.addr, "src", sourcePeerAddr)
 					skipped = append(skipped, facts.peerKey)
+					continue
 				}
-				continue
+				// A genuine policy reject: the client may hold the previous
+				// generation of the route, so it is sent the withdrawal.
+				mods.SetWithdraw()
 			}
 		}
 
 		// RFC 4456: Route reflection attribute injection for IBGP destinations.
-		if srcIsIBGP && !facts.isEBGP {
+		if reflected {
 			mods.Op(9, filterapi.AttrModSet, origBuf[:])
 			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
-		applyFactsAIGP(facts, srcAIGP, srcNextHop, destBaseWire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
+		applyFactsAIGP(facts, srcAIGP, srcNextHop, update.WireUpdate.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// draft-ietf-idr-linklocal-capability Section 4: "Link-Local IPv6 next
 		// hops MUST NOT be included" toward a peer multiple IP hops away. A
 		// route server keeps the Global untouched (RFC 7947 Section 2.2.2) and
 		// drops only the Link-Local half a distant client cannot reach. The
 		// general rail (reactor_api_forward.go) answers the same.
-		if global, strip := egressNextHopGlobalHalf(peer, &mods, destBaseWire.Payload()); strip {
+		if global, strip := egressNextHopGlobalHalf(peer, &mods, update.WireUpdate.Payload()); strip {
 			mods.Op(14, filterapi.AttrModSet, global)
 		}
 
-		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
-		// disabling advertisement of third party NEXT_HOP attributes in order to
-		// handle imperfectly bridged media." A next-hop-self destination with no
-		// address of this speaker to send is withheld the announcement rather
-		// than passed the third-party NEXT_HOP. The general rail
-		// (reactor_api_forward.go) carries the reasoning; the two rails MUST
-		// answer this the same way.
-		if facts.nhSelfWithheld {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+		// The egress gates that refuse an announcement because of the next hop
+		// about to be written. The general rail (forwardUpdateCore) asks the same
+		// function, which carries every quote, so the two rails cannot answer
+		// differently. RFC 7947 Section 2.2.2 requires a route server to pass
+		// NEXT_HOP through untouched, and withholding keeps that promise: no
+		// client is ever sent a next hop this speaker invented.
+		if !mods.IsWithdraw() {
+			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
+			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
+			if gate := egressNextHopWithheld(peer, facts, &mods, srcNextHop, reflected, sourcePeerAddr); gate != withholdNone {
+				gate.warn(facts, sourcePeerAddr, srcNextHop)
+				mods.SetWithdraw()
 			}
-			fwdLogger().Warn("withholding route: next-hop self is configured and the session has no local address",
-				"peer", facts.addrStr, "src", sourcePeerAddr,
-				"rfc", "RFC 4271 Section 5.1.3",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				continue
-			}
-			destBaseWire = srcWithdrawOnly
-		}
-
-		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
-		// be advertised to a peer using an address of that peer as NEXT_HOP."
-		//
-		// The general rail (reactor_api_forward.go) carries the full reasoning:
-		// asked after every rewrite so it reads the address about to be written,
-		// the announcement withheld rather than rewritten, and the withdrawal half
-		// still delivered. The two rails MUST answer this the same way -- which
-		// one runs is the deployment's rs-fast-path setting, not a policy.
-		//
-		// RFC 7947 Section 2.2.2 requires a route server to pass NEXT_HOP through
-		// untouched, and withholding keeps that promise: no client is ever sent a
-		// next hop this speaker invented, and the one client the address names is
-		// the one client the address is useless to.
-		baseNextHop := srcNextHop
-		if destBaseWire != update.WireUpdate {
-			baseNextHop = payloadNextHop(destBaseWire.Payload())
-		}
-		if egressNextHopIsPeerOwn(facts, &mods, baseNextHop) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
-			}
-			fwdLogger().Warn("withholding route: its next hop is this peer's own address",
-				"peer", facts.addrStr, "next-hop", facts.addr, "src", sourcePeerAddr,
-				"rfc", "RFC 4271 Section 5.1.3",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				continue
-			}
-			destBaseWire = srcWithdrawOnly
-		}
-
-		// RFC 8950 Section 4: an IPv6 next hop for IPv4 NLRI goes only to a peer
-		// that negotiated the Extended Next Hop pair. The general rail
-		// (reactor_api_forward.go) carries the quote and the reasoning; the two
-		// rails MUST answer this the same way.
-		if destBaseWire != update.WireUpdate {
-			baseNextHop = payloadNextHop(destBaseWire.Payload())
-		}
-		if egressNextHopLacksExtendedNextHop(peer, &mods, baseNextHop) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
-			}
-			fwdLogger().Warn("withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate",
-				"peer", facts.addrStr, "family", baseNextHop.mpFamily, "src", sourcePeerAddr,
-				"rfc", "RFC 8950 Section 4",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				continue
-			}
-			destBaseWire = srcWithdrawOnly
-		}
-
-		// draft-ietf-idr-linklocal-capability Section 2: "When the capability has
-		// not been negotiated, the procedures in this document do not apply." A
-		// Link-Local-only next hop self (a session over a link-local address) goes
-		// only to a peer whose session may carry it. The general rail
-		// (reactor_api_forward.go) carries the reasoning; the two rails MUST
-		// answer this the same way.
-		if destBaseWire != update.WireUpdate {
-			baseNextHop = payloadNextHop(destBaseWire.Payload())
-		}
-		if egressNextHopLinkLocalOnlyRefused(peer, &mods, baseNextHop) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
-			}
-			fwdLogger().Warn("withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability",
-				"peer", facts.addrStr, "family", baseNextHop.mpFamily, "src", sourcePeerAddr,
-				"rfc", "draft-ietf-idr-linklocal-capability Section 2",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				continue
-			}
-			destBaseWire = srcWithdrawOnly
 		}
 
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
 		// Recorded AFTER the egress filter pass above so the Suppress is the last
 		// operation on code 5 and wins (filterapi.LastSetOrSuppress). This rail
-		// has no wire override, so the source payload is the base the rebuild runs
-		// over -- except for a destination RFC 1997 refuses, whose base is the
-		// withdrawal part and carries no attribute at all.
-		baseHasLocalPref := srcHasLocalPref
-		if destBaseWire != update.WireUpdate {
-			baseHasLocalPref = payloadHasLocalPref(destBaseWire.Payload())
-		}
-		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
+		// has no wire override, so the source payload is the base the rebuild
+		// runs over.
+		applyFactsLocalPref(facts, srcHasLocalPref, &mods)
 
 		// RFC 8669 Section 8: the Prefix-SID leaves this AS only toward an EBGP
-		// neighbor the operator has placed inside the SR domain. Same two
-		// payloads, and the same base for a destination RFC 1997 refuses, as the
-		// sibling above.
-		baseHasPrefixSID := srcHasPrefixSID
-		if destBaseWire != update.WireUpdate {
-			baseHasPrefixSID = payloadHasAttr(destBaseWire.Payload(), attribute.AttrPrefixSID)
-		}
-		applyFactsPrefixSID(facts, baseHasPrefixSID, &mods)
+		// neighbor the operator has placed inside the SR domain. Same base as
+		// the sibling above.
+		applyFactsPrefixSID(facts, srcHasPrefixSID, &mods)
 
 		// RFC 4271 Section 5.1.4: a MED received from one neighboring AS never
 		// reaches another, and RFC 7947 Section 2.2.3 exempts a route server
-		// client. Same two payloads as the sibling above, and the same base for
-		// a destination RFC 1997 refuses (applyFactsMED, forward_med.go).
-		baseMED := srcMED
-		if destBaseWire != update.WireUpdate {
-			baseMED = payloadMED(destBaseWire.Payload())
-		}
-		applyFactsMED(facts, srcMED, baseMED, destBaseWire.Payload(), &mods)
+		// client. Same base as the sibling above (applyFactsMED, forward_med.go).
+		applyFactsMED(facts, srcMED, srcMED, update.WireUpdate.Payload(), &mods)
 
 		// The AS-path family is recorded as INTENT, exactly as on the general
 		// forward rail, so the one-pass writer emits it into the client's buffer
 		// alongside every other edit and no intermediate payload is produced.
 		// Recorded BEFORE the AS-override so that override's Set still wins.
 		aspathWidthChanged := false
-		if facts.isEBGP {
+		// A client sent the withdrawal carries no AS_PATH, so the path is not
+		// resolved for it: a resolve failure must not cost it the withdrawal.
+		if facts.isEBGP && !mods.IsWithdraw() {
 			intent := wireu.ASPathIntent{SrcASN4: srcASN4, DstASN4: facts.sendASN4}
 			if !facts.rsClient {
 				// RFC 4271 Section 9.1.2, with RFC 7705 Section 3.3 ordering: the
@@ -615,7 +503,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
 			// Prepend stays empty and Record transcodes only.
-			changed, aspErr := aspathEdit.Record(&mods, destBaseWire.Payload(), intent)
+			changed, aspErr := aspathEdit.Record(&mods, update.WireUpdate.Payload(), intent)
 			if aspErr != nil {
 				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
 					"peer", facts.addr, "localAS", facts.localAS,
@@ -626,12 +514,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		if facts.asOverride && facts.isEBGP {
-			applyASOverride(facts.peerAS, facts.localAS, destBaseWire, facts.sendASN4, &mods)
+			applyASOverride(facts.peerAS, facts.localAS, update.WireUpdate, facts.sendASN4, &mods)
 		}
 
 		// No intermediate rewritten payload, so no read buffer is borrowed here and
 		// nothing is adopted onto the entry.
-		peerWire := destBaseWire
+		peerWire := update.WireUpdate
 
 		var modBufIdx int
 		var modPoolRef *peerPool

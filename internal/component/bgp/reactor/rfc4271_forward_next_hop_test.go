@@ -202,8 +202,12 @@ func TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress(t *testing
 
 	got := nhForward(t, nhPayload(nhOwnerAddr), owner, bystander)
 
-	assert.NotContains(t, got, netip.MustParseAddr(nhOwnerAddr),
-		"an announcement-only UPDATE whose NEXT_HOP is this peer's own address leaves it nothing to write")
+	owned, written := got[netip.MustParseAddr(nhOwnerAddr)]
+	require.True(t, written, "the owner is written the withdrawal of the route")
+	assert.Empty(t, owned.nlri,
+		"an announcement whose NEXT_HOP is this peer's own address is not advertised to it")
+	assert.Equal(t, nhAnnouncedPrefix, owned.withdrawn,
+		"the refused announcement is withdrawn, so the owner drops any earlier generation")
 
 	both, reached := got[netip.MustParseAddr(nhBystanderAddr)]
 	require.True(t, reached, "the peer that does not own the next hop is owed the route")
@@ -216,8 +220,8 @@ func TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress(t *testing
 //
 // RFC requirement: RFC4271-5.1.3-1 positive -- the prohibition covers ADVERTISING
 // a route ("SHALL NOT be advertised"), and taking one back is not advertising it.
-// forwardUpdateCore hands the destination wireu.WithdrawalsOnly rather than
-// refusing the message.
+// forwardUpdateCore sends the destination the withdrawal of every route the
+// UPDATE names (buildWithdrawalPayload) rather than refusing the message.
 //
 // PREVENTS: the peer keeping a prefix ze can no longer take back until the session
 // resets. This is the repair the RFC 1997 and RFC 7947 gates on the same rails
@@ -235,8 +239,8 @@ func TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress(t *testing.T
 
 	parts, reached := got[netip.MustParseAddr(nhOwnerAddr)]
 	require.True(t, reached, "the withdrawal must reach the withheld peer")
-	assert.Equal(t, nhWithdrawnPrefix, parts.withdrawn,
-		"the route being taken back carries no NEXT_HOP, so the prohibition does not cover it")
+	assert.Equal(t, append(append([]byte(nil), nhWithdrawnPrefix...), nhAnnouncedPrefix...), parts.withdrawn,
+		"the route being taken back carries no NEXT_HOP, so the prohibition does not cover it, and the refused announcement is withdrawn beside it")
 	assert.NotContains(t, string(parts.nlri), string(nhAnnouncedPrefix),
 		"the announcement whose NEXT_HOP is this peer's own address must not reach it")
 
@@ -268,8 +272,12 @@ func TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress(t *testing.T)
 
 	got := nhForwardRS(t, nhPayload(nhOwnerAddr), owner, bystander)
 
-	assert.NotContains(t, got, netip.MustParseAddr(nhOwnerAddr),
+	owned, written := got[netip.MustParseAddr(nhOwnerAddr)]
+	require.True(t, written, "the owner is written the withdrawal of the route")
+	assert.Empty(t, owned.nlri,
 		"the client that owns the next hop is not told to send traffic to itself")
+	assert.Equal(t, nhAnnouncedPrefix, owned.withdrawn,
+		"the refused announcement is withdrawn, so the owner drops any earlier generation")
 
 	both, reached := got[netip.MustParseAddr(nhBystanderAddr)]
 	require.True(t, reached, "every other client is owed the route unchanged")

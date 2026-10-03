@@ -3,6 +3,17 @@
   "records": [
     {
       "rid": "RFC1997-Well-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer",
+      "unit-sha": "f566a688facc6565",
+      "claim-sha": "0c1e92dde0e8d50a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_build.go::buildWithdrawalPayload",
+      "producer-sha": "0e45d0872a5aa419",
+      "break": "body of buildWithdrawalPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1997-Well-1",
       "polarity": "positive",
       "unit": "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary",
       "unit-sha": "54e1cac72d8796c7",

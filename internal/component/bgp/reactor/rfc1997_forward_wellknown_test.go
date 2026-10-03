@@ -112,13 +112,18 @@ func wkItemParts(t testing.TB, items []fwdItem) wkParts {
 }
 
 // wkForward runs one UPDATE through the general forward rail toward every peer
-// and returns the destination addresses the forward pool was asked to write to.
-// An empty result means the route reached nobody.
+// and returns the destinations the route was ADVERTISED to: those written an
+// announced prefix. A destination a gate refuses is written the withdrawal of
+// the route instead (RFC 7606 Section 2 treat-as-withdraw), which advertises
+// nothing, so it is not in the result. An empty result means the route was
+// advertised to nobody.
 func wkForward(t testing.TB, payload []byte, peers ...*Peer) []netip.Addr {
 	t.Helper()
 	var got []netip.Addr
-	for addr := range wkForwardParts(t, payload, peers...) {
-		got = append(got, addr)
+	for addr, parts := range wkForwardParts(t, payload, peers...) {
+		if len(parts.nlri) > 0 {
+			got = append(got, addr)
+		}
 	}
 	return got
 }
@@ -324,12 +329,15 @@ func TestForwardRSHonorsWellKnownCommunities(t *testing.T) {
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
 
+	// run answers how many prefix octets the client was ANNOUNCED. A refused
+	// client is written the withdrawal instead, which announces nothing.
 	run := func(t *testing.T, payload []byte) int {
 		t.Helper()
 		cache := newRecentUpdateCache(100)
 		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
 
-		pool := newFwdPool(func(fwdKey, []fwdItem) {},
+		written := make(chan wkParts, 4)
+		pool := newFwdPool(func(_ fwdKey, items []fwdItem) { written <- wkItemParts(t, items) },
 			fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 		t.Cleanup(pool.Stop)
 
@@ -347,8 +355,13 @@ func TestForwardRSHonorsWellKnownCommunities(t *testing.T) {
 			},
 			fwdPool: pool,
 		}
-		_, delivered := reactorForwardRS(r, update, id, srcAddr, src)
-		return delivered
+		reactorForwardRS(r, update, id, srcAddr, src)
+		select {
+		case parts := <-written:
+			return len(parts.nlri)
+		case <-time.After(2 * time.Second):
+			return 0
+		}
 	}
 
 	t.Run("no-export is withheld from the client", func(t *testing.T) {
@@ -357,7 +370,7 @@ func TestForwardRSHonorsWellKnownCommunities(t *testing.T) {
 	// The control: the same rail, the same client, the same prefix, one ordinary
 	// community. A zero above is only evidence once this one is non-zero.
 	t.Run("an ordinary community reaches the client", func(t *testing.T) {
-		assert.Equal(t, 1, run(t, wkTestPayload(attribute.Community(0xFDE90064))))
+		assert.Equal(t, len(wkAnnouncedPrefix), run(t, wkTestPayload(attribute.Community(0xFDE90064))))
 	})
 }
 
@@ -382,8 +395,8 @@ func TestForwardNoExportStillWithdrawsFromExternalPeer(t *testing.T) {
 
 	external, reached := got[netip.MustParseAddr(wkEBGPAddr)]
 	require.True(t, reached, "the withdrawal must reach the external peer")
-	assert.Equal(t, wkWithdrawnPrefix, external.withdrawn,
-		"the route being taken back is not an advertisement, so it must still be sent")
+	assert.Equal(t, append(append([]byte(nil), wkWithdrawnPrefix...), wkAnnouncedPrefix...), external.withdrawn,
+		"the route being taken back is not an advertisement, so it must still be sent, and the refused announcement is withdrawn beside it")
 	assert.NotContains(t, string(external.nlri), string(wkAnnouncedPrefix),
 		"the announcement carrying NO_EXPORT must not reach an external peer")
 
@@ -397,12 +410,11 @@ func TestForwardNoExportStillWithdrawsFromExternalPeer(t *testing.T) {
 		"NO_EXPORT permits an internal peer, so it receives both halves")
 }
 
-// VALIDATES: an UPDATE that only announces still reaches nobody it is refused to, so the
-// withdrawal path adds no route rather than replacing the prohibition.
-// PREVENTS: reading the test above as "RFC 1997 now forwards something to every refused
-// destination". A pure announcement has no withdrawal half, and the destination is written
-// nothing at all.
-func TestForwardNoExportSendsNothingWhenThereIsNoWithdrawal(t *testing.T) {
+// VALIDATES: an UPDATE that only announces is written to a refused destination as the
+// withdrawal of its prefix, with nothing announced (RFC 7606 Section 2 treat-as-withdraw).
+// PREVENTS: the destination keeping the previous generation of a route it may no longer
+// be advertised: this rail holds no per-peer Adj-RIB-Out that could say it never had it.
+func TestForwardNoExportWithdrawsAnAnnouncementOnlyUpdate(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	require.NoError(t, err)
@@ -410,8 +422,10 @@ func TestForwardNoExportSendsNothingWhenThereIsNoWithdrawal(t *testing.T) {
 	ebgp := wkPeer(t, wkEBGPAddr, 65002, ctx, ctxID)
 
 	got := wkForwardParts(t, wkTestPayload(attribute.CommunityNoExport), ebgp)
-	assert.NotContains(t, got, netip.MustParseAddr(wkEBGPAddr),
-		"an announcement-only UPDATE leaves a refused destination nothing to write")
+	external, reached := got[netip.MustParseAddr(wkEBGPAddr)]
+	require.True(t, reached, "the refused destination must be written the withdrawal")
+	assert.Empty(t, external.nlri, "nothing is announced to it")
+	assert.Equal(t, wkAnnouncedPrefix, external.withdrawn, "the refused announcement is withdrawn")
 }
 
 // VALIDATES: the route-server rail withdraws from a refused client too.
@@ -457,7 +471,7 @@ func TestForwardRSWithdrawsFromRefusedClient(t *testing.T) {
 
 	delivered, parts := run(t, wkMixedPayload(attribute.CommunityNoExport))
 	assert.Equal(t, 1, delivered, "the client must still be written the withdrawal")
-	assert.Equal(t, wkWithdrawnPrefix, parts.withdrawn)
+	assert.Equal(t, append(append([]byte(nil), wkWithdrawnPrefix...), wkAnnouncedPrefix...), parts.withdrawn)
 	assert.NotContains(t, string(parts.nlri), string(wkAnnouncedPrefix),
 		"the announcement carrying NO_EXPORT must not reach a route-server client")
 }

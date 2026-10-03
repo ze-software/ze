@@ -633,23 +633,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// carrying it (wireu.WellKnown).
 	srcWellKnown := a.r.scanWellKnownEgress(sourceWire.Payload(), update.SourcePeerIP)
 
-	// The withdrawal half of that same UPDATE, for the destinations an egress gate
-	// refuses. Derived once per UPDATE, so an UPDATE no gate refuses pays one
-	// comparison. Nil means the UPDATE withdraws nothing, and then a refused
-	// destination receives nothing at all (wireu.WithdrawalsOnly).
-	//
-	// TWO gates share it, so a flag guards the derivation rather than either gate's
-	// own condition. RFC 1997 asks its question of every destination, so the part
-	// is derived up front for an UPDATE carrying a well-known community. RFC 7947
-	// below derives it on its first refusal, because a control community refuses a
-	// subset of the route-server clients rather than all of them.
-	var srcWithdrawOnly *wireu.WireUpdate
-	withdrawOnlyDerived := false
-	if srcWellKnown != 0 {
-		withdrawOnlyDerived = true
-		srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
-	}
-
+	// A destination an egress gate refuses the announcement is sent a WITHDRAWAL
+	// of every route this UPDATE names instead (mods.SetWithdraw, then
+	// buildWithdrawalPayload), never nothing. The destination may hold the
+	// previous generation of the route, and this rail keeps no per-peer
+	// Adj-RIB-Out that could say it does not, so the withdrawal is unconditional:
+	// RFC 7606 Section 2 treat-as-withdraw, "as though all contained routes had
+	// been withdrawn". A withdrawal of a route the destination never held changes
+	// nothing for it. The route-server rail (reactorForwardRS) answers the same.
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -662,18 +653,12 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		//
 		// THE PROHIBITION COVERS THE ANNOUNCEMENT, NOT THE WITHDRAWAL. All three
 		// clauses read "MUST NOT be advertised", and taking a route back is not
-		// advertising it. One UPDATE can carry both halves, so this destination
-		// gets the withdrawal half alone: refusing the whole message would leave
-		// the peer holding a prefix ze can no longer withdraw until the session
-		// resets, which is a worse outcome than the leak the clause prevents.
-		destBaseWire := sourceWire
-		if !a.r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
-			if srcWithdrawOnly == nil {
-				suppressedCount++
-				continue
-			}
-			destBaseWire = srcWithdrawOnly
-		}
+		// advertising it. So this destination is sent the withdrawal of every route
+		// the UPDATE names, its own withdrawals included: refusing the whole
+		// message would leave the peer holding a prefix ze can no longer withdraw
+		// until the session resets, which is a worse outcome than the leak the
+		// clause prevents.
+		withhold := !a.r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP)
 
 		// RFC 7947: Community-based selective forwarding for RS-client peers.
 		if rsLocalAS != 0 && facts.rsClient && facts.peerAS != 0 {
@@ -693,21 +678,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// prefix back until the session resets. Same reasoning, and the same
 			// repair, as RFC 1997 above and on the route-server rail
 			// (reactorForwardRS, forward_rs.go): the two rails MUST stay
-			// behaviorally identical.
+			// behaviorally identical. The client is sent a withdrawal, so it is
+			// not counted as suppressed (errAllDestinationsSuppressed).
 			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
-				if !withdrawOnlyDerived {
-					withdrawOnlyDerived = true
-					srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
-				}
-				if srcWithdrawOnly == nil {
-					// Counted as suppressed only HERE, where the client receives
-					// nothing at all. A client still sent the withdrawal half was
-					// not skipped, so counting it would report a destination this
-					// UPDATE reached as one it did not (errAllDestinationsSuppressed).
-					suppressedCount++
-					continue
-				}
-				destBaseWire = srcWithdrawOnly
+				withhold = true
 			}
 		}
 
@@ -728,6 +702,9 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		}
 
 		mods.Reset()
+		if withhold {
+			mods.SetWithdraw()
+		}
 
 		// ONE operation carrying EVERY control community, not one per value.
 		// filterapi.ModAccumulator.Op documents a Remove buffer as a whole number
@@ -747,16 +724,16 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// payload and produces a full wire override. Replaces the former two
 		// back-to-back blocks; the cross-system order is now a declared Stage.
 		var exportWireOverride *wireu.WireUpdate
-		if len(a.r.orderedEgressSteps) > 0 {
+		if len(a.r.orderedEgressSteps) > 0 && !mods.IsWithdraw() {
 			destFilter := facts.filterInfo
-			payload := destBaseWire.Payload()
+			payload := sourceWire.Payload()
 			suppressed := false
 			stepFailed := false
 			for i := range a.r.orderedEgressSteps {
 				step := &a.r.orderedEgressSteps[i]
 				var res egressStepResult
 				if step.policyChain {
-					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, destBaseWire)
+					res = a.r.runEgressPolicyChain(facts.exportFilters, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP, sourceWire)
 				} else {
 					accept, panicked := safeEgressFilter(step.inproc, srcFilter, destFilter, payload, update.Meta, &mods)
 					res = egressStepResult{accept: accept, failed: panicked}
@@ -770,17 +747,20 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					exportWireOverride = res.wireOverride
 				}
 			}
-			if suppressed {
-				// Only a genuine policy decision counts as suppression. A step
-				// that could not run (filter IPC error or unparseable response,
-				// missing API server, filter panic) still drops the route
-				// fail-closed, but must be reported as a DROP so the relay's
-				// completeness check cannot read a plugin timeout under load as
-				// a complete replay.
-				if !stepFailed {
-					suppressedCount++
-				}
+			// A step that could not run (filter IPC error or unparseable
+			// response, missing API server, filter panic) drops the route
+			// fail-closed, and is reported as a DROP so the relay's
+			// completeness check cannot read a plugin timeout under load as a
+			// complete replay.
+			if suppressed && stepFailed {
 				continue
+			}
+			// A genuine policy reject decided this destination must not hold
+			// the route, and it may hold the previous generation: it is sent the
+			// withdrawal, so it is not counted as suppressed.
+			if suppressed {
+				mods.SetWithdraw()
+				exportWireOverride = nil
 			}
 		}
 
@@ -793,7 +773,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
 
-		peerBaseWire := destBaseWire
+		peerBaseWire := sourceWire
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
@@ -811,182 +791,30 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			mods.Op(14, filterapi.AttrModSet, global)
 		}
 
-		// RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
-		// disabling advertisement of third party NEXT_HOP attributes in order to
-		// handle imperfectly bridged media."
+		// The egress gates that refuse an announcement because of the next hop
+		// about to be written: RFC 4271 Section 5.1.3 (next-hop self with no
+		// local address, a next hop that is the peer's own address),
+		// draft-ietf-idr-linklocal-capability Section 4 (a reflected
+		// Link-Local-only next hop, a Link-Local-only next hop towards a peer
+		// more than one hop away) and Section 2, and RFC 8950 Section 4. Each
+		// quote is on egressNextHopWithheld (forward_next_hop.go), which the
+		// route-server rail asks too. Asked AFTER the egress step pass and every
+		// next-hop rewrite, because the address that matters is the one about to
+		// be written: a policy may not grant what the RFC refuses.
 		//
-		// Next-hop self is that disabling. When this destination holds no
-		// address of this speaker to put in the received next hop's place
-		// (precomputeNextHop set nhSelfWithheld), sending the route would pass
-		// the third-party NEXT_HOP the operator disabled, so the announcement is
-		// withheld and the withdrawals in the same UPDATE still go, as at the
-		// gates below. The route-server rail (forward_rs.go) answers the same.
-		if facts.nhSelfWithheld {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
+		// A refused destination is sent the withdrawal of the routes, its own
+		// withdrawals included, as at the gates above.
+		if !mods.IsWithdraw() {
+			baseNextHop := srcNextHop
+			if peerBaseWire != sourceWire {
+				baseNextHop = payloadNextHop(peerBaseWire.Payload())
 			}
-			fwdLogger().Warn("withholding route: next-hop self is configured and the session has no local address",
-				"peer", facts.addrStr,
-				"rfc", "RFC 4271 Section 5.1.3",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				suppressedCount++
-				continue
+			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
+			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
+			if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
+				gate.warn(facts, srcAddr, baseNextHop)
+				mods.SetWithdraw()
 			}
-			peerBaseWire = srcWithdrawOnly
-		}
-
-		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
-		// be advertised to a peer using an address of that peer as NEXT_HOP."
-		//
-		// Asked AFTER the egress step pass and after applyFactsNextHop, because
-		// the address that matters is the one about to be written and both a
-		// filter and a configured next-hop mode replace the source's. A policy
-		// may not grant what the RFC refuses.
-		//
-		// THE PROHIBITION COVERS THE ANNOUNCEMENT, NOT THE WITHDRAWAL. "SHALL NOT
-		// be advertised" governs the route being offered; taking a route back
-		// carries no NEXT_HOP and points this peer at nothing. So the destination
-		// gets the withdrawal half alone, which is the repair the RFC 1997 and
-		// RFC 7947 gates above already make: refusing the whole message would
-		// leave this peer holding a prefix ze can no longer withdraw until the
-		// session resets.
-		//
-		// The route is WITHHELD rather than rewritten. Section 5.1.3 states a
-		// prohibition on advertising, so not advertising is the conformant act,
-		// and rewriting would both invent a next hop the operator never configured
-		// and break the transparency RFC 7947 Section 2.2.2 requires of a route
-		// server.
-		baseNextHop := srcNextHop
-		if peerBaseWire != sourceWire {
-			baseNextHop = payloadNextHop(peerBaseWire.Payload())
-		}
-		if egressNextHopIsPeerOwn(facts, &mods, baseNextHop) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
-			}
-			fwdLogger().Warn("withholding route: its next hop is this peer's own address",
-				"peer", facts.addrStr, "next-hop", facts.addr,
-				"rfc", "RFC 4271 Section 5.1.3",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				suppressedCount++
-				continue
-			}
-			peerBaseWire = srcWithdrawOnly
-		}
-
-		// draft-ietf-idr-linklocal-capability Section 4: "A Route Reflector (RR)
-		// reflecting a route with a link-local-only next hop MUST NOT advertise
-		// that route to a client unless the client shares the same link-layer
-		// segment as the original advertiser. For all other clients, the RR MUST
-		// either rewrite the next hop to its own address (next-hop-self) or
-		// consider the route ineligible for advertisement to that specific peer."
-		//
-		// ONE condition answers both sentences, because the second one's first
-		// answer removes the case the first one refuses: a client the operator
-		// configured a next-hop mode for carries ze's own address by now
-		// (applyFactsNextHop above), so the next hop about to be written is no
-		// longer link-local-only and the route goes. A client with no rewrite is
-		// the "ineligible for advertisement to that specific peer" arm, and this
-		// is where it is made ineligible.
-		//
-		// Asked AFTER the egress step pass and after applyFactsNextHop, and over
-		// the same resolved address as RFC 4271 Section 5.1.3 above, so a policy
-		// rewrite counts as the rewrite Section 4 names. The address is re-read
-		// when that gate replaced the payload with the withdrawal half, which
-		// carries no next hop and so is not refused a second time.
-		//
-		// THE PROHIBITION COVERS THE ANNOUNCEMENT, NOT THE WITHDRAWAL, which is
-		// the repair every gate above makes for the same reason: refusing the
-		// whole message would leave the client holding a prefix ze can no longer
-		// take back until the session resets.
-		//
-		// Section 4 also asks for the suppression to be visible: "implementations
-		// SHOULD log this suppression, or otherwise expose it through operator
-		// notification ... so that unexpected reachability gaps can be detected."
-		// The warning below is that log line.
-		if peerBaseWire != sourceWire {
-			baseNextHop = payloadNextHop(peerBaseWire.Payload())
-		}
-		if isReflected && egressNextHopIsLinkLocalOnly(&mods, baseNextHop) &&
-			!sameLinkLayerSegment(peer.llScope.Load().connectedPrefixes(), srcAddr, facts.addr) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
-			}
-			fwdLogger().Warn("withholding route: its next hop is link-local-only and this client is not on the advertiser's link-layer segment",
-				"peer", facts.addrStr, "advertiser", srcAddr,
-				"rfc", "draft-ietf-idr-linklocal-capability Section 4",
-				"action", "announcement not sent to this peer; configure next-hop self for it to have the next hop rewritten")
-			if srcWithdrawOnly == nil {
-				suppressedCount++
-				continue
-			}
-			peerBaseWire = srcWithdrawOnly
-		}
-
-		// RFC 8950 Section 4: "A BGP speaker MUST only advertise the IPv4 or
-		// VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has
-		// first ascertained via the BGP Capability Advertisement that the BGP peer
-		// supports the Extended Next Hop Encoding capability for the relevant
-		// AFI/SAFI pair." egressNextHopLacksExtendedNextHop (forward_next_hop.go)
-		// asks it over the same resolved address as the two gates above, so a
-		// received next hop passed along unchanged and an explicit one are refused
-		// alike. The announcement is withheld and the withdrawal half still goes,
-		// for the reason every gate above gives.
-		if peerBaseWire != sourceWire {
-			baseNextHop = payloadNextHop(peerBaseWire.Payload())
-		}
-		if egressNextHopLacksExtendedNextHop(peer, &mods, baseNextHop) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
-			}
-			fwdLogger().Warn("withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate",
-				"peer", facts.addrStr, "family", baseNextHop.mpFamily,
-				"rfc", "RFC 8950 Section 4",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				suppressedCount++
-				continue
-			}
-			peerBaseWire = srcWithdrawOnly
-		}
-
-		// draft-ietf-idr-linklocal-capability Section 2: "When the capability has
-		// not been negotiated, the procedures in this document do not apply."
-		// Section 4: "If, after completing these procedures, there are no IPv6
-		// next hop addresses included in the next hop, the BGP route MUST not be
-		// advertised to its peer."
-		//
-		// Next hop self is this session's connected endpoint, which is link-local
-		// on a session that runs over one. The announce rail refuses that
-		// Link-Local-only form to a session that may not carry it
-		// (Peer.resolveNextHop), and egressNextHopLinkLocalOnlyRefused
-		// (forward_next_hop.go) asks the same predicate here, so the rails agree.
-		// The announcement is withheld and the withdrawal half still goes, for the
-		// reason every gate above gives. The route-server rail (forward_rs.go)
-		// answers the same.
-		if peerBaseWire != sourceWire {
-			baseNextHop = payloadNextHop(peerBaseWire.Payload())
-		}
-		if egressNextHopLinkLocalOnlyRefused(peer, &mods, baseNextHop) {
-			if !withdrawOnlyDerived {
-				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
-			}
-			fwdLogger().Warn("withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability",
-				"peer", facts.addrStr, "family", baseNextHop.mpFamily,
-				"rfc", "draft-ietf-idr-linklocal-capability Section 2",
-				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
-			if srcWithdrawOnly == nil {
-				suppressedCount++
-				continue
-			}
-			peerBaseWire = srcWithdrawOnly
 		}
 
 		// RFC 4271 Section 5.1.5: LOCAL_PREF never crosses to an external peer.
@@ -995,9 +823,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		//
 		// Asked over peerBaseWire rather than over the source, because the payload
 		// the rebuild reads is not always the source. A policy chain's wire
-		// override replaces it. So does the withdrawal part either egress gate
-		// hands a destination it refuses, which carries no attribute at all.
-		// Re-asking whenever the two differ keeps the answer about the bytes this
+		// override replaces it. Re-asking whenever the two differ keeps the answer about the bytes this
 		// destination is sent.
 		baseHasLocalPref := srcHasLocalPref
 		if peerBaseWire != sourceWire {
@@ -1034,19 +860,17 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
 		// Set wins, and the override winning is the order these two have always had.
 		peerBaseSrcASN4 := srcASN4
-		// Against destBaseWire, not against the source: the withdrawal part either
-		// egress gate hands a refused destination carries the source's own context
-		// id, so only a policy chain's wire override can change the width the
-		// rebuild must read. Comparing against update.WireUpdate instead would
-		// re-look-up the source's OWN width for such a destination and read
-		// peerBaseSrcASN4 off a context that never differs.
-		if peerBaseWire != destBaseWire {
+		// Only a policy chain's wire override can change the width the rebuild
+		// must read.
+		if peerBaseWire != sourceWire {
 			if c := bgpctx.Registry.Get(peerBaseWire.SourceCtxID()); c != nil {
 				peerBaseSrcASN4 = c.ASN4()
 			}
 		}
 		aspathWidthChanged := false
-		if facts.isEBGP {
+		// A destination sent the withdrawal carries no AS_PATH, so the path is
+		// not resolved for it: a resolve failure must not cost it the withdrawal.
+		if facts.isEBGP && !mods.IsWithdraw() {
 			intent := wireu.ASPathIntent{SrcASN4: peerBaseSrcASN4, DstASN4: facts.sendASN4}
 			if !facts.rsClient {
 				// RFC 7705 Section 3.3: the globally configured AS is appended first
@@ -1172,7 +996,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				// different prefixes would reach an ADD-PATH destination under one
 				// identifier, and RFC 7911 Section 5 makes the second replace the
 				// first. Every other rebuild site preserves it (wireu/split.go,
-				// wireu/withdrawals.go, session_validation.go).
+				// session_validation.go).
 				peerWire.SetSourceID(srcID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool

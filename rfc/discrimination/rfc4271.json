@@ -256,28 +256,6 @@
     },
     {
       "rid": "RFC4271-5.1.2-2",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
-      "unit-sha": "b6fa3fad17efe456",
-      "claim-sha": "d4b1767cc7186788",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "185373519721298d",
-      "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-5.1.2-2",
-      "polarity": "negative",
-      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
-      "unit-sha": "b6fa3fad17efe456",
-      "claim-sha": "dbeb1b27ab055f3a",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-      "producer-sha": "185373519721298d",
-      "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-5.1.2-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict",
       "unit-sha": "44f62494c6dd1ef2",
@@ -321,6 +299,28 @@
       "break": "body of computeWireChanges replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-5.1.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
+      "unit-sha": "b6fa3fad17efe456",
+      "claim-sha": "d4b1767cc7186788",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+      "producer-sha": "185373519721298d",
+      "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
+      "unit-sha": "b6fa3fad17efe456",
+      "claim-sha": "dbeb1b27ab055f3a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+      "producer-sha": "185373519721298d",
+      "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent",
@@ -352,6 +352,61 @@
       "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
       "producer-sha": "3b88cb0ed6047bda",
       "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress",
+      "unit-sha": "3d5c6b4031168332",
+      "claim-sha": "4c8e3c44da82e7ec",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+      "producer-sha": "ea96bc2178c9ec45",
+      "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress",
+      "unit-sha": "3d5c6b4031168332",
+      "claim-sha": "6f9ac40a72a1de67",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+      "producer-sha": "ea96bc2178c9ec45",
+      "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress",
+      "unit-sha": "2a3f5badb64042a6",
+      "claim-sha": "a8179ef3e44b0e7c",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+      "producer-sha": "ea96bc2178c9ec45",
+      "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress",
+      "unit-sha": "4303f8b755a77997",
+      "claim-sha": "1f5dfc3d14400656",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+      "producer-sha": "ea96bc2178c9ec45",
+      "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress",
+      "unit-sha": "4303f8b755a77997",
+      "claim-sha": "afc14ede0a461a3d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+      "producer-sha": "ea96bc2178c9ec45",
+      "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-5.1.3-3",
@@ -829,17 +884,6 @@
     {
       "rid": "RFC4271-6.3-15",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire",
-      "unit-sha": "a4d6dc143c98a5d2",
-      "claim-sha": "b570629e4fc30447",
-      "route": "revert",
-      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-      "producer-sha": "a849014cbf9f2df5",
-      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-6.3-15",
-      "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList",
       "unit-sha": "574a04ab71acf83f",
       "claim-sha": "69fa694a96474321",
@@ -854,6 +898,17 @@
       "unit": "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList",
       "unit-sha": "574a04ab71acf83f",
       "claim-sha": "07c96ff50def4bc3",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+      "producer-sha": "a849014cbf9f2df5",
+      "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-6.3-15",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire",
+      "unit-sha": "a4d6dc143c98a5d2",
+      "claim-sha": "b570629e4fc30447",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
       "producer-sha": "a849014cbf9f2df5",

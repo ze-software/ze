@@ -330,10 +330,8 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // The returned slice aliases the field it was cut from, which lives as long as
 // the operation buffers or the payload the rebuild reads. Allocation-free.
 func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePayload []byte) ([]byte, bool) {
-	if scope := dest.llScope.Load(); scope != nil {
-		if scope.peerOnLink {
-			return nil, false
-		}
+	if destOnLink(dest) {
+		return nil, false
 	}
 	field := payloadMPNextHopField(basePayload)
 	for _, op := range mods.Ops() {
@@ -351,6 +349,155 @@ func egressNextHopGlobalHalf(dest *Peer, mods *filterapi.ModAccumulator, basePay
 		return field[:24], true
 	}
 	return nil, false
+}
+
+// destOnLink reports whether dest is one IP hop away: a connected subnet of
+// this speaker holds its address (Peer.llScope, linkScope.peerOnLink).
+//
+// A nil scope has read no interface table and proves no shared subnet, so it
+// answers false, for the reason linkScope.linkLocalNextHop gives. Both
+// Link-Local cuts of the forward rails ask this one question, so they cannot
+// disagree about which peer is more than one hop away.
+func destOnLink(dest *Peer) bool {
+	scope := dest.llScope.Load()
+	if scope == nil {
+		return false
+	}
+	return scope.peerOnLink
+}
+
+// egressNextHopLinkLocalOnlyOffLink answers, for ONE destination, whether the
+// MP_REACH_NLRI next hop it is about to be sent is Link-Local-only while the
+// destination is more than one IP hop away.
+//
+// draft-ietf-idr-linklocal-capability Section 4: "If the internal peer is more
+// than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next
+// hop." Of a multihop external peer: "Link-Local IPv6 next hops MUST NOT be
+// included." Removing the only address leaves none, and Section 4 then says:
+// "If, after completing these procedures, there are no IPv6 next hop addresses
+// included in the next hop, the BGP route MUST not be advertised to its peer.
+// Instead, treat-as-withdraw (Section 2 of [RFC7606]) is used." Of the external
+// peer it adds: "If a Global IPv6 next hop is not included, the route MUST NOT
+// be advertised to the external peer (treat-as-withdraw)."
+// RFC 2545 Section 3 binds every session the same way: "The link-local address
+// shall be included in the Next Hop field if and only if the BGP speaker shares
+// a common subnet with the entity identified by the global IPv6 address carried
+// in the Network Address of Next Hop field and the peer the route is being
+// advertised to."
+//
+// egressNextHopGlobalHalf removes the Link-Local half of a pair, which leaves a
+// Global. This is the case with no Global to leave: a received 16-octet
+// Link-Local-only field (or the 24-octet RD plus Link-Local VPN form) relayed
+// under next hop unchanged or auto. The question is mode-independent, because
+// it is asked of the address about to be written: a next-hop rewrite recorded
+// in mods replaces the received one and this answers false. An on-link
+// destination keeps the received Link-Local ("the speaker can use the received
+// Link-Local IPv6 address, provided that peer X is directly attached").
+func egressNextHopLinkLocalOnlyOffLink(dest *Peer, mods *filterapi.ModAccumulator, base nextHopValue) bool {
+	if destOnLink(dest) {
+		return false
+	}
+	return egressNextHopIsLinkLocalOnly(mods, base)
+}
+
+// withholdGate names the egress next-hop gate that refused ONE destination the
+// announcement (egressNextHopWithheld). The zero value is never returned.
+type withholdGate uint8
+
+const (
+	withholdUnspecified            withholdGate = iota
+	withholdNone                                // no gate refused the announcement
+	withholdNextHopSelfAbsent                   // next-hop self with no local address
+	withholdPeerOwn                             // the next hop is the destination's own address
+	withholdReflectedLinkLocalOnly              // RR: Link-Local-only, client off the advertiser's segment
+	withholdLinkLocalOnlyOffLink                // Link-Local-only, destination more than one hop away
+	withholdNoExtendedNextHop                   // IPv6 next hop for IPv4 NLRI without RFC 8950
+	withholdLinkLocalOnlyRefused                // Link-Local-only to a session that may not carry it
+)
+
+// withholdGateText is the operator log line and the governing document of each
+// gate, indexed by the gate.
+var withholdGateText = [...]struct{ message, rfc string }{
+	withholdNextHopSelfAbsent:      {"withholding route: next-hop self is configured and the session has no local address", "RFC 4271 Section 5.1.3"},
+	withholdPeerOwn:                {"withholding route: its next hop is this peer's own address", "RFC 4271 Section 5.1.3"},
+	withholdReflectedLinkLocalOnly: {"withholding route: its next hop is link-local-only and this client is not on the advertiser's link-layer segment", "draft-ietf-idr-linklocal-capability Section 4"},
+	withholdLinkLocalOnlyOffLink:   {"withholding route: its next hop is link-local-only and this peer is more than one IP hop away", "draft-ietf-idr-linklocal-capability Section 4"},
+	withholdNoExtendedNextHop:      {"withholding route: its IPv6 next hop for IPv4 NLRI needs the Extended Next Hop capability this peer did not negotiate", "RFC 8950 Section 4"},
+	withholdLinkLocalOnlyRefused:   {"withholding route: its next hop is link-local-only and this peer did not negotiate the Link-Local Next Hop capability", "draft-ietf-idr-linklocal-capability Section 2"},
+}
+
+// warn logs the suppression. draft-ietf-idr-linklocal-capability Section 4 asks
+// for it: "implementations SHOULD log this suppression, or otherwise expose it
+// through operator notification ... so that unexpected reachability gaps can be
+// detected." The other gates log for the same reason.
+func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, base nextHopValue) {
+	text := withholdGateText[g]
+	fwdLogger().Warn(text.message,
+		"peer", f.addrStr, "advertiser", advertiser, "family", base.mpFamily,
+		"rfc", text.rfc,
+		"action", "announcement not sent to this peer; it is sent a withdrawal of the routes instead")
+}
+
+// egressNextHopWithheld runs, for ONE destination, every egress gate that
+// refuses an announcement because of the next hop about to be written, and
+// returns the first that refuses, or withholdNone. Both forward rails
+// (forwardUpdateCore, reactorForwardRS) call it after every next-hop rewrite is
+// recorded in mods, so a policy may not grant what the RFC refuses, and the two
+// rails cannot answer differently. A refused destination is sent a withdrawal
+// of the routes (mods.SetWithdraw, buildWithdrawalPayload), because it may hold
+// the previous generation of the route.
+//
+// The order only decides which reason is logged: every gate refuses alike.
+//
+//   - RFC 4271 Section 5.1.3: "A BGP speaker MUST be able to support the
+//     disabling advertisement of third party NEXT_HOP attributes in order to
+//     handle imperfectly bridged media." Next-hop self with no address of this
+//     speaker to write (precomputeNextHop set nhSelfWithheld) would pass the
+//     third-party next hop the operator disabled.
+//   - RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be
+//     advertised to a peer using an address of that peer as NEXT_HOP."
+//     (egressNextHopIsPeerOwn). Withheld rather than rewritten, which keeps the
+//     transparency RFC 7947 Section 2.2.2 requires of a route server.
+//   - draft-ietf-idr-linklocal-capability Section 4: "A Route Reflector (RR)
+//     reflecting a route with a link-local-only next hop MUST NOT advertise that
+//     route to a client unless the client shares the same link-layer segment as
+//     the original advertiser." A client the operator configured a next-hop
+//     mode for carries this speaker's address in mods and passes. Asked only
+//     when reflected says the destination receives the route by reflection.
+//   - draft-ietf-idr-linklocal-capability Section 4, the Link-Local-only next
+//     hop towards a peer more than one hop away
+//     (egressNextHopLinkLocalOnlyOffLink). It is a different question from the
+//     reflection gate, which judges the client against the ADVERTISER's
+//     segment, so neither subsumes the other.
+//   - RFC 8950 Section 4: "A BGP speaker MUST only advertise the IPv4 or
+//     VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has
+//     first ascertained via the BGP Capability Advertisement that the BGP peer
+//     supports the Extended Next Hop Encoding capability for the relevant
+//     AFI/SAFI pair." (egressNextHopLacksExtendedNextHop).
+//   - draft-ietf-idr-linklocal-capability Section 2: "When the capability has
+//     not been negotiated, the procedures in this document do not apply."
+//     (egressNextHopLinkLocalOnlyRefused).
+func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue, reflected bool, advertiser netip.Addr) withholdGate {
+	if f.nhSelfWithheld {
+		return withholdNextHopSelfAbsent
+	}
+	if egressNextHopIsPeerOwn(f, mods, base) {
+		return withholdPeerOwn
+	}
+	if reflected && egressNextHopIsLinkLocalOnly(mods, base) &&
+		!sameLinkLayerSegment(dest.llScope.Load().connectedPrefixes(), advertiser, f.addr) {
+		return withholdReflectedLinkLocalOnly
+	}
+	if egressNextHopLinkLocalOnlyOffLink(dest, mods, base) {
+		return withholdLinkLocalOnlyOffLink
+	}
+	if egressNextHopLacksExtendedNextHop(dest, mods, base) {
+		return withholdNoExtendedNextHop
+	}
+	if egressNextHopLinkLocalOnlyRefused(dest, mods, base) {
+		return withholdLinkLocalOnlyRefused
+	}
+	return withholdNone
 }
 
 // payloadMPNextHopField returns the Network Address of Next Hop field of an
