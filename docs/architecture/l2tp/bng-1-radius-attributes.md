@@ -255,6 +255,25 @@ the one place that rule is written, so every text attribute obeys it.
 point, so the netmask only matters for delegated-prefix routing. That belongs
 with the IPv6 pool work, not here.
 
+## Native accounting wire proof
+
+`test/l2tp/radius-acct-wire.ci` uses real kernel PPPoL2TP, CHAP and IPCP.
+The peer compares the RADIUS server's decoded Accounting-Start address with
+the address it negotiated, `10.99.7.10`. It keeps answering LCP echo probes
+while waiting for the configured 60-second Interim-Update. Only after checking
+that record does it deliberately stop answering, so the Stop must report Lost
+Carrier. Every record's timestamp, calling number and delay are checked, and
+Start and Interim must carry no termination cause.
+
+The fixture's SCCRQ exchange releases its socket deadlines before returning a
+successful reply. Those deadlines bound the handshake, not the subscriber
+session. Leaving its 250-millisecond write deadline installed lets fast CHAP and
+IPCP exchanges succeed but prevents subsequent echo replies from reaching ze,
+tearing the call down before the accounting checks reach Interim.
+
+<!-- source: internal/test/fixture/tunnel_fixture_l2tp.go -- tunnelL2TPExchange -->
+<!-- source: internal/test/fixture/tunnel_fixture_l2tp_ppp.go -- tunnelL2TPRadiusAccountingPeer, checkRadius, handleAccountingPacket -->
+
 ## Consequences worth knowing
 
 - `AuthMetadata` is the canonical carrier for RADIUS profile data. A new

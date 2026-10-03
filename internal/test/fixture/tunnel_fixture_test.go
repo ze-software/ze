@@ -32,6 +32,90 @@ func TestTunnelL2TPSCCRQWireShape(t *testing.T) {
 	}
 }
 
+// VALIDATES: the SCCRQ exchange's socket deadlines end with that exchange.
+// PREVENTS: a completed CHAP/IPCP session losing every later echo reply to the
+// expired handshake write deadline, before accounting can reach its Interim.
+func TestTunnelL2TPAccountingEchoAfterHandshakeDeadline(t *testing.T) {
+	server, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close() //nolint:errcheck // fixture teardown
+	target, ok := server.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("udp4 listener address is %T", server.LocalAddr())
+	}
+	conn, _, err := tunnelL2TPDial(target.Port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close() //nolint:errcheck // fixture teardown
+
+	handshake := make(chan error, 1)
+	// The responder MUST publish its result; the caller joins before closing UDP.
+	go func() {
+		if err := server.SetDeadline(time.Now().Add(time.Second)); err != nil {
+			handshake <- err
+			return
+		}
+		var buffer [64]byte
+		n, address, err := server.ReadFromUDP(buffer[:])
+		if err == nil {
+			_, err = server.WriteToUDP(buffer[:n], address)
+		}
+		handshake <- err
+	}()
+	const exchangeTimeout = 250 * time.Millisecond
+	request := tunnelL2TPSCCRQ(0x0321, "echo-peer", nil)
+	_, _, exchangeErr := tunnelL2TPExchange(context.Background(), conn, target, request, 1, exchangeTimeout)
+	// The caller MUST join the responder before a failure can start teardown.
+	if err := <-handshake; err != nil {
+		t.Fatal(err)
+	}
+	if exchangeErr != nil {
+		t.Fatal(exchangeErr)
+	}
+	// Wait for the specific deadline installed by the exchange to expire.
+	// This is not readiness slack: the regression needs a post-deadline write.
+	<-time.After(exchangeTimeout)
+
+	peer := tunnelAccountingPeer{
+		conn: conn, target: target, localTID: 0x0123, zeSID: 0x0234,
+	}
+	// Linux PPPoL2TP transmits Address/Control followed by the PPP protocol.
+	echo := []byte{0, 2, 3, 0x21, 2, 0xbc, 0xff, 3, 0xc0, 0x21, 9, 7, 0, 8, 0x55, 0x66, 0x77, 0x88}
+	if err := peer.handleAccountingPacket(echo); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var buffer [64]byte
+	n, _, err := server.ReadFromUDP(buffer[:])
+	if err != nil {
+		t.Fatalf("active peer failed to deliver its post-handshake Echo-Reply: %v", err)
+	}
+	want := []byte{0, 2, 1, 0x23, 2, 0x34, 0xc0, 0x21, 10, 7, 0, 8, 0x11, 0x22, 0x33, 0x44}
+	if !bytes.Equal(buffer[:n], want) {
+		t.Fatalf("Echo-Reply = %x, want %x", buffer[:n], want)
+	}
+
+	// The explicit post-Interim silence remains the only phase that drops
+	// probes; clearing a handshake deadline must not remove the Stop trigger.
+	peer.silent = true
+	if err := peer.handleAccountingPacket(echo); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.SetReadDeadline(time.Now().Add(25 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	if n, _, err := server.ReadFromUDP(buffer[:]); err == nil {
+		t.Fatalf("silent peer emitted %x", buffer[:n])
+	} else if timeout, ok := err.(net.Error); !ok || !timeout.Timeout() {
+		t.Fatalf("silent peer read failed without a timeout: %v", err)
+	}
+}
+
 func TestTunnelRadiusAccessAcceptWireShape(t *testing.T) {
 	probe, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {

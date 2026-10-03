@@ -168,6 +168,12 @@ func tunnelL2TPExchange(ctx context.Context, conn *net.UDPConn, target *net.UDPA
 		_ = conn.SetReadDeadline(time.Now().Add(timeout))
 		n, address, err := conn.ReadFromUDP(buffer)
 		if err == nil {
+			// These deadlines bound this exchange, not the session that reuses
+			// the socket. In particular, accounting keeps answering PPP echo
+			// probes for an entire interim interval after the SCCRQ returns.
+			if err := conn.SetDeadline(time.Time{}); err != nil {
+				return nil, nil, err
+			}
 			return append([]byte(nil), buffer[:n]...), address, nil
 		}
 	}
