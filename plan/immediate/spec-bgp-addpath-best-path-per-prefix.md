@@ -45,7 +45,8 @@ side keys on sent UPDATEs (`ribOutKey`, `rib.go`), not on best-change. R-1 holds
 |-------|---------|-------|
 | 1 | CIDR families: per-prefix gather, one record per prefix, winner-keyed reads, Loc-RIB Instance 0, tie-break, peer-down re-election, docs | done, committed |
 | 2 | Labels per path (AC-4, RFC8277-2.5-2 same-id case, RFC8277-2.5-3 and its `{gap}` removal): handle in `pathEntry` under ADD-PATH, released in `pathSet.upsert`/`remove`/`releaseAll`, `pathSet.refresh` keeps it; `TestRFC8277AddPathLabelsBoundPerPath` replaces the gap pin, red against HEAD storage by overlay, records for 2.5-2 and 2.5-3; `gatherCandidates` split into `gatherCandidates` and `gatherFramedCandidates` | done, committed |
-| 3 | Opaque-key families (VPN, EVPN, ...): path id out of the key, per-path value layer, VPN and EVPN twins | open |
+| 3a | Opaque-key families (VPN, EVPN, MVPN, MUP, VPLS, BGP-LS, flowspec storage): path id out of the key (`FamilyRIB.opaqueRouteKey`), `opaqueMulti map[string]pathSet` per route key (`storage/familyrib_opaque.go`), `PeerRIB.AppendKeyPaths`, `gatherKeyCandidatesLocked` asks every peer by the route key and appends every path, bestPrev opaque keyed by route key with the winner's path id, `BestChangeEntry.NLRI` is the winner's framed NLRI with `AddPath`/`PathID`; VPN and EVPN twins of AC-1/AC-8/AC-10 (`addpath_opaque_best_per_route_test.go`), red against HEAD then green | done |
+| 3b | Labels out of the VPN and EVPN route key. The label stack is still inside the opaque key, so (probe through a go test overlay, 2026-10-03) two PEs announcing one RD:prefix with labels 100 and 101 are two routes and never meet in one election, a re-advertisement with a new label stores a second route instead of replacing the first (RFC 8277 Section 2.5), and a withdrawal carrying the Compatibility value 0x800000 removes nothing (RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field MUST be ignored."). Not ADD-PATH specific. Needs a design decision (where the per-family route key is derived, how a walk re-frames the labels for replay) and touches the Adj-RIB-In replay path | open, needs a decision |
 | 4 | Functional `.ci` (`show rib best` one best for two path ids), interop (extend `bgp-addpath-frr` or the rail-agreement pattern) with revert-rebuild-red recorded | open |
 
 ### Added acceptance criteria
@@ -55,7 +56,7 @@ side keys on sent UPDATEs (`ribOutKey`, `rib.go`), not on best-change. R-1 holds
 | AC-8 | Non-ADD-PATH peer holds 0.0.0.0/0, ADD-PATH peer holds 10/8 path 7 | 0/0 is never a candidate for 10/8 | `TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix` |
 | AC-9 | Path 7 LP 200 MED 50, path 9 LP 100 MED 10 | One BGP Loc-RIB path for the prefix, path 7's | `TestAddPathLocRIBHoldsOneBGPPath` |
 | AC-10 | Withdraw non-best, then best | Non-best: no change; best: path 9 promoted (Update, PathID 9); last: Withdraw naming 9 | `TestAddPathWithdrawalKeepsOrPromotes`, `TestPurgeBestPrevForPeerAddPath` (peer-down) |
-| AC-11 | VPN and EVPN twins of AC-1 | One election per NLRI-without-path-id | phase 3 |
+| AC-11 | VPN and EVPN twins of AC-1, AC-8 and AC-10 | One election per NLRI-without-path-id | `TestAddPathOpaqueOneElectionPerRoute`, `TestAddPathOpaqueMixedModeMeetInOneElection`, `TestAddPathOpaqueWithdrawalKeepsOrPromotes` |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 

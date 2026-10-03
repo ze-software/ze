@@ -9,7 +9,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/store"
 )
@@ -24,8 +23,7 @@ import (
 //	                 | !addPath          | addPath
 //	-----------------+-------------------+-----------------------
 //	CIDR family      | direct (BART)     | multi (BART, pathSet)
-//	non-CIDR family  | opaque (map)      | opaque (map; path-id
-//	                 |                   | baked into the wire key)
+//	non-CIDR family  | opaque (map)      | opaqueMulti (map, pathSet)
 //
 // CIDR families (IPv4/IPv6 unicast and multicast) have [prefix-len][addr]
 // wire NLRIs that fit a netip.Prefix; BART gives longest-prefix match and
@@ -34,21 +32,24 @@ import (
 //
 // Non-CIDR families (flow, EVPN, VPN, MVPN, MUP, RTC, bgp-ls) have NLRIs
 // with arbitrary internal structure. They go in a plain map keyed by the
-// full wire bytes (FlowSpec with its shortest length field, see
-// opaqueKey); ADD-PATH path-ids are already part of those bytes, so
-// one map entry per (NLRI, path-id) pair works without a pathSet layer.
+// wire bytes of the route without its path identifier (FlowSpec with its
+// shortest length field, see opaqueKey). Under ADD-PATH the path identifier
+// lives in a pathSet, as it does for a CIDR prefix, so every path of one route
+// is one map entry whatever framing the session that sent it uses
+// (familyrib_opaque.go).
 // Specialised per-family indexes (e.g. EVPN route-type hashing, flowspec
 // component decoding) can be added behind this same API without touching
 // callers.
 type FamilyRIB struct {
-	fam     family.Family
-	addPath bool
-	cidr    bool
-	labeled bool                          // SAFI 4: labels stored as side-data
-	direct  *store.Store[RouteEntry]      // cidr && !addPath
-	multi   *store.Store[pathSet]         // cidr && addPath
-	opaque  map[string]RouteEntry         // !cidr
-	labels  *store.Store[attrpool.Handle] // labeled && cidr && !addPath: parallel BART for label handles; under ADD-PATH each pathEntry holds its own
+	fam         family.Family
+	addPath     bool
+	cidr        bool
+	labeled     bool                          // SAFI 4: labels stored as side-data
+	direct      *store.Store[RouteEntry]      // cidr && !addPath
+	multi       *store.Store[pathSet]         // cidr && addPath
+	opaque      map[string]RouteEntry         // !cidr && !addPath
+	opaqueMulti map[string]pathSet            // !cidr && addPath: keyed by the route without its path id
+	labels      *store.Store[attrpool.Handle] // labeled && cidr && !addPath: parallel BART for label handles; under ADD-PATH each pathEntry holds its own
 }
 
 // newFamilyRIB creates a FamilyRIB for the given address family.
@@ -60,6 +61,8 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 		labeled: fam.SAFI == family.SAFIMPLSLabel,
 	}
 	switch {
+	case !r.cidr && addPath:
+		r.opaqueMulti = make(map[string]pathSet)
 	case !r.cidr:
 		r.opaque = make(map[string]RouteEntry)
 	case addPath:
@@ -152,7 +155,11 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	attrLen := uint32(len(attrBytes))
 
 	if !r.cidr {
-		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen, 0) {
+		pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+		if !ok {
+			return
+		}
+		if r.insertOpaqueNoOp(pathID, key, fp, attrLen, 0) {
 			return
 		}
 		newEntry, err := ParseAttributes(attrBytes)
@@ -161,7 +168,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		}
 		newEntry.AttrFingerprint = fp
 		newEntry.AttrLen = attrLen
-		r.insertOpaque(nlriBytes, newEntry)
+		r.insertOpaque(pathID, key, newEntry)
 		return
 	}
 
@@ -222,14 +229,18 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 // copy after all inserts.
 func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, attrLen uint32) {
 	if !r.cidr {
-		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen, entry.MsgID) {
+		pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+		if !ok {
+			return
+		}
+		if r.insertOpaqueNoOp(pathID, key, fp, attrLen, entry.MsgID) {
 			return
 		}
 		clone := entry
 		if err := clone.AddRef(); err != nil {
 			return
 		}
-		r.insertOpaque(nlriBytes, clone)
+		r.insertOpaque(pathID, key, clone)
 		return
 	}
 
@@ -281,53 +292,6 @@ func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, a
 	r.direct.Insert(pfx, clone)
 }
 
-// opaqueKey returns the opaque-map identity of one wire NLRI. It is the whole
-// wire form, except that FlowSpec takes the shortest length encoding: RFC 8955
-// Section 4 lets a rule under 240 octets use either length field, and both
-// name one rule, so a replacement or a withdrawal in the other framing MUST
-// reach the stored route. The key stays valid wire NLRI, because iteration
-// hands map keys back to callers as NLRI bytes. The ADD-PATH identifier stays
-// in front of the canonical rule.
-func (r *FamilyRIB) opaqueKey(nlriBytes []byte) string {
-	if !ribevents.IsFlowSpec(r.fam) {
-		return string(nlriBytes)
-	}
-	rule := nlriBytes
-	head := 0
-	if r.addPath {
-		if len(nlriBytes) < 4 {
-			return string(nlriBytes)
-		}
-		head = 4
-		rule = nlriBytes[4:]
-	}
-	// FlowSpecKey answers "" for a malformed length. The splitter already
-	// refused such an NLRI, so the whole wire form stays its own identity.
-	canonical := ribevents.FlowSpecKey(rule)
-	if canonical == "" || len(canonical) == len(rule) {
-		return string(nlriBytes)
-	}
-	return string(nlriBytes[:head]) + canonical
-}
-
-// insertOpaque upserts newEntry keyed by raw NLRI bytes for non-CIDR
-// families. ADD-PATH path-ids are part of those bytes, so no separate
-// per-path-id dispatch is needed.
-func (r *FamilyRIB) insertOpaque(nlriBytes []byte, newEntry RouteEntry) {
-	key := r.opaqueKey(nlriBytes)
-	if oldEntry, exists := r.opaque[key]; exists {
-		if entriesEqual(oldEntry, newEntry) {
-			oldEntry.StaleLevel = StaleLevelFresh
-			oldEntry.MsgID = newEntry.MsgID
-			r.opaque[key] = oldEntry
-			newEntry.Release()
-			return
-		}
-		oldEntry.Release()
-	}
-	r.opaque[key] = newEntry
-}
-
 // insertMulti upserts newEntry at pathID within the pathSet for pfx.
 // Applies the same "equal-attributes retains old" short-circuit as the
 // direct path.
@@ -354,14 +318,7 @@ func (r *FamilyRIB) insertMulti(pfx netip.Prefix, pathID uint32, newEntry RouteE
 // Remove withdraws an NLRI from the RIB. Returns true if the NLRI existed.
 func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 	if !r.cidr {
-		key := r.opaqueKey(nlriBytes)
-		entry, exists := r.opaque[key]
-		if !exists {
-			return false
-		}
-		entry.Release()
-		delete(r.opaque, key)
-		return true
+		return r.removeOpaque(nlriBytes)
 	}
 
 	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
@@ -401,8 +358,7 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 // safe for read-only use.
 func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 	if !r.cidr {
-		e, ok := r.opaque[r.opaqueKey(nlriBytes)]
-		return e, ok
+		return r.lookupOpaque(nlriBytes)
 	}
 	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
 	if !ok {
@@ -418,9 +374,9 @@ func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 	return ps.lookup(pathID)
 }
 
-// PrefixPath is one stored path of a prefix: the path identifier it was
-// received under and its route. PathID is zero for a family stored without
-// ADD-PATH, where the prefix alone names the path.
+// PrefixPath is one stored path of a route, a CIDR prefix or a non-CIDR route
+// key: the path identifier it was received under and its route. PathID is zero
+// for a family stored without ADD-PATH, where the route alone names the path.
 type PrefixPath struct {
 	PathID uint32
 	Entry  RouteEntry
@@ -459,7 +415,7 @@ func (r *FamilyRIB) appendPrefixPaths(pfx netip.Prefix, dst []PrefixPath) []Pref
 func (r *FamilyRIB) Len() int {
 	switch {
 	case !r.cidr:
-		return len(r.opaque)
+		return r.opaqueLen()
 	case !r.addPath:
 		return r.direct.Len()
 	}
@@ -473,9 +429,9 @@ func (r *FamilyRIB) Len() int {
 
 // IterateEntry calls fn for each route with its NLRI bytes and RouteEntry.
 // Under ADD-PATH every (prefix, path-id) pair yields a separate callback.
-// For non-CIDR families the nlriBytes passed to fn is the stored string
-// interpreted as bytes and is valid for the duration of that callback only.
-// Callbacks MUST copy if they need to retain it.
+// For non-CIDR families the nlriBytes passed to fn is the stored route key,
+// framed with its path identifier under ADD-PATH, and is valid for the duration
+// of that callback only. Callbacks MUST copy if they need to retain it.
 func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	r.iterateEntry(fn, false)
 }
@@ -488,11 +444,7 @@ func (r *FamilyRIB) iterateEntrySorted(fn func(nlriBytes []byte, entry RouteEntr
 
 func (r *FamilyRIB) iterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool, sorted bool) {
 	if !r.cidr {
-		for key, entry := range r.opaque {
-			if !fn([]byte(key), entry) {
-				return
-			}
-		}
+		r.iterateOpaque(fn)
 		return
 	}
 	if !r.addPath {
@@ -533,10 +485,7 @@ func (r *FamilyRIB) iterateEntry(fn func(nlriBytes []byte, entry RouteEntry) boo
 func (r *FamilyRIB) Release() {
 	switch {
 	case !r.cidr:
-		for key, entry := range r.opaque {
-			entry.Release()
-			delete(r.opaque, key)
-		}
+		r.releaseOpaque()
 	case !r.addPath:
 		r.direct.ModifyAll(func(e *RouteEntry) { e.Release() })
 		r.direct.Reset()
@@ -560,14 +509,7 @@ func (r *FamilyRIB) Release() {
 // does not exist.
 func (r *FamilyRIB) modifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
 	if !r.cidr {
-		key := r.opaqueKey(nlriBytes)
-		e, ok := r.opaque[key]
-		if !ok {
-			return false
-		}
-		fn(&e)
-		r.opaque[key] = e
-		return true
+		return r.modifyOpaque(nlriBytes, fn)
 	}
 	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
 	if !ok {
@@ -585,10 +527,7 @@ func (r *FamilyRIB) modifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bo
 func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
 	switch {
 	case !r.cidr:
-		for key, entry := range r.opaque {
-			fn(&entry)
-			r.opaque[key] = entry
-		}
+		r.modifyAllOpaque(func(_ []byte, entry *RouteEntry) { fn(entry) })
 	case !r.addPath:
 		r.direct.ModifyAll(fn)
 	default:
@@ -604,10 +543,7 @@ func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
 func (r *FamilyRIB) ModifyAllKeyed(fn func(nlriBytes []byte, entry *RouteEntry)) {
 	switch {
 	case !r.cidr:
-		for key, entry := range r.opaque {
-			fn([]byte(key), &entry)
-			r.opaque[key] = entry
-		}
+		r.modifyAllOpaque(fn)
 	case !r.addPath:
 		var buf [21]byte
 		r.direct.ModifyAllKeyed(func(pfx netip.Prefix, entry *RouteEntry) {
@@ -724,18 +660,7 @@ func (r *FamilyRIB) MarkStale(level uint8) {
 // Returns the number of routes purged.
 func (r *FamilyRIB) PurgeStale() int {
 	if !r.cidr {
-		var keys []string
-		for k, entry := range r.opaque {
-			if entry.StaleLevel > StaleLevelFresh {
-				keys = append(keys, k)
-			}
-		}
-		for _, k := range keys {
-			entry := r.opaque[k]
-			entry.Release()
-			delete(r.opaque, k)
-		}
-		return len(keys)
+		return r.purgeStaleOpaque()
 	}
 	if !r.addPath {
 		var stalePfx []netip.Prefix
@@ -790,11 +715,12 @@ func (r *FamilyRIB) PurgeStale() int {
 func (r *FamilyRIB) StaleCount() int {
 	count := 0
 	if !r.cidr {
-		for _, entry := range r.opaque {
+		r.iterateOpaque(func(_ []byte, entry RouteEntry) bool {
 			if entry.StaleLevel > StaleLevelFresh {
 				count++
 			}
-		}
+			return true
+		})
 		return count
 	}
 	if !r.addPath {
@@ -838,23 +764,6 @@ func attrFingerprint(attrBytes []byte) uint64 {
 		h *= 1099511628211 // FNV prime
 	}
 	return h
-}
-
-// insertOpaqueNoOp checks if the opaque entry exists with a matching
-// fingerprint+length. If so, refreshes stale state and received ownership.
-func (r *FamilyRIB) insertOpaqueNoOp(nlriBytes []byte, fp uint64, attrLen uint32, messageID uint64) bool {
-	key := r.opaqueKey(nlriBytes)
-	if oldEntry, exists := r.opaque[key]; exists {
-		if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
-			if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID {
-				oldEntry.StaleLevel = StaleLevelFresh
-				oldEntry.MsgID = messageID
-				r.opaque[key] = oldEntry
-			}
-			return true
-		}
-	}
-	return false
 }
 
 // insertMultiNoOp checks if the multi (ADD-PATH) entry exists with a matching

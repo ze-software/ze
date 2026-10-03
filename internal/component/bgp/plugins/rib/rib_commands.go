@@ -1130,12 +1130,16 @@ func (r *RIBManager) gatherFramedCandidates(fam family.Family, nlriBytes []byte,
 // across the returned candidates' lifetime if they reference peer state.
 // PeerRIB content reads use PeerRIB's own lock.
 //
-// A CIDR family is gathered by PREFIX, over every path of every peer, so the
-// path identifier never partitions the election. A non-CIDR family is gathered
-// by its wire key.
+// A CIDR family is gathered by PREFIX, and every other family by its route
+// key, the NLRI without its path identifier, over every path of every peer in
+// either case, so the path identifier never partitions the election.
 func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte, addPath bool) []*Candidate {
 	if !storage.IsCIDRFamily(fam) {
-		return r.gatherKeyCandidatesLocked(fam, nlriBytes)
+		routeKey, ok := routeKeyOf(nlriBytes, addPath)
+		if !ok {
+			return nil
+		}
+		return r.gatherKeyCandidatesLocked(fam, routeKey)
 	}
 	_, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
 	if !ok {
@@ -1191,26 +1195,40 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 	return candidates
 }
 
-// gatherKeyCandidatesLocked collects the route stored under nlriBytes from every
-// peer, for a family whose NLRI is no CIDR prefix. Caller MUST hold
-// r.peerMu.RLock.
-func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, nlriBytes []byte) []*Candidate {
+// gatherKeyCandidatesLocked collects every stored path of the route routeKey
+// names from every peer, for a family whose NLRI is no CIDR prefix. routeKey
+// carries no path identifier. Caller MUST hold r.peerMu.RLock.
+//
+// RFC 7911 Section 2 makes the path identifier a name for one path of a route,
+// so it does not make a second route: the paths of one ADD-PATH session, and
+// the same route from a session without ADD-PATH, are candidates of ONE
+// selection. Each peer is asked by the route key, never with the triggering
+// session's wire NLRI, whose four path-id octets no other framing matches.
+func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byte) []*Candidate {
 	var candidates []*Candidate
 	selfNextHops := r.selfNextHops.Load()
+	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
+	var pathsArray [4]storage.PrefixPath
+	var nlriBuf [opaqueKeyOctetsInline]byte
 	for peer, peerRIB := range r.bgpPeers {
-		entry, ok := peerRIB.Lookup(fam, nlriBytes)
-		if !ok {
-			continue
+		paths, peerAddPath := peerRIB.AppendKeyPaths(fam, routeKey, pathsArray[:0])
+		for i := range paths {
+			path := &paths[i]
+			// Validation keys a route by the NLRI its own session sent.
+			nlri := framedRouteNLRI(nlriBuf[:0], routeKey, path.PathID, peerAddPath)
+			if !r.validationEligible(peer, peerRIB, fam, nlri, path.Entry.MsgID) {
+				continue
+			}
+			if !r.candidateAdmitted(fam, peerRIB, path.Entry, selfNextHops) {
+				continue
+			}
+			// The map key gives the typed address; PeerRIB caches the canonical
+			// string, so the hot path performs no parse and no conversion.
+			c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), path.Entry)
+			c.PathID = path.PathID
+			c.AddPath = peerAddPath
+			candidates = append(candidates, c)
 		}
-		if !r.validationEligible(peer, peerRIB, fam, nlriBytes, entry.MsgID) {
-			continue
-		}
-		if !r.candidateAdmitted(fam, peerRIB, entry, selfNextHops) {
-			continue
-		}
-		// The map key gives the typed address; PeerRIB caches the canonical
-		// string, so the hot path performs no parse and no conversion.
-		candidates = append(candidates, r.extractCandidate(fam, peer, peerRIB.PeerAddr(), entry))
 	}
 	return candidates
 }

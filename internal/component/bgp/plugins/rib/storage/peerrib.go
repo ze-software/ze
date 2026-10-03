@@ -143,6 +143,29 @@ func (r *PeerRIB) AppendPrefixPaths(fam family.Family, pfx netip.Prefix, dst []P
 	return rib.appendPrefixPaths(pfx, dst), rib.addPath
 }
 
+// AppendKeyPaths appends every path this peer holds for a non-CIDR route to dst,
+// and reports whether the family is stored with ADD-PATH, which says how each
+// path's own NLRI is framed: the path identifier then the key, or the key alone.
+// key carries no path identifier.
+//
+// Best-path selection asks every peer by the route key, never by another
+// session's wire NLRI, for the reason AppendPrefixPaths states: the four path-id
+// octets of an ADD-PATH key would keep a route from ever meeting the same route
+// held by a session without ADD-PATH.
+//
+// The entries are copies whose handles are NOT retained, the contract Lookup
+// states. Safe for concurrent use.
+func (r *PeerRIB) AppendKeyPaths(fam family.Family, key []byte, dst []PrefixPath) ([]PrefixPath, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists {
+		return dst, false
+	}
+	return rib.appendKeyPaths(key, dst), rib.addPath
+}
+
 // LookupRetained finds the RouteEntry for an NLRI and takes a reference to its
 // pool handles before this lock is given back, so the caller MAY dereference
 // those handles afterwards.

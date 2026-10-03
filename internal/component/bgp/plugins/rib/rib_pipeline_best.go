@@ -102,13 +102,13 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
 			fStr := formatFamily(fam)
 			pStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
-			// A CIDR family holds one election per PREFIX: every path id of
-			// the prefix, from every peer in either ADD-PATH mode, lands on
-			// one key, so the prefix answers with one best (RFC 8277 Section
-			// 3.1). Every other family is identified by its wire key.
-			identity := nlriBytes
-			if addPath[fam] && storage.IsCIDRFamily(fam) && len(nlriBytes) >= 4 {
-				identity = nlriBytes[4:]
+			// One election per route: every path id of a prefix or of a
+			// non-CIDR route key, from every peer in either ADD-PATH mode,
+			// lands on one key, so the route answers with one best (RFC 8277
+			// Section 3.1, RFC 7911 Section 2).
+			identity, ok := routeKeyOf(nlriBytes, addPath[fam])
+			if !ok {
+				return true
 			}
 			var tb textbuf.Buffer
 			key := tb.Str(fStr).Byte('|').Str(string(identity)).String()
@@ -160,6 +160,9 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 				winnerNLRI = candidateNLRI(best, pfx, make([]byte, cidrKeyOctetsMax))
 				rk.prefixS = formatNLRIAsPrefix(rk.fam, winnerNLRI, best.AddPath)
 			}
+		} else if routeKey, ok := routeKeyOf(winnerNLRI, rk.addPath); ok {
+			winnerNLRI = framedRouteNLRI(nil, routeKey, best.PathID, best.AddPath)
+			rk.prefixS = formatNLRIAsPrefix(rk.fam, winnerNLRI, best.AddPath)
 		}
 
 		item := RouteItem{

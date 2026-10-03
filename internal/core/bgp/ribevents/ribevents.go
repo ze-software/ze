@@ -75,9 +75,10 @@ type BestChangeEntry struct {
 	// (RFC 9552). Each of those NLRIs puts a label stack, a Route Distinguisher
 	// or a route type ahead of any address, so no netip.Prefix names it and
 	// Prefix stays zero. NLRI is the same key the Adj-RIB-In stores the route
-	// under. Under ADD-PATH it still carries the leading 4-byte path-id, and
-	// AddPath and PathID stay zero for these families rather than repeating it:
-	// NLRI alone identifies the route, so the two cannot drift apart.
+	// under, framed as the WINNING path's session sent it: under ADD-PATH it
+	// leads with that path's 4-byte path-id, and AddPath and PathID then say so,
+	// because the RIB elects one best per route whatever framing each path
+	// arrived in (RFC 7911 Section 2), so the framing follows the winner.
 	//
 	// A CIDR family (IPv4/IPv6 unicast, multicast and labeled unicast) leaves
 	// NLRI nil and names the route in Prefix. A consumer that installs routes
