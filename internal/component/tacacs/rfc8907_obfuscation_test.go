@@ -10,7 +10,7 @@
 // authenticates a user with no proof of the shared secret, because a client that
 // only skips de-obfuscation on that flag reads the attacker's plaintext as a reply.
 //
-// The tests live beside client_test.go and packet_test.go rather than inside
+// The tests live beside rfc8907_client_test.go and rfc8907_packet_test.go rather than inside
 // them: both files carry `RFC requirement:` tags, and the pretool-writeedit hook
 // refuses every edit to a tagged test file, an addition included
 // (ai/rules/testing.md, "RFC-Tagged Tests").

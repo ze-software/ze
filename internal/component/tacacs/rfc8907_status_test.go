@@ -10,7 +10,7 @@
 // backend, a FAIL that consults local policy, or a client that connects to
 // whatever address a FOLLOW reply names.
 //
-// The tests live in their own file because client_test.go carries
+// The tests live in their own file because rfc8907_client_test.go carries
 // `RFC requirement:` tags and is closed to edits (ai/rules/testing.md).
 
 package tacacs

@@ -202,7 +202,7 @@
     {
       "rid": "RFC8907-4-1",
       "polarity": "positive",
-      "unit": "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass",
+      "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass",
       "unit-sha": "62f24f983bdd76d8",
       "claim-sha": "b2571c5e68d5f36c",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC8907-4-1",
       "polarity": "negative",
-      "unit": "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader",
+      "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader",
       "unit-sha": "7852a4ba63da2b07",
       "claim-sha": "03e33d9cc9b0ccf3",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC8907-4-2",
       "polarity": "positive",
-      "unit": "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass",
+      "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass",
       "unit-sha": "62f24f983bdd76d8",
       "claim-sha": "a386d7987faafee6",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC8907-4-2",
       "polarity": "negative",
-      "unit": "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader",
+      "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader",
       "unit-sha": "7852a4ba63da2b07",
       "claim-sha": "8e74c2e74c5fb7da",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC8907-4-4",
       "polarity": "positive",
-      "unit": "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass",
+      "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass",
       "unit-sha": "62f24f983bdd76d8",
       "claim-sha": "5218f50fc8b45ee2",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "RFC8907-4-5",
       "polarity": "positive",
-      "unit": "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip",
+      "unit": "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip",
       "unit-sha": "6a83f79186e74946",
       "claim-sha": "40597604c58a3db1",
       "route": "revert",
@@ -807,7 +807,7 @@
     {
       "rid": "RFC8907-7-1",
       "polarity": "positive",
-      "unit": "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop",
+      "unit": "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop",
       "unit-sha": "84224ce8b9fc7dce",
       "claim-sha": "a1ea7ba42e2fbc46",
       "route": "revert",

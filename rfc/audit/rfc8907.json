@@ -1,17 +1,18 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8907-10-1": {
       "note": "{single-polarity} on the row: no configuration enables the flag. (a) forbidden: any configuration state, including a keyless server, under which the client sends with TAC_PLUS_UNENCRYPTED_FLAG. (b) TestRFC8907UnencryptedModeIsNotReachableFromConfiguration reads the socket: a keyed config puts wire[3]&0x01 == 0 (assert.Zero), a keyless config writes no bytes (assert.Empty); TestRFC8907ClientNeverSendsUnobfuscatedBody requires the wire body to be the pseudo-pad XOR of the plaintext.",
       "requirement_sha": "a1989d6d776c9620",
       "tests": {
-        "internal/component/tacacs/packet_test.go::TestPacketMarshalRoundTrip": "56fada5674164c83",
-        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "bdf178f3a2f32770",
+        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "f08ee3a6ab81099d",
+        "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip": "56fada5674164c83",
         "internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration": "9d3a3aa45fa01a1f"
       },
       "units": {
-        "internal/component/tacacs/packet_test.go::TestPacketMarshalRoundTrip": "1bfea1c89f5e6b14",
         "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "0c92650dfaa20700",
+        "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip": "1bfea1c89f5e6b14",
         "internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration": "c8157a23028f7c47"
       },
       "verdict": "enforced"
@@ -20,13 +21,13 @@
       "note": "(a) forbidden: a client request whose flags octet has 0x01 set, or a send with no key. (b) TestRFC8907ClientNeverSendsUnobfuscatedBody fails when wire[3]&FlagUnencrypted != 0 and requires the body to decode through the pad; TestPacketMarshalNoEncryption requires ErrNoSharedSecret for nil and empty keys with zero bytes written; TestRFC8907BuildRejectsMissingSecret requires Build to refuse a keyless server with ErrNoSharedSecret and no authenticator.",
       "requirement_sha": "84f6c26612a40f44",
       "tests": {
-        "internal/component/tacacs/packet_test.go::TestPacketMarshalNoEncryption": "56fada5674164c83",
-        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "bdf178f3a2f32770",
+        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "f08ee3a6ab81099d",
+        "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption": "56fada5674164c83",
         "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907BuildRejectsMissingSecret": "2f7cb9ed0258662a"
       },
       "units": {
-        "internal/component/tacacs/packet_test.go::TestPacketMarshalNoEncryption": "3077fa6bf0aa75a8",
         "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "0c92650dfaa20700",
+        "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption": "3077fa6bf0aa75a8",
         "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907BuildRejectsMissingSecret": "e7a2fbe87313aa1a"
       },
       "verdict": "enforced"
@@ -53,7 +54,7 @@
       "requirement_sha": "2a470d0bf3c37d00",
       "tests": {
         "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907SharedKeyIsNotTruncated": "226ab125232efc32",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate": "78ab2498fce332a1",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate": "e11e46852e75f681",
         "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretConfigBuildAndDisplay": "2f7cb9ed0258662a"
       },
       "units": {
@@ -69,8 +70,8 @@
       "tests": {
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails": "879b13e19509fb75",
-        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply": "bdf178f3a2f32770",
-        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply": "bdf178f3a2f32770"
+        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply": "f08ee3a6ab81099d",
+        "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply": "f08ee3a6ab81099d"
       },
       "units": {
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection": "ecc8bd38e6f5cf21",
@@ -135,14 +136,14 @@
       "note": "Rejudged 2026-09-29. Positive TestRFC8907EveryRequestCarriesMajorVersion12 reads the captured request header (not an echo) and requires major nibble 0xc for authentication, authorization and accounting, so a client emitting 0xd goes red. Negative TestRFC8907ReplyWithOtherMajorVersionRefused mutates only the reply major nibble (header check runs before the body is read) for all 15 other values x 3 kinds and requires error + zero status; producer validateResponseHeader.",
       "requirement_sha": "8401b7be0414da04",
       "tests": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused": "879b13e19509fb75"
       },
       "units": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12": "2bd864dcf94b81d1",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused": "c1cbadd445d5cedb"
       },
@@ -152,14 +153,14 @@
       "note": "Rejudged 2026-09-29. Positive TestRFC8907ClientSendsOddSequenceNumbers reads the captured request seq_no and requires it odd for all 3 kinds, closing the old echo-server hole (a client sending 2 now goes red). Negative TestRFC8907ReplyWithOddSequenceNumberRefused sends each of the 128 odd server seq_no values x 3 kinds and requires refusal; only the reply seq_no differs.",
       "requirement_sha": "8778ccaa92c999c4",
       "tests": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClientSendsOddSequenceNumbers": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOddSequenceNumberRefused": "879b13e19509fb75"
       },
       "units": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
-        "internal/component/tacacs/client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClientSendsOddSequenceNumbers": "4356a589584f42a2",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOddSequenceNumberRefused": "16ee2565dce3673b"
       },
@@ -169,11 +170,11 @@
       "note": "TestRFC8907SessionIDComesFromCryptoRand substitutes crypto/rand.Reader and requires the id to be exactly those octets; TestRandomSessionIDDistinct adds cross-session distinctness",
       "requirement_sha": "8883fe743af402b0",
       "tests": {
-        "internal/component/tacacs/client_test.go::TestRandomSessionIDDistinct": "cbb58d00c914079a",
-        "internal/component/tacacs/rfc8907_sessionid_test.go::TestRFC8907SessionIDComesFromCryptoRand": "c966d71c2fe95993"
+        "internal/component/tacacs/rfc8907_client_test.go::TestRandomSessionIDDistinct": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_sessionid_test.go::TestRFC8907SessionIDComesFromCryptoRand": "c177866ba89112ce"
       },
       "units": {
-        "internal/component/tacacs/client_test.go::TestRandomSessionIDDistinct": "3c9a0ebf0fbbd714",
+        "internal/component/tacacs/rfc8907_client_test.go::TestRandomSessionIDDistinct": "3c9a0ebf0fbbd714",
         "internal/component/tacacs/rfc8907_sessionid_test.go::TestRFC8907SessionIDComesFromCryptoRand": "0c8ea701f60e3c57"
       },
       "verdict": "enforced"
@@ -182,12 +183,12 @@
       "note": "Rejudged 2026-09-29 after the invalid {single-polarity} marker was removed (correction recorded). Negative TestRFC8907ReplyChangingSessionIDRefused flips bit 0, bit 31 and all bits of the reply session_id (only field changed; type/version/seq/flags intact so the trySend session_id guard is the refusing check) for 3 kinds and requires error + zero status. Positive TestRFC8907ReplyKeepingSessionIDAccepted is the accepting path for all 3 kinds.",
       "requirement_sha": "8bf61ab756a32be3",
       "tests": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted": "879b13e19509fb75"
       },
       "units": {
-        "internal/component/tacacs/client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
+        "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused": "82f1d57802fd0072",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted": "3d9c92c431514763"
       },
@@ -197,12 +198,12 @@
       "note": "Rejudged 2026-09-29. TestRFC8907LengthsAreUnsignedNetworkOrder asserts fixed wire octets for session_id and length (an independent big-endian oracle: a little-endian codec goes red), reads length 0xFFFFFFFE as unsigned, and reads 2-octet reply lengths 0x0100 and 0x8001 big-endian and unsigned in authentication, authorization and accounting replies (request lengths are 1 octet). {single-polarity: positive} holds: byte order has no refusal path. The marker's prose still describes the old symmetric round trip and should be refreshed; the argument itself stands.",
       "requirement_sha": "22d5d46137a82b66",
       "tests": {
-        "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip": "56fada5674164c83",
-        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "879b13e19509fb75"
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "879b13e19509fb75",
+        "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip": "56fada5674164c83"
       },
       "units": {
-        "internal/component/tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip": "0a077676a43d30f6",
-        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "0ff257e746c0100e"
+        "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "0ff257e746c0100e",
+        "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip": "0a077676a43d30f6"
       },
       "verdict": "enforced"
     },
@@ -212,8 +213,8 @@
       "tests": {
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "879b13e19509fb75",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent": "879b13e19509fb75",
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "23c0bdfae4121070",
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "23c0bdfae4121070"
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "689cf5032c29eb6d",
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "689cf5032c29eb6d"
       },
       "units": {
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "a3cf9fa4638ec0c1",
@@ -227,8 +228,8 @@
       "note": "(a) forbidden: a session's first packet with a seq_no other than 1, or accepting a reply that does not follow it. (b) TestRFC8907FirstPacketCarriesSequenceOne requires requests[0].SeqNo == 1 on each new connection; TestRFC8907ReplyReusingSequenceOneIsRefused requires a reply carrying seq_no 1 to fail Authenticate and validateResponseHeader to report \"sequence mismatch\". The increment clause is descriptive (\"will\").",
       "requirement_sha": "9dddf97ed6ff5487",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ReplyReusingSequenceOneIsRefused": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ReplyReusingSequenceOneIsRefused": "e11e46852e75f681"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "42989b62de993626",
@@ -253,8 +254,8 @@
       "note": "(a) forbidden: a second packet on a connection before the server echoed single-connect. (b) TestRFC8907NoSecondPacketWithoutSingleConnect (no echo) requires two connections and requestsOn(0) of length 1; TestRFC8907SecondSessionReusesEstablishedConnection (echo) requires one connection carrying two requests.",
       "requirement_sha": "56c52463e08cc11b",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection": "e11e46852e75f681"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "84f1f5833569bca9",
@@ -266,8 +267,8 @@
       "note": "(a) forbidden: acting on the single-connect flag after the second packet, by leaving the pool when a later reply clears it or by re-signalling it. (b) TestRFC8907FlagClearedOnLaterReplyIsIgnored requires one connection carrying three requests although replies after the first clear the flag; TestRFC8907ClientDoesNotResignalSingleConnect requires requests[1].Flags and requests[2].Flags == 0.",
       "requirement_sha": "3c8fcc03a13867e6",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored": "e11e46852e75f681"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "02fbdde1b4fee6b6",
@@ -279,8 +280,8 @@
       "note": "Rejudged 2026-09-29. Positive TestRFC8907ServerClosureOfPooledConnectionIsAccommodated (closure between sessions) and new TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated (server reads session 3's request on the established single-connect TCP, closes unanswered; session 3 must PASS on a fresh TCP, counts [3,1]) both go red if the client fails a session after the closure; producer sendReceive pooled retry. The negative-tagged TestRFC8907ClosureOnFreshDialIsNotRetried still asserts a neighbouring property (fresh-dial closure not retried) and is mistagged; it adds nothing to this row and should be retagged.",
       "requirement_sha": "1acd59d07e0a92f9",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "78ab2498fce332a1",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ServerClosureOfPooledConnectionIsAccommodated": "e11e46852e75f681",
         "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClosureMidSessionOnPooledConnectionIsAccommodated": "879b13e19509fb75"
       },
       "units": {
@@ -307,8 +308,8 @@
       "note": "(a) forbidden: a new session on a single-connect connection after a reply on it failed validation. (b) TestRFC8907NoNewSessionOnBrokenPooledConnection (session_id corrupted on the second reply) requires two connections and requestsOn(0) of length 2, so a third request on the broken TCP goes red; TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions requires one connection carrying three requests.",
       "requirement_sha": "49d9554c1456aa8b",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection": "e11e46852e75f681"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "ce96ac9ea5991686",
@@ -320,8 +321,8 @@
       "note": "(a) forbidden: leaving the broken single-connect connection open. (b) TestRFC8907BrokenPooledConnectionIsClosed requires waitClosed on the server side of the broken TCP; TestRFC8907HealthyPooledConnectionStaysOpen requires isClosed false after three healthy sessions.",
       "requirement_sha": "09815f2df724ee46",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen": "e11e46852e75f681"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "9af7ecbd19df93a0",
@@ -361,8 +362,8 @@
       "note": "(a) forbidden: a PAP login with more than one START/REPLY, including a CONTINUE. (b) TestRFC8907PAPExchangeIsOneStartOneReply requires exactly one authentication request on the connection; TestRFC8907PAPClientSendsNoContinue replies GETPASS and requires an error, a nil reply and requestsOn(0) of length 1.",
       "requirement_sha": "f1deb70a7310aa5f",
       "tests": {
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "78ab2498fce332a1",
-        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPExchangeIsOneStartOneReply": "78ab2498fce332a1"
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "e11e46852e75f681",
+        "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPExchangeIsOneStartOneReply": "e11e46852e75f681"
       },
       "units": {
         "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "60b1b9aff69b3fad",
@@ -408,8 +409,8 @@
       "note": "(a) forbidden: processing RESTART as anything but FAIL. (b) TestRFC8907RestartIsProcessedAsFail requires ErrorIs aaa.ErrAuthRejected, Authenticated false and Source == backendName; TestRFC8907ErrorIsNotProcessedAsFail is the discriminating pair: ERROR must not be ErrAuthRejected.",
       "requirement_sha": "9596b57ac4f4b608",
       "tests": {
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail": "23c0bdfae4121070",
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907RestartIsProcessedAsFail": "23c0bdfae4121070"
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail": "689cf5032c29eb6d",
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907RestartIsProcessedAsFail": "689cf5032c29eb6d"
       },
       "units": {
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail": "65b855182e7fc964",
@@ -500,8 +501,8 @@
       "note": "(a) forbidden: allowing a request the server answered with FAIL. (b) TestRFC8907AuthorizationFailDenies requires Authorize false and zero calls to a permissive local policy; TestRFC8907AuthorizationPassAddIsNotDenied requires PASS_ADD to allow.",
       "requirement_sha": "b111650253e8911d",
       "tests": {
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFailDenies": "23c0bdfae4121070",
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationPassAddIsNotDenied": "23c0bdfae4121070"
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFailDenies": "689cf5032c29eb6d",
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationPassAddIsNotDenied": "689cf5032c29eb6d"
       },
       "units": {
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFailDenies": "0aef69c3727e09dc",
@@ -513,13 +514,13 @@
       "note": "Rejudged 2026-09-29. Positive TestRFC8907AccountingValidFlagsWritten writes 0x02, 0x04, 0x08 and 0x0a unchanged. Negative TestRFC8907AccountingOtherFlagsRefused refuses all 252 other values (every undefined bit 0x01, 0x10-0x80 and invalid combinations) and SendAccounting refuses 0x82 before contacting the server. Producer acct.go MarshalBinaryInto allowlist switch; a denylist now goes red.",
       "requirement_sha": "53789bea9b4985eb",
       "tests": {
-        "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
+        "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
         "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "fb302ebfa0d9b135",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "59ca691aca621600"
       },
       "units": {
-        "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
+        "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
         "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "e6756f70e1fc889f",
         "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "2a442778a380b1e0",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "71625675e53b5e7c"
@@ -530,11 +531,11 @@
       "note": "(a) forbidden: a request carrying START and STOP together. (b) TestRFC8907AccountingStartStopCombinationRefused requires errors.Is(err, errRequestInvalid) for Flags START|STOP; TestAcctRequestMarshalStartStop marshals START and STOP as separate flags.",
       "requirement_sha": "8b425010119f8efb",
       "tests": {
-        "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
+        "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingStartStopCombinationRefused": "59ca691aca621600"
       },
       "units": {
-        "internal/component/tacacs/acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
+        "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
         "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingStartStopCombinationRefused": "db791f8422fa3e59"
       },
       "verdict": "enforced"
@@ -688,8 +689,8 @@
         "internal/component/plugin/server/command_test.go::TestDispatcherAccountsRefusedCommands": "c3bc3ab9452fd87b",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "92b8ca6f89db7098",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "92b8ca6f89db7098",
-        "internal/component/tacacs/accounting_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "6adcca5068bdc7f8",
-        "internal/component/tacacs/accounting_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "6adcca5068bdc7f8",
+        "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "6adcca5068bdc7f8",
+        "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "6adcca5068bdc7f8",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire": "3bb85e6ab2672ec2",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "3bb85e6ab2672ec2",
         "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907AccountingRequiresDestination": "2f7cb9ed0258662a"
@@ -703,8 +704,8 @@
         "internal/component/plugin/server/command_test.go::TestDispatcherAccountsRefusedCommands": "5b7c163f84443dd2",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "5e1a1d0565f79e8e",
         "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "791338f39514dfc7",
-        "internal/component/tacacs/accounting_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "30d35513be5065d9",
-        "internal/component/tacacs/accounting_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "f512a11a8ab40bae",
+        "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "30d35513be5065d9",
+        "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "f512a11a8ab40bae",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire": "f2b17b8b70883ab3",
         "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "9b0a0d4ecc9853c3",
         "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907AccountingRequiresDestination": "cf4bf56c327db773"
@@ -728,9 +729,9 @@
       "note": "(a) forbidden: the client using the FOLLOW redirection, by contacting the named server or treating FOLLOW as success or fallback. (b) TestRFC8907FollowTargetIsNeverContacted fails if the FOLLOW target receives a connection; TestRFC8907FollowIsNotAuthenticated asserts ErrAuthRejected and not authenticated; TestRFC8907AuthorizationFollowDeniesWithoutFallback asserts denial with zero local fallback calls.",
       "requirement_sha": "93e3f8c83aa78453",
       "tests": {
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFollowDeniesWithoutFallback": "23c0bdfae4121070",
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowIsNotAuthenticated": "23c0bdfae4121070",
-        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowTargetIsNeverContacted": "23c0bdfae4121070"
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFollowDeniesWithoutFallback": "689cf5032c29eb6d",
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowIsNotAuthenticated": "689cf5032c29eb6d",
+        "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowTargetIsNeverContacted": "689cf5032c29eb6d"
       },
       "units": {
         "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFollowDeniesWithoutFallback": "7281087410ea246e",

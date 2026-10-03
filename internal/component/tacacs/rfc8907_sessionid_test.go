@@ -7,7 +7,7 @@
 // distinct across draws, so a uniqueness test alone accepts them, and either
 // lets an attacker predict the id and forge or correlate TACACS+ sessions.
 //
-// The test lives beside client_test.go rather than inside it: that file carries
+// The test lives beside rfc8907_client_test.go rather than inside it: that file carries
 // `RFC requirement:` tags and the pretool-writeedit hook refuses every edit to a
 // tagged test file, an addition included (ai/rules/testing.md).
 

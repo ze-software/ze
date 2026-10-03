@@ -13,7 +13,7 @@
 // server never agreed to share, keeps using a connection after a bad reply,
 // or sends a CONTINUE in a PAP exchange.
 //
-// sessionServer differs from client_test.go's testTacacsServer in one way
+// sessionServer differs from rfc8907_client_test.go's testTacacsServer in one way
 // that every test here needs: it serves many packets per connection and
 // many connections, and records what arrived on each.
 
