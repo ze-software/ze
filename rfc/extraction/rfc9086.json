@@ -61,7 +61,6 @@
       "sites": 4,
       "disposition": "walked",
       "unsourced-ids": [
-        "RFC9086-5-5",
         "RFC9086-5-7",
         "RFC9086-5-8",
         "RFC9086-5-9"
@@ -103,7 +102,10 @@
     {
       "id": "7",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9086-7-2"
+      ]
     },
     {
       "id": "8",

@@ -77,21 +77,6 @@
       },
       "verdict": "enforced"
     },
-    "RFC9086-5-5": {
-      "note": "rejudge 2026-09-30: receipt clause TestRFC9086PeerSIDIgnoresReservedFields (flags 0xCF decodes V/L and SID intact). Originate clause: ls_export TestRFC9086OriginatedPeerSIDRsvdBitsZero (+: 0xc0 -> 0xc0) and TestRFC9086SourceRsvdBitsNeverOriginated (-: 0xcf -> 0xc0) on the emitted PeerNode SID TLV 1101. Judge break (1101 flags mask 0xff) turns the negative red. Single-polarity marker removed. Duplicate sentence of RFC9086-5-3 left as is.",
-      "requirement_sha": "a04b01781d50dc33",
-      "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "431bf0a1967a3360",
-        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "431bf0a1967a3360",
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "31d7422e3822a335"
-      },
-      "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero": "1d880b244ca5df63",
-        "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated": "66a53cc014279215",
-        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9086PeerSIDIgnoresReservedFields": "5cb6e0faff0f227d"
-      },
-      "verdict": "enforced"
-    },
     "RFC9086-7-1": {
       "note": "Clauses: configure/enable/disable advertisement of PeerNode, of PeerAdj, of PeerSet, and control of which information goes to which internal or external peer. (b) TestRFC9086NativeConfigurationEnableDisable asserts config enables a PeerNode advertisement and label and removing the config withdraws both, enforced for PeerNode only. No tagged unit asserts an option for PeerAdj or PeerSet (Ze originates neither) or any per-receiving-peer control of what is advertised.",
       "requirement_sha": "ecf2c6e8a2e8af8f",

@@ -460,7 +460,9 @@ owner. The SID is advertised only after successful installation acknowledgement.
 An index-encoded PeerNode SID
 is accompanied by the local Node's SRGB. Session loss, configuration removal,
 or failed replacement removes the corresponding advertisement. PeerAdj, PeerSet,
-and SRv6 EPE segment assignment are not implemented.
+and SRv6 EPE segment assignment are not implemented. The exporter has no
+per-recipient control selecting which EPE information each internal or external
+collector receives; RFC 9086 Section 7 remains a gap for that control.
 If a label removal fails, the native MPLS owner retains its source claim and the
 producer withholds that label from reassignment. Before its first installation,
 including after a producer error exit, EPE requires acknowledged

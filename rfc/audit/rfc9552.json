@@ -269,15 +269,17 @@
       "verdict": "enforced"
     },
     "RFC9552-5.2.3.1-1": {
-      "note": "re-audit RA12: first clause proven only for one explicit type (OSPFv2 route type 1 -> TLV 264 value 1 on the ls_export NLRI); the second clause, a type not signaled explicitly but determinable via another LSA (Extended Prefix route type 0 or AS/NSSA external 1-vs-2, resolved by ospf/bgpls_export.go::v2PrefixRouteTypes), is driven by no tagged unit, and the {single-polarity} argument that zero means unsignaled ignores exactly that clause",
+      "note": "Independent judgment: RFC 9552 section 5.2.3.1 says, \"The OSPF Route Type TLV MUST be included in the advertisement when the type is either being signaled explicitly in the underlying LSA or can be determined via another LSA for the same prefix when it is not signaled explicitly (e.g., in the case of OSPFv2 Extended Prefix Opaque LSA [RFC7684]).\" The source and wire carriers jointly close the previously missing correlation clause. TestRFC9552ExtendedPrefixResolvesRouteType installs actual base and Extended Prefix LSAs, requests the live publisher's snapshot, and checks exactly one marked extended advertisement with the correct router identity and route type: zero resolved to each of types 1..6, plus explicit AS/NSSA classes separately resolved to Type 1/2. An opaque-source marker prevents a base prefix alone satisfying the test; NSSA evidence in another area exercises the cross-bucket scan. TestRFC9552NativeOSPFRouteType separately drives exporter replacement/reconciliation and checks TLV 264 value 1 on the emitted prefix NLRI. encodeTopology passes the snapshot's RouteType directly to the prefix descriptor, so the two real boundaries compose; this is not a claim that the LSDB test alone reads BGP bytes. The clarified single-positive annotation is valid for origination, not an exemption for underlying zero and not a receive-refusal claim. Inspected fresh native records on encodeTopology and v2PrefixRouteTypes, including the latter's observed producer halt. No new judge test run.",
       "requirement_sha": "c518550f04f2281f",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "de280b1c094e08d4"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "de280b1c094e08d4",
+        "internal/plugins/ospf/bgpls_export_rfc9552_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "708a9a8051791b09"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "f0355b7bfd1485ad"
+        "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "f0355b7bfd1485ad",
+        "internal/plugins/ospf/bgpls_export_rfc9552_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "5a0596f08f928889"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9552-5.3.1.1-1": {
       "note": "originator half: native export clears source bits 6-7 to 0 and keeps the defined bits (0xfc kept, 0x03 emitted as 0); receiver half: decoder yields identical defined bits with undefined bits set or clear, sets no defined flag from undefined-only bits, and keeps walking to the next TLV",

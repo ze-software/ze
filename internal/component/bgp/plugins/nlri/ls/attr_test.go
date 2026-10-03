@@ -833,7 +833,7 @@ func TestPeerSetSIDRoundTrip(t *testing.T) {
 // RFC 9086 requires ignore-on-receipt (never reject), so this is a single-polarity
 // positive requirement -- there is no negative case for the gate.
 //
-// VALIDATES: RFC9086-5-5 (reserved Flags bits ignored) on decode. The 2-octet
+// VALIDATES: RFC9086-5-3 (reserved Flags bits ignored) on decode. The 2-octet
 // Reserved field is skipped too, and that is Ze's own decoder discipline: RFC
 // 9086 describes the field in its Figure 2 diagram and states no obligation
 // about it, so no requirement id carries it.
@@ -845,13 +845,14 @@ func TestRFC9086PeerSIDIgnoresReservedFields(t *testing.T) {
 	// SID(4)). Flags 0xCF = meaningful V(0x80) and L(0x40) bits set AND all four
 	// low-nibble reserved bits (0x0F) set; Weight 0x05; the 2-octet Reserved field
 	// 0xFFFF set non-zero; SID 0x00005DC0 = 24000.
-	decode := decodePeerSID(TLVPeerNodeSID)
+	decode := lookupLsAttrTLVDecoder(TLVPeerNodeSID)
+	require.NotNil(t, decode)
 	tlv, err := decode([]byte{0xCF, 0x05, 0xFF, 0xFF, 0x00, 0x00, 0x5D, 0xC0})
 	require.NoError(t, err) // non-zero reserved bits/field must NOT reject the TLV.
 	ps, ok := tlv.(*lsPeerSID)
 	require.True(t, ok)
 
-	// RFC requirement: RFC9086-5-5 positive -- reserved bits in the Flags octet are ignored on receipt: they neither reject the TLV nor disturb the meaningful V/L flags or the decoded SID.
+	// RFC requirement: RFC9086-5-3 positive -- reserved bits in the Flags octet are ignored on receipt: they neither reject the TLV nor disturb the meaningful V/L flags or the decoded SID.
 	assert.Equal(t, uint8(0xC0), ps.Flags&0xF0) // meaningful V/L flags survive; the low-nibble reserved bits do not corrupt them.
 	assert.Equal(t, uint32(24000), ps.SID)      // reserved Flags bits do not leak into the SID.
 

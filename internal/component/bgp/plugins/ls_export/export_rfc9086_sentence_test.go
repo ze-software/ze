@@ -54,7 +54,7 @@ func originatedPeerNodeSIDFlags(t *testing.T, flags byte) byte {
 // TestRFC9086OriginatedPeerSIDRsvdBitsZero is the ordinary case: a source
 // PeerNode SID with V and L set and no reserved bit.
 //
-// RFC requirement: RFC9086-5-5 positive -- a PeerNode SID originated from a source with Flags 0xc0 carries V and L and zero Rsvd bits (the low four bits) on the wire (S5).
+// RFC requirement: RFC9086-5-3 positive -- a PeerNode SID originated from a source with Flags 0xc0 carries V and L and zero Rsvd bits (the low four bits) on the wire (S5).
 func TestRFC9086OriginatedPeerSIDRsvdBitsZero(t *testing.T) {
 	require.Equal(t, byte(0xc0), originatedPeerNodeSIDFlags(t, 0xc0))
 }
@@ -62,7 +62,7 @@ func TestRFC9086OriginatedPeerSIDRsvdBitsZero(t *testing.T) {
 // TestRFC9086SourceRsvdBitsNeverOriginated sets every reserved flag bit in the
 // source, the input that reaches the wire if the producer copies the octet.
 //
-// RFC requirement: RFC9086-5-5 negative -- a source PeerNode SID with all four Rsvd bits set (Flags 0xcf) is originated with those bits zero and V and L intact (S5).
+// RFC requirement: RFC9086-5-3 negative -- a source PeerNode SID with all four Rsvd bits set (Flags 0xcf) is originated with those bits zero and V and L intact (S5).
 func TestRFC9086SourceRsvdBitsNeverOriginated(t *testing.T) {
 	require.Equal(t, byte(0xc0), originatedPeerNodeSIDFlags(t, 0xcf))
 }

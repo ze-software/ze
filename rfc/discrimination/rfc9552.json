@@ -519,6 +519,17 @@
       "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9552-5.2.3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/bgpls_export_rfc9552_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType",
+      "unit-sha": "527c461655ea19ce",
+      "claim-sha": "e741ea4ce543352a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/bgpls_export.go::v2PrefixRouteTypes",
+      "producer-sha": "d982abffccf68d71",
+      "break": "body of v2PrefixRouteTypes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9552-5.3.1.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags",

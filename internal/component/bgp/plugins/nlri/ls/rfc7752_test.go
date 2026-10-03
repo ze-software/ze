@@ -98,7 +98,6 @@ func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 // malformed input instead of preserving it.
 // PREVENTS: a length-overrun TLV being treated as an opaque unknown and echoed.
 func TestRFC7752MalformedTLVNotPreserved(t *testing.T) {
-	// RFC requirement: RFC7752-3.1-1 negative -- a TLV whose declared length overruns the buffer is rejected, not preserved as an unknown TLV (§3.1)
 	// RFC requirement: RFC7752-6.2.2-2 negative -- a TLV length sum exceeding the attribute length and a wrong-sized fixed-length TLV are both refused (§6.2.2)
 	// RFC requirement: RFC9552-8.2.2-10 positive -- the ls decoder's syntactic walk finds a TLV whose declared length overruns the BGP-LS Attribute malformed: iterateAttrTLVs and decodeAllAttrTLVs return ErrBGPLSTruncated and AttrTLVsToJSON yields nothing (§8.2.2)
 	truncated := make([]byte, 6)
