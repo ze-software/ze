@@ -4,7 +4,7 @@
     {
       "rid": "RFC8414-2-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment",
       "unit-sha": "061895c4abcf4382",
       "claim-sha": "4bade9c646e95103",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC8414-2-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment",
       "unit-sha": "061895c4abcf4382",
       "claim-sha": "f5170ab4bdc8f922",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC8414-2-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_MissingIssuer",
+      "unit": "internal/component/mcp/rfc8414_as_metadata_test.go::TestFetchASMetadata_MissingIssuer",
       "unit-sha": "7ac44652ce9d46a8",
       "claim-sha": "e4afc2a48230d561",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC8414-2-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_Success",
+      "unit": "internal/component/mcp/rfc8414_as_metadata_test.go::TestFetchASMetadata_Success",
       "unit-sha": "3d7f5a95707f5169",
       "claim-sha": "fb63f46019cffd65",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC8414-3.1-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",
       "unit-sha": "d23198acf2483695",
       "claim-sha": "a23bc57c79631d5a",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC8414-3.1-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestUsesNoOtherVerbOrPath",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequestUsesNoOtherVerbOrPath",
       "unit-sha": "90b04affcc924ebb",
       "claim-sha": "1188b2f34bfc2c56",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC8414-3.1-2",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataPathInsertedBeforeIssuerPath",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataPathInsertedBeforeIssuerPath",
       "unit-sha": "41182f70bec1bf7e",
       "claim-sha": "d9e676f4b756b819",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC8414-3.1-2",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataPathNeverAppendedToIssuerPath",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataPathNeverAppendedToIssuerPath",
       "unit-sha": "53321c4513f7d0f0",
       "claim-sha": "32228272d2c70ec2",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC8414-4-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
       "unit-sha": "8069662a1c1f4a07",
       "claim-sha": "5ad46f90724fcf33",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC8414-4-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
       "unit-sha": "8069662a1c1f4a07",
       "claim-sha": "cc030634f9488b12",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC8414-4-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNotOnJSONText",
+      "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNotOnJSONText",
       "unit-sha": "6a2052a2332d27ba",
       "claim-sha": "90d00c2cc50ae8cc",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC8414-4-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareUnescapesJSON",
+      "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareUnescapesJSON",
       "unit-sha": "55764be1096c0157",
       "claim-sha": "ab4c2dfa4f2d295c",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC8414-4-2",
       "polarity": "positive",
-      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts",
+      "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts",
       "unit-sha": "3d945b7204a1e5f9",
       "claim-sha": "c5d17820e0f43e0e",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC8414-4-2",
       "polarity": "negative",
-      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationRejects",
+      "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationRejects",
       "unit-sha": "512be6a1e81724cc",
       "claim-sha": "74b8e241a3d6abf8",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC8414-4-3",
       "polarity": "negative",
-      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareCodePointsDiffer",
+      "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareCodePointsDiffer",
       "unit-sha": "9083b6b841cd7ccf",
       "claim-sha": "57cf1617048c3ccd",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC8414-4-3",
       "polarity": "positive",
-      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareCodePointsEqual",
+      "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareCodePointsEqual",
       "unit-sha": "3e0e9f91850880cf",
       "claim-sha": "dedbf78ab7555494",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC8414-6.1-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchNeverDowngradesToCleartext",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchNeverDowngradesToCleartext",
       "unit-sha": "960d3118dd929feb",
       "claim-sha": "8cbd927bb0986cfe",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC8414-6.1-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchOverTLS",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchOverTLS",
       "unit-sha": "625f5762f3d5b2a8",
       "claim-sha": "80b57c5c1c126cf9",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC8414-6.1-3",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchAcceptsTrustedCertificate",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchAcceptsTrustedCertificate",
       "unit-sha": "3e2714233bd6000c",
       "claim-sha": "1df351d79aa5ccc8",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC8414-6.1-3",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchRefusesUntrustedCertificate",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchRefusesUntrustedCertificate",
       "unit-sha": "b643ddd018fa1919",
       "claim-sha": "ebb2210c9db11837",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC8414-6.1-4",
       "polarity": "positive",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
       "unit-sha": "efd513927db825d0",
       "claim-sha": "ba033ea84f78be31",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC8414-6.1-4",
       "polarity": "negative",
-      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
+      "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
       "unit-sha": "efd513927db825d0",
       "claim-sha": "702e2d59929e7469",
       "route": "revert",

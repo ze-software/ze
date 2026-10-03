@@ -4,7 +4,7 @@
     {
       "rid": "RFC9728-2-2",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers",
       "unit-sha": "bd37f88ff4e21fd2",
       "claim-sha": "355580111d3fffb8",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC9728-2-2",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers",
       "unit-sha": "bd37f88ff4e21fd2",
       "claim-sha": "01a68ec0ac2d2399",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC9728-2-2",
       "polarity": "positive",
-      "unit": "internal/component/mcp/oauth_test.go::TestResourceMetadata_Document",
+      "unit": "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document",
       "unit-sha": "cfcba16bb0f20121",
       "claim-sha": "c5cfe125adf20f80",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC9728-3-2",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBeforeQuery",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery",
       "unit-sha": "b4a0594aee967d34",
       "claim-sha": "0699c0af1ee3bf8b",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC9728-3-2",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBeforeQuery",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery",
       "unit-sha": "b4a0594aee967d34",
       "claim-sha": "4fbe2265ad8a460e",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC9728-3-2",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath",
       "unit-sha": "bed20e3b92b984a3",
       "claim-sha": "ad2cb2b49dc1b09a",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC9728-3-2",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath",
       "unit-sha": "bed20e3b92b984a3",
       "claim-sha": "8e71c673e15e9d9e",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC9728-3-3",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728RegisteredSuffix",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728RegisteredSuffix",
       "unit-sha": "2ba82a724e3915d6",
       "claim-sha": "61f0f4ecaedf0e09",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC9728-3-3",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728RegisteredSuffix",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728RegisteredSuffix",
       "unit-sha": "2ba82a724e3915d6",
       "claim-sha": "5c348c7007d83602",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC9728-3-4",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728RegisteredSuffix",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728RegisteredSuffix",
       "unit-sha": "2ba82a724e3915d6",
       "claim-sha": "ed32edf9b1ff5a86",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC9728-3-4",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728RegisteredSuffix",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728RegisteredSuffix",
       "unit-sha": "2ba82a724e3915d6",
       "claim-sha": "f51db83503823264",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC9728-3.1-3",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion",
       "unit-sha": "c977792e11f8a43e",
       "claim-sha": "2be2949842284dd8",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC9728-3.1-3",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion",
       "unit-sha": "c977792e11f8a43e",
       "claim-sha": "1bc917eea05d79b0",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC9728-3.2-3",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResponseShape",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape",
       "unit-sha": "0369c31c8e320498",
       "claim-sha": "726676721b2303c1",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC9728-3.2-3",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResponseShape",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape",
       "unit-sha": "0369c31c8e320498",
       "claim-sha": "8d2249df265deade",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC9728-3.2-4",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ZeroValuedParametersOmitted",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ZeroValuedParametersOmitted",
       "unit-sha": "361b9efbdf7ca655",
       "claim-sha": "211664f1f9342d05",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC9728-3.2-4",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ZeroValuedParametersOmitted",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ZeroValuedParametersOmitted",
       "unit-sha": "361b9efbdf7ca655",
       "claim-sha": "db7045263651d904",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC9728-3.3-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
       "unit-sha": "194e37114106572e",
       "claim-sha": "867985e303318e34",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC9728-3.3-1",
       "polarity": "negative",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
       "unit-sha": "194e37114106572e",
       "claim-sha": "0707c54e2d2ae137",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC9728-5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ChallengeNamesMetadataURL",
+      "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL",
       "unit-sha": "ca9e0e3475f01730",
       "claim-sha": "b3dbbfeda7be1438",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC9728-5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/mcp/oauth_test.go::TestOAuth_Authenticate_MissingHeader",
+      "unit": "internal/component/mcp/rfc9728_oauth_test.go::TestOAuth_Authenticate_MissingHeader",
       "unit-sha": "bc2838fe2f972d86",
       "claim-sha": "5887226a7c389c54",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC9728-6-3",
       "polarity": "negative",
-      "unit": "internal/component/mcp/jwt_rfc9728_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice",
+      "unit": "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice",
       "unit-sha": "2c3a31b474b4783f",
       "claim-sha": "f9707c62f8494625",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC9728-6-3",
       "polarity": "positive",
-      "unit": "internal/component/mcp/jwt_rfc9728_test.go::TestRFC9728EscapedAudienceMatchesResource",
+      "unit": "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapedAudienceMatchesResource",
       "unit-sha": "83de36a2634cd0d9",
       "claim-sha": "77eb35f78da238e8",
       "route": "revert",

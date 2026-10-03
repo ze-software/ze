@@ -11,11 +11,11 @@
       "requirement_sha": "6dd86ff04e64604d",
       "tests": {
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "8035c109889da094",
-        "internal/component/mcp/oauth_test.go::TestResourceMetadata_Document": "03ef63ac8871aaba"
+        "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "03ef63ac8871aaba"
       },
       "units": {
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "33b84f87a8f4a2ae",
-        "internal/component/mcp/oauth_test.go::TestResourceMetadata_Document": "d9504d74e4d6dd3a"
+        "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "d9504d74e4d6dd3a"
       },
       "verdict": "enforced"
     },
@@ -23,16 +23,16 @@
       "note": "[MAY] parameter definition. TestRFC9728AuthorizationServersAreIssuerIdentifiers + authorization_servers decodes as a JSON array of strings holding exactly the validated issuer, https with no query and no fragment; - http, ?tenant=a and #frag authorization-server values are refused by NewStreamable so no document lists them. The refusals are overdetermined: asMetadataURL/oauthHTTPSURL refuse first, and the fetch's issuer match or transport would also refuse, so the negative proves the published property rather than which guard holds it. The oauth_test.go and oauth_e2e_test.go positives keep their tags.",
       "requirement_sha": "25903091f6f48826",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers#2": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers#2": "9f4549a3bab58953",
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "8035c109889da094",
-        "internal/component/mcp/oauth_test.go::TestResourceMetadata_Document": "03ef63ac8871aaba"
+        "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "03ef63ac8871aaba"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers": "d566454bba218419",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers#2": "d566454bba218419",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers": "d566454bba218419",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers#2": "d566454bba218419",
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "33b84f87a8f4a2ae",
-        "internal/component/mcp/oauth_test.go::TestResourceMetadata_Document": "d9504d74e4d6dd3a"
+        "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "d9504d74e4d6dd3a"
       },
       "verdict": "enforced"
     },
@@ -40,16 +40,16 @@
       "note": "Path clause: TestRFC9728WellKnownInsertedBetweenHostAndPath. Query clause now proven by TestRFC9728WellKnownInsertedBeforeQuery: + https://mcp.example/mcp?tenant=a at /.well-known/oauth-protected-resource/mcp?tenant=a and query-only https://mcp.example?tenant=a at /.well-known/oauth-protected-resource?tenant=a, advertised by resourceMetadataURL, resource equal to the identifier; - query dropped, suffix after path, bare suffix, suffix after query each serve no document. Still weak: resourceOriginAndPath TrimRights the path's trailing slash, so https://mcp.example/mcp/ is published at .../oauth-protected-resource/mcp, not at the URL formed from the identifier, and no tagged assertion covers that input. Blocked by spec-mcp-protected-resource-metadata-path AC-5 (same defect as RFC9728-3.1-3).",
       "requirement_sha": "c9c94b41f41cee12",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBeforeQuery#2": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery#2": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "9f4549a3bab58953"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "6b81b9563f1f44a8",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBeforeQuery#2": "6b81b9563f1f44a8",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "a1cc6fa1f8a9ab2d",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "a1cc6fa1f8a9ab2d"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "6b81b9563f1f44a8",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery#2": "6b81b9563f1f44a8",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "a1cc6fa1f8a9ab2d",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "a1cc6fa1f8a9ab2d"
       },
       "verdict": "weak"
     },
@@ -57,12 +57,12 @@
       "note": "The sentence removes only the terminating slash following the host component when the identifier has a path or query. TestRFC9728TerminatingSlashRemovedBeforeInsertion asserts https://mcp.example/mcp/ maps to .../oauth-protected-resource/mcp and its negative forbids any trailing slash: that is the path's own slash, which the RFC keeps (the path is inserted unchanged). The test pins resourceOriginAndPath's strings.TrimRight(u.EscapedPath(), \"/\"), which conflates /mcp/ and /mcp. The query case (e.g. https://mcp.example/?x=1) is not asserted.",
       "requirement_sha": "368fd46bb4b53f52",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "9f4549a3bab58953"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "431d42d80c2e2f99",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "431d42d80c2e2f99"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "431d42d80c2e2f99",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "431d42d80c2e2f99"
       },
       "verdict": "wrong"
     },
@@ -70,12 +70,12 @@
       "note": "Forbidden: a success status other than 200, a content type other than application/json, a body that is not a JSON object, a member outside Section 2. Red: TestRFC9728ResponseShape fails on w.Code != 200, on Content-Type != application/json, on json.Unmarshal into a map (arrays/scalars refused), and on any member absent from rfc9728Section2Members.",
       "requirement_sha": "44c087d76814f09c",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResponseShape": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResponseShape#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape#2": "9f4549a3bab58953"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResponseShape": "b867543d24ca8170",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResponseShape#2": "b867543d24ca8170"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape": "b867543d24ca8170",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape#2": "b867543d24ca8170"
       },
       "verdict": "enforced"
     },
@@ -83,12 +83,12 @@
       "note": "TestRFC9728ResourceMatchesInsertedIdentifier proves one identifier: resource https://mcp.example/api at .../oauth-protected-resource/api, and that the audience override is not returned. It does not cover an identifier with a trailing path slash: for https://mcp.example/mcp/ Ze forms the URL from /mcp (TrimRight in resourceOriginAndPath) and returns resource https://mcp.example/mcp/, so the returned value differs from the identifier the URL was formed from, and no tagged assertion goes red.",
       "requirement_sha": "b317ac85ce99dd94",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceMatchesInsertedIdentifier": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceMatchesInsertedIdentifier#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier#2": "9f4549a3bab58953"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceMatchesInsertedIdentifier": "437b393eee652735",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceMatchesInsertedIdentifier#2": "437b393eee652735"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier": "437b393eee652735",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier#2": "437b393eee652735"
       },
       "verdict": "weak"
     },
@@ -96,14 +96,14 @@
       "note": "[MAY] permission row with {single-polarity: positive}, which holds: no challenge Ze sends can violate a permission. TestRFC9728ChallengeNamesMetadataURL asserts the 401 WWW-Authenticate is Bearer with resource_metadata EXACTLY https://mcp.example/.well-known/oauth-protected-resource/api for a metadata resource that differs from the audience, and a GET there returns that resource's document, so a prefix, the audience-derived URL, or a missing parameter goes red. The oauth_test.go and oauth_e2e_test.go prefix-only positives keep their tags.",
       "requirement_sha": "d5562ccb14f23c74",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ChallengeNamesMetadataURL": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL": "9f4549a3bab58953",
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer": "8035c109889da094",
-        "internal/component/mcp/oauth_test.go::TestOAuth_Authenticate_MissingHeader": "03ef63ac8871aaba"
+        "internal/component/mcp/rfc9728_oauth_test.go::TestOAuth_Authenticate_MissingHeader": "03ef63ac8871aaba"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ChallengeNamesMetadataURL": "bcba5dc1f782c4b9",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL": "bcba5dc1f782c4b9",
         "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer": "212d03f3614335a2",
-        "internal/component/mcp/oauth_test.go::TestOAuth_Authenticate_MissingHeader": "81bee8a0e0f14c69"
+        "internal/component/mcp/rfc9728_oauth_test.go::TestOAuth_Authenticate_MissingHeader": "81bee8a0e0f14c69"
       },
       "verdict": "enforced"
     },
@@ -111,12 +111,12 @@
       "note": "Forbidden: normalizing either string. Red: TestRFC9728ResourceIdentityPreserved fails if the published resource is not the exact decomposed e+U+0301 identifier (returned != resource), and fails if the composed spelling %C3%A9 retrieves the document (status != 404).",
       "requirement_sha": "e566ee26b10ab301",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved#2": "9f4549a3bab58953"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved": "2e08aa43bc191cfc",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved#2": "2e08aa43bc191cfc"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved": "2e08aa43bc191cfc",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved#2": "2e08aa43bc191cfc"
       },
       "verdict": "enforced"
     },
@@ -124,12 +124,12 @@
       "note": "Forbidden: equality other than code-point to code-point. Red: TestRFC9728ResourceIdentityPreserved serves the exact escaped path+query (decodeMetadata requires 200) and requires 404 for the composed spelling, a different query value and a missing query.",
       "requirement_sha": "4476f838624d15bf",
       "tests": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved": "9f4549a3bab58953",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved#2": "9f4549a3bab58953"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved": "9f4549a3bab58953",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved#2": "9f4549a3bab58953"
       },
       "units": {
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved": "2e08aa43bc191cfc",
-        "internal/component/mcp/metadata_rfc9728_test.go::TestRFC9728ResourceIdentityPreserved#2": "2e08aa43bc191cfc"
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved": "2e08aa43bc191cfc",
+        "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved#2": "2e08aa43bc191cfc"
       },
       "verdict": "enforced"
     },
@@ -137,12 +137,12 @@
       "note": "Forbidden: comparing without removing JSON escaping, or removing it more than once. Red: TestRFC9728EscapedAudienceMatchesResource fails if verifyJWT refuses an aud with \\u0026 against the & identifier; TestRFC9728EscapeTextIsNotUnescapedTwice fails unless a literal \\u0026 aud is refused with errJWTAudienceMismatch.",
       "requirement_sha": "3c50e4ddf206f71c",
       "tests": {
-        "internal/component/mcp/jwt_rfc9728_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice": "cee1b3fa29ccc930",
-        "internal/component/mcp/jwt_rfc9728_test.go::TestRFC9728EscapedAudienceMatchesResource": "cee1b3fa29ccc930"
+        "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice": "cee1b3fa29ccc930",
+        "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapedAudienceMatchesResource": "cee1b3fa29ccc930"
       },
       "units": {
-        "internal/component/mcp/jwt_rfc9728_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice": "0742fbc0fa9704a6",
-        "internal/component/mcp/jwt_rfc9728_test.go::TestRFC9728EscapedAudienceMatchesResource": "376cecfe276c136e"
+        "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice": "0742fbc0fa9704a6",
+        "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapedAudienceMatchesResource": "376cecfe276c136e"
       },
       "verdict": "enforced"
     },
