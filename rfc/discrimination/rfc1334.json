@@ -26,7 +26,7 @@
     {
       "rid": "RFC1334-2.2.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientOpensAuthPhaseWithPAPRequest",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientOpensAuthPhaseWithPAPRequest",
       "unit-sha": "39578eca9817d202",
       "claim-sha": "10297f87371fc829",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC1334-2.2.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientOpensAuthPhaseWithPAPRequest",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientOpensAuthPhaseWithPAPRequest",
       "unit-sha": "39578eca9817d202",
       "claim-sha": "43a8c590ae547c68",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC1334-x-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder",
+      "unit": "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder",
       "unit-sha": "600deb5f31c6ef9f",
       "claim-sha": "bd0143b671f3e46b",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC1334-x-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback",
+      "unit": "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback",
       "unit-sha": "21b2d79b73ba6a8d",
       "claim-sha": "069bed77622756a8",
       "route": "revert",

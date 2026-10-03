@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc2865.md -- RFC2865-4.4-1 on the L2TP subscriber login
 // Related: handler.go -- doRADIUS, the switch over the reply code
-// Related: handler_test.go -- setupAuthWithAttrs, fakeResponder
+// Related: rfc2865_handler_test.go -- setupAuthWithAttrs, fakeResponder
 
 // The admin login already treats an Access-Challenge as an Access-Reject
 // (internal/component/radius). The L2TP LNS is a second NAS role in the same

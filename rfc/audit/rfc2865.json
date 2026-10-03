@@ -125,12 +125,12 @@
       "note": "Forbidden: an Access-Request with neither NAS-IP-Address nor NAS-Identifier. radius TestAdminAccessRequestIdentifiesTheNAS asserts hasIP || hasID on the wire; authradius TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured asserts a non-empty NAS-Identifier even with nothing configured (red if the request goes out naming no NAS).",
       "requirement_sha": "57dcd4808cf06bba",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress": "c6f04475dba42f70",
+        "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "c6f04475dba42f70",
         "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "92f990b7c0dc5556",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "a3f1d9fa74292a7a"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress": "78b37a87c00c3f3e",
+        "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "78b37a87c00c3f3e",
         "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "d14e2840cc684656",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "97148f41ab5c48f9"
       },

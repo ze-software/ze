@@ -81,7 +81,7 @@
     {
       "rid": "RFC2866-4.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS",
       "unit-sha": "166753ba1739102f",
       "claim-sha": "cedb83a778404675",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC2866-4.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressOmittedWhenNotIPv4",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressOmittedWhenNotIPv4",
       "unit-sha": "1bb3e277a19cf8f9",
       "claim-sha": "35a323da9c2b6a6c",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC2866-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressPresent",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressPresent",
       "unit-sha": "5709125c461629b8",
       "claim-sha": "96e04fa81d28a085",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC2866-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestSessionEventDrivesAddressAndPortID",
       "unit-sha": "fd3a5b6ce4740560",
       "claim-sha": "5a60e88ffd6334e0",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC2866-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
       "unit-sha": "f3258b7f77d9ba1c",
       "claim-sha": "9444d8e4a639c4c9",
       "route": "revert",
@@ -302,7 +302,7 @@
     {
       "rid": "RFC2866-5.5-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
       "unit-sha": "f3258b7f77d9ba1c",
       "claim-sha": "fb1982ee343d021e",
       "route": "revert",

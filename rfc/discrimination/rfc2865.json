@@ -257,7 +257,7 @@
     {
       "rid": "RFC2865-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress",
       "unit-sha": "f4686491f7ce9574",
       "claim-sha": "f6770f90a03fc65d",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC2865-4.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress",
       "unit-sha": "f4686491f7ce9574",
       "claim-sha": "d2bbc0b284bfaa12",
       "route": "revert",

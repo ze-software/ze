@@ -1,5 +1,5 @@
 // Design: docs/architecture/l2tp/bng-5-pppoe.md -- RFC 1332 conformance coverage
-// Related: ipcp_test.go -- the receive side of the same row
+// Related: rfc1332_ipcp_test.go -- the receive side of the same row
 //
 // Drives the send side of RFC 1332 Section 3: the IPCP options ze writes use
 // the LCP Configuration Option format, with IPCP's own option Types.

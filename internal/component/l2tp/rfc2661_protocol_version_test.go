@@ -1,5 +1,5 @@
 // Related: tunnel_fsm.go -- handleSCCRQ, which judges the Protocol Version AVP
-// Related: reactor_sccrq_mandatory_avp_test.go -- the reactor harness reused here
+// Related: rfc2661_reactor_sccrq_mandatory_avp_test.go -- the reactor harness reused here
 
 package l2tp
 

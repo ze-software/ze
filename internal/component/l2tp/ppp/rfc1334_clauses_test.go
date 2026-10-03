@@ -1,5 +1,5 @@
 // Design: docs/architecture/l2tp/subscriber-session-model.md -- authentication method negotiation
-// Related: auth_test.go -- the fallback-order helper the session consults
+// Related: rfc1334_auth_test.go -- the fallback-order helper the session consults
 //
 // Drives RFC 1334 Section 2 through LCP: a session that includes CHAP offers
 // it in its Configure-Request before it ever offers PAP.

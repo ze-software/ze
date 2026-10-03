@@ -169,13 +169,13 @@
       "note": "A CoA-Request and a Disconnect-Request whose Acct-Session-Id matches no session get CoA-NAK and Disconnect-NAK 503 with no bus event and no teardown; the same two requests with a matching Acct-Session-Id succeed (CoA-ACK with one event, Disconnect-ACK with one teardown). Both request kinds, both outcomes; the older no-identification negative remains.",
       "requirement_sha": "79cb52981c308285",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestDisconnectReplayReturnsCachedResponse": "24bcf432ac577a22",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "24bcf432ac577a22",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "6e404eca485fc4e5"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestDisconnectReplayReturnsCachedResponse": "9e08100ffc3fc18b",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "9e08100ffc3fc18b",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "18fb7991d427fefe",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "48a54bb92cb5b6f7",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "0004cdb472171249"
@@ -246,11 +246,11 @@
       "note": "(a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.",
       "requirement_sha": "76d3f6211fedecf1",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "24bcf432ac577a22",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "24bcf432ac577a22",
         "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "c6a157b9291bccdc"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "9c09d916e4dcb687",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "9c09d916e4dcb687",
         "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "1d756817447ce43c"
       },
       "verdict": "enforced"
@@ -259,12 +259,12 @@
       "note": "Judge 2026-09-29, re-judged after the RFC5176-3.5-2 tags were dropped from the doc comments; the test bodies are unchanged. (a) forbidden: acting on a request whose Authenticator does not authenticate it. (b) TestCoAListenerInvalidAuth fails if a zero-authenticator CoA-Request gets any response; TestCoAListenerUnknownSession asserts a correctly signed request is processed (CoA-NAK 503).",
       "requirement_sha": "5241f933500338b9",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "24bcf432ac577a22",
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "24bcf432ac577a22"
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerInvalidAuth": "24bcf432ac577a22",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerUnknownSession": "24bcf432ac577a22"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerInvalidAuth": "cbc56e58717de930",
-        "internal/component/l2tp/plugins/authradius/coa_test.go::TestCoAListenerUnknownSession": "0a97dc27651880c5"
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerInvalidAuth": "cbc56e58717de930",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerUnknownSession": "0a97dc27651880c5"
       },
       "verdict": "enforced"
     },

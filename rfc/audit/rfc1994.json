@@ -32,10 +32,10 @@
       "note": "Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.",
       "requirement_sha": "2cd22406261bb6de",
       "tests": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
       },
       "verdict": "enforced"
     },
@@ -43,10 +43,10 @@
       "note": "Single-polarity accepted. TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded hands handleFrame a well-formed CHAP Response in Req-Sent, Ack-Sent (Link Establishment) and Closing (Termination): red on any frame written, any auth or session event, an end, or a state change. The auth-phase unit TestCHAPIdentifierMismatchSilentDiscard no longer claims this row. The annotation still cites the auth-wait mismatch path (auth.go) as a second example; that clause is not this row's.",
       "requirement_sha": "010ca8cb4c6fb229",
       "tests": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "f77f40f6ed3b5dd0"
+        "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "f77f40f6ed3b5dd0"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "2a6f5ead9d5823ae"
+        "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "2a6f5ead9d5823ae"
       },
       "verdict": "enforced"
     },
@@ -54,14 +54,14 @@
       "note": "Judge ppp4 2026-09-30. rfc1994_local_verifier_test.go (package ppp_test) drives a real LNS session over a net.Pipe: the peer computes its Response Value from a secret, the Driver's EventAuthRequest is answered by l2tp.GetAuthHandler(), the handler l2tp-auth-local registers in init (verifyCHAPMD5 against bob/secret), and the CHAP Code ze writes is read off the wire. Equal Value -> Success (+), differing Value -> Failure (-), so the comparison, not an injected decision, chooses the reply. Targeted breaks (verifyCHAPMD5 always accept / always reject) each redden the matching unit (ppp4-tb-1994-accept.log, ppp4-tb-1994-reject.log); records are runCHAPAuthPhase reverts. The chap_test.go decision-injected units stay as supplementary.",
       "requirement_sha": "28b31f0ff71709af",
       "tests": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "c02fd0b8d066402c",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "c02fd0b8d066402c"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
       },
@@ -96,12 +96,12 @@
       "note": "Forbidden: a Challenge sent with the previous Challenge's Identifier. TestCHAPIdentifierMonotonic seeds the counter with the Identifier the first Challenge carried and asserts the next Challenge's differs (and is +1); TestCHAPIdentifierWraps asserts 0xFF moves to 0x00. A runCHAPAuthPhase that did not advance the counter turns both red. Single-polarity marker.",
       "requirement_sha": "3c81bf9ace3a184a",
       "tests": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPIdentifierMonotonic": "5b49028a86478309",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPIdentifierWraps": "5b49028a86478309"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierMonotonic": "5b49028a86478309",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierWraps": "5b49028a86478309"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPIdentifierMonotonic": "b1c9e3a6928ad2b6",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPIdentifierWraps": "11ce778f62c4378e"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierMonotonic": "b1c9e3a6928ad2b6",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierWraps": "11ce778f62c4378e"
       },
       "verdict": "enforced"
     },
@@ -120,10 +120,10 @@
       "note": "Forbidden: a Challenge Value reused across Challenges. TestCHAPChallengeRandom runs runCHAPAuthPhase twice and asserts the two wire Values differ, red on a constant Value. Single-polarity marker.",
       "requirement_sha": "3b7e57c0b3572e2d",
       "tests": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPChallengeRandom": "5b49028a86478309"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPChallengeRandom": "5b49028a86478309"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPChallengeRandom": "147ac9bcb89427e5"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPChallengeRandom": "147ac9bcb89427e5"
       },
       "verdict": "enforced"
     },
@@ -131,10 +131,10 @@
       "note": "Single-polarity accepted. TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp now repeats the Response that earned the Success (challenge Identifier from readCHAPChallengeAndRespond, same 0x33 Value) in the Network-Layer phase: red on EventSessionDown or any lifecycle event, and the session must still answer an LCP Echo-Request. Re-sending the prior reply Code is RFC1994-4.1-9, a recorded gap.",
       "requirement_sha": "8e45ac1b01ccce12",
       "tests": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "f77f40f6ed3b5dd0"
+        "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "f77f40f6ed3b5dd0"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "0f8832b0e34eb14d"
+        "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "0f8832b0e34eb14d"
       },
       "verdict": "enforced"
     },
@@ -142,18 +142,18 @@
       "note": "Judge ppp4 2026-09-30. TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier (+): MD5(Id, configured secret, Challenge) through the registered local verifier draws Code 3 on the wire. TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier (-): a differing Value never draws Code 3; red under the always-accept break (ppp4-tb-1994-accept.log). This closes the earlier two-half gap: one unit now carries the Response Value to the wire Code. Records: verifyCHAPMD5 revert.",
       "requirement_sha": "4b3cc1c54ce6dd2e",
       "tests": {
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Accept": "46afc25a5ef3f4d8",
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Reject": "46afc25a5ef3f4d8",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "46afc25a5ef3f4d8",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "46afc25a5ef3f4d8",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "c02fd0b8d066402c",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "c02fd0b8d066402c"
       },
       "units": {
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Accept": "f414aa88f0f00ffc",
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Reject": "373a3509d899eeda",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "f414aa88f0f00ffc",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "373a3509d899eeda",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
       },
@@ -163,16 +163,16 @@
       "note": "Judge ppp4 2026-09-30. TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier (+): a Value computed from another secret, judged by the registered l2tp-auth-local verifier, draws Code 4 on the wire. TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier (-): an equal Value never draws Code 4; red under the always-reject break (ppp4-tb-1994-reject.log). Records: verifyCHAPMD5 revert.",
       "requirement_sha": "9a5ab01cd2bf96f6",
       "tests": {
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Accept": "46afc25a5ef3f4d8",
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Reject": "46afc25a5ef3f4d8",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "46afc25a5ef3f4d8",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "46afc25a5ef3f4d8",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "c02fd0b8d066402c",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "c02fd0b8d066402c"
       },
       "units": {
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Accept": "f414aa88f0f00ffc",
-        "internal/component/l2tp/plugins/authlocal/auth_test.go::TestLocalAuthCHAPMD5Reject": "373a3509d899eeda",
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "f414aa88f0f00ffc",
+        "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "373a3509d899eeda",
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
         "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
       },
@@ -182,10 +182,10 @@
       "note": "Forbidden: a Success or Failure whose Identifier is not the Response's. TestCHAPResponseEmitsEvent sends a Response carrying the Challenge Identifier and asserts the Success frame's Identifier equals it, red on any other Identifier. Single-polarity marker: waitCHAPResponse admits only a Response whose Identifier matches the outstanding Challenge.",
       "requirement_sha": "fccabf53c9cec790",
       "tests": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
       },
       "units": {
-        "internal/component/l2tp/ppp/chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
+        "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
       },
       "verdict": "enforced"
     },

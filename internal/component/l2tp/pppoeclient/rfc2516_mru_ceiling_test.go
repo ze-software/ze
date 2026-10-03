@@ -1,7 +1,7 @@
 // Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- PPPoE client LCP negotiation
 // Related: session.go -- negotiateLCP and clientLCPPolicy, which bound both MRU
 //   directions by the session's configured MTU
-// Related: lcp_reply_test.go -- the frame log and serverFrame harness
+// Related: rfc1661_lcp_reply_test.go -- the frame log and serverFrame harness
 // RFC: rfc/short/rfc2516.md -- Section 7
 //
 // VALIDATES: RFC 2516 Section 7, "The Maximum-Receive-Unit (MRU) option MUST

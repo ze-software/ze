@@ -164,12 +164,12 @@
       "note": "Re-read after TestLCPPeerTerminateRestartTimer changed its end-of-grace assertion to the RFC 1661 Section 4.3 behaviour (no session end, Stopped). The 4.4-2 assertions are unchanged: Opened+RTR arms the real Restart timer at defaultRestartTimer, the session stays Stopping for the grace period and the timer event reaches Stopped; the Closed case arms no timer. Both polarities observed red under recorded breaks (armRestartTimer, applyTransition).",
       "requirement_sha": "c2f1eadb4e4f0e72",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "ece651a9cb319747",
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "ece651a9cb319747"
+        "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "ece651a9cb319747",
+        "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "ece651a9cb319747"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "f3cc909359687f65",
-        "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "f3cc909359687f65"
+        "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "f3cc909359687f65",
+        "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "f3cc909359687f65"
       },
       "verdict": "enforced"
     },
@@ -222,16 +222,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. (a) options change -> new Identifier: TestLCPConfigureRequestIdentifierLifecycle goes red when changed.Identifier == retry.Identifier; (b) valid reply -> new Identifier: red when afterAck.Identifier == changed.Identifier (server), and the client units go red when the post-Nak / post-Reject request keeps first.Identifier. Negative: timeout retransmission keeps the request, stale Ack does not advance.",
       "requirement_sha": "5bc700d2390ce180",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "d6c7b7fef05afe2a",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "d6c7b7fef05afe2a",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "d6c7b7fef05afe2a",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "d6c7b7fef05afe2a",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d"
       },
       "verdict": "enforced"
     },
@@ -269,16 +269,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: accepting a Configure-Ack whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Ack wrong Identifier\") goes red on any state or wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 completes LCP. Positives: the matching Ack reaches Ack-Rcvd / completes negotiation.",
       "requirement_sha": "e28f64e845acd868",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -286,16 +286,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: accepting an Ack whose options differ from the request. TestLCPRepliesMatchOutstandingRequest goes red when a changed value, a missing, extra or reordered option changes the FSM or wire; TestClientLCPReplyCorrelation goes red if a nil, modified or reordered Ack completes LCP. The exact Ack advances in both.",
       "requirement_sha": "d4341112f3ab2d9b",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -333,12 +333,12 @@
       "note": "Forbidden: a Nak that repeats an unacceptable single-instance value. TestRFC1661ConfigureNakSuggestsAcceptableValue goes red unless the Nak carries one MRU at 1500 for a requested 2000; TestRFC1661RepeatedOptionDrawsOneNakEntry goes red on more than one Magic entry; TestRFC1661NoNakForAcceptableValue goes red if an acceptable MRU is Nak'd or modified.",
       "requirement_sha": "285f46846bc6ccaf",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestRFC1661RepeatedOptionDrawsOneNakEntry": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestRFC1661RepeatedOptionDrawsOneNakEntry": "6e1e87cfaa4fb86b",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "9afaf002f0fd81ec"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestRFC1661RepeatedOptionDrawsOneNakEntry": "5b4b61755e0177de",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestRFC1661RepeatedOptionDrawsOneNakEntry": "5b4b61755e0177de",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "ed8353763fa234db",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "ffd0dd58968a4914"
       },
@@ -378,16 +378,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: acting on a Nak whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Nak wrong Identifier\") goes red on any state/wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 Nak emits a frame. Positives: matching Nak yields a new request carrying MRU 1400 (server) and a new request (client).",
       "requirement_sha": "fc804cfd2a5f7edc",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -462,16 +462,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: acting on a Reject whose Identifier differs. TestLCPRepliesMatchOutstandingRequest (\"Reject wrong Identifier\") and TestClientLCPReplyCorrelation go red on any state/wire change; positives: the matching Reject yields a new request without MRU (server) and a new-Identifier request without the rejected options (TestClientLCPRejectRemovesOnlyRejectedOptions).",
       "requirement_sha": "ef8cbb2be56072e4",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -479,16 +479,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Sentence (erratum 543): the options in a Configure-Reject MUST be a subset of those in the last transmitted Configure-Request; invalid packets are silently discarded. (a) Accepting a Reject naming an option never requested, or with a changed value: TestLCPRepliesMatchOutstandingRequest cases Reject unrequested option and Reject changed value go red (state or frame count changes); TestClientLCPReplyCorrelation covers modified. (b) Refusing a Reject equal to the whole request, the case the erratum restores: TestClientLCPRejectRemovesOnlyRejectedOptions subtest all goes red if the replacement request is not emitted; a proper-subset check in ppp would also redden TestLCPRejectedOptionsStayRemoved (all=true), which carries the 5.4-5 tag only.",
       "requirement_sha": "1db404df8454e0e0",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
       },
       "verdict": "enforced"
     },
@@ -496,16 +496,16 @@
       "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Sentence: when a new Configure-Request is sent after a valid Configure-Reject, it MUST NOT include any of the rejected options. (a) Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (only MRU, and all options) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) go red on bytes.Equal(next.Data, want) / len(next.Data) != 0. Negative: un-rejected options stay byte-identical.",
       "requirement_sha": "0f0699a656379b2d",
       "tests": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
-        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "4414e892e55bf66d"
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
+        "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "4414e892e55bf66d"
       },
       "verdict": "enforced"
     },
@@ -526,12 +526,12 @@
       "note": "Independent re-judge (R10). TestTerminateRequestIdentifierChanges: Terminate-Request, a Terminate-Ack with its Identifier accepted as a valid reply (state Closed asserted), a second Terminate-Request; red when the second reuses the Identifier, and only the two requests are written. Data is empty on both and asserted so: sendTerminateRequest always writes nil Data, so the Data-change clause has no reachable case. The negative tag reads the same Identifier assertion as the positive; the send-side MUST has no refusing input, so this is in substance a single-polarity positive (a marker on the row would say so). The recorded break panics sendTerminateRequest; the reply-clause break (dropping terminateID++) is caught by reading the assertion.",
       "requirement_sha": "db76e473ecf13877",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "034fb31a9e383e0e"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "fb53993a1897b2e5",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "fb53993a1897b2e5"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges": "fb53993a1897b2e5",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges#2": "fb53993a1897b2e5"
       },
       "verdict": "enforced"
     },
@@ -606,14 +606,14 @@
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "d6b4e2cbd1b095e9",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "9afaf002f0fd81ec",
-        "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "cb61e36ae227f21d"
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "cb61e36ae227f21d"
       },
       "units": {
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "540e32ea517f5dcc",
         "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "540e32ea517f5dcc",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "ec0d0ea97932d3f4",
-        "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "10758d2a75db1e0a"
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "10758d2a75db1e0a"
       },
       "verdict": "enforced"
     },
@@ -621,12 +621,12 @@
       "note": "TestEchoRequestIdentifierChanges isolates both triggers: a valid Echo-Reply (echoOutstanding cleared) between two Echo-Requests with the same Data (asserted equal), red on a reused Identifier; then magicNegotiated flips with no reply, Data asserted changed, red on a reused Identifier. sendEchoReply Identifier copy also pinned.",
       "requirement_sha": "382d025d3d2e4cdc",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "034fb31a9e383e0e"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "eaeb0a401e972f93",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "eaeb0a401e972f93"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges": "eaeb0a401e972f93",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges#2": "eaeb0a401e972f93"
       },
       "verdict": "enforced"
     },
@@ -634,12 +634,12 @@
       "note": "Sentence: until the Magic-Number option has been successfully negotiated, the Magic-Number MUST be transmitted as zero. (a) Sending the chosen Magic-Number before negotiation: TestMagicNumberZeroUntilNegotiated goes red on req != 0 || rep != 0 before any Ack, and again after a Configure-Ack that carries no option 5. Positive: after an Ack with option 5 both packets carry the value. Echo-Request and Echo-Reply both covered; the identical Discard-Request sentence is Section 5.9 and ze sends no Discard-Request.",
       "requirement_sha": "b8270377c0536f55",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated#2": "034fb31a9e383e0e"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "674a14893314861c",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated#2": "674a14893314861c"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated": "674a14893314861c",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated#2": "674a14893314861c"
       },
       "verdict": "enforced"
     },
@@ -718,12 +718,12 @@
       "note": "Forbidden: refusing a 1500-octet Information field. TestFullInformationFieldReceived goes red if ParseFrame refuses 1502 octets, returns fewer than 1500, if getFrameBuf (the readFrames buffer, MRU-independent) is shorter than the frame, or ParseLCPPacket refuses Length 1500.",
       "requirement_sha": "bf8de5e1aac53efe",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived#2": "034fb31a9e383e0e"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived": "7891357135ea0ffe",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived#2": "7891357135ea0ffe"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "7891357135ea0ffe",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived#2": "7891357135ea0ffe"
       },
       "verdict": "enforced"
     },
@@ -755,14 +755,14 @@
       "note": "Judge ppp4 2026-09-30. Re-read after the comment-only edit to TestRFC1661EchoReplyInOpened: it still asserts the Echo-Reply Magic-Number equals the local negotiated value (+); negatives and the Echo-Request half (TestEchoRequestCarriesNegotiatedMagic) unchanged. ze sends no Discard-Request (no producer).",
       "requirement_sha": "88b6b79801644a6c",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "034fb31a9e383e0e",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "9afaf002f0fd81ec",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "9afaf002f0fd81ec"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic": "c6346cdc5edd76e3",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "c6346cdc5edd76e3",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic": "c6346cdc5edd76e3",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "c6346cdc5edd76e3",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "42086c5180046b91",
         "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454"
       },
@@ -793,12 +793,12 @@
       "note": "Forbidden: requesting option 5 before a Magic-Number is chosen. TestMagicNumberChosenBeforeRequested goes red if BuildLocalConfigRequest emits option 5 with no chosen value, or if the chosen request carries a value other than the generated non-zero one.",
       "requirement_sha": "d629fd6bdd2c7475",
       "tests": {
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested": "9f240fbd5fc8e9de",
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested#2": "9f240fbd5fc8e9de"
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested": "9f240fbd5fc8e9de",
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested#2": "9f240fbd5fc8e9de"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested": "7e5122f58101f8df",
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested#2": "7e5122f58101f8df"
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested": "7e5122f58101f8df",
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested#2": "7e5122f58101f8df"
       },
       "verdict": "enforced"
     },
@@ -806,12 +806,12 @@
       "note": "Sentence: if the received Magic-Number equals the one last sent, a Configure-Nak MUST be sent specifying a different Magic-Number value. (a) Acking or Rejecting the equal value, or Naking with the same value: TestEqualMagicNumberIsNaked goes red on len(acks) != 0, len(rejects) != 0, offered == localMagic (and offered == 0). Negative: a different value is Acked unchanged.",
       "requirement_sha": "910cf82f88998ca1",
       "tests": {
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked": "9f240fbd5fc8e9de",
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked#2": "9f240fbd5fc8e9de"
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked": "9f240fbd5fc8e9de",
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked#2": "9f240fbd5fc8e9de"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked": "49c0203728e52dac",
-        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked#2": "49c0203728e52dac"
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked": "49c0203728e52dac",
+        "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked#2": "49c0203728e52dac"
       },
       "verdict": "enforced"
     },
@@ -819,20 +819,20 @@
       "note": "Judge ppp4 2026-09-30. The row's condition is now set up for real: rfc1661_magic_loop_test.go playMagicLoop sends ze's CONFREQ, loops it back, ze answers with a Configure-Nak naming a different Magic, and that Nak is looped back. TestRFC1661LoopedNakMagicChoosesNewMagic (+): new Magic differs from the held one, is non-zero and is carried in the next CONFREQ. TestRFC1661LoopedNakMagicRefusesRepeatedDraw (-, R1 b forced input): crypto/rand.Reader returns the old Magic first; the session must take the second draw; the targeted break dropping the `mag == s.magic` continue in redrawMagicOnNak turns it red (ppp4-tb-6.4-7.log), and adopting the looped Nak value also fails its exact equality. Old tags on TestMagicNumberRedrawnOnNak kept as supplementary: that unit's Nak names ze's request value, not the value of ze's last Nak, so it does not set up this row's condition and does not carry the verdict; its negative (Nak without a Magic option leaves Magic unchanged) proves no other RFC 1661 row, so there is no row to move it to. pppoeclient TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue sets up the loop and goes red if generateDifferentMagic is omitted (client role, no record).",
       "requirement_sha": "94435eed625a075f",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak#2": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "034fb31a9e383e0e",
         "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "7e6e02d9deb55d37",
         "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "7e6e02d9deb55d37",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "94dbfbde4e1ef3d7",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "94dbfbde4e1ef3d7"
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "94dbfbde4e1ef3d7",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "94dbfbde4e1ef3d7"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak": "a341047d5a329a15",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak#2": "a341047d5a329a15",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "a341047d5a329a15",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "a341047d5a329a15",
         "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "8c97fbfa5b8c2c18",
         "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "39a7cddb75d7c02c",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "c1ac3cd4bc2ee05b",
-        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "c1ac3cd4bc2ee05b"
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "c1ac3cd4bc2ee05b",
+        "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "c1ac3cd4bc2ee05b"
       },
       "verdict": "enforced"
     },
@@ -840,16 +840,16 @@
       "note": "Both cases now driven. Negotiated: TestReceivedMagicNumberMustBePeers (0, peer+1, own refused; peer's accepted). Not negotiated: TestReceivedMagicNumberZeroWhenPeerNegotiatedNone acks a Configure-Request without Magic over a stale peerMagic, then zero draws an Echo-Reply and clears echoOutstanding, while the stale value and ze's own draw no reply and leave the count. Red if handleLCPPacket kept the stale peerMagic.",
       "requirement_sha": "19ddf5d795a86265",
       "tests": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers#2": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "034fb31a9e383e0e",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "034fb31a9e383e0e"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers#2": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "034fb31a9e383e0e",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "034fb31a9e383e0e"
       },
       "units": {
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers": "e7430d1489d57887",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers#2": "e7430d1489d57887",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "df77c8110338e5ca",
-        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "df77c8110338e5ca"
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers": "e7430d1489d57887",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers#2": "e7430d1489d57887",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "df77c8110338e5ca",
+        "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "df77c8110338e5ca"
       },
       "verdict": "enforced"
     },

@@ -147,7 +147,7 @@
     {
       "rid": "RFC5072-4.1-9",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear",
+      "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear",
       "unit-sha": "e29e29aacbd7d946",
       "claim-sha": "21309395caa5c181",
       "route": "revert",

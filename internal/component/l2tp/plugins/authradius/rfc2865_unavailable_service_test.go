@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc2865.md -- RFC2865-1.1-2 and RFC2865-5.6-1 on the L2TP subscriber login
 // Related: handler.go -- doRADIUS, the Access-Accept authorization checks
-// Related: handler_test.go -- setupAuthWithAttrs, fakeResponder
+// Related: rfc2865_handler_test.go -- setupAuthWithAttrs, fakeResponder
 
 // VALIDATES: an Access-Accept is honored only when every service it authorizes
 // is one the LNS provides: Service-Type Framed-User over Framed-Protocol PPP.

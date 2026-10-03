@@ -15,7 +15,7 @@
     {
       "rid": "RFC2661-10-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState",
       "unit-sha": "d4071e5abcc0780f",
       "claim-sha": "3ffb8019e5ae77ff",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC2661-10-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession",
       "unit-sha": "c6cd87e729ed35c6",
       "claim-sha": "893723df8d835751",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC2661-10-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped",
       "unit-sha": "fbd6915bf0bc953d",
       "claim-sha": "dc141fcba5f5015c",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC2661-10-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently",
       "unit-sha": "740c058477066b8b",
       "claim-sha": "01126ccd4dd608aa",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC2661-10-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently",
       "unit-sha": "740c058477066b8b",
       "claim-sha": "8b47deb63f7799d4",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC2661-10-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes",
+      "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes",
       "unit-sha": "7f168c9721a9d587",
       "claim-sha": "852734c48ffeeaea",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC2661-10-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered",
+      "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered",
       "unit-sha": "2cb6a32a7d2eeb75",
       "claim-sha": "43173f41796bae09",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC2661-10-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_MaxUint16",
       "unit-sha": "249eaf7fb690007a",
       "claim-sha": "d81b915155068edd",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC2661-10-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_Zero",
       "unit-sha": "181c18223072e3fa",
       "claim-sha": "84acfe8d63f8594d",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC2661-10-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestParseSCCRP_Rejects",
       "unit-sha": "ebfc42396d5dd0f2",
       "claim-sha": "f30dee94c03814bd",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC2661-10-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake",
       "unit-sha": "8df82bd88e34018a",
       "claim-sha": "d61e54459791c0b3",
       "route": "revert",
@@ -182,7 +182,7 @@
     {
       "rid": "RFC2661-3.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HeaderFlagWord",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HeaderFlagWord",
       "unit-sha": "aec46f659a5e2725",
       "claim-sha": "404e147f8c98b62f",
       "route": "revert",
@@ -193,7 +193,7 @@
     {
       "rid": "RFC2661-3.1-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661ControlHeaderWithoutSequenceRefused",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661ControlHeaderWithoutSequenceRefused",
       "unit-sha": "9c560abfe4af2abe",
       "claim-sha": "c1040852cc5e0786",
       "route": "revert",
@@ -204,7 +204,7 @@
     {
       "rid": "RFC2661-3.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HeaderFlagWord",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HeaderFlagWord",
       "unit-sha": "aec46f659a5e2725",
       "claim-sha": "a13234d5592b76cb",
       "route": "revert",
@@ -215,7 +215,7 @@
     {
       "rid": "RFC2661-3.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HeaderFlagWord",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HeaderFlagWord",
       "unit-sha": "aec46f659a5e2725",
       "claim-sha": "50d1500abc35f347",
       "route": "revert",
@@ -226,7 +226,7 @@
     {
       "rid": "RFC2661-3.1-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HeaderFlagWord",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HeaderFlagWord",
       "unit-sha": "aec46f659a5e2725",
       "claim-sha": "7f7c28c7576b9b84",
       "route": "revert",
@@ -237,7 +237,7 @@
     {
       "rid": "RFC2661-3.1-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HeaderFlagWord",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HeaderFlagWord",
       "unit-sha": "aec46f659a5e2725",
       "claim-sha": "11cb9df67df3f9ef",
       "route": "revert",
@@ -248,7 +248,7 @@
     {
       "rid": "RFC2661-3.1-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661UnknownVersionRefused",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661UnknownVersionRefused",
       "unit-sha": "e626e2f1ca4cc554",
       "claim-sha": "f6a958713f71b257",
       "route": "revert",
@@ -259,7 +259,7 @@
     {
       "rid": "RFC2661-3.1-6",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661KnownVersionAccepted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661KnownVersionAccepted",
       "unit-sha": "ef8d3b28058aca61",
       "claim-sha": "2e8b8c2cc4ef66e8",
       "route": "revert",
@@ -270,7 +270,7 @@
     {
       "rid": "RFC2661-3.1-6",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661UnknownVersionRefused",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661UnknownVersionRefused",
       "unit-sha": "e626e2f1ca4cc554",
       "claim-sha": "c75f68accaa79eb7",
       "route": "revert",
@@ -281,7 +281,7 @@
     {
       "rid": "RFC2661-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/avp_test.go::TestAVPCatalogRoundTrip",
+      "unit": "internal/component/l2tp/rfc2661_avp_test.go::TestAVPCatalogRoundTrip",
       "unit-sha": "836b3e97a10938fb",
       "claim-sha": "33bacf2b9e49e2bd",
       "route": "revert",
@@ -292,7 +292,7 @@
     {
       "rid": "RFC2661-4.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/avp_test.go::TestAVPIteratorReservedBits",
+      "unit": "internal/component/l2tp/rfc2661_avp_test.go::TestAVPIteratorReservedBits",
       "unit-sha": "6418fa513ef7d04d",
       "claim-sha": "af37c44e92fc68f8",
       "route": "revert",
@@ -314,7 +314,7 @@
     {
       "rid": "RFC2661-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
       "unit-sha": "d46c6ec236c965d2",
       "claim-sha": "63af39935460c86c",
       "route": "revert",
@@ -337,7 +337,7 @@
     {
       "rid": "RFC2661-4.1-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel",
+      "unit": "internal/component/l2tp/rfc2661_reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel",
       "unit-sha": "83054f52037722ec",
       "claim-sha": "54832a623831f67f",
       "route": "revert",
@@ -359,7 +359,7 @@
     {
       "rid": "RFC2661-4.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody",
       "unit-sha": "66e2ddb7eded0336",
       "claim-sha": "d25c3995a9bb8d75",
       "route": "revert",
@@ -382,7 +382,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_IncomingLNS_ICRQ",
       "unit-sha": "8207484b86bc5edb",
       "claim-sha": "abf05ebd5086ddd2",
       "route": "revert",
@@ -393,7 +393,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP",
       "unit-sha": "b0c7dc27d7b75059",
       "claim-sha": "56274ee48e972bed",
       "route": "revert",
@@ -404,7 +404,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP",
       "unit-sha": "b0c7dc27d7b75059",
       "claim-sha": "0e917bcececf360e",
       "route": "revert",
@@ -415,7 +415,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession",
       "unit-sha": "0307a967f2bc2ed0",
       "claim-sha": "293d04da7451b47c",
       "route": "revert",
@@ -426,7 +426,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession",
       "unit-sha": "06e2ae3d348384b9",
       "claim-sha": "5a227d34d4902c91",
       "route": "revert",
@@ -437,7 +437,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession",
       "unit-sha": "63f8321c44152676",
       "claim-sha": "9b916f5c536000c6",
       "route": "revert",
@@ -448,7 +448,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession",
       "unit-sha": "9c9b714320a1b639",
       "claim-sha": "e7274213e29a9922",
       "route": "revert",
@@ -459,7 +459,7 @@
     {
       "rid": "RFC2661-4.1-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession",
       "unit-sha": "9c9b714320a1b639",
       "claim-sha": "f5d8b3031602df3d",
       "route": "revert",
@@ -470,7 +470,7 @@
     {
       "rid": "RFC2661-4.1-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake",
       "unit-sha": "8df82bd88e34018a",
       "claim-sha": "1b8e1319c9f5f20d",
       "route": "revert",
@@ -481,7 +481,7 @@
     {
       "rid": "RFC2661-4.1-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN",
       "unit-sha": "da7182cb9a7f2bbf",
       "claim-sha": "cc6523fa7e4de928",
       "route": "revert",
@@ -492,7 +492,7 @@
     {
       "rid": "RFC2661-4.1-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
       "unit-sha": "d46c6ec236c965d2",
       "claim-sha": "e75f842d2401027e",
       "route": "revert",
@@ -503,7 +503,7 @@
     {
       "rid": "RFC2661-4.1-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
+      "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
       "unit-sha": "d46c6ec236c965d2",
       "claim-sha": "ae0f399c4942c249",
       "route": "revert",
@@ -514,7 +514,7 @@
     {
       "rid": "RFC2661-4.1-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661UnrecognizedOptionalAVPIgnored",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661UnrecognizedOptionalAVPIgnored",
       "unit-sha": "efd75ec6c44c07b2",
       "claim-sha": "d245762674797f08",
       "route": "revert",
@@ -525,7 +525,7 @@
     {
       "rid": "RFC2661-4.1-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661UnrecognizedOptionalAVPIgnored",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661UnrecognizedOptionalAVPIgnored",
       "unit-sha": "efd75ec6c44c07b2",
       "claim-sha": "004781793a166a13",
       "route": "revert",
@@ -536,7 +536,7 @@
     {
       "rid": "RFC2661-4.3-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags",
       "unit-sha": "3edd0f9577ed6309",
       "claim-sha": "dc25ff7cb78825a3",
       "route": "revert",
@@ -547,7 +547,7 @@
     {
       "rid": "RFC2661-4.4-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags",
       "unit-sha": "3edd0f9577ed6309",
       "claim-sha": "837dc340db84256d",
       "route": "revert",
@@ -569,7 +569,7 @@
     {
       "rid": "RFC2661-4.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags",
       "unit-sha": "3edd0f9577ed6309",
       "claim-sha": "c8e1cb3ee41d08dd",
       "route": "revert",
@@ -580,7 +580,7 @@
     {
       "rid": "RFC2661-4.4-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags",
       "unit-sha": "3edd0f9577ed6309",
       "claim-sha": "e99efca06d93b214",
       "route": "revert",
@@ -591,7 +591,7 @@
     {
       "rid": "RFC2661-4.4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_type_rfc2661_test.go::TestUnknownMessageTypeClearsTunnelWhenMandatory",
+      "unit": "internal/component/l2tp/rfc2661_message_type_test.go::TestUnknownMessageTypeClearsTunnelWhenMandatory",
       "unit-sha": "86349a7822886188",
       "claim-sha": "96923d9921fec948",
       "route": "revert",
@@ -602,7 +602,7 @@
     {
       "rid": "RFC2661-4.4.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_type_rfc2661_test.go::TestUnknownMessageTypeClearsTunnelWhenMandatory",
+      "unit": "internal/component/l2tp/rfc2661_message_type_test.go::TestUnknownMessageTypeClearsTunnelWhenMandatory",
       "unit-sha": "86349a7822886188",
       "claim-sha": "303bbbae47359981",
       "route": "revert",
@@ -613,7 +613,7 @@
     {
       "rid": "RFC2661-4.4.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags",
       "unit-sha": "3edd0f9577ed6309",
       "claim-sha": "52d38d655eb2d2f5",
       "route": "revert",
@@ -624,7 +624,7 @@
     {
       "rid": "RFC2661-4.4.2-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661ResultCodeMessageUTF8",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661ResultCodeMessageUTF8",
       "unit-sha": "0707e8296633ea87",
       "claim-sha": "b2032585a58f3e10",
       "route": "revert",
@@ -635,7 +635,7 @@
     {
       "rid": "RFC2661-4.4.3-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "fe616d50280efb8a",
       "route": "revert",
@@ -646,7 +646,7 @@
     {
       "rid": "RFC2661-4.4.3-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "448caf3d4b19621d",
       "route": "revert",
@@ -657,7 +657,7 @@
     {
       "rid": "RFC2661-4.4.3-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661BearerCapabilitiesEmitted",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661BearerCapabilitiesEmitted",
       "unit-sha": "414973b772554737",
       "claim-sha": "0a8a1b7d3594517f",
       "route": "revert",
@@ -668,7 +668,7 @@
     {
       "rid": "RFC2661-4.4.3-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerLoserDiscardsItsTunnel",
+      "unit": "internal/component/l2tp/rfc2661_tiebreaker_test.go::TestTieBreakerLoserDiscardsItsTunnel",
       "unit-sha": "0bfbdd3ecb040351",
       "claim-sha": "b53407a43cbb31fb",
       "route": "revert",
@@ -679,7 +679,7 @@
     {
       "rid": "RFC2661-4.4.3-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerWinnerKeepsItsTunnel",
+      "unit": "internal/component/l2tp/rfc2661_tiebreaker_test.go::TestTieBreakerWinnerKeepsItsTunnel",
       "unit-sha": "41042899715e5ff7",
       "claim-sha": "7c3abf03236b951f",
       "route": "revert",
@@ -690,7 +690,7 @@
     {
       "rid": "RFC2661-4.4.3-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerEqualDiscardsBoth",
+      "unit": "internal/component/l2tp/rfc2661_tiebreaker_test.go::TestTieBreakerEqualDiscardsBoth",
       "unit-sha": "b55ee22b9e748fc0",
       "claim-sha": "cadf35ee1a7002d9",
       "route": "revert",
@@ -701,7 +701,7 @@
     {
       "rid": "RFC2661-4.4.3-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerUnequalKeepsOneTunnel",
+      "unit": "internal/component/l2tp/rfc2661_tiebreaker_test.go::TestTieBreakerUnequalKeepsOneTunnel",
       "unit-sha": "7874aab284389838",
       "claim-sha": "d1139f21979387a4",
       "route": "revert",
@@ -712,7 +712,7 @@
     {
       "rid": "RFC2661-4.4.3-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HostNameAtLeastOneOctet",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HostNameAtLeastOneOctet",
       "unit-sha": "7b6010e86d4b724f",
       "claim-sha": "3af089d0a646f566",
       "route": "revert",
@@ -723,7 +723,7 @@
     {
       "rid": "RFC2661-4.4.3-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HostNameAtLeastOneOctet",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HostNameAtLeastOneOctet",
       "unit-sha": "7b6010e86d4b724f",
       "claim-sha": "945520534c9900df",
       "route": "revert",
@@ -734,7 +734,7 @@
     {
       "rid": "RFC2661-4.4.3-6",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment",
       "unit-sha": "d08e9fb301e6b335",
       "claim-sha": "beb222c199803e16",
       "route": "revert",
@@ -745,7 +745,7 @@
     {
       "rid": "RFC2661-4.4.3-6",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderTunnelIDNeverWrong",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderTunnelIDNeverWrong",
       "unit-sha": "309140f28a8a90c7",
       "claim-sha": "337757bfb826ca43",
       "route": "revert",
@@ -756,7 +756,7 @@
     {
       "rid": "RFC2661-4.4.3-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment",
       "unit-sha": "d08e9fb301e6b335",
       "claim-sha": "4ab550bfcd5dca24",
       "route": "revert",
@@ -767,7 +767,7 @@
     {
       "rid": "RFC2661-4.4.3-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderTunnelIDNeverWrong",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderTunnelIDNeverWrong",
       "unit-sha": "309140f28a8a90c7",
       "claim-sha": "d1280d404d77e807",
       "route": "revert",
@@ -778,7 +778,7 @@
     {
       "rid": "RFC2661-4.4.3-8",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661StopCCNRepeatsFirstAssignedTunnelID",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661StopCCNRepeatsFirstAssignedTunnelID",
       "unit-sha": "d460eaad0510b1d0",
       "claim-sha": "80566e1feca16ccf",
       "route": "revert",
@@ -789,7 +789,7 @@
     {
       "rid": "RFC2661-4.4.3-8",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661StopCCNRepeatsFirstAssignedTunnelID",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661StopCCNRepeatsFirstAssignedTunnelID",
       "unit-sha": "d460eaad0510b1d0",
       "claim-sha": "842e5048fed35c22",
       "route": "revert",
@@ -800,7 +800,7 @@
     {
       "rid": "RFC2661-4.4.3-9",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
       "unit-sha": "0a22b21389627e50",
       "claim-sha": "255c1c4c376bbe7e",
       "route": "revert",
@@ -811,7 +811,7 @@
     {
       "rid": "RFC2661-4.4.3-9",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661InitiatorAnswersChallenge",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661InitiatorAnswersChallenge",
       "unit-sha": "2307ba58488d2588",
       "claim-sha": "4e345b222abd5ef9",
       "route": "revert",
@@ -822,7 +822,7 @@
     {
       "rid": "RFC2661-4.4.4-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderSessionIDBeforeAndAfterAssignment",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderSessionIDBeforeAndAfterAssignment",
       "unit-sha": "2d042afa34e1d59a",
       "claim-sha": "e21e19afd06a8404",
       "route": "revert",
@@ -833,7 +833,7 @@
     {
       "rid": "RFC2661-4.4.4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderSessionIDNeverWrong",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderSessionIDNeverWrong",
       "unit-sha": "bfe99f229ed35fea",
       "claim-sha": "f36f883903f61bdd",
       "route": "revert",
@@ -844,7 +844,7 @@
     {
       "rid": "RFC2661-4.4.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderSessionIDBeforeAndAfterAssignment",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderSessionIDBeforeAndAfterAssignment",
       "unit-sha": "2d042afa34e1d59a",
       "claim-sha": "b3297caedbb72bcd",
       "route": "revert",
@@ -855,7 +855,7 @@
     {
       "rid": "RFC2661-4.4.4-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderSessionIDNeverWrong",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderSessionIDNeverWrong",
       "unit-sha": "bfe99f229ed35fea",
       "claim-sha": "4049a41a40e289bb",
       "route": "revert",
@@ -866,7 +866,7 @@
     {
       "rid": "RFC2661-4.4.4-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "70127a7299cdfca1",
       "route": "revert",
@@ -877,7 +877,7 @@
     {
       "rid": "RFC2661-4.4.4-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "a8a1d151e91f8366",
       "route": "revert",
@@ -888,7 +888,7 @@
     {
       "rid": "RFC2661-4.4.4-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "223f6ebe2475c7cf",
       "route": "revert",
@@ -899,7 +899,7 @@
     {
       "rid": "RFC2661-4.4.4-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "b5526121101af0ae",
       "route": "revert",
@@ -910,7 +910,7 @@
     {
       "rid": "RFC2661-4.4.4-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestSequencingRequiredReachesKernelSession",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestSequencingRequiredReachesKernelSession",
       "unit-sha": "68a1cdad5ce18544",
       "claim-sha": "d072a6f2d02aa716",
       "route": "revert",
@@ -921,7 +921,7 @@
     {
       "rid": "RFC2661-4.4.4-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestSequencingRequiredReachesKernelSession",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestSequencingRequiredReachesKernelSession",
       "unit-sha": "68a1cdad5ce18544",
       "claim-sha": "29b3c60241ec71fd",
       "route": "revert",
@@ -932,7 +932,7 @@
     {
       "rid": "RFC2661-4.4.6-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661CallErrorsReservedZero",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661CallErrorsReservedZero",
       "unit-sha": "685f31b08b05fb31",
       "claim-sha": "9f83aac458195539",
       "route": "revert",
@@ -943,7 +943,7 @@
     {
       "rid": "RFC2661-5.0-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallNeedsEstablishedTunnel",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallNeedsEstablishedTunnel",
       "unit-sha": "5da0dc7a4d32a422",
       "claim-sha": "e561f9d81f340dfe",
       "route": "revert",
@@ -954,7 +954,7 @@
     {
       "rid": "RFC2661-5.0-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallNeedsEstablishedTunnel",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallNeedsEstablishedTunnel",
       "unit-sha": "5da0dc7a4d32a422",
       "claim-sha": "d1d32cc58b897d7c",
       "route": "revert",
@@ -965,7 +965,7 @@
     {
       "rid": "RFC2661-5.0-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestKernelSessionRequestedOnlyOnceEstablished",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestKernelSessionRequestedOnlyOnceEstablished",
       "unit-sha": "3e78ecb9911008ac",
       "claim-sha": "ae096571704bf48f",
       "route": "revert",
@@ -976,7 +976,7 @@
     {
       "rid": "RFC2661-5.0-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestKernelSessionRequestedOnlyOnceEstablished",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestKernelSessionRequestedOnlyOnceEstablished",
       "unit-sha": "3e78ecb9911008ac",
       "claim-sha": "d902136b7100de3a",
       "route": "revert",
@@ -987,7 +987,7 @@
     {
       "rid": "RFC2661-5.1.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
       "unit-sha": "0a22b21389627e50",
       "claim-sha": "1672c876a0bea1ea",
       "route": "revert",
@@ -998,7 +998,7 @@
     {
       "rid": "RFC2661-5.1.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661InitiatorAnswersChallenge",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661InitiatorAnswersChallenge",
       "unit-sha": "2307ba58488d2588",
       "claim-sha": "79967cc6af6b9644",
       "route": "revert",
@@ -1009,7 +1009,7 @@
     {
       "rid": "RFC2661-5.1.1-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
       "unit-sha": "0a22b21389627e50",
       "claim-sha": "ed305d9821af4241",
       "route": "revert",
@@ -1020,7 +1020,7 @@
     {
       "rid": "RFC2661-5.1.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AnsweringSideVerifiesChallengeResponse",
       "unit-sha": "0a22b21389627e50",
       "claim-sha": "1901f7b41880444a",
       "route": "revert",
@@ -1031,7 +1031,7 @@
     {
       "rid": "RFC2661-5.1.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661InitiatorAnswersChallenge",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661InitiatorAnswersChallenge",
       "unit-sha": "2307ba58488d2588",
       "claim-sha": "24f01db77a8b3f5b",
       "route": "revert",
@@ -1042,7 +1042,7 @@
     {
       "rid": "RFC2661-5.1.1-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661InitiatorWithoutSecretRefusesChallenge",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661InitiatorWithoutSecretRefusesChallenge",
       "unit-sha": "45770df02a19cd6f",
       "claim-sha": "408c38e952e15ba4",
       "route": "revert",
@@ -1053,7 +1053,7 @@
     {
       "rid": "RFC2661-5.3-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderSessionIDBeforeAndAfterAssignment",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderSessionIDBeforeAndAfterAssignment",
       "unit-sha": "2d042afa34e1d59a",
       "claim-sha": "b1c84deb1bbd6aeb",
       "route": "revert",
@@ -1064,7 +1064,7 @@
     {
       "rid": "RFC2661-5.3-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderSessionIDNeverWrong",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderSessionIDNeverWrong",
       "unit-sha": "bfe99f229ed35fea",
       "claim-sha": "a5894dcc57f868bb",
       "route": "revert",
@@ -1075,7 +1075,7 @@
     {
       "rid": "RFC2661-5.3-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment",
       "unit-sha": "d08e9fb301e6b335",
       "claim-sha": "a8db64fc1d8d2799",
       "route": "revert",
@@ -1086,7 +1086,7 @@
     {
       "rid": "RFC2661-5.3-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661HeaderTunnelIDNeverWrong",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661HeaderTunnelIDNeverWrong",
       "unit-sha": "309140f28a8a90c7",
       "claim-sha": "ef998a10e7594ddc",
       "route": "revert",
@@ -1097,7 +1097,7 @@
     {
       "rid": "RFC2661-5.4-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestSequencingRequiredReachesKernelSession",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestSequencingRequiredReachesKernelSession",
       "unit-sha": "68a1cdad5ce18544",
       "claim-sha": "38d0585707f08b4c",
       "route": "revert",
@@ -1108,7 +1108,7 @@
     {
       "rid": "RFC2661-5.4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestSequencingRequiredReachesKernelSession",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestSequencingRequiredReachesKernelSession",
       "unit-sha": "68a1cdad5ce18544",
       "claim-sha": "43885e3f66f9b55e",
       "route": "revert",
@@ -1119,7 +1119,7 @@
     {
       "rid": "RFC2661-5.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
       "unit-sha": "f8f41b564d14855f",
       "claim-sha": "b7760681afa404fc",
       "route": "revert",
@@ -1130,7 +1130,7 @@
     {
       "rid": "RFC2661-5.4-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
       "unit-sha": "f8f41b564d14855f",
       "claim-sha": "4ecad3dc1a7f060b",
       "route": "revert",
@@ -1141,7 +1141,7 @@
     {
       "rid": "RFC2661-5.4-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
       "unit-sha": "f8f41b564d14855f",
       "claim-sha": "4b2d7e7f06972f7d",
       "route": "revert",
@@ -1152,7 +1152,7 @@
     {
       "rid": "RFC2661-5.4-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestLACKernelSessionFollowsPeerSequencing",
       "unit-sha": "f8f41b564d14855f",
       "claim-sha": "21f2fde60759a9cb",
       "route": "revert",
@@ -1163,7 +1163,7 @@
     {
       "rid": "RFC2661-5.7-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661StopCCNAcknowledged",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661StopCCNAcknowledged",
       "unit-sha": "d175d5033f8862c3",
       "claim-sha": "26455f73cf170af4",
       "route": "revert",
@@ -1174,7 +1174,7 @@
     {
       "rid": "RFC2661-5.7-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661StopCCNAcknowledged",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661StopCCNAcknowledged",
       "unit-sha": "d175d5033f8862c3",
       "claim-sha": "f70b4198a1e814e4",
       "route": "revert",
@@ -1185,7 +1185,7 @@
     {
       "rid": "RFC2661-5.8-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reliable_test.go::TestTickBackoffSchedule",
+      "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestTickBackoffSchedule",
       "unit-sha": "dd07c03465c2526b",
       "claim-sha": "04d33ddd04974b0e",
       "route": "revert",
@@ -1207,7 +1207,7 @@
     {
       "rid": "RFC2661-5.8-10",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661AckNotWithheldUnderFlowControl",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AckNotWithheldUnderFlowControl",
       "unit-sha": "947c6c88e7a98823",
       "claim-sha": "3920513830448c0e",
       "route": "revert",
@@ -1218,7 +1218,7 @@
     {
       "rid": "RFC2661-5.8-10",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661AckNotWithheldUnderFlowControl",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AckNotWithheldUnderFlowControl",
       "unit-sha": "947c6c88e7a98823",
       "claim-sha": "4d2a907105ca675f",
       "route": "revert",
@@ -1229,7 +1229,7 @@
     {
       "rid": "RFC2661-5.8-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts",
+      "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts",
       "unit-sha": "4a4fb1370126927f",
       "claim-sha": "267f1e7a379a84c8",
       "route": "revert",
@@ -1240,7 +1240,7 @@
     {
       "rid": "RFC2661-5.8-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts",
+      "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts",
       "unit-sha": "4a4fb1370126927f",
       "claim-sha": "95c2a19663c9317c",
       "route": "revert",
@@ -1273,7 +1273,7 @@
     {
       "rid": "RFC2661-5.8-6",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reliable_window_test.go::TestWindowAvailable",
+      "unit": "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowAvailable",
       "unit-sha": "a5ddb0931a41a8ab",
       "claim-sha": "3d95ea8b31c15e98",
       "route": "revert",
@@ -1284,7 +1284,7 @@
     {
       "rid": "RFC2661-5.8-6",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reliable_window_test.go::TestWindowPeerRWSZero",
+      "unit": "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowPeerRWSZero",
       "unit-sha": "7b95301adcd1943f",
       "claim-sha": "50704bddb74578bb",
       "route": "revert",
@@ -1317,7 +1317,7 @@
     {
       "rid": "RFC2661-5.8-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention",
+      "unit": "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention",
       "unit-sha": "cb9fd73ad6d3508c",
       "claim-sha": "8f43f29a4d3e078f",
       "route": "revert",
@@ -1328,7 +1328,7 @@
     {
       "rid": "RFC2661-5.8-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention",
+      "unit": "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention",
       "unit-sha": "cb9fd73ad6d3508c",
       "claim-sha": "57921d16a093b7cd",
       "route": "revert",
@@ -1339,7 +1339,7 @@
     {
       "rid": "RFC2661-5.8-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reliable_test.go::TestExpired",
+      "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired",
       "unit-sha": "8632d2c358b4ccfd",
       "claim-sha": "4a3c8bd520215ce9",
       "route": "revert",
@@ -1350,7 +1350,7 @@
     {
       "rid": "RFC2661-5.8-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reliable_test.go::TestExpired",
+      "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired",
       "unit-sha": "8632d2c358b4ccfd",
       "claim-sha": "b53c414ed9799bf6",
       "route": "revert",
@@ -1383,7 +1383,7 @@
     {
       "rid": "RFC2661-6.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered",
+      "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered",
       "unit-sha": "4457360d2ab908dc",
       "claim-sha": "721ed73309b98d91",
       "route": "revert",
@@ -1394,7 +1394,7 @@
     {
       "rid": "RFC2661-6.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes",
+      "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes",
       "unit-sha": "7f50ae036564fffe",
       "claim-sha": "15945f76611dc204",
       "route": "revert",
@@ -1405,7 +1405,7 @@
     {
       "rid": "RFC2661-6.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered",
+      "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered",
       "unit-sha": "f7873d5de90d0016",
       "claim-sha": "4999012f38c1a83d",
       "route": "revert",
@@ -1451,7 +1451,7 @@
     {
       "rid": "RFC2661-6.10-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "8093756023c79462",
       "route": "revert",
@@ -1462,7 +1462,7 @@
     {
       "rid": "RFC2661-6.10-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "34ac0ffaf909c0af",
       "route": "revert",
@@ -1473,7 +1473,7 @@
     {
       "rid": "RFC2661-6.11-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "91cb77721b69c9d1",
       "route": "revert",
@@ -1484,7 +1484,7 @@
     {
       "rid": "RFC2661-6.11-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "0209d8dbef3e6f58",
       "route": "revert",
@@ -1495,7 +1495,7 @@
     {
       "rid": "RFC2661-6.12-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "88b4ddfcd1b1515a",
       "route": "revert",
@@ -1506,7 +1506,7 @@
     {
       "rid": "RFC2661-6.12-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "7f5293161240c473",
       "route": "revert",
@@ -1517,7 +1517,7 @@
     {
       "rid": "RFC2661-6.13-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "6bd07128dd69890f",
       "route": "revert",
@@ -1528,7 +1528,7 @@
     {
       "rid": "RFC2661-6.13-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "ffee1abd1c8b8b7c",
       "route": "revert",
@@ -1539,7 +1539,7 @@
     {
       "rid": "RFC2661-6.14-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661SLIUpdatesACCM",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661SLIUpdatesACCM",
       "unit-sha": "ebcb310754aab091",
       "claim-sha": "5743ba309cb116dc",
       "route": "revert",
@@ -1550,7 +1550,7 @@
     {
       "rid": "RFC2661-6.14-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661SLIUpdatesACCM",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661SLIUpdatesACCM",
       "unit-sha": "ebcb310754aab091",
       "claim-sha": "c35895b603b36ca8",
       "route": "revert",
@@ -1561,7 +1561,7 @@
     {
       "rid": "RFC2661-6.14-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "b238538b3136bb31",
       "route": "revert",
@@ -1572,7 +1572,7 @@
     {
       "rid": "RFC2661-6.14-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "f4b03e952c2e3670",
       "route": "revert",
@@ -1605,7 +1605,7 @@
     {
       "rid": "RFC2661-6.2-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown",
       "unit-sha": "9c2c81e602cb7721",
       "claim-sha": "09b7b732bb76e8a7",
       "route": "revert",
@@ -1616,7 +1616,7 @@
     {
       "rid": "RFC2661-6.2-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes",
       "unit-sha": "5bf241473e3a10c9",
       "claim-sha": "9f06a3026ff8f3f6",
       "route": "revert",
@@ -1627,7 +1627,7 @@
     {
       "rid": "RFC2661-6.3-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "fdc2f88d87ed4e9b",
       "route": "revert",
@@ -1638,7 +1638,7 @@
     {
       "rid": "RFC2661-6.3-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "b24b6d79a4c2e300",
       "route": "revert",
@@ -1649,7 +1649,7 @@
     {
       "rid": "RFC2661-6.4-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "f2e4deacc0324c95",
       "route": "revert",
@@ -1660,7 +1660,7 @@
     {
       "rid": "RFC2661-6.4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "8e9236a7dec882de",
       "route": "revert",
@@ -1671,7 +1671,7 @@
     {
       "rid": "RFC2661-6.5-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/reactor_test.go::TestDeadPeerZLBAckKeepsTunnelUp",
+      "unit": "internal/component/l2tp/rfc2661_reactor_test.go::TestDeadPeerZLBAckKeepsTunnelUp",
       "unit-sha": "e14b8fabab95616a",
       "claim-sha": "8d8bbd51d7b31e29",
       "route": "revert",
@@ -1682,7 +1682,7 @@
     {
       "rid": "RFC2661-6.5-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HelloShape",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HelloShape",
       "unit-sha": "f33cddd348948804",
       "claim-sha": "47da7b135a1827d5",
       "route": "revert",
@@ -1693,7 +1693,7 @@
     {
       "rid": "RFC2661-6.5-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HelloShape",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HelloShape",
       "unit-sha": "f33cddd348948804",
       "claim-sha": "191c99b9410f074d",
       "route": "revert",
@@ -1704,7 +1704,7 @@
     {
       "rid": "RFC2661-6.6-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "c9241b5d28ddd56f",
       "route": "revert",
@@ -1715,7 +1715,7 @@
     {
       "rid": "RFC2661-6.6-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "7070bd1a48533e9c",
       "route": "revert",
@@ -1726,7 +1726,7 @@
     {
       "rid": "RFC2661-6.7-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "4a91ff40522b4aeb",
       "route": "revert",
@@ -1737,7 +1737,7 @@
     {
       "rid": "RFC2661-6.7-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "be4c7246c0501830",
       "route": "revert",
@@ -1748,7 +1748,7 @@
     {
       "rid": "RFC2661-6.8-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "7e708e5286561957",
       "route": "revert",
@@ -1759,7 +1759,7 @@
     {
       "rid": "RFC2661-6.8-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "6b146e4ed56efe4b",
       "route": "revert",
@@ -1770,7 +1770,7 @@
     {
       "rid": "RFC2661-6.9-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "e1c277efbdca4edf",
       "route": "revert",
@@ -1781,7 +1781,7 @@
     {
       "rid": "RFC2661-6.9-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CallCapabilitiesChecked",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
       "unit-sha": "66b45d8712f9fa4b",
       "claim-sha": "6b3b7865856effd9",
       "route": "revert",
@@ -1792,7 +1792,7 @@
     {
       "rid": "RFC2661-6.9-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
       "unit-sha": "ba70a70b5cdd83c1",
       "claim-sha": "351752bf8ec3e6d0",
       "route": "revert",
@@ -1803,7 +1803,7 @@
     {
       "rid": "RFC2661-6.9-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsParsed",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
       "unit-sha": "0f355eb28287245a",
       "claim-sha": "71ac79736b2b7d33",
       "route": "revert",
@@ -1836,7 +1836,7 @@
     {
       "rid": "RFC2661-7.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection",
+      "unit": "internal/component/l2tp/rfc2661_scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection",
       "unit-sha": "232f1cb7c6f297fc",
       "claim-sha": "e07a91abe34f454b",
       "route": "revert",
@@ -1847,7 +1847,7 @@
     {
       "rid": "RFC2661-7.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection",
+      "unit": "internal/component/l2tp/rfc2661_scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection",
       "unit-sha": "232f1cb7c6f297fc",
       "claim-sha": "4e4a0443b26fc35e",
       "route": "revert",
@@ -1858,7 +1858,7 @@
     {
       "rid": "RFC2661-7.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection",
+      "unit": "internal/component/l2tp/rfc2661_sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection",
       "unit-sha": "e9b369df1c07dea7",
       "claim-sha": "6197e661f821a651",
       "route": "revert",
@@ -1869,7 +1869,7 @@
     {
       "rid": "RFC2661-7.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection",
+      "unit": "internal/component/l2tp/rfc2661_sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection",
       "unit-sha": "d779ec9ee070f7e0",
       "claim-sha": "4bafd9e0e0eff404",
       "route": "revert",
@@ -1880,7 +1880,7 @@
     {
       "rid": "RFC2661-7.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/sccrq_sccrp_wrong_order_test.go::TestRFC2661StraySCCRPInIdleSendsStopCCN",
+      "unit": "internal/component/l2tp/rfc2661_sccrq_sccrp_wrong_order_test.go::TestRFC2661StraySCCRPInIdleSendsStopCCN",
       "unit-sha": "48e2fbfb54cc13b8",
       "claim-sha": "a1acf76c9c1428c8",
       "route": "revert",
@@ -1913,7 +1913,7 @@
     {
       "rid": "RFC2661-7.2.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661LocalTerminationSendsStopCCN",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661LocalTerminationSendsStopCCN",
       "unit-sha": "2630da8b433a1f6f",
       "claim-sha": "a4048ea5f7440009",
       "route": "revert",
@@ -1924,7 +1924,7 @@
     {
       "rid": "RFC2661-7.2.1-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661LocalTerminationSendsStopCCN",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661LocalTerminationSendsStopCCN",
       "unit-sha": "2630da8b433a1f6f",
       "claim-sha": "5767997f8b6f5c84",
       "route": "revert",
@@ -1935,7 +1935,7 @@
     {
       "rid": "RFC2661-7.2.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661OriginatorCleansUpOnStopCCN",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661OriginatorCleansUpOnStopCCN",
       "unit-sha": "7d8a2777a5a0778c",
       "claim-sha": "0e814bc8a3c5b110",
       "route": "revert",
@@ -1946,7 +1946,7 @@
     {
       "rid": "RFC2661-7.2.1-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661OriginatorCleansUpOnStopCCN",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661OriginatorCleansUpOnStopCCN",
       "unit-sha": "7d8a2777a5a0778c",
       "claim-sha": "aee798d196525e12",
       "route": "revert",
@@ -1957,7 +1957,7 @@
     {
       "rid": "RFC2661-7.5-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661OCRQAnsweredWithOCRP",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661OCRQAnsweredWithOCRP",
       "unit-sha": "d82a90802dc01aba",
       "claim-sha": "cc4fa68fe4b125c9",
       "route": "revert",
@@ -1968,7 +1968,7 @@
     {
       "rid": "RFC2661-7.5-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661OCRQAnsweredWithOCRP",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661OCRQAnsweredWithOCRP",
       "unit-sha": "d82a90802dc01aba",
       "claim-sha": "d3086175e8eeef62",
       "route": "revert",
@@ -1979,7 +1979,7 @@
     {
       "rid": "RFC2661-7.5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently",
       "unit-sha": "740c058477066b8b",
       "claim-sha": "e650aa704d1ac21d",
       "route": "revert",
@@ -1990,7 +1990,7 @@
     {
       "rid": "RFC2661-7.5.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661CDNCleansUpSilently",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently",
       "unit-sha": "740c058477066b8b",
       "claim-sha": "203e3a1ffbbad865",
       "route": "revert",
@@ -2001,7 +2001,7 @@
     {
       "rid": "RFC2661-7.5.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661LACSendsCDNOnDisconnect",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661LACSendsCDNOnDisconnect",
       "unit-sha": "2041a2bd46da5415",
       "claim-sha": "6bb93746cfccddb8",
       "route": "revert",
@@ -2012,7 +2012,7 @@
     {
       "rid": "RFC2661-8.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661LocalTerminationSendsStopCCN",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661LocalTerminationSendsStopCCN",
       "unit-sha": "2630da8b433a1f6f",
       "claim-sha": "6e5aa8548996d362",
       "route": "revert",
@@ -2023,7 +2023,7 @@
     {
       "rid": "RFC2661-8.1-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/lower_layer_rfc2661_linux_test.go::TestControlSocketKeepsUDPChecksums",
+      "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestControlSocketKeepsUDPChecksums",
       "unit-sha": "9939551b33225508",
       "claim-sha": "118648c4825a5965",
       "route": "revert",
@@ -2034,7 +2034,7 @@
     {
       "rid": "RFC2661-8.1-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661KnownVersionAccepted",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661KnownVersionAccepted",
       "unit-sha": "ef8d3b28058aca61",
       "claim-sha": "6653f36d258890b3",
       "route": "revert",
@@ -2045,7 +2045,7 @@
     {
       "rid": "RFC2661-8.1-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661UnknownVersionRefused",
+      "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661UnknownVersionRefused",
       "unit-sha": "e626e2f1ca4cc554",
       "claim-sha": "c22661a6178ab23d",
       "route": "revert",
@@ -2056,7 +2056,7 @@
     {
       "rid": "RFC2661-8.2-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/tunnel_rfc2661_test.go::TestRFC2661UDPEncapsulationOffered",
+      "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661UDPEncapsulationOffered",
       "unit-sha": "69ffc535bb13a1dd",
       "claim-sha": "3dc7345eecf03bfd",
       "route": "revert",
@@ -2078,7 +2078,7 @@
     {
       "rid": "RFC2661-9-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions",
       "unit-sha": "33ed2f43c50fd868",
       "claim-sha": "05d532619440bfcc",
       "route": "revert",
@@ -2089,7 +2089,7 @@
     {
       "rid": "RFC2661-9-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns",
+      "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns",
       "unit-sha": "44839fd324bf717a",
       "claim-sha": "d5b6df01cfc3560e",
       "route": "revert",
@@ -2100,7 +2100,7 @@
     {
       "rid": "RFC2661-x-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/header_test.go::TestWriteControlHeader",
+      "unit": "internal/component/l2tp/rfc2661_header_test.go::TestWriteControlHeader",
       "unit-sha": "aa829663ed91d455",
       "claim-sha": "ee3c14799e6fdf86",
       "route": "revert",

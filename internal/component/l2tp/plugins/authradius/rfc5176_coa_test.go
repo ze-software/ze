@@ -6,7 +6,7 @@
 //
 // The authenticator-verification and silent-discard requirements (§3.5-1, §3.5-2) and the
 // positive session-identification case (§3.3-1) are tagged on the existing listener tests
-// in coa_test.go; this file adds the negative session-id case and the emitted-response
+// in rfc5176_coa_listener_test.go; this file adds the negative session-id case and the emitted-response
 // authenticator check. Producers: coaListener.handleDisconnect/findSession (coa.go:259,
 // 309) and coaListener.sendResponse (coa.go:377) via radius.ResponseAuthenticator
 // (internal/component/radius/packet.go:145).

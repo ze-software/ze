@@ -8,7 +8,7 @@ package l2tp
 //
 // VALIDATES: RFC 2661 sender and receiver obligations through their producers.
 // PREVENTS: a tag claiming a clause no assertion checks.
-// Related: message_rfc2661_test.go, session_fsm_test.go, reliable_test.go.
+// Related: rfc2661_message_test.go, rfc2661_session_fsm_test.go, rfc2661_reliable_test.go.
 
 import (
 	"bytes"

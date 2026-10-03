@@ -23,7 +23,7 @@ import (
 // tests assert on authEventsOut and on peerEnd wire bytes rather
 // than on eventsOut.
 //
-// Shared across pap_test.go, chap_test.go, and mschapv2_test.go so
+// Shared across rfc1334_pap_test.go, rfc1994_chap_test.go, and mschapv2_test.go so
 // all three auth codecs exercise identical plumbing.
 func newAuthTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent) {
 	authEventsOut := make(chan AuthEvent, 4)

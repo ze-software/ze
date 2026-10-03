@@ -4,7 +4,7 @@
     {
       "rid": "RFC2516-4-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516AllocSIDReturnsUsableValue",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue",
       "unit-sha": "a6b2ea03ad592ed1",
       "claim-sha": "aa2ae75bba9c380f",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC2516-4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionID0xffffIsNeverAllocated",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated",
       "unit-sha": "79b26c8884bce0df",
       "claim-sha": "5de6f80dc53fbf51",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC2516-5.1-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADISessionIDIsZero",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADISessionIDIsZero",
       "unit-sha": "232e6bd357796e56",
       "claim-sha": "e864a0907958a707",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC2516-5.1-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped",
       "unit-sha": "a6d972ff286fe2a6",
       "claim-sha": "7abef7648f2e83c3",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC2516-5.1-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets",
       "unit-sha": "4eeb1ae86356fadf",
       "claim-sha": "1106a0fc961fd3a7",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC2516-5.1-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets",
       "unit-sha": "4eeb1ae86356fadf",
       "claim-sha": "e3d91fa508fc6203",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC2516-5.2-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
       "unit-sha": "166dee9546cc15d8",
       "claim-sha": "031f3374a37d3544",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC2516-5.2-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildNoHostUniqEcho",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildNoHostUniqEcho",
       "unit-sha": "0eb97e77a79a7fab",
       "claim-sha": "5eea31ea9befd586",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC2516-5.2-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADO",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADO",
       "unit-sha": "e82ae3a461eacb91",
       "claim-sha": "6aa26913acd4e2d3",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC2516-5.2-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS",
       "unit-sha": "6956e2e402efad14",
       "claim-sha": "273531e98050a5e1",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC2516-5.2-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADOCarriesACNameAndServiceNames",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames",
       "unit-sha": "71cde4293e431219",
       "claim-sha": "7b20f5675c162e17",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC2516-5.2-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName",
       "unit-sha": "c1701d3beda7b6b1",
       "claim-sha": "d8ba136cc57c6128",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC2516-5.2-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName",
       "unit-sha": "c1701d3beda7b6b1",
       "claim-sha": "f7963283299f32e8",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC2516-5.2-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused",
       "unit-sha": "2b851e8bc29d3139",
       "claim-sha": "83d4be0659b13afa",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC2516-5.2-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused",
       "unit-sha": "2b851e8bc29d3139",
       "claim-sha": "85415edeba043805",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC2516-5.2-6",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADOSessionIDIsZero",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADOSessionIDIsZero",
       "unit-sha": "94722cc87be1b8a6",
       "claim-sha": "8f26916e72aed38a",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC2516-5.2-6",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer",
       "unit-sha": "5bdca05fca9b61fc",
       "claim-sha": "21ecc81ee95412aa",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC2516-5.3-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADRSessionIDIsZero",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero",
       "unit-sha": "6d7ce8eeb5aabc25",
       "claim-sha": "c9ca923fd470b156",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC2516-5.3-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped",
       "unit-sha": "ac063dfed820e2af",
       "claim-sha": "acf2b52e148b2fc3",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC2516-5.4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestPADSAlwaysCarriesServiceName",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADSAlwaysCarriesServiceName",
       "unit-sha": "7cce646a9ecf3a23",
       "claim-sha": "1b7e7dd9d5101d65",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC2516-5.4-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
       "unit-sha": "166dee9546cc15d8",
       "claim-sha": "8da9f5169a684cfe",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC2516-5.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused",
       "unit-sha": "2b851e8bc29d3139",
       "claim-sha": "010012ba96968af4",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC2516-5.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/server_test.go::TestPADRWithoutServiceNameGetsServiceNameError",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError",
       "unit-sha": "64d2dcdadb3e5a4b",
       "claim-sha": "3bf30c684a26560a",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC2516-5.4-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
       "unit-sha": "166dee9546cc15d8",
       "claim-sha": "38aed1d1a8abd984",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC2516-5.4-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADSCarriesTheSessionsID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID",
       "unit-sha": "c1fda0930c2393bb",
       "claim-sha": "7a26879ac0c2e532",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC2516-5.4-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal",
+      "unit": "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal",
       "unit-sha": "4e40bf1d31b9216c",
       "claim-sha": "1409e55701fb1f21",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC2516-5.5-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADT",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT",
       "unit-sha": "f81b84bfc651e7bf",
       "claim-sha": "857622c0a0ca62b3",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "RFC2516-5.5-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionDownSendsPADTForThatSession",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession",
       "unit-sha": "00129df8d04b190c",
       "claim-sha": "7c422d6c98cb28d0",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC2516-5.5-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516UnknownSessionIDTerminatesNothing",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing",
       "unit-sha": "049ac162d809dfa4",
       "claim-sha": "328808dc4b89772a",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC2516-7-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
       "unit-sha": "166dee9546cc15d8",
       "claim-sha": "3fa6780463f60e55",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "RFC2516-7-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADRReplayKeepsTheSessionID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADRReplayKeepsTheSessionID",
       "unit-sha": "86d9cf7cb17263e9",
       "claim-sha": "ead3a93ed11e4e39",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "RFC2516-7-3",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionDownSendsPADTForThatSession",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession",
       "unit-sha": "00129df8d04b190c",
       "claim-sha": "df4311055ac1c701",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "RFC2516-7-3",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516UnknownSessionIDTerminatesNothing",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing",
       "unit-sha": "049ac162d809dfa4",
       "claim-sha": "4fd7e4485119badc",
       "route": "revert",
@@ -433,7 +433,7 @@
     {
       "rid": "RFC2516-x-10",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets",
       "unit-sha": "4eeb1ae86356fadf",
       "claim-sha": "870a88a10bef4c6d",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "RFC2516-x-10",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets",
       "unit-sha": "4eeb1ae86356fadf",
       "claim-sha": "71d22e630568d74e",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC2516-x-12",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516ErrorTagsCarryNoData",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData",
       "unit-sha": "cbdff2d08835cd66",
       "claim-sha": "965d6582bfbf7dec",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC2516-x-13",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516ErrorTagsCarryNoData",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData",
       "unit-sha": "cbdff2d08835cd66",
       "claim-sha": "5bef8a5bcbc2a569",
       "route": "revert",
@@ -477,7 +477,7 @@
     {
       "rid": "RFC2516-x-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList",
       "unit-sha": "f028ef526b35ddc8",
       "claim-sha": "553f56bf76320642",
       "route": "revert",
@@ -488,7 +488,7 @@
     {
       "rid": "RFC2516-x-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList",
       "unit-sha": "f028ef526b35ddc8",
       "claim-sha": "7b29df774bf61a39",
       "route": "revert",
@@ -499,7 +499,7 @@
     {
       "rid": "RFC2516-x-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParseEndOfListTag",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseEndOfListTag",
       "unit-sha": "eced911fe5f29066",
       "claim-sha": "2cccf871c84316aa",
       "route": "revert",
@@ -510,7 +510,7 @@
     {
       "rid": "RFC2516-x-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
       "unit-sha": "125f5bfaff591e98",
       "claim-sha": "3bffc046ecbc336b",
       "route": "revert",
@@ -521,7 +521,7 @@
     {
       "rid": "RFC2516-x-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
       "unit-sha": "125f5bfaff591e98",
       "claim-sha": "cdda2b7d85c163d1",
       "route": "revert",
@@ -532,7 +532,7 @@
     {
       "rid": "RFC2516-x-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDEcho",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDEcho",
       "unit-sha": "56fa1fd47c68c1c7",
       "claim-sha": "d541ee45a2b9675c",
       "route": "revert",
@@ -543,7 +543,7 @@
     {
       "rid": "RFC2516-x-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDNoEcho",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDNoEcho",
       "unit-sha": "ae281a23f948cf03",
       "claim-sha": "0e984d1b7618adcb",
       "route": "revert",
@@ -554,7 +554,7 @@
     {
       "rid": "RFC2516-x-6",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
       "unit-sha": "166dee9546cc15d8",
       "claim-sha": "6ba990e13ecbab9d",
       "route": "revert",
@@ -565,7 +565,7 @@
     {
       "rid": "RFC2516-x-6",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer",
       "unit-sha": "e3ffc49e1919aa11",
       "claim-sha": "3353537f0e266be2",
       "route": "revert",
@@ -576,7 +576,7 @@
     {
       "rid": "RFC2516-x-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516BuildersWriteTheSendersMAC",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC",
       "unit-sha": "ebc1ace185b72c82",
       "claim-sha": "b3f99d433f12b426",
       "route": "revert",
@@ -587,7 +587,7 @@
     {
       "rid": "RFC2516-x-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParseBroadcastSource",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBroadcastSource",
       "unit-sha": "ecc3cd95ad72ccaa",
       "claim-sha": "2133037c315b76cd",
       "route": "revert",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC2516-x-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParseMulticastSource",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseMulticastSource",
       "unit-sha": "017aa936b0adb3b1",
       "claim-sha": "da9272e3ef9d8639",
       "route": "revert",
@@ -609,7 +609,7 @@
     {
       "rid": "RFC2516-x-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestParsePADI",
+      "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParsePADI",
       "unit-sha": "1f516388b77e2c4a",
       "claim-sha": "afe900f760209d42",
       "route": "revert",

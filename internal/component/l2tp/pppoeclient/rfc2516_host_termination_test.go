@@ -4,7 +4,7 @@
 //   the session when its network phase does
 // Related: network_phase.go -- keepaliveLoop, which answers the Access
 //   Concentrator's LCP Terminate-Request
-// Related: padt_lifetime_test.go -- the PADT a Host receives
+// Related: rfc2516_padt_lifetime_test.go -- the PADT a Host receives
 // RFC: rfc/short/rfc2516.md -- Sections 5.5 and 7
 //
 // VALIDATES: the Host half of two RFC 2516 obligations the Access Concentrator

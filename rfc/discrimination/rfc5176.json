@@ -400,7 +400,7 @@
     {
       "rid": "RFC5176-3.3-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/coa_test.go::TestDisconnectReplayReturnsCachedResponse",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse",
       "unit-sha": "45643fcb0d66a72c",
       "claim-sha": "57d832711e155a61",
       "route": "revert",

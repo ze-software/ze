@@ -92,7 +92,7 @@
     {
       "rid": "RFC2869-x-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/plugins/authradius/acct_test.go::TestBuildAcctPacketGigawords",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2869_acct_test.go::TestBuildAcctPacketGigawords",
       "unit-sha": "7237929f4fcd5754",
       "claim-sha": "1d2c992c7080179e",
       "route": "revert",

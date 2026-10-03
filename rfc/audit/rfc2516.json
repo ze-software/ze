@@ -9,12 +9,12 @@
       "note": "TestRFC2516SessionID0xffffIsNeverAllocated exhausts the table and shows 0xffff is never handed out, even after freeSID",
       "requirement_sha": "bed95309ad49cebc",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516AllocSIDReturnsUsableValue": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionID0xffffIsNeverAllocated": "e5818bbbd45fc77f"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated": "e5818bbbd45fc77f"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516AllocSIDReturnsUsableValue": "8b342bcb5f0177a9",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionID0xffffIsNeverAllocated": "a9c5373f70fffa81"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue": "8b342bcb5f0177a9",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated": "a9c5373f70fffa81"
       },
       "verdict": "enforced"
     },
@@ -22,10 +22,10 @@
       "note": "single-polarity; TestBuildPADIDiscovery counts exactly one Service-Name tag",
       "requirement_sha": "4e1fe9ea97e8c1b9",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADIDiscovery": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADIDiscovery": "32dda3340079cba9"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "32dda3340079cba9"
       },
       "verdict": "enforced"
     },
@@ -33,10 +33,10 @@
       "note": "single-polarity; TestBuildPADIDiscovery asserts the PADI DstMAC is the broadcast address",
       "requirement_sha": "8b13c7635f060c0d",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADIDiscovery": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADIDiscovery": "32dda3340079cba9"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "32dda3340079cba9"
       },
       "verdict": "enforced"
     },
@@ -44,12 +44,12 @@
       "note": "TestRFC2516PADISessionIDIsZero asserts CODE 0x09 and SESSION_ID 0; the negative shows handlePADI drops a non-zero SESSION_ID PADI",
       "requirement_sha": "0b7129b6a53e4b41",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADISessionIDIsZero": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped": "e5818bbbd45fc77f"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADISessionIDIsZero": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped": "e5818bbbd45fc77f"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADISessionIDIsZero": "3c773e814db864ce",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped": "0b95f51646936aa4"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADISessionIDIsZero": "3c773e814db864ce",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped": "0b95f51646936aa4"
       },
       "verdict": "enforced"
     },
@@ -57,12 +57,12 @@
       "note": "TestPADINeverExceeds1484Octets accepts exactly 1484 octets and refuses 1485",
       "requirement_sha": "e3a3fbb0bae3ca30",
       "tests": {
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets": "0ed032643a84a6c5",
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets#2": "0ed032643a84a6c5"
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "0ed032643a84a6c5",
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "0ed032643a84a6c5"
       },
       "units": {
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets": "d94ac5a431aaa810",
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets#2": "d94ac5a431aaa810"
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "d94ac5a431aaa810",
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "d94ac5a431aaa810"
       },
       "verdict": "enforced"
     },
@@ -70,16 +70,16 @@
       "note": "PADO echo byte-compared by TestBuildPADO; PADS echo now byte-compared both in TestBuildPADS and through handlePADR for two hosts with distinct Host-Uniq values (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); TestBuildNoHostUniqEcho proves no Host-Uniq is invented. Observed-red records on BuildPADS for both new/changed units",
       "requirement_sha": "23d95c434ecde228",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildNoHostUniqEcho": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADO": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildNoHostUniqEcho": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADO": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildNoHostUniqEcho": "b9dc11de8a27f09f",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADO": "79fbd569b9f37911",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS": "94c150e16b191a90"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildNoHostUniqEcho": "b9dc11de8a27f09f",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADO": "79fbd569b9f37911",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "94c150e16b191a90"
       },
       "verdict": "enforced"
     },
@@ -87,14 +87,14 @@
       "note": "TestRFC2516PADOCarriesACNameAndServiceNames drives handlePADI and asserts exactly one AC-Name equal to the configured name, the first Service-Name identical to the PADI's, then the other offered name in order; TestPADOAlwaysCarriesServiceName pins the Service-Name list and the zero-length edge. Records observed red on BuildPADO",
       "requirement_sha": "199969b843741437",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADOCarriesACNameAndServiceNames": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName#2": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName#2": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADOCarriesACNameAndServiceNames": "42757d0b8bd06339",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName": "277700ccd22fff67",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName#2": "277700ccd22fff67"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames": "42757d0b8bd06339",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName": "277700ccd22fff67",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName#2": "277700ccd22fff67"
       },
       "verdict": "enforced"
     },
@@ -102,12 +102,12 @@
       "note": "TestRFC2516UnservedServiceNameIsRefused drives handlePADI: a PADI naming an unserved Service-Name draws no frame, the same PADI naming a served one draws exactly one PADO, so the silence is specific to the unserved service. Both polarities recorded red on handlePADI",
       "requirement_sha": "9ac162d298138a9a",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused#2": "3ea2cf3cd3f3abda"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused#2": "3ea2cf3cd3f3abda"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused": "eda063201199cd46",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused#2": "eda063201199cd46"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "eda063201199cd46",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused#2": "eda063201199cd46"
       },
       "verdict": "enforced"
     },
@@ -115,12 +115,12 @@
       "note": "TestRFC2516PADOSessionIDIsZero asserts CODE 0x07 and SESSION_ID 0; the client refuses a PADO with a non-zero SESSION_ID",
       "requirement_sha": "73be9809ffd9a7ec",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADOSessionIDIsZero": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer": "038fbf24238f4209"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADOSessionIDIsZero": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer": "038fbf24238f4209"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADOSessionIDIsZero": "86c8c63263fb4c64",
-        "internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer": "3616317f0dd2df6e"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADOSessionIDIsZero": "86c8c63263fb4c64",
+        "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer": "3616317f0dd2df6e"
       },
       "verdict": "enforced"
     },
@@ -128,12 +128,12 @@
       "note": "TestBuildPADREchoesTags compares the echoed AC-Cookie bytes; TestBuildPADRNoOptionalTags shows none is invented",
       "requirement_sha": "36be1d5c5af85ab0",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADREchoesTags": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADRNoOptionalTags": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADRNoOptionalTags": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADREchoesTags": "2d4d0fbe32696197",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADRNoOptionalTags": "c3b53f1ee581bf25"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "2d4d0fbe32696197",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADRNoOptionalTags": "c3b53f1ee581bf25"
       },
       "verdict": "enforced"
     },
@@ -141,10 +141,10 @@
       "note": "single-polarity; TestBuildPADREchoesTags counts exactly one Service-Name tag",
       "requirement_sha": "7c9d08d99fed1c00",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADREchoesTags": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADREchoesTags": "2d4d0fbe32696197"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "2d4d0fbe32696197"
       },
       "verdict": "enforced"
     },
@@ -152,12 +152,12 @@
       "note": "TestRFC2516PADRSessionIDIsZero asserts CODE 0x19 and SESSION_ID 0; handlePADR drops a non-zero SESSION_ID PADR",
       "requirement_sha": "74c282e00d74e629",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADRSessionIDIsZero": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped": "e5818bbbd45fc77f"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped": "e5818bbbd45fc77f"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADRSessionIDIsZero": "244e8050a6a9d7ac",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped": "e3d45cfd26c8221b"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero": "244e8050a6a9d7ac",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped": "e3d45cfd26c8221b"
       },
       "verdict": "enforced"
     },
@@ -165,12 +165,12 @@
       "note": "re-read after TestBuildPADS changed (only its Host-Uniq check was tightened to a byte compare): TestBuildPADS and TestPADSAlwaysCarriesServiceName both count exactly one Service-Name tag in the PADS, including for a PADR carrying none",
       "requirement_sha": "24ec7abf78394273",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestPADSAlwaysCarriesServiceName": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADSAlwaysCarriesServiceName": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADS": "94c150e16b191a90",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestPADSAlwaysCarriesServiceName": "514690d9b77300c6"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "94c150e16b191a90",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADSAlwaysCarriesServiceName": "514690d9b77300c6"
       },
       "verdict": "enforced"
     },
@@ -178,14 +178,14 @@
       "note": "positive: a PADR with a PRESENT unserved Service-Name through handlePADR draws one PADS with Service-Name-Error and SESSION_ID 0x0000, no session, no socket (TestRFC2516UnservedServiceNameIsRefused); the absent-tag branch stays covered by TestPADRWithoutServiceNameGetsServiceNameError. negative: a served name draws a non-zero SID and no Service-Name-Error. All three recorded red on handlePADR",
       "requirement_sha": "75b8ee3323a4be3a",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/server_test.go::TestPADRWithoutServiceNameGetsServiceNameError": "d951b855bd7c56c0"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError": "d951b855bd7c56c0"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516UnservedServiceNameIsRefused": "eda063201199cd46",
-        "internal/component/l2tp/pppoe/server_test.go::TestPADRWithoutServiceNameGetsServiceNameError": "444f8a3e21e8fa29"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "eda063201199cd46",
+        "internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError": "444f8a3e21e8fa29"
       },
       "verdict": "enforced"
     },
@@ -193,14 +193,14 @@
       "note": "the fresh-admission PADS is now observed: two hosts each get CODE 0x65, a non-zero SESSION_ID equal to the SID the table holds for that host, and the two SIDs differ (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); the replay path stays covered; the client refuses a zero-SID PADS (pppoeclient negative). Records observed red on handlePADR and tryReadPADS",
       "requirement_sha": "412e1bbe52a4b5f9",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADSCarriesTheSessionsID": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal": "038fbf24238f4209"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal": "038fbf24238f4209"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516PADSCarriesTheSessionsID": "0e117b8860733b78",
-        "internal/component/l2tp/pppoeclient/discovery_rfc2516_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal": "d1dde7a724786092"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID": "0e117b8860733b78",
+        "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal": "d1dde7a724786092"
       },
       "verdict": "enforced"
     },
@@ -208,16 +208,16 @@
       "note": "Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (TestBuildPADT, handleSessionDown sends the PADT for that SID, an unknown SID terminates nothing). Host half, the gap of the prior weak verdict, now proven on raw octets: TestRFC2516HostPADTNamesItsAccessConcentratorAndSession (PADO+PADS through tryReadPADO/tryReadPADS, then sendPADT: DESTINATION_ADDR = offering AC's MAC with the group bit clear, CODE 0xa7, SESSION_ID 0x2345 from the PADS), observed red under a revert of sendPADT; TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession (a PADO from broadcast or multicast source is never an offer, so no PADT can be addressed to a group; a PADS from another AC carrying 0x3456 is ignored and the PADT names 0x2345), observed red under a revert of tryReadPADS. Residual, named not disqualifying: the two-line acMAC copy from padoPkt.SrcMAC in Dial is mirrored in the test helper because Dial needs kernel PPPoE; Dial passes the same acMAC/sessID to sendPADT on every path (read at dialer.go).",
       "requirement_sha": "218e5487eed4b7f3",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADT": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "eb2d9138dff5142c",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "eb2d9138dff5142c"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildPADT": "4af5887b466efb6a",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "b69dc75510f54662",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "4af5887b466efb6a",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "b69dc75510f54662",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "12f916fd732acaad",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "cf9d9c48ec1183da"
       },
@@ -227,12 +227,12 @@
       "note": "Ze's share of Section 6 is binding the session socket: TestRFC2516AdmittedPADSCarriesTheNewSessionsID asserts the socket is bound once to the SID the PADS assigned (createTransport seam, production path unchanged), and TestRFC2516PADRReplayKeepsTheSessionID shows a retransmitted PADR keeps the SID, binds no second socket, adds no session. The kernel pppox socket keeps the SID fixed after connect. The PADT-MAC unit no longer carries the tag. Records red on createTransport and matchLiveCookie",
       "requirement_sha": "72f908f477306f85",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADRReplayKeepsTheSessionID": "3ea2cf3cd3f3abda"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADRReplayKeepsTheSessionID": "3ea2cf3cd3f3abda"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516PADRReplayKeepsTheSessionID": "c9545bed9852b638"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADRReplayKeepsTheSessionID": "c9545bed9852b638"
       },
       "verdict": "enforced"
     },
@@ -257,14 +257,14 @@
       "note": "Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (handleSessionDown removes the session and sends its PADT; an unknown SID leaves it). Host half, the gap of the prior weak verdict: TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates drives production superviseNetworkPhase (extracted from Dial's anonymous goroutine with no behaviour change: keepaliveLoop then link.Close, same order, same args) with an AC Terminate-Request: exactly one Terminate-Ack, channel closed once, Done published, link.Write refused, a later Echo-Reply not written (the fake channel accepts writes after Close, so only the session guard refuses). Observed red under a revert of superviseNetworkPhase. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates: an Echo-Request and a stray Terminate-Ack leave Done open and the Host answering; only the following Terminate-Request ends it, so the stop is tied to LCP termination and not to any LCP frame. Observed red under a revert of keepaliveLoop.",
       "requirement_sha": "0c0a57401e445c44",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "eb2d9138dff5142c",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "eb2d9138dff5142c"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "b69dc75510f54662",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "b69dc75510f54662",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "5d0496edc6a9683c",
         "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "461d9c689e49fa93"
       },
@@ -287,12 +287,12 @@
       "note": "TestBuildFrameVerType asserts BuildPADI writes VER=1; TestParseBadVersion shows a VER=2 frame is refused",
       "requirement_sha": "5950b8d27a3d105a",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildFrameVerType": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseBadVersion": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadVersion": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildFrameVerType": "98eb941b072c9c40",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseBadVersion": "f18a8147d067b519"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "98eb941b072c9c40",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadVersion": "f18a8147d067b519"
       },
       "verdict": "enforced"
     },
@@ -300,12 +300,12 @@
       "note": "TestPADINeverExceeds1484Octets asserts exactly 16 octets are left at the largest PADI and that one octet more is refused",
       "requirement_sha": "0fc3f1755c06cd9e",
       "tests": {
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets": "0ed032643a84a6c5",
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets#2": "0ed032643a84a6c5"
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "0ed032643a84a6c5",
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "0ed032643a84a6c5"
       },
       "units": {
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets": "d94ac5a431aaa810",
-        "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets#2": "d94ac5a431aaa810"
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "d94ac5a431aaa810",
+        "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "d94ac5a431aaa810"
       },
       "verdict": "enforced"
     },
@@ -313,10 +313,10 @@
       "note": "single-polarity; TestRFC2516ErrorTagsCarryNoData drives handlePADR and asserts the Service-Name-Error TAG_LENGTH is 0",
       "requirement_sha": "ed2552502d9deee5",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516ErrorTagsCarryNoData": "e5818bbbd45fc77f"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData": "e5818bbbd45fc77f"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516ErrorTagsCarryNoData": "c31b87be39ce9926"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData": "c31b87be39ce9926"
       },
       "verdict": "enforced"
     },
@@ -324,10 +324,10 @@
       "note": "single-polarity; TestRFC2516ErrorTagsCarryNoData drives a resource refusal and asserts the AC-System-Error TAG_LENGTH is 0",
       "requirement_sha": "31a63b9cad4ae1ce",
       "tests": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516ErrorTagsCarryNoData": "e5818bbbd45fc77f"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData": "e5818bbbd45fc77f"
       },
       "units": {
-        "internal/component/l2tp/pppoe/session_id_rfc2516_test.go::TestRFC2516ErrorTagsCarryNoData": "c31b87be39ce9926"
+        "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData": "c31b87be39ce9926"
       },
       "verdict": "enforced"
     },
@@ -335,12 +335,12 @@
       "note": "TestBuildFrameVerType asserts BuildPADI writes TYPE=1; TestParseBadType shows a TYPE=2 frame is refused",
       "requirement_sha": "06921827c26fe02e",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildFrameVerType": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseBadType": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadType": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestBuildFrameVerType": "98eb941b072c9c40",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseBadType": "70f3012906c303d8"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "98eb941b072c9c40",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadType": "70f3012906c303d8"
       },
       "verdict": "enforced"
     },
@@ -348,14 +348,14 @@
       "note": "first sentence: TestParseEndOfListTag. TAG_LENGTH MUST: Ze builds no End-Of-List; TestRFC2516NoSentFrameCarriesEndOfList walks the raw TLVs of the PADO and PADS replies and shows a received End-Of-List of TAG_LENGTH 4 is never copied out. Not observed: BuildPADR and BuildPADSError, which copy tags by type the same way (AddTagCopy of FindTag) and so cannot carry one either. Stale single-polarity marker removed",
       "requirement_sha": "801d7cfe99f18e84",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseEndOfListTag": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseEndOfListTag": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList": "278ad3188a65dfbd",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2": "278ad3188a65dfbd",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseEndOfListTag": "98e23dfb38572195"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList": "278ad3188a65dfbd",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2": "278ad3188a65dfbd",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseEndOfListTag": "98e23dfb38572195"
       },
       "verdict": "enforced"
     },
@@ -363,16 +363,16 @@
       "note": "the refusing PADS (BuildPADSError via handlePADR) and the admitting PADS now echo the Relay-Session-Id byte-for-byte, and a refusing PADS for a PADR without one invents none; PADO, PADR and PADS builder echo and no-echo units unchanged. Records red on BuildPADSError",
       "requirement_sha": "b25075ae6dd2bd85",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDEcho": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDNoEcho": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDEcho": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDNoEcho": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID": "cb09ae2d9bb78079",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2": "cb09ae2d9bb78079",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDEcho": "60fa04af7eb695a1",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestRelaySessionIDNoEcho": "740af325c0148666"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID": "cb09ae2d9bb78079",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2": "cb09ae2d9bb78079",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDEcho": "60fa04af7eb695a1",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDNoEcho": "740af325c0148666"
       },
       "verdict": "enforced"
     },
@@ -380,12 +380,12 @@
       "note": "session-stage addressing is set by connecting the pppox socket: the positive asserts each admitted session's socket is bound to its PADR's unicast source MAC; the negative shows a broadcast- and a multicast-sourced PADR are refused by ParseDiscovery before HandleDiscovery and bind nothing, while a unicast source binds itself. The negative mirrors Subsystem.discoveryReader's parse-then-dispatch inline (read at subsystem.go, it matches), so a change to the reader itself would not turn it red. Records red on createTransport and ParseDiscovery",
       "requirement_sha": "8f7946242975f977",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer": "3ea2cf3cd3f3abda"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer": "3ea2cf3cd3f3abda"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer": "fe9dcfe2326f51cd"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer": "fe9dcfe2326f51cd"
       },
       "verdict": "enforced"
     },
@@ -393,16 +393,16 @@
       "note": "TestRFC2516BuildersWriteTheSendersMAC asserts PADI, PADR, PADO, PADS, the refusing PADS and PADT write the sender MAC they are given in SOURCE_ADDR; every production call site passes the device's own MAC (s.hwAddr in server.go, hwaddr/srcMAC in pppoeclient/dialer.go), read, not asserted. Receive side refuses broadcast and multicast sources. Record red on NewBuilder",
       "requirement_sha": "0be11648ea41bb75",
       "tests": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516BuildersWriteTheSendersMAC": "3ea2cf3cd3f3abda",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseBroadcastSource": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseMulticastSource": "b7c2fae4a50abe95",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParsePADI": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC": "3ea2cf3cd3f3abda",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBroadcastSource": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseMulticastSource": "b7c2fae4a50abe95",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParsePADI": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/admission_rfc2516_test.go::TestRFC2516BuildersWriteTheSendersMAC": "438127638155be62",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseBroadcastSource": "2c64cc27ca858069",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParseMulticastSource": "cb39572e479a960f",
-        "internal/component/l2tp/pppoe/discovery_test.go::TestParsePADI": "e61c355cf3feb89d"
+        "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC": "438127638155be62",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBroadcastSource": "2c64cc27ca858069",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseMulticastSource": "cb39572e479a960f",
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParsePADI": "e61c355cf3feb89d"
       },
       "verdict": "enforced"
     },
@@ -410,10 +410,10 @@
       "note": "single-polarity; TestUnknownTagIgnored parses a frame with an unknown tag without error and keeps known tags findable",
       "requirement_sha": "13b0267cb0b88970",
       "tests": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestUnknownTagIgnored": "b7c2fae4a50abe95"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestUnknownTagIgnored": "b7c2fae4a50abe95"
       },
       "units": {
-        "internal/component/l2tp/pppoe/discovery_test.go::TestUnknownTagIgnored": "fe24617a55eae8f6"
+        "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestUnknownTagIgnored": "fe24617a55eae8f6"
       },
       "verdict": "enforced"
     },

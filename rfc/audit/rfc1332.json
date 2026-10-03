@@ -35,12 +35,12 @@
       "note": "Judge ppp5 2026-09-30. Unit gained the RFC1332-2.1-4 tags only; body unchanged. TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU is installed on ppp7 and it equals the peer's negotiated MRU 1400 (the largest IP packet sent = the Information-field maximum); 1400 differs from the 1500 default and MaxMRU, so a producer ignoring the negotiated MRU is red (forced-input negative, R1 b). Recorded afterLCPOpen revert.",
       "requirement_sha": "0fa5e41e13adac0d",
       "tests": {
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
       },
       "units": {
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
       },
       "verdict": "enforced"
     },
@@ -48,12 +48,12 @@
       "note": "Judge ppp5 2026-09-30. Row is the verbatim second sentence of RFC 1332 Section 2.1. The Linux IPv4 output path fragments on the pppN MTU; Ze's part is the MTU it installs, which this row's tests assert at the boundary Ze owns (rfc-compliance: a requirement met through a lower layer still carries a test over the value Ze installs). TestIPMTUInstalledFromNegotiatedMRU: exactly one MTU on ppp7, equal to the peer MRU 1400 (+); no MTU above 1400, 1500 included (-). Kernel fragmentation itself is not observed (would need a guest kernel); the claim states only the installed MTU. Records: afterLCPOpen revert, both polarities.",
       "requirement_sha": "1d376421dd3ede35",
       "tests": {
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
       },
       "units": {
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
-        "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
+        "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
       },
       "verdict": "enforced"
     },
@@ -61,13 +61,13 @@
       "note": "Send side now tagged: TestIPCPOptionsWrittenInLCPFormat compares WriteIPCPOptions output byte for byte (Types 3/129/131, Length 6, four octets) and walks it with ParseLCPOptions; any drift of Type, Length or Data is red. Receive side: TestIPCPParseOptions decodes a well-formed list, TestIPCPParseRejects refuses malformed TLVs with the exact errors.",
       "requirement_sha": "f06d4411bfe3e685",
       "tests": {
-        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseOptions": "819925f844dde0dd",
-        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseRejects": "819925f844dde0dd",
+        "internal/component/l2tp/ppp/rfc1332_ipcp_test.go::TestIPCPParseOptions": "819925f844dde0dd",
+        "internal/component/l2tp/ppp/rfc1332_ipcp_test.go::TestIPCPParseRejects": "819925f844dde0dd",
         "internal/component/l2tp/ppp/rfc1332_clauses_test.go::TestIPCPOptionsWrittenInLCPFormat": "61d2fbdb9d2674da"
       },
       "units": {
-        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseOptions": "a479cbc1c4c3b377",
-        "internal/component/l2tp/ppp/ipcp_test.go::TestIPCPParseRejects": "474ea7d5a41ec24b",
+        "internal/component/l2tp/ppp/rfc1332_ipcp_test.go::TestIPCPParseOptions": "a479cbc1c4c3b377",
+        "internal/component/l2tp/ppp/rfc1332_ipcp_test.go::TestIPCPParseRejects": "474ea7d5a41ec24b",
         "internal/component/l2tp/ppp/rfc1332_clauses_test.go::TestIPCPOptionsWrittenInLCPFormat": "e2119b28e4e6437d"
       },
       "verdict": "enforced"

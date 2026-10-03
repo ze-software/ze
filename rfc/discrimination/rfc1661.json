@@ -246,7 +246,7 @@
     {
       "rid": "RFC1661-4.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
+      "unit": "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
       "unit-sha": "8d7662cb7259127d",
       "claim-sha": "94163636fa5dc40c",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC1661-4.4-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
+      "unit": "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
       "unit-sha": "8d7662cb7259127d",
       "claim-sha": "6ccdf85f8e5acfaf",
       "route": "revert",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC1661-5.5-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges",
       "unit-sha": "466fbc99328bbd1c",
       "claim-sha": "169aa689c152e135",
       "route": "revert",
@@ -609,7 +609,7 @@
     {
       "rid": "RFC1661-5.5-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges",
       "unit-sha": "466fbc99328bbd1c",
       "claim-sha": "e0ebe39a89cb697f",
       "route": "revert",
@@ -719,7 +719,7 @@
     {
       "rid": "RFC1661-5.8-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoeclient/lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded",
       "unit-sha": "3ebbce0bee8bf048",
       "claim-sha": "0780a74cfcc16e8e",
       "route": "revert",
@@ -730,7 +730,7 @@
     {
       "rid": "RFC1661-5.8-4",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges",
       "unit-sha": "92aaae379e07b8ad",
       "claim-sha": "47193d1e5b1795f4",
       "route": "revert",
@@ -741,7 +741,7 @@
     {
       "rid": "RFC1661-5.8-4",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges",
       "unit-sha": "92aaae379e07b8ad",
       "claim-sha": "30a295d9dcc9d005",
       "route": "revert",
@@ -752,7 +752,7 @@
     {
       "rid": "RFC1661-5.8-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated",
       "unit-sha": "beaa4080d96347e3",
       "claim-sha": "07c9b5f59609b0bb",
       "route": "revert",
@@ -763,7 +763,7 @@
     {
       "rid": "RFC1661-5.8-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated",
       "unit-sha": "beaa4080d96347e3",
       "claim-sha": "c4afae4bed92fc9d",
       "route": "revert",
@@ -774,7 +774,7 @@
     {
       "rid": "RFC1661-6.1-1",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived",
       "unit-sha": "cd2d7d5ef993c67c",
       "claim-sha": "e10d7a02006f5066",
       "route": "revert",
@@ -785,7 +785,7 @@
     {
       "rid": "RFC1661-6.1-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestFullInformationFieldReceived",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived",
       "unit-sha": "cd2d7d5ef993c67c",
       "claim-sha": "0535fe626b184858",
       "route": "revert",
@@ -796,7 +796,7 @@
     {
       "rid": "RFC1661-6.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic",
       "unit-sha": "712890c2062e8070",
       "claim-sha": "3da72769e75e425d",
       "route": "revert",
@@ -807,7 +807,7 @@
     {
       "rid": "RFC1661-6.4-2",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestCarriesNegotiatedMagic",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic",
       "unit-sha": "712890c2062e8070",
       "claim-sha": "ea3205abad0f8880",
       "route": "revert",
@@ -840,7 +840,7 @@
     {
       "rid": "RFC1661-6.4-5",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested",
       "unit-sha": "1c374e1ac6ffc9d6",
       "claim-sha": "dce6656b85c03771",
       "route": "revert",
@@ -851,7 +851,7 @@
     {
       "rid": "RFC1661-6.4-5",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested",
       "unit-sha": "1c374e1ac6ffc9d6",
       "claim-sha": "03bb7ad5c286b897",
       "route": "revert",
@@ -862,7 +862,7 @@
     {
       "rid": "RFC1661-6.4-6",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked",
       "unit-sha": "c015351735eca622",
       "claim-sha": "227365590678c9af",
       "route": "revert",
@@ -873,7 +873,7 @@
     {
       "rid": "RFC1661-6.4-6",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked",
       "unit-sha": "c015351735eca622",
       "claim-sha": "5a87819a300cd0d1",
       "route": "revert",
@@ -884,7 +884,7 @@
     {
       "rid": "RFC1661-6.4-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak",
       "unit-sha": "6bbb1eec81e47bd0",
       "claim-sha": "43e8cc0d75dbcc31",
       "route": "revert",
@@ -895,7 +895,7 @@
     {
       "rid": "RFC1661-6.4-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberRedrawnOnNak",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak",
       "unit-sha": "6bbb1eec81e47bd0",
       "claim-sha": "5eed5bf9bee9a1e7",
       "route": "revert",
@@ -928,7 +928,7 @@
     {
       "rid": "RFC1661-6.4-7",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
       "unit-sha": "050c414ada48c58e",
       "claim-sha": "d17d4ab60b82d3aa",
       "route": "revert",
@@ -939,7 +939,7 @@
     {
       "rid": "RFC1661-6.4-7",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue",
       "unit-sha": "050c414ada48c58e",
       "claim-sha": "75a365c911cc93b4",
       "route": "revert",
@@ -950,7 +950,7 @@
     {
       "rid": "RFC1661-6.4-8",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers",
       "unit-sha": "760000471aaf1896",
       "claim-sha": "2dca1c9950a84e70",
       "route": "revert",
@@ -961,7 +961,7 @@
     {
       "rid": "RFC1661-6.4-8",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberMustBePeers",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers",
       "unit-sha": "760000471aaf1896",
       "claim-sha": "41ed18abf8f2e898",
       "route": "revert",
@@ -972,7 +972,7 @@
     {
       "rid": "RFC1661-6.4-8",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
       "unit-sha": "de61d34590721efe",
       "claim-sha": "6870a8ce592f03ee",
       "route": "revert",
@@ -983,7 +983,7 @@
     {
       "rid": "RFC1661-6.4-8",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
+      "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
       "unit-sha": "de61d34590721efe",
       "claim-sha": "d12fe68a0aa8320b",
       "route": "revert",

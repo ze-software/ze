@@ -19,12 +19,12 @@
       "note": "Forbidden: a reissued Authenticate-Request carrying the previous Identifier. TestClientPAPRetriesUntilMatchingReply lets the first request go unanswered, advances the production retry timer, and asserts packets[0].Identifier != packets[1].Identifier with the credentials unchanged; the negative half asserts no third request after the matching Ack.",
       "requirement_sha": "d8ed39810ec9c589",
       "tests": {
-        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "6868de7d83650d56",
-        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply#2": "6868de7d83650d56"
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "6868de7d83650d56",
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "6868de7d83650d56"
       },
       "units": {
-        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "de79106e38a6b1d8",
-        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply#2": "de79106e38a6b1d8"
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "de79106e38a6b1d8",
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "de79106e38a6b1d8"
       },
       "verdict": "enforced"
     },
@@ -71,12 +71,12 @@
       "note": "Forbidden: an accepted Peer-ID/Password pair answered with anything but a PAP Code 2. TestPAPRequestEmitsEvent (accept=true) asserts reply proto ProtoPAP and payload[0]==PAPAuthenticateAck through runPAPAuthPhase; TestPAPRejectWritesNak asserts the reject path sends Nak, so an unconditional Ack goes red.",
       "requirement_sha": "5924f6ce926f17d2",
       "tests": {
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
       },
       "units": {
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
       },
       "verdict": "enforced"
     },
@@ -84,12 +84,12 @@
       "note": "Forbidden: a rejected pair answered with anything but a PAP Code 3. TestPAPRejectWritesNak (accept=false) asserts payload[0]==PAPAuthenticateNak; TestPAPRequestEmitsEvent asserts the accept path sends Ack, so an unconditional Nak goes red. The SHOULD-terminate half of the sentence is RFC1334-2.3-5 and is not claimed here.",
       "requirement_sha": "1413540851c632dd",
       "tests": {
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
       },
       "units": {
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
       },
       "verdict": "enforced"
     },
@@ -99,14 +99,14 @@
       "tests": {
         "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395",
         "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "8e29592e5f428395",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
       },
       "units": {
         "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87",
         "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "7b2de7debcb06a87",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
-        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+        "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
       },
       "verdict": "enforced"
     },
@@ -127,16 +127,16 @@
       "note": "Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer's PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.",
       "requirement_sha": "b9bbe3e692d702fa",
       "tests": {
-        "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "f630a02fc0831e73",
-        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73",
+        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder": "f630a02fc0831e73",
+        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "802e39c15c4d6802",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "802e39c15c4d6802",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "802e39c15c4d6802",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "802e39c15c4d6802"
       },
       "units": {
-        "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "30409a962cf295b9",
-        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf",
+        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder": "30409a962cf295b9",
+        "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "b38caa18171af324",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "b38caa18171af324",
         "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "4b7e163795183f4f",

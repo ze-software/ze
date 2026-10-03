@@ -39,12 +39,12 @@
       "note": "Forbidden: a Configure-Request with zero or more than one interface-identifier option. Sent side: TestIPv6CPProposesInterfaceID counts type-1 options in ze's raw initial CR and fails on iidCount != 1 (red on zero or two). Received side: TestIPv6CPRequestWithoutIdentifierIsNotAcked fails when a zero-option CR is ncpRequestAcceptable; TestIPv6CPDuplicateIdentifierOptionIsNotAcked fails when a two-option CR is Acked. Both polarities, both counts covered.",
       "requirement_sha": "170ecc871559a43e",
       "tests": {
-        "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPProposesInterfaceID": "bbec4cd4bfc6bbe0",
+        "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPProposesInterfaceID": "bbec4cd4bfc6bbe0",
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked": "99a68f4293234999",
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked": "99a68f4293234999"
       },
       "units": {
-        "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPProposesInterfaceID": "bbf840d4c68e2a00",
+        "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPProposesInterfaceID": "bbf840d4c68e2a00",
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked": "7798132ea6edf264",
         "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked": "7a4c72cd95cf6667"
       },
@@ -137,10 +137,10 @@
       "note": "Forbidden: a suggested identifier with the u bit (canonical bit 6, octet 0 mask 0x02) set. TestIPv6CPSuggestionHasUniversalBitClear fails when suggestion[0]&ipv6cpUniversalLocalBitMask != 0 over 64 random draws; deleting the `&^=` clear in suggestIPv6CPInterfaceID turns it red with probability 1-2^-64. suggestIPv6CPInterfaceID is the only source of buildNakOrReject's IPv6 Nak value (ncp.go). The EUI exception is never taken by ze; single-polarity marker present.",
       "requirement_sha": "8c4e8538c074fbca",
       "tests": {
-        "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear": "bbec4cd4bfc6bbe0"
+        "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear": "bbec4cd4bfc6bbe0"
       },
       "units": {
-        "internal/component/l2tp/ppp/ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear": "bf0fae6fb8b19b76"
+        "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear": "bf0fae6fb8b19b76"
       },
       "verdict": "enforced"
     }
