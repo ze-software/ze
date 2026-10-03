@@ -62,14 +62,14 @@
       "note": "B.2: addition modulo 255, or one's complement with 255 read as 0. Positive TestRFC905MinusZeroReadAsZero: VerifyChecksum accepts five 0xFF octets (mod 256, or one's complement keeping 255 distinct, leaves C0 non-zero and goes red) and every seed region where Checksum stored 255 for a computed zero. Negative TestRFC905FaultySenderChecksumRefused/modulo-256: the X,Y closed form solves mod 256 too, so a mod-256 verifier would accept the mod-256 sender's checksum and refuse the compliant one; the test requires the opposite, and its guard (faulty != Checksum's) goes red on a mod-256 Checksum. TestISISChecksumFixedVector pins 0x0b,0xed. The old single-octet-flip negative (not an arithmetic violation) was untagged. Recorded red on VerifyChecksum.",
       "requirement_sha": "5cd66c1aa17d7578",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "b9f243f3624e524f",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumModulus": "b9f243f3624e524f",
         "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "60d205373562b160",
         "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905MinusZeroReadAsZero": "60d205373562b160"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "754effd059dc54e3",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumModulus": "754effd059dc54e3",
         "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "82471eafe509af0b",
         "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905MinusZeroReadAsZero": "fc49da1e9d13a6bb"
       },
@@ -79,11 +79,11 @@
       "note": "Re-judged 2026-09-30 under R-C1: row text and tagged units unchanged; the Annex B steps around it now carry their own rows (B.3.1-1, B.3.2-1, B.3.5-1, B.4.2-1). B.3.3 order binds the generator: TestISISChecksumVectors round-trips Checksum through VerifyChecksum, a C1-first Checksum goes red; negative TestRFC905FaultySenderChecksumRefused/c1-before-c0 refuses a pair built with the steps swapped. The verification-side sequence is B.4.2-1's.",
       "requirement_sha": "db20cac67c77c27b",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
         "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "60d205373562b160"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "7416218e47d3c785",
         "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "82471eafe509af0b"
       },
       "verdict": "enforced"
@@ -92,8 +92,8 @@
       "note": "Re-judged 2026-09-30 under R-C1: row text and tagged units (IS-IS and OSPF) unchanged. Positive: TestISISChecksumMatchesClosedForm and TestFletcherGenerateMatchesClosedForm compare the producer at every field offset against an independent B.3.4 derivation in L-n notation; fixed vectors pin values. Negative: TestISISChecksumRefusesMisplacedXY and TestFletcherGenerateRefusesMisplacedXY refuse the pair swapped or shifted one octet early. The B.3.5 placement obligation is now its own row, RFC905-B.3.5-1.",
       "requirement_sha": "cd8ac8ccdcfa8946",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "b9f243f3624e524f",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm": "d26e0552240a6091",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY": "d26e0552240a6091",
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "8ac8573c092c7f1a",
@@ -102,8 +102,8 @@
         "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY": "cc5064006e5e0814"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "7416218e47d3c785",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm": "95f458f3abe370cc",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY": "681a3768cefedbee",
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "5771613ca67997af",
@@ -117,8 +117,8 @@
       "note": "Re-judged 2026-09-30 under R-C1: row text and tagged units unchanged. TestISISVerifyRequiresBothSumsZero and TestFletcherVerifyRequiresBothSumsZero refuse a region with C0 zero and C1 non-zero and one with C1 zero and C0 non-zero, and accept the generated region; the both-non-zero case stays covered by the single-octet flips of TestISISChecksumDetectsCorruption and TestOSPFLSAChecksumExcludesAge.",
       "requirement_sha": "d5a155d22fc3d6ea",
       "tests": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "b9f243f3624e524f",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumDetectsCorruption": "b9f243f3624e524f",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero": "d26e0552240a6091",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero#2": "d26e0552240a6091",
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "8ac8573c092c7f1a",
@@ -126,8 +126,8 @@
         "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero#2": "cc5064006e5e0814"
       },
       "units": {
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "8e7bf5886473d042",
-        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumDetectsCorruption": "8e7bf5886473d042",
+        "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "7416218e47d3c785",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero": "0dd01c11065989bf",
         "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero#2": "0dd01c11065989bf",
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "3d7fb4e4da4a50f4",

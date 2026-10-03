@@ -4,7 +4,7 @@
     {
       "rid": "RFC9085-2.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI",
       "unit-sha": "aeaf69494379d4e8",
       "claim-sha": "06f623d1fe078c6e",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC9085-2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode",
       "unit-sha": "275bc3ff873d7097",
       "claim-sha": "d229d0b7e36966ce",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC9085-2.1.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared",
       "unit-sha": "56e89ed96ede728e",
       "claim-sha": "057fea829b37664a",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC9085-2.1.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits",
       "unit-sha": "8e63b26e0c0f91f6",
       "claim-sha": "ada94154f95e0c47",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC9085-2.1.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved",
       "unit-sha": "916b74a88e5d2487",
       "claim-sha": "e4501ac7d39c7da2",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC9085-2.1.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero",
       "unit-sha": "e1edeb0fb521e7dd",
       "claim-sha": "11bc71cc1a015564",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC9085-2.1.4-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved",
       "unit-sha": "916b74a88e5d2487",
       "claim-sha": "370cf92a7c3dcd42",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC9085-2.1.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero",
       "unit-sha": "e1edeb0fb521e7dd",
       "claim-sha": "b9da790ee51cff61",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC9085-2.2.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
       "unit-sha": "f08fae02740b18d9",
       "claim-sha": "dbfd6eb7efe96271",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC9085-2.2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
       "unit-sha": "d80229c4c60b1625",
       "claim-sha": "b9b102c24fe1d0c4",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC9085-2.2.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
       "unit-sha": "f08fae02740b18d9",
       "claim-sha": "5454d75200040fd8",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC9085-2.2.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
       "unit-sha": "d80229c4c60b1625",
       "claim-sha": "003a81c096a2b56a",
       "route": "revert",
@@ -389,7 +389,7 @@
     {
       "rid": "RFC9085-2.3.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
       "unit-sha": "f08fae02740b18d9",
       "claim-sha": "03400e8141220102",
       "route": "revert",
@@ -400,7 +400,7 @@
     {
       "rid": "RFC9085-2.3.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
       "unit-sha": "d80229c4c60b1625",
       "claim-sha": "84cdad868db27950",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "RFC9085-2.3.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved",
       "unit-sha": "f08fae02740b18d9",
       "claim-sha": "f6955baedcaffd4c",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC9085-2.3.5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
+      "unit": "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero",
       "unit-sha": "d80229c4c60b1625",
       "claim-sha": "ce32b37541f117a7",
       "route": "revert",

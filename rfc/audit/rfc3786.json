@@ -36,12 +36,12 @@
       "note": "Forbidden behaviour: sending IS Hellos (ISH) or IS-IS Hellos with a system-id other than that of the LSP that contains the neighbor. assertNormalHelloIdentity first requires the neighbor in the node's normal LSP, then t.Fatalf when a captured ISH NET system-id or a P2P IIH SystemID differs from lsp.LSPID.SystemID(), and requires both to be seen. TestRFC3786NormalHelloMatchesContainingLSP is the positive; TestRFC3786NormalHelloIdentityReload reloads the NET twice and requires both hellos to follow, so a circuit keeping its old identity goes red. The S' (extended LSP) clause has no producer in Ze (no extended LSP sets), so the normal system-id is the only identity the MUST can require here.",
       "requirement_sha": "a47765f0bafdf1b4",
       "tests": {
-        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloIdentityReload": "e9feb48870967281",
-        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloMatchesContainingLSP": "e9feb48870967281"
+        "internal/plugins/isis/rfc3786_hello_identity_test.go::TestRFC3786NormalHelloIdentityReload": "e9feb48870967281",
+        "internal/plugins/isis/rfc3786_hello_identity_test.go::TestRFC3786NormalHelloMatchesContainingLSP": "e9feb48870967281"
       },
       "units": {
-        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloIdentityReload": "6c45437776353261",
-        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloMatchesContainingLSP": "84375606523c0c19"
+        "internal/plugins/isis/rfc3786_hello_identity_test.go::TestRFC3786NormalHelloIdentityReload": "6c45437776353261",
+        "internal/plugins/isis/rfc3786_hello_identity_test.go::TestRFC3786NormalHelloMatchesContainingLSP": "84375606523c0c19"
       },
       "verdict": "enforced"
     }

@@ -5,12 +5,12 @@
       "note": "(a) forbidden: a fe80::/64 link-local prefix advertised in TLV 236. (b) TestISISOriginateTLV236 decodes the originated LSP and errors on got[\"fe80::/64\"] present (negative); the same unit requires the two routable prefixes present with their metric and X bit (positive). The unit runs NonLinkLocalV6Prefixes, the filter lsdb_wiring.go calls on every TLV 236 origination, then Originator.Originate, so breaking the filter reddens it.",
       "requirement_sha": "dc968dffb6613bd3",
       "tests": {
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV236": "6f31da93ea46f1e7",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV236#2": "6f31da93ea46f1e7"
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236": "6f31da93ea46f1e7",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236#2": "6f31da93ea46f1e7"
       },
       "units": {
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV236": "2678bb98cfcba512",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV236#2": "2678bb98cfcba512"
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236": "2678bb98cfcba512",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236#2": "2678bb98cfcba512"
       },
       "verdict": "enforced"
     },
@@ -18,14 +18,14 @@
       "note": "(a) forbidden: a TLV 236 prefix advertised with a metric larger than MAX_V6_PATH_METRIC taking part in normal SPF. (b) spf TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered: node 3 (distance 10) advertises 2001:db8:9::/64 at 50 (positive, installed at 60 via node 3); node 2 (distance 10) advertises the same prefix at 0xFE000001 and 2001:db8:8::/64 only at 0xFFFFFFFF (negative): the shared prefix keeps one next hop at 60 and the lone prefix is absent. The lone prefix is the discriminating input: any BuildRoutesV6 that considered it would install it (at MAX after clampMetric saturation, or at a wrapped cost without it). The per-entry filter (ipv6.go, p.Metric > MaxV6PathMetric) and the accumulated-cost ceiling (total >= MaxPathMetric) are redundant for every over-max input, so no input isolates the filter alone; removing either one alone leaves Ze compliant, and the test asserts the stack outcome the RFC states. Recorded +/- on BuildRoutesV6.",
       "requirement_sha": "f374a836178064c5",
       "tests": {
-        "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored": "da44667c9d8117e4",
-        "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored#2": "da44667c9d8117e4",
+        "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored": "da44667c9d8117e4",
+        "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored#2": "da44667c9d8117e4",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered": "f8fc7ede978a8548",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered#2": "f8fc7ede978a8548"
       },
       "units": {
-        "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored": "bab6f7fe54f4e893",
-        "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored#2": "bab6f7fe54f4e893",
+        "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored": "bab6f7fe54f4e893",
+        "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored#2": "bab6f7fe54f4e893",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered": "537c1050aceeaa64",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered#2": "537c1050aceeaa64"
       },
@@ -35,12 +35,12 @@
       "note": "(a) forbidden: a prefix distributed into IS-IS from another routing protocol originated with the X bit 0. (b) TestRFC5308RedistributedIPv6SetsExternalBit injects a bgp-sourced IPv6 route through the redistribute Consumer and t.Fatalf's on !got[0].External at Level1 and Level2 (positive); TestRFC5308ConnectedIPv6ClearsExternalBit fails if a connected prefix carries External (negative), so an always-set bit is caught too.",
       "requirement_sha": "72a65b945a6c1d98",
       "tests": {
-        "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit": "b34f32624e8f9f8e",
-        "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308RedistributedIPv6SetsExternalBit": "b34f32624e8f9f8e"
+        "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit": "b34f32624e8f9f8e",
+        "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308RedistributedIPv6SetsExternalBit": "b34f32624e8f9f8e"
       },
       "units": {
-        "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit": "3c66989bbd2d1c37",
-        "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308RedistributedIPv6SetsExternalBit": "90daf930190fa918"
+        "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit": "3c66989bbd2d1c37",
+        "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308RedistributedIPv6SetsExternalBit": "90daf930190fa918"
       },
       "verdict": "enforced"
     },
@@ -48,17 +48,17 @@
       "note": "Re-judged 2026-09-30. (a) forbidden: a Hello TLV 232 carrying a non-link-local address, or a link-local address not assigned to the sending interface. (b) The earlier gap (the production address source untested) is closed: root TestRFC5308HelloAddressIsTheInterfaceLinkLocal registers a test iface backend (only the OS address list is fake; the resolver's link-local classification is real) with two interfaces holding distinct link-local addresses, and requires interfaceIPv6LinkLocal to return fe80::a:1 for isis-ll-a although its global address is listed first, and fe80::b:2 for isis-ll-b (positive); a global-only interface and an interface without ipv6-unicast yield none (negative). circuits.go builds each circuit's Config.IPv6LinkLocal from interfaceIPv6LinkLocal(ic) for that same interface, and circuit TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal proves each circuit sends exactly its own configured address; TestISISIIHTLV232RejectsNonLinkLocal and TestISISIIHTLV232LinkLocal cover the encoder's link-local-only guard. Recorded +/- on circuits.go interfaceIPv6LinkLocal.",
       "requirement_sha": "3dc58c2100e835b4",
       "tests": {
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "7485069b2f049b28",
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal": "7485069b2f049b28",
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal": "7485069b2f049b28",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "7485069b2f049b28",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal": "7485069b2f049b28",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal": "7485069b2f049b28",
         "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal": "103ec73a1dc2a973",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal": "be04b61f642e549b",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal#2": "be04b61f642e549b"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "2a9073bd68ff9da0",
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal": "f044ef94d60042db",
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal": "52e8b0d0c48c1214",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "2a9073bd68ff9da0",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal": "f044ef94d60042db",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal": "52e8b0d0c48c1214",
         "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloTLV232IsTheSendingCircuitLinkLocal": "3c2789b6e64ee530",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal": "fa8c308b289ab897",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308HelloAddressIsTheInterfaceLinkLocal#2": "fa8c308b289ab897"
@@ -69,14 +69,14 @@
       "note": "Re-judged 2026-09-30. (a) forbidden: an LSP TLV 232 carrying a link-local address. (b) The earlier gap (the production filter untested) is closed: root TestRFC5308LSPInterfaceAddressesAreNonLinkLocal runs the engine over the test iface backend with two IPv6 circuits and decodes fragment 0 at both levels, built by the production path (lsdb_wiring.go levelState -> interfaceIPv6NonLinkLocal -> Originate): TLV 232 is exactly [2001:db8:a::1] (positive), and neither fe80::a:1 (same circuit) nor fe80::b:2 (the other circuit's only IPv6 address) appears (negative). Recorded +/- on circuits.go interfaceIPv6NonLinkLocal. lsdb TestISISOriginateTLV232Scope remains tagged and pre-filters its input; it carries no weight.",
       "requirement_sha": "771c13db116d91bb",
       "tests": {
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope": "6f31da93ea46f1e7",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "6f31da93ea46f1e7",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope": "6f31da93ea46f1e7",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "6f31da93ea46f1e7",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal": "be04b61f642e549b",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal#2": "be04b61f642e549b"
       },
       "units": {
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope": "9a13600ca234bff8",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "9a13600ca234bff8",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope": "9a13600ca234bff8",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "9a13600ca234bff8",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal": "f19f054c90b535e9",
         "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal#2": "f19f054c90b535e9"
       },
@@ -86,18 +86,18 @@
       "note": "(a) forbidden: an IPv6-capable IS omitting the IPv6 NLPID from TLV 129, or advertising a value other than 142 (0x8E). (b) circuit TestRFC5308HelloNLPIDIs142 checks the transmitted dual-stack IIH's TLV 129 wire octets equal exactly cc 8e, against the literal rather than packet.NLPIDIPv6, closing the constant gap; TestISISProtocolsSupportedDualStack and TestISISIIHTLV232LinkLocal cover the advertise clause and the IPv4-only cases (TestISISProtocolsSupportedDualStack ipv4-only, TestISISIIHNoTLV232WhenIPv4Only) the absence when IPv6 is not supported. Recorded + on hello.go protocolsSupportedTLV.",
       "requirement_sha": "b51183531fcb703d",
       "tests": {
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only": "7485069b2f049b28",
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "7485069b2f049b28",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only": "7485069b2f049b28",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "7485069b2f049b28",
         "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloNLPIDIs142": "103ec73a1dc2a973",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISProtocolsSupportedDualStack": "6f31da93ea46f1e7",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISProtocolsSupportedDualStack#2": "6f31da93ea46f1e7"
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack": "6f31da93ea46f1e7",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack#2": "6f31da93ea46f1e7"
       },
       "units": {
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only": "08f9f1b4bf60a0b3",
-        "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "2a9073bd68ff9da0",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only": "08f9f1b4bf60a0b3",
+        "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "2a9073bd68ff9da0",
         "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloNLPIDIs142": "8e2bafeeea39fdb0",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISProtocolsSupportedDualStack": "9200237b3220c591",
-        "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISProtocolsSupportedDualStack#2": "9200237b3220c591"
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack": "9200237b3220c591",
+        "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack#2": "9200237b3220c591"
       },
       "verdict": "enforced"
     },
@@ -105,18 +105,18 @@
       "note": "(a) forbidden: any path order other than L1-up > L2-up > L2-down > L1-down. (b) spf TestRFC5308FourStepPathPreference advertises the four classes each from its own node at metrics that invert the class order (400, 300, 200, 100), then drops the best class in turn: the installed route is always the best class left (checked by next hop, level and up/down), so each adjacent pair is decided by class not metric, and a separate case pits L1 up against L2 down alone. This closes the two pairs the previous note named (L2-up over L2-down, L1-up over L2-down). Recorded +/- on route.go preferenceRank, which BuildRoutesV6 uses. TestISISLeakUpDownBit and TestISISIPv6LevelArbitration remain tagged.",
       "requirement_sha": "55a55a90c0f66d8c",
       "tests": {
-        "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6LevelArbitration": "da44667c9d8117e4",
+        "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6LevelArbitration": "da44667c9d8117e4",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference": "f8fc7ede978a8548",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference#2": "f8fc7ede978a8548",
-        "internal/plugins/isis/spf/route_test.go::TestISISLeakUpDownBit": "6ebaa52ffdbace20",
-        "internal/plugins/isis/spf/route_test.go::TestISISLeakUpDownBit#2": "6ebaa52ffdbace20"
+        "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit": "6ebaa52ffdbace20",
+        "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit#2": "6ebaa52ffdbace20"
       },
       "units": {
-        "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6LevelArbitration": "bd83176381d1a12c",
+        "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6LevelArbitration": "bd83176381d1a12c",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference": "4afff7b7c3b7f8e5",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference#2": "4afff7b7c3b7f8e5",
-        "internal/plugins/isis/spf/route_test.go::TestISISLeakUpDownBit": "ed48979ada5d7ab4",
-        "internal/plugins/isis/spf/route_test.go::TestISISLeakUpDownBit#2": "ed48979ada5d7ab4"
+        "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit": "ed48979ada5d7ab4",
+        "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit#2": "ed48979ada5d7ab4"
       },
       "verdict": "enforced"
     },

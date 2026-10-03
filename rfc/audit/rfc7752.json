@@ -124,13 +124,13 @@
       "requirement_sha": "c0fcdb0b34ec6863",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "600df28992081178",
-        "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "9e2e5fbb0bf50c3f",
-        "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "9e2e5fbb0bf50c3f"
+        "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "9e2e5fbb0bf50c3f",
+        "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "9e2e5fbb0bf50c3f"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "de1034561975ce60",
-        "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "b26a7397285df639",
-        "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "3e621177c5190f92"
+        "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "b26a7397285df639",
+        "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "3e621177c5190f92"
       },
       "verdict": "enforced"
     },

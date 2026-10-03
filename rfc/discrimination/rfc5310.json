@@ -4,7 +4,7 @@
     {
       "rid": "RFC5310-3.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPRefusesOtherStrings",
+      "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310Level1SNPRefusesOtherStrings",
       "unit-sha": "4175714ab47619aa",
       "claim-sha": "6424260af021db8e",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC5310-3.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPUsesAreaString",
+      "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310Level1SNPUsesAreaString",
       "unit-sha": "3a195ad88ca7993a",
       "claim-sha": "380b243085225088",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC5310-3.2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings",
+      "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings",
       "unit-sha": "560170ef0dd6b05e",
       "claim-sha": "fef5fb72bc9f1c84",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC5310-3.2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloUsesLinkString",
+      "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloUsesLinkString",
       "unit-sha": "228a4adf8acdca32",
       "claim-sha": "98d428687eae8ccc",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC5310-3.5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent",
+      "unit": "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent",
       "unit-sha": "9b38165849f7fcb8",
       "claim-sha": "37ddb699f911f033",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC5310-3.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent",
+      "unit": "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent",
       "unit-sha": "9b38165849f7fcb8",
       "claim-sha": "8f2fbb47dc62ed21",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC5310-3.5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited",
+      "unit": "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited",
       "unit-sha": "8fca4d26518daca2",
       "claim-sha": "786788f62990ec25",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC5310-3.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited",
+      "unit": "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited",
       "unit-sha": "8fca4d26518daca2",
       "claim-sha": "cef85663635008af",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC5310-4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/auth_lifetime_rfc5310_test.go::TestRFC5310LifetimeNotAuthenticated",
+      "unit": "internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go::TestRFC5310LifetimeNotAuthenticated",
       "unit-sha": "0865716fb5c59333",
       "claim-sha": "bfea9c8c463aced3",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC5310-4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation",
+      "unit": "internal/plugins/isis/rfc5310_auth_keystore_test.go::TestISISAuthRotation",
       "unit-sha": "43fac63f1a1cbb71",
       "claim-sha": "f3c9efa5fc77ffb3",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC5310-4-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310NonSendingKeyStillUsed",
+      "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310NonSendingKeyStillUsed",
       "unit-sha": "709dbc269b645e7a",
       "claim-sha": "4d791cfb4c453168",
       "route": "revert",

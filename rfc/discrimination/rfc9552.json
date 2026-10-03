@@ -224,7 +224,7 @@
     {
       "rid": "RFC9552-5.2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs",
+      "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs",
       "unit-sha": "510a3f64ddccbedd",
       "claim-sha": "4999879447e508b1",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC9552-5.2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeRouterID",
+      "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID",
       "unit-sha": "3488894937ac275a",
       "claim-sha": "5233bf3e8252928e",
       "route": "revert",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC9552-5.3.2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs",
+      "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs",
       "unit-sha": "145137f25d2a448e",
       "claim-sha": "503b37ca28905d47",
       "route": "revert",
@@ -609,7 +609,7 @@
     {
       "rid": "RFC9552-5.3.2.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs",
+      "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs",
       "unit-sha": "145137f25d2a448e",
       "claim-sha": "4991efcf3dd6f284",
       "route": "revert",
@@ -620,7 +620,7 @@
     {
       "rid": "RFC9552-5.3.2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs",
+      "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs",
       "unit-sha": "60583b168c0f0ea9",
       "claim-sha": "dd76c5fa547f5799",
       "route": "revert",
@@ -631,7 +631,7 @@
     {
       "rid": "RFC9552-5.3.2.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs",
+      "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs",
       "unit-sha": "60583b168c0f0ea9",
       "claim-sha": "78c3ce1ea4092ffe",
       "route": "revert",

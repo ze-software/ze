@@ -147,7 +147,7 @@
     {
       "rid": "RFC7752-3.3.2.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder",
+      "unit": "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder",
       "unit-sha": "91b3e4e21872643d",
       "claim-sha": "53d1aa7ac755f635",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC7752-3.3.2.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder",
+      "unit": "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder",
       "unit-sha": "a05238323bc1969f",
       "claim-sha": "e3df3b2205eaf9a7",
       "route": "revert",

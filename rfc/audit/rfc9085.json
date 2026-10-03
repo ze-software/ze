@@ -11,14 +11,14 @@
       "note": "Re-judged 2026-10-02 (independent judge, ospf c28). OSPF exporter as judged 2026-09-30 (+ TestRFC9085OSPFCapabilitiesOnOriginatorNode, - TestRFC9085OSPFCapabilitiesOnNoOtherNLRI, targeted breaks red). IS-IS exporter now driven (new isis/bgpls_export_rfc9085_placement_test.go): two L1 LSPs through the LSDB and bgplsBuilder.build; + TestRFC9085ISISCapabilitiesOnOriginatorNode: 0000.0000.0002 (TLV 242 with sub-TLVs 2/19/22) gets exactly one 1034/1035/1036 with exact bytes; - TestRFC9085ISISCapabilitiesOnNoOtherNLRI: 0000.0000.0003 Node NLRI, both Link and both Prefix NLRIs (presence asserted) carry none. Judge overlay: TLV 242 deferred and applied to the last node built (0000.0000.0003) -> + red (0 TLV 1034) and - red ('node 0000.0000.0003 carries TLV 1034'); author overlays (copy to other node / to every Link and Prefix NLRI) -> - red only. Revert records on capabilities observed. Support remaining sentence 'tested on the OSPF exporter only' removed as now false.",
       "requirement_sha": "b46d65388027e52f",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI": "b8c618822a908f41",
-        "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode": "b8c618822a908f41",
+        "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI": "b8c618822a908f41",
+        "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode": "b8c618822a908f41",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnNoOtherNLRI": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnOriginatorNode": "e14c93300ea1c323"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI": "b02b9eab3834837f",
-        "internal/plugins/isis/bgpls_export_rfc9085_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode": "318064a1ce2e78cc",
+        "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI": "b02b9eab3834837f",
+        "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode": "318064a1ce2e78cc",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnNoOtherNLRI": "3be6e5fb610eb096",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFCapabilitiesOnOriginatorNode": "a9e52b30be6266b8"
       },
@@ -29,13 +29,13 @@
       "requirement_sha": "ff5636b73afaacaf",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "a041abb18f874b0e",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "18e22c4038a33aa5",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "18e22c4038a33aa5"
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "18e22c4038a33aa5",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "18e22c4038a33aa5"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "fad54ea38f86fce1",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "0edabe49a96b2975",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "0e7afbef89a5143e"
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "0edabe49a96b2975",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "0e7afbef89a5143e"
       },
       "verdict": "enforced"
     },
@@ -62,16 +62,16 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "a041abb18f874b0e",
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "d4e63b8eb9e26da6",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "18e22c4038a33aa5",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "18e22c4038a33aa5",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "18e22c4038a33aa5",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "18e22c4038a33aa5",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "e14c93300ea1c323"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "25df28a4a0b9b9b8",
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "e3df1100ef507862",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "1db57abf4e6c39f6",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "30cc1e530c5a5ec9",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "1db57abf4e6c39f6",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "30cc1e530c5a5ec9",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "0b11bb88d0df26e9",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "1a3f4297eaaab9f1"
       },
@@ -97,15 +97,15 @@
       "requirement_sha": "43633a398d13876c",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "d4e63b8eb9e26da6",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "18e22c4038a33aa5",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "18e22c4038a33aa5",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "18e22c4038a33aa5",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "18e22c4038a33aa5",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "e14c93300ea1c323"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "e3df1100ef507862",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "1db57abf4e6c39f6",
-        "internal/plugins/isis/bgpls_export_rfc9085_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "30cc1e530c5a5ec9",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISAllOnesSourceNeverReachesReserved": "1db57abf4e6c39f6",
+        "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085ISISOriginatedCapabilitiesReservedZero": "30cc1e530c5a5ec9",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "0b11bb88d0df26e9",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "1a3f4297eaaab9f1"
       },
@@ -116,15 +116,15 @@
       "requirement_sha": "f88e23b533efe593",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "d4e63b8eb9e26da6",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "be6bfcb7bd35f639",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
       },
@@ -135,15 +135,15 @@
       "requirement_sha": "80dd5f1d9cbd2988",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "d4e63b8eb9e26da6",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "85f0432e4d25ec27",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
       },
@@ -154,15 +154,15 @@
       "requirement_sha": "f25b19666ede48dc",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "d4e63b8eb9e26da6",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "be6bfcb7bd35f639",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
       },
@@ -173,15 +173,15 @@
       "requirement_sha": "cc23fc2a346a97a5",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "d4e63b8eb9e26da6",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "85f0432e4d25ec27",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
-        "internal/plugins/isis/bgpls_export_rfc9085_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+        "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
         "internal/plugins/ospf/bgpls_export_rfc9085_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
       },

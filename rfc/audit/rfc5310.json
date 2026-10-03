@@ -10,12 +10,12 @@
       "note": "Now drives Level 1 SNPs, not LSPs. TestRFC5310Level1SNPUsesAreaString: signLevelPDU signs an L1 CSNP and PSNP that verify with areasecret under Key ID 1 and not with domainsecret under the same Key ID, and verifyFrame accepts them. TestRFC5310Level1SNPRefusesOtherStrings: the same CSNP/PSNP signed with the domain or link string, under Key ID 1 and under that string's own Key ID (2, 3), is rejected by verifyFrame while the area-signed copy is accepted, so a receiver that tried every configured chain goes red. Recorded red on signLevelPDU and verifyFrame.",
       "requirement_sha": "e7b9c4a773d149e8",
       "tests": {
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPRefusesOtherStrings": "207e51c924c43a50",
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPUsesAreaString": "207e51c924c43a50"
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310Level1SNPRefusesOtherStrings": "207e51c924c43a50",
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310Level1SNPUsesAreaString": "207e51c924c43a50"
       },
       "units": {
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPRefusesOtherStrings": "49eb3a6f4ec1c345",
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310Level1SNPUsesAreaString": "dfaf0531a2997f38"
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310Level1SNPRefusesOtherStrings": "49eb3a6f4ec1c345",
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310Level1SNPUsesAreaString": "dfaf0531a2997f38"
       },
       "verdict": "enforced"
     },
@@ -23,12 +23,12 @@
       "note": "TestRFC5310HelloUsesLinkString: signHelloPDU signs a LAN and a P2P IIH that verify with iihsecret under Key ID 3 and not with areasecret under Key ID 3, and verifyFrame accepts them, so a sender using the area chain goes red. TestRFC5310HelloRefusesAreaAndDomainStrings: the IIHs signed with the area or domain string, under Key ID 3 and under their own Key IDs (1, 2), are rejected while the link-signed IIH is accepted. Recorded red on signHelloPDU and verifyFrame. The old self-consistent round trip and no-TLV-10 tags are gone.",
       "requirement_sha": "a6b88459b143242a",
       "tests": {
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings": "207e51c924c43a50",
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloUsesLinkString": "207e51c924c43a50"
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings": "207e51c924c43a50",
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloUsesLinkString": "207e51c924c43a50"
       },
       "units": {
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings": "c6d354d4e3cc9466",
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310HelloUsesLinkString": "4767eb278a0353bb"
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings": "c6d354d4e3cc9466",
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloUsesLinkString": "4767eb278a0353bb"
       },
       "verdict": "enforced"
     },
@@ -77,20 +77,20 @@
       "tests": {
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "5a1b7e8882c21ead",
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "5a1b7e8882c21ead",
-        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent": "c91f7d4ccc1eec6f",
-        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "c91f7d4ccc1eec6f",
-        "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited": "9e5b0de6fddb940c",
-        "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited#2": "9e5b0de6fddb940c",
+        "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent": "c91f7d4ccc1eec6f",
+        "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "c91f7d4ccc1eec6f",
+        "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited": "9e5b0de6fddb940c",
+        "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited#2": "9e5b0de6fddb940c",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "6263fe382fc10923",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "6263fe382fc10923"
       },
       "units": {
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "f8cbc414d75be51d",
         "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "f8cbc414d75be51d",
-        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent": "d3ed1d48f4614a72",
-        "internal/plugins/isis/auth_error_event_rfc5310_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "d3ed1d48f4614a72",
-        "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited": "6a1fa585104f3405",
-        "internal/plugins/isis/auth_warn_rfc5310_test.go::TestRFC5310MismatchWarnsRateLimited#2": "6a1fa585104f3405",
+        "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent": "d3ed1d48f4614a72",
+        "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "d3ed1d48f4614a72",
+        "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited": "6a1fa585104f3405",
+        "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited#2": "6a1fa585104f3405",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "5b02ad2a1ec80768",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "5dfed394d545126c"
       },
@@ -100,11 +100,11 @@
       "note": "Single-polarity positive, now on the CRYPTO_AUTH path. New TestRFC5310LifetimeNotAuthenticated signs an LSP with HMAC-SHA-256 (type 3, Key ID 7), sets the Remaining Lifetime to 1, 600 and 0xFFFF with the Fletcher checksum recomputed, and requires VerifyPDU to accept each; a digest that covered the lifetime (lspAuthLayout not zeroing it) goes red. A changed sequence number is refused, so an accept-all verifier also goes red. Recorded red on auth_sign.go lspAuthLayout. The {single-polarity} marker holds (no lifetime-included path exists to refuse). Its prose still names TestISISAuthRotationOverlapAccepts, whose tag was removed: stale annotation text, not a coverage gap.",
       "requirement_sha": "dac40dbe8e12a096",
       "tests": {
-        "internal/plugins/isis/packet/auth_lifetime_rfc5310_test.go::TestRFC5310LifetimeNotAuthenticated": "c5d330c7d682a9c1",
+        "internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go::TestRFC5310LifetimeNotAuthenticated": "c5d330c7d682a9c1",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign": "6263fe382fc10923"
       },
       "units": {
-        "internal/plugins/isis/packet/auth_lifetime_rfc5310_test.go::TestRFC5310LifetimeNotAuthenticated": "417dacd89c5015f2",
+        "internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go::TestRFC5310LifetimeNotAuthenticated": "417dacd89c5015f2",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign": "286edc3be7c23485"
       },
       "verdict": "enforced"
@@ -113,13 +113,13 @@
       "note": "Re-judged 2026-09-30 (independent judge) on its positives, per the main-thread decision following the owner's BFD RFC5880-6.1-3 ruling (a capability MUST with no refusal path is proven by its positives). Every clause is proven: STORE more than one key, root TestISISAuthRotation requires verifyKeys to return both keys (len 2) before and after the send rollover; USE more than one key at the same time, packet TestISISAuthRotationOverlapAccepts verifies a PDU signed by either of two candidate keys, and root TestRFC5310NonSendingKeyStillUsed verifies with an accepted key that is not the sending key, while signKey moves from key 1 to key 2 in TestISISAuthRotation. Each fails with a one-key store (keys[:1] fails the new-key verify; a single-entry store fails len 2). Records: + revert acceptKeys (TestISISAuthRotation), + revert VerifyPDU (TestISISAuthRotationOverlapAccepts, recorded by this judge), - revert acceptKeys (TestRFC5310NonSendingKeyStillUsed). The negative tag on TestRFC5310NonSendingKeyStillUsed is kept as supplementary because the coverage ratchet holds it: it is a further positive, not a rejected violation, and no input drives the store toward one key.",
       "requirement_sha": "af5b9ba6dd2fcc8b",
       "tests": {
-        "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation": "488fb8b461157d91",
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310NonSendingKeyStillUsed": "207e51c924c43a50",
+        "internal/plugins/isis/rfc5310_auth_keystore_test.go::TestISISAuthRotation": "488fb8b461157d91",
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310NonSendingKeyStillUsed": "207e51c924c43a50",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "6263fe382fc10923"
       },
       "units": {
-        "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation": "3b1ea2939cedb4e1",
-        "internal/plugins/isis/auth_scope_rfc5310_test.go::TestRFC5310NonSendingKeyStillUsed": "9248df6db245829a",
+        "internal/plugins/isis/rfc5310_auth_keystore_test.go::TestISISAuthRotation": "3b1ea2939cedb4e1",
+        "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310NonSendingKeyStillUsed": "9248df6db245829a",
         "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "1b2c3ce15746744f"
       },
       "upgrade_reason": "No tagged unit changed. The earlier weak verdict rested only on the missing genuine negative; the positives were already judged sound. The main thread ruled, on the precedent of the owner's BFD RFC5880-6.1-3 ruling, that a store-and-use capability MUST with no refusal path is judged on its positives, and this judge re-read all three positives against RFC 5310 section 4 and found each clause (store, use at the same time) proven and recorded.",

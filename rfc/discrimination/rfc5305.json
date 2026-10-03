@@ -125,7 +125,7 @@
     {
       "rid": "RFC5305-4.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected",
+      "unit": "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected",
       "unit-sha": "c5f3e0c81412ba39",
       "claim-sha": "3e1910e397e85652",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC5305-4.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/redistribute/inject_rfc5305_test.go::TestRFC5305ConnectedInjectionClearsUpDown",
+      "unit": "internal/plugins/isis/redistribute/rfc5305_inject_test.go::TestRFC5305ConnectedInjectionClearsUpDown",
       "unit-sha": "2ec4048bd14a62d5",
       "claim-sha": "68da8c0b19ee22e0",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC5305-4.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/redistribute/inject_rfc5305_test.go::TestRFC5305FirstInjectionClearsUpDown",
+      "unit": "internal/plugins/isis/redistribute/rfc5305_inject_test.go::TestRFC5305FirstInjectionClearsUpDown",
       "unit-sha": "905b30507fcb86d5",
       "claim-sha": "31c6ea83d01fc3ff",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC5305-4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go::TestRFC5305NoSubTLVsClearsPresenceBit",
+      "unit": "internal/plugins/isis/packet/rfc5305_tlv_ipv4_presence_test.go::TestRFC5305NoSubTLVsClearsPresenceBit",
       "unit-sha": "b7f6c93327882d76",
       "claim-sha": "db1f9d09c3e1e8d4",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC5305-4.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go::TestRFC5305SubTLVsSetPresenceBit",
+      "unit": "internal/plugins/isis/packet/rfc5305_tlv_ipv4_presence_test.go::TestRFC5305SubTLVsSetPresenceBit",
       "unit-sha": "280949d3164ff69e",
       "claim-sha": "c550e77b2d92b68b",
       "route": "revert",

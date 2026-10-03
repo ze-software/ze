@@ -4,7 +4,7 @@
     {
       "rid": "RFC9514-3.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance",
       "unit-sha": "c27a0a94ee09553c",
       "claim-sha": "7ea621d786da62ea",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC9514-3.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance",
       "unit-sha": "c27a0a94ee09553c",
       "claim-sha": "2b5bd588a59a47f9",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC9514-4.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero",
       "unit-sha": "00a2b5cce3fb4b22",
       "claim-sha": "f47341391a7fa35f",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC9514-4.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero",
       "unit-sha": "00a2b5cce3fb4b22",
       "claim-sha": "f4be9a17255e4159",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC9514-4.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
       "unit-sha": "b97dc8a2986c0080",
       "claim-sha": "11af8556d7d78aa9",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC9514-4.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
       "unit-sha": "e41899607193d546",
       "claim-sha": "63c54ea55cf5c4a0",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC9514-4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero",
       "unit-sha": "00a2b5cce3fb4b22",
       "claim-sha": "0e73f337b2a90d44",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC9514-4.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero",
       "unit-sha": "00a2b5cce3fb4b22",
       "claim-sha": "2ec1a7d005eba34c",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC9514-4.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
       "unit-sha": "b97dc8a2986c0080",
       "claim-sha": "ad92d5b33cce57e9",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC9514-4.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
       "unit-sha": "e41899607193d546",
       "claim-sha": "8c4b7fda068c8897",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "RFC9514-7.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero",
       "unit-sha": "fa2eb6c1a66f71c6",
       "claim-sha": "eaf576a087d62439",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC9514-7.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero",
       "unit-sha": "fa2eb6c1a66f71c6",
       "claim-sha": "5756867662ff2ed9",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC9514-7.1-3",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm",
       "unit-sha": "e91696647f267908",
       "claim-sha": "39b8ad594da16263",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "RFC9514-7.1-4",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated",
       "unit-sha": "1be232440dd469b1",
       "claim-sha": "b4e5ea272585f4e1",
       "route": "revert",
@@ -389,7 +389,7 @@
     {
       "rid": "RFC9514-7.1-4",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero",
+      "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero",
       "unit-sha": "7f521b174178bb38",
       "claim-sha": "d91cc8c9b65eba78",
       "route": "revert",

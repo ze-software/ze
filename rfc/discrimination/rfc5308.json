@@ -4,7 +4,7 @@
     {
       "rid": "RFC5308-2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored",
+      "unit": "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored",
       "unit-sha": "43dad2bf12ee41a8",
       "claim-sha": "fd72b5dbc35a8f13",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC5308-2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored",
+      "unit": "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored",
       "unit-sha": "43dad2bf12ee41a8",
       "claim-sha": "04b91ff30a68fd3c",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC5308-2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit",
+      "unit": "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit",
       "unit-sha": "845fec62b960216d",
       "claim-sha": "2207efee8bed4861",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC5308-2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308RedistributedIPv6SetsExternalBit",
+      "unit": "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308RedistributedIPv6SetsExternalBit",
       "unit-sha": "fb759e2ed8cdf773",
       "claim-sha": "6716702461550a51",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC5308-3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal",
+      "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal",
       "unit-sha": "1d52d3cd1726c4c5",
       "claim-sha": "e678ea9f275dfc26",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC5308-3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal",
+      "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232OmittedNoLinkLocal",
       "unit-sha": "e5e0c5efd6ab34b4",
       "claim-sha": "e698d09e25668265",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC5308-3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal",
+      "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232RejectsNonLinkLocal",
       "unit-sha": "498c0538a3a1fd95",
       "claim-sha": "fdbf737706ed5f63",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC5308-3-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope",
+      "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope",
       "unit-sha": "fa1ac9e4a3dacd66",
       "claim-sha": "b4a4dc454b2b7859",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC5308-3-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISOriginateTLV232Scope",
+      "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope",
       "unit-sha": "fa1ac9e4a3dacd66",
       "claim-sha": "cf57e021e646eff1",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC5308-4-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only",
+      "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only",
       "unit-sha": "12f4268a0b49a79a",
       "claim-sha": "d154c0e048ac3e68",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC5308-4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/circuit/hello_ipv6_test.go::TestISISIIHTLV232LinkLocal",
+      "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal",
       "unit-sha": "1d52d3cd1726c4c5",
       "claim-sha": "e1051d61011cf497",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC5308-4-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISProtocolsSupportedDualStack",
+      "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack",
       "unit-sha": "a220071e457ac462",
       "claim-sha": "d8cf309ad1bafae7",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC5308-4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/lsdb/origination_ipv6_test.go::TestISISProtocolsSupportedDualStack",
+      "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack",
       "unit-sha": "a220071e457ac462",
       "claim-sha": "27923c288efce3d8",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC5308-5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/ipv6_test.go::TestISISIPv6LevelArbitration",
+      "unit": "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6LevelArbitration",
       "unit-sha": "9e908dcdece1059b",
       "claim-sha": "4e65f57ffff0d053",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC5308-5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/spf/route_test.go::TestISISLeakUpDownBit",
+      "unit": "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit",
       "unit-sha": "854c3891163a9d5e",
       "claim-sha": "59a595edc3f9096d",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC5308-5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/route_test.go::TestISISLeakUpDownBit",
+      "unit": "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit",
       "unit-sha": "854c3891163a9d5e",
       "claim-sha": "48e065cbe5190501",
       "route": "revert",

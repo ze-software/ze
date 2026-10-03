@@ -9,14 +9,14 @@
       "note": "Unchanged on re-read: TestISISTLVIPv4RoundTrip lost only its RFC1195-5.2-4 comment tag. Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (with-subtlv) goes red if a type-1 sub-TLV is rejected. Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.",
       "requirement_sha": "6dd4a1f63b862e49",
       "tests": {
-        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22RoundTrip": "1867a2588f51badf",
-        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22Truncated": "1867a2588f51badf",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "08473fc2b411962d"
+        "internal/plugins/isis/packet/rfc5305_tlv_core_test.go::TestISISTLV22RoundTrip": "1867a2588f51badf",
+        "internal/plugins/isis/packet/rfc5305_tlv_core_test.go::TestISISTLV22Truncated": "1867a2588f51badf",
+        "internal/plugins/isis/packet/rfc5305_tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "08473fc2b411962d"
       },
       "units": {
-        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22RoundTrip": "3294d5bc08b0a06c",
-        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22Truncated": "cbd038f203670f5d",
-        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "97dc42a0ccd5f9bf"
+        "internal/plugins/isis/packet/rfc5305_tlv_core_test.go::TestISISTLV22RoundTrip": "3294d5bc08b0a06c",
+        "internal/plugins/isis/packet/rfc5305_tlv_core_test.go::TestISISTLV22Truncated": "cbd038f203670f5d",
+        "internal/plugins/isis/packet/rfc5305_tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "97dc42a0ccd5f9bf"
       },
       "verdict": "enforced"
     },
@@ -88,14 +88,14 @@
       "tests": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
-        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
+        "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5affb9956c000248"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "b9a1a5e2daa88030",
-        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6",
+        "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2",
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "682f56baeb8524c2"
       },

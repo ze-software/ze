@@ -92,7 +92,7 @@
     {
       "rid": "RFC5303-3.2-11",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption",
+      "unit": "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption",
       "unit-sha": "5cec10d78147765b",
       "claim-sha": "f1d72b8d992d38df",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC5303-3.2-13",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction",
+      "unit": "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction",
       "unit-sha": "09547c17bb175cb6",
       "claim-sha": "471099c4d069982a",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC5303-3.2-13",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction",
+      "unit": "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction",
       "unit-sha": "09547c17bb175cb6",
       "claim-sha": "fbc282d2ea16da85",
       "route": "revert",

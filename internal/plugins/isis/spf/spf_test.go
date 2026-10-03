@@ -35,7 +35,7 @@ func (stubResolver) ResolveNextHop(_ Level, neighbor types.SystemID) (NextHop, b
 
 // edge adds a directed L1 edge from->to with metric to the stub source (one TLV
 // 22 entry on from's record). Records accumulate per source. The SPF topology
-// fixtures are L1; multi-level preference is exercised in route_test.go.
+// fixtures are L1; multi-level preference is exercised in rfc5308_route_test.go.
 func (s *stubSource) edge(from types.SourceID, e isEdge) {
 	for i := range s.byLevel[Level1] {
 		if s.byLevel[Level1][i].Source == from {

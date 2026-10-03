@@ -124,12 +124,12 @@
       "note": "c23 rejudge: the IS-IS producer is now proven for both types (TestRFC9552ISISNodeCarriesBothRouterIDs: TLV 134 -> 1028 and TLV 140 -> 1029 with their values, revert record on isis lsp). Still weak: the OSPF producer (ospf/bgpls_export.go adds 1028/1029 from the TE Router Address) has no tagged unit, queued while the ospf package is held (R6), and no unit follows the node attribute onto the BGP-LS Attribute wire",
       "requirement_sha": "c412ac30190780d9",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "07e1ba0c24d70214",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "07e1ba0c24d70214",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "d94341e3d0458eff",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISNodeRouterID": "67187e0eab6a8759"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "d94341e3d0458eff",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "67187e0eab6a8759"
       },
       "verdict": "weak"
     },
@@ -316,16 +316,16 @@
       "note": "c23 rejudge: IS-IS links now proven for both types on both ends (TestRFC9552ISISLinkCarriesAllRouterIDs: 1028/1029 local, 1030/1031 remote, negative catches an IPv6 swap; +/- revert records on linkRouterIDs). Still weak: the OSPF link producer is untested (ospf package held, R6 queue), so 'all auxiliary Router-IDs' is proven for one of the two IGPs Ze exports",
       "requirement_sha": "418ca4fa3543e232",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "07e1ba0c24d70214",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "07e1ba0c24d70214",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs": "07e1ba0c24d70214",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "07e1ba0c24d70214",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "07e1ba0c24d70214",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "07e1ba0c24d70214",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "fedfb153729e9d34",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "fedfb153729e9d34",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs": "4b831df520a7f1ce",
-        "internal/plugins/isis/bgpls_export_rfc9552_test.go::TestRFC9552ISISLinkRouterIDs#2": "4b831df520a7f1ce"
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "fedfb153729e9d34",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "fedfb153729e9d34",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "4b831df520a7f1ce",
+        "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "4b831df520a7f1ce"
       },
       "verdict": "weak"
     },
@@ -480,8 +480,8 @@
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "6886dddcc0644d09",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "6886dddcc0644d09",
-        "internal/plugins/isis/bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "070276052fe9c6ff",
-        "internal/plugins/isis/bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "070276052fe9c6ff",
+        "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "070276052fe9c6ff",
+        "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "070276052fe9c6ff",
         "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "42da0474de6f1b9c",
         "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "42da0474de6f1b9c",
         "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "42da0474de6f1b9c",
@@ -491,8 +491,8 @@
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "2a3ef904d0143c41",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "2a3ef904d0143c41",
-        "internal/plugins/isis/bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "61cea5e6fdd1c236",
-        "internal/plugins/isis/bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "61cea5e6fdd1c236",
+        "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "61cea5e6fdd1c236",
+        "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "61cea5e6fdd1c236",
         "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "bec52f36129e6a2d",
         "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "2b55e2f4dd16ecf4",
         "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "2b55e2f4dd16ecf4",

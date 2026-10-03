@@ -26,7 +26,7 @@
     {
       "rid": "RFC1195-3.10-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195NoRouteForUnreachedReachabilityEntry",
+      "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195NoRouteForUnreachedReachabilityEntry",
       "unit-sha": "e4194dbef7e0dfef",
       "claim-sha": "a11c5803ead66e4b",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC1195-3.10-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195RouteForEachReachabilityEntry",
+      "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195RouteForEachReachabilityEntry",
       "unit-sha": "f821d83c846a2806",
       "claim-sha": "727239123df97043",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC1195-3.10-3",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195RouteForEachReachabilityEntry",
+      "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195RouteForEachReachabilityEntry",
       "unit-sha": "f821d83c846a2806",
       "claim-sha": "002df7fdbfb3837b",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC1195-4.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameOSIEncapsulation",
+      "unit": "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameOSIEncapsulation",
       "unit-sha": "dacf8ab83a9be53b",
       "claim-sha": "f6f648d74cf83df8",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC1195-4.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation",
+      "unit": "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation",
       "unit-sha": "6f2cdc30cba9f30b",
       "claim-sha": "85485357ca34fadf",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC1195-4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLV63Addresses",
+      "unit": "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLV63Addresses",
       "unit-sha": "2e38672c1255976b",
       "claim-sha": "8678d84a7f40bbba",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC1195-4.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused",
+      "unit": "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused",
       "unit-sha": "d147c1cc8af341d1",
       "claim-sha": "0753e58483e8f11a",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC1195-4.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword",
+      "unit": "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHConfiguredPassword",
       "unit-sha": "5b20c64a9f8c6e03",
       "claim-sha": "dd773cf6ef970b4f",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC1195-4.4-2",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword",
+      "unit": "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHWrongPassword",
       "unit-sha": "a6b38ca91812f0c9",
       "claim-sha": "6becbf8d75cefe10",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC1195-4.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport",
+      "unit": "internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go::TestRFC1195ISHVethTransport",
       "unit-sha": "26ca59a9b0db9f2c",
       "claim-sha": "b4d6a8a02723e5fe",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC1195-5.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp",
+      "unit": "internal/plugins/isis/lsdb/rfc1195_origination_test.go::TestISISOriginateOnAdjacencyUp",
       "unit-sha": "06a38897c3491f72",
       "claim-sha": "5b103ffbdd6ef950",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "RFC1195-5.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp",
+      "unit": "internal/plugins/isis/lsdb/rfc1195_origination_test.go::TestISISOriginateOnAdjacencyUp",
       "unit-sha": "06a38897c3491f72",
       "claim-sha": "b02dd743c5db0011",
       "route": "revert",
@@ -422,7 +422,7 @@
     {
       "rid": "RFC1195-5.3.4-3",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive",
+      "unit": "internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive",
       "unit-sha": "5ac58c9b8c638f2b",
       "claim-sha": "b991768b8a527e1d",
       "route": "revert",
@@ -433,7 +433,7 @@
     {
       "rid": "RFC1195-5.3.4-3",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit",
+      "unit": "internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit",
       "unit-sha": "b99cb9c1989c7095",
       "claim-sha": "61bd5286db32c4fc",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC1195-7-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195CSNPEntriesAscending",
+      "unit": "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195CSNPEntriesAscending",
       "unit-sha": "d7195420b8f6eb43",
       "claim-sha": "9836a15fe462a374",
       "route": "revert",
@@ -477,7 +477,7 @@
     {
       "rid": "RFC1195-7-1",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists",
+      "unit": "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists",
       "unit-sha": "5d3e861eee063a39",
       "claim-sha": "d946bda307bd5e30",
       "route": "revert",
@@ -510,7 +510,7 @@
     {
       "rid": "RFC1195-7-3",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix",
+      "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix",
       "unit-sha": "1e342bb9f36d1516",
       "claim-sha": "58894e379960339a",
       "route": "revert",
@@ -543,7 +543,7 @@
     {
       "rid": "RFC1195-7-5",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix",
+      "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix",
       "unit-sha": "1e342bb9f36d1516",
       "claim-sha": "3db8646856461428",
       "route": "revert",
@@ -554,7 +554,7 @@
     {
       "rid": "RFC1195-7-6",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesDoNotLeak",
+      "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesDoNotLeak",
       "unit-sha": "095844c5fad31ea9",
       "claim-sha": "82b66f791a1ae3cf",
       "route": "revert",
@@ -565,7 +565,7 @@
     {
       "rid": "RFC1195-7-6",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesResolved",
+      "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesResolved",
       "unit-sha": "08406c5cb881696f",
       "claim-sha": "d96a88437252607e",
       "route": "revert",
@@ -576,7 +576,7 @@
     {
       "rid": "RFC1195-7-7",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes",
+      "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes",
       "unit-sha": "1b49ca981db482e5",
       "claim-sha": "2f484997ff73b124",
       "route": "revert",
@@ -587,7 +587,7 @@
     {
       "rid": "RFC1195-7-7",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassSignedWithItsScope",
+      "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassSignedWithItsScope",
       "unit-sha": "ef2fac4f3533f31b",
       "claim-sha": "d62f61701f676c96",
       "route": "revert",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC1195-7-7",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/ish_scope_rfc1195_test.go::TestRFC1195ISHCarriesPerLinkPassword",
+      "unit": "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHCarriesPerLinkPassword",
       "unit-sha": "2cc443037c57480f",
       "claim-sha": "86fb1279f35f2b56",
       "route": "revert",
@@ -609,7 +609,7 @@
     {
       "rid": "RFC1195-7-7",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/ish_scope_rfc1195_test.go::TestRFC1195ISHRefusesAreaAndDomainPasswords",
+      "unit": "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHRefusesAreaAndDomainPasswords",
       "unit-sha": "0fa8679235a69817",
       "claim-sha": "8888cb51909d24bb",
       "route": "revert",
@@ -620,7 +620,7 @@
     {
       "rid": "RFC1195-7-8",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195KeyOutsideReceiveSetRefused",
+      "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195KeyOutsideReceiveSetRefused",
       "unit-sha": "633ff95a68359057",
       "claim-sha": "0119ef50ed764fd9",
       "route": "revert",
@@ -631,7 +631,7 @@
     {
       "rid": "RFC1195-7-8",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195OneTransmitPasswordManyReceivePasswords",
+      "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195OneTransmitPasswordManyReceivePasswords",
       "unit-sha": "53fb8c8bd2e0dbdb",
       "claim-sha": "090a0ee85dd8138c",
       "route": "revert",

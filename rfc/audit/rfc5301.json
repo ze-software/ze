@@ -6,12 +6,12 @@
       "note": "(a) a TLV 137 value carrying a NUL terminator; (b) TestISISHostnameTLVFraming: bytes.IndexByte(value,0)>=0 errors, len(value)!=len(name) errors, and the [137][len+1][name,0] run errors; TestISISHostnameTLVIsPrintableASCII rejects any octet outside 0x20..0x7e and requires exactly one [137][len][value] run.",
       "requirement_sha": "9d61db2578036272",
       "tests": {
-        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "31b999ef8b6e4be9",
-        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVIsPrintableASCII": "31b999ef8b6e4be9"
+        "internal/plugins/isis/lsdb/rfc5301_encode_test.go::TestISISHostnameTLVFraming": "31b999ef8b6e4be9",
+        "internal/plugins/isis/lsdb/rfc5301_encode_test.go::TestISISHostnameTLVIsPrintableASCII": "31b999ef8b6e4be9"
       },
       "units": {
-        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "5a5bb2cdc914f175",
-        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVIsPrintableASCII": "d880bac2e92342e6"
+        "internal/plugins/isis/lsdb/rfc5301_encode_test.go::TestISISHostnameTLVFraming": "5a5bb2cdc914f175",
+        "internal/plugins/isis/lsdb/rfc5301_encode_test.go::TestISISHostnameTLVIsPrintableASCII": "d880bac2e92342e6"
       },
       "verdict": "enforced"
     }

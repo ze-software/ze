@@ -66,12 +66,12 @@
       "note": "Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions (3.2-7, 3.2-9) stay their own {gap} rows.",
       "requirement_sha": "8cf2b558704893b3",
       "tests": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "9dbfe0180a8a24cd",
+        "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "9dbfe0180a8a24cd",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "9c8d8a819fd5d2e9",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "9c8d8a819fd5d2e9"
       },
       "units": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "f925dc509cd1e837",
+        "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "f925dc509cd1e837",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "22ea012c7b801368",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "22ea012c7b801368"
       },
@@ -81,14 +81,14 @@
       "note": "Re-judged 2026-09-30. Forbidden: on an Initialize action, generating an adjacency-up event or not setting Initializing. adjacency TestRFC5303InitializeActionOnEveryRow drives received Down on all three rows (Down, Initializing, Up, each reached by Hellos): every row ends Initializing with no SessionUp; Down and Initializing rows raise no flag at all; the Up row raises only SessionDown, which R39 keeps as Ze's internal withdraw notice (fsm.go applyThreeWayAction quotes RFC 5303 sec 3.2 and ISO 10589 sec 9.4/7.5), not the adjacencyStateChange event the sentence forbids. Negative: Initializing row + received Initializing is the Up action, leaving Initializing with SessionUp. This closes the earlier gap (Initializing and Up rows unasserted). TestISISThreeWayInitializeAction remains tagged. Recorded +/- on applyThreeWayAction for both units.",
       "requirement_sha": "07e36258bb67fa66",
       "tests": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction": "9dbfe0180a8a24cd",
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction#2": "9dbfe0180a8a24cd",
+        "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction": "9dbfe0180a8a24cd",
+        "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction#2": "9dbfe0180a8a24cd",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "9c8d8a819fd5d2e9",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "9c8d8a819fd5d2e9"
       },
       "units": {
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction": "61ff66b3c619aae8",
-        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction#2": "61ff66b3c619aae8",
+        "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction": "61ff66b3c619aae8",
+        "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction#2": "61ff66b3c619aae8",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "eec821cabcd8f9c4",
         "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "eec821cabcd8f9c4"
       },

@@ -5,12 +5,12 @@
       "note": "Forbidden: an SRv6-capable node with no TLV 1038, or with two. TestRFC9514ISISSRv6CapabilitiesSingleInstance positive fails on len(got)!=1 for a node advertising SRv6 Capabilities (absence goes red); negative feeds two native sub-TLVs and fails on len(got)!=1 (a second instance goes red).",
       "requirement_sha": "a8f9b83f79fae37b",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "3534ed7ab329be12",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "3534ed7ab329be12"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "3534ed7ab329be12",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "3534ed7ab329be12"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "8804c79f1d32ff93",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "8804c79f1d32ff93"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "8804c79f1d32ff93",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "8804c79f1d32ff93"
       },
       "verdict": "enforced"
     },
@@ -48,12 +48,12 @@
       "note": "Forbidden: a non-zero Reserved octet in an originated End.X SID TLV 1106. TestRFC9514ISISEndXReservedZero fails on got[0][5]!=0 for both clean and all-ones native flags/weight.",
       "requirement_sha": "4b198a325c1b9018",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "3534ed7ab329be12",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "3534ed7ab329be12"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero": "3534ed7ab329be12",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero#2": "3534ed7ab329be12"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "eb2d071572107e38",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "eb2d071572107e38"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero": "eb2d071572107e38",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero#2": "eb2d071572107e38"
       },
       "verdict": "enforced"
     },
@@ -63,14 +63,14 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
       },
       "verdict": "enforced"
     },
@@ -78,12 +78,12 @@
       "note": "Forbidden: a non-zero Reserved octet in an originated LAN End.X SID TLV. TestRFC9514ISISEndXReservedZero fails on got[0][5]!=0 for TLV 1107 with clean and all-ones native values. Ze originates no OSPFv3 1108 (no SRv6 code in internal/plugins/ospf).",
       "requirement_sha": "f3e1e56ae03dbaf5",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "3534ed7ab329be12",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "3534ed7ab329be12"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero": "3534ed7ab329be12",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero#2": "3534ed7ab329be12"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "eb2d071572107e38",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "eb2d071572107e38"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero": "eb2d071572107e38",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndXReservedZero#2": "eb2d071572107e38"
       },
       "verdict": "enforced"
     },
@@ -93,14 +93,14 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
       },
       "verdict": "enforced"
     },
@@ -162,12 +162,12 @@
       "note": "Forbidden: undefined flag bits set in an originated TLV 1250. TestRFC9514ISISEndpointBehaviorFlagsZero feeds native End SID flags 0xff and bytes.Equal to {0,1,0,0} goes red on any flag bit; IS-IS End SID defines no flag (RFC 9352), so every bit is undefined.",
       "requirement_sha": "11fb3a96a69c5572",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero": "3534ed7ab329be12",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero#2": "3534ed7ab329be12"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero": "3534ed7ab329be12",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero#2": "3534ed7ab329be12"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero": "83c3426158131d92",
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero#2": "83c3426158131d92"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero": "83c3426158131d92",
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero#2": "83c3426158131d92"
       },
       "verdict": "enforced"
     },
@@ -175,10 +175,10 @@
       "note": "Forbidden: a non-zero algorithm for a SID whose locator has no algorithm, or another algorithm than the locator's. TestRFC9514ISISEndpointBehaviorAlgorithm fails on got[0][3]!=algo for locator algorithm 0 and 1. {single-polarity} marker: both branches are conforming outputs.",
       "requirement_sha": "5663450865438114",
       "tests": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "3534ed7ab329be12"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "3534ed7ab329be12"
       },
       "units": {
-        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "409fe4f35e0f7431"
+        "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "409fe4f35e0f7431"
       },
       "verdict": "enforced"
     },
@@ -188,14 +188,14 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "7a1d6ac0c2d3e3d7",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "7a1d6ac0c2d3e3d7",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "8dc79db14f32fa32",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "8dc79db14f32fa32"
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "8dc79db14f32fa32",
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "8dc79db14f32fa32"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "6df1040e2d4e0632",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "6df1040e2d4e0632",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "cb96011879421996",
-        "internal/plugins/isis/bgpls_export_rfc9514_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "5753445e3b72489c"
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "cb96011879421996",
+        "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "5753445e3b72489c"
       },
       "verdict": "enforced"
     },

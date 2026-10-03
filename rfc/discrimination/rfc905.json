@@ -92,7 +92,7 @@
     {
       "rid": "RFC905-x-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector",
       "unit-sha": "bc3d417b262b574e",
       "claim-sha": "e26e771da3776461",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC905-x-1",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumModulus",
       "unit-sha": "47b51d4828e28d6c",
       "claim-sha": "6bd9a2d7c30e798a",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC905-x-2",
       "polarity": "positive",
-      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors",
       "unit-sha": "31224da1b1a49ce0",
       "claim-sha": "2ef91827bd2a7349",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC905-x-4",
       "polarity": "negative",
-      "unit": "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption",
+      "unit": "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumDetectsCorruption",
       "unit-sha": "f87d88590da85c79",
       "claim-sha": "0c28dcf2af1cab95",
       "route": "revert",
