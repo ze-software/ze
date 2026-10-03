@@ -9,7 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 )
 
-// RFC requirement: RFC7432-8.2.1-9 positive -- the received per-ES zero label is a complete three-octet field and survives ingress without requiring a bottom-of-stack bit.
+// RFC requirement: RFC7432-8.2.1-9 positive -- a complete per-ES Ethernet A-D route survives the session ingress boundary byte-identically for RIB storage and propagation.
 func TestEVPNIngressPreservesPerESZeroLabel(t *testing.T) {
 	registerEVPNRecognizer(t)
 	route := []byte{1, 25, 0, 1, 192, 0, 2, 1, 0, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 255, 255, 255, 255, 0, 0, 0}
@@ -22,7 +22,8 @@ func TestEVPNIngressPreservesPerESZeroLabel(t *testing.T) {
 	require.Equal(t, route, got)
 }
 
-// RFC requirement: RFC7432-8.2.1-9 negative -- missing or extra Ethernet A-D label octets cannot pass the ingress boundary into the RIB or propagation rails.
+// Missing or extra Ethernet A-D label octets are framing errors, not a
+// negative case of the requirement to support per-ES routes.
 func TestEVPNIngressRejectsVariableLengthADLabels(t *testing.T) {
 	registerEVPNRecognizer(t)
 	for _, length := range []byte{22, 28} {

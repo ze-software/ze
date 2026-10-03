@@ -10,6 +10,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
+// RFC requirement: RFC7432-8.2.1-9 positive -- the route command originates and parses a per-ES Ethernet A-D route, preserving its complete NLRI in the UPDATE's MP_REACH.
+// RFC requirement: RFC7432-8.2.1-2 positive -- the originated per-ES route carries a three-octet zero NLRI label.
 // RFC requirement: RFC7432-8.2.1-10 positive -- the route command originates a per-ES Ethernet A-D route with an IPv4-address-specific RD.
 func TestOriginEthernetADPerESUsesTypeOneRD(t *testing.T) {
 	frame, encoded, err := EncodeRoute("ethernet-ad rd 192.0.2.1:7 esi 00:01:02:03:04:05:06:07:08:09 etag 4294967295 next-hop 192.0.2.1 extended-community target:65000:100 extended-community 0x0601000000001000", "l2vpn/evpn", 65000, true, true, false)
@@ -64,7 +66,7 @@ func TestOriginInclusiveMulticastRefusesMissingRouteTarget(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7432-8.2.1-9 negative -- per-ES Ethernet A-D cannot originate a nonzero label field or a second label field.
+// RFC requirement: RFC7432-8.2.1-2 negative -- per-ES Ethernet A-D cannot originate a nonzero label field or a second label field.
 func TestOriginEthernetADPerESRefusesLabelStack(t *testing.T) {
 	for _, label := range []string{"label 100", "label2 100"} {
 		frame, _, err := EncodeRoute("ethernet-ad rd 192.0.2.1:7 etag 4294967295 next-hop 192.0.2.1 extended-community target:65000:100 extended-community 0x0601000000001000 "+label, "l2vpn/evpn", 65000, true, true, false)

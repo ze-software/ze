@@ -31,7 +31,8 @@ func configuredEVPN(t *testing.T, route, communities string) (*UpdateBlockRoutes
 	return extractRoutesFromTree(tree.GetContainer("bgp").GetList("peer")["mypeer"])
 }
 
-// RFC requirement: RFC7432-8.2.1-9 positive -- native configuration produces the required zero-valued three-octet label field for per-ES Ethernet A-D.
+// RFC requirement: RFC7432-8.2.1-9 positive -- native configuration produces a per-ES Ethernet A-D route with MAX-ET, its ESI, Route Target and ESI Label community.
+// RFC requirement: RFC7432-8.2.1-2 positive -- native configuration emits the per-ES NLRI label as three zero octets.
 // RFC requirement: RFC7432-8.2.1-10 positive -- native configuration retains the IPv4-address-specific RD on per-ES Ethernet A-D.
 func TestConfiguredEVPNPerESRoute(t *testing.T) {
 	routes, err := configuredEVPN(t,
@@ -50,7 +51,7 @@ func TestConfiguredEVPNPerESRoute(t *testing.T) {
 	t.Fatal("configured per-ES route lost its Route Target and ESI Label")
 }
 
-// RFC requirement: RFC7432-8.2.1-9 negative -- native configuration cannot originate a nonzero per-ES NLRI label.
+// RFC requirement: RFC7432-8.2.1-2 negative -- native configuration cannot originate a nonzero per-ES NLRI label.
 // RFC requirement: RFC7432-8.2.1-10 negative -- native configuration cannot originate per-ES Ethernet A-D with an AS-specific RD.
 func TestConfiguredEVPNRefusesInvalidPerESRoute(t *testing.T) {
 	for _, route := range []string{
