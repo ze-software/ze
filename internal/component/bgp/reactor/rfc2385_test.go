@@ -128,7 +128,7 @@ func TestRFC2385NoKeyWithoutConfiguration(t *testing.T) {
 //
 // This is configuration-state evidence only. It does not observe an unsigned
 // SYNACK or prove the next packet carries a signature; the namespace/veth
-// carrier in internal/core/network/md5_egress_integration_linux_test.go does.
+// carrier in internal/core/network/rfc2385_md5_egress_integration_linux_test.go does.
 //
 // VALIDATES: the configured key and peer address survive a failed connection.
 func TestRFC2385FailedConnectDoesNotDisableSigning(t *testing.T) {

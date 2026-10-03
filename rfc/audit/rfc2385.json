@@ -32,11 +32,11 @@
       "note": "Independent MD5CaptureReview judgment: RFC2385 Section 2.0 says a failing comparison must drop the segment and produce no response. TestRFC2385MalformedWireSignaturesAreDropped now owns the positive claim and directly observes no matching TCP response during a bounded 300ms window for the corrupt-digest SYN, then requires an independently verified signed SYNACK for a distinct-port valid control at the same listener. This is bounded wire evidence, not unrestricted temporal proof. The retained MatchingKeys negative carries 256KiB over the valid connection. MismatchedKey preserves executable assertions but no longer claims a dial timeout proves peer silence. Main observed the noisy old capture fail all four cases with EAGAIN after 5\u201315 seconds, then the repaired carrier pass all four in 1.30 seconds on runtime Linux 7.2. receiveFrame consumes one frame with MSG_DONTWAIT; the caller checks its positive remaining deadline after filtered traffic and retries only EAGAIN. Native records must match these current units before closure.",
       "requirement_sha": "9207f41bd81ad29e",
       "tests": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d",
         "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436"
       },
       "units": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7",
         "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9"
       },
       "verdict": "enforced"
@@ -45,10 +45,10 @@
       "note": "Independent source re-judgment against RFC2385 Section 2.0: an absent MD5 option in SYN,ACK must not disable signatures. TestRFC2385UnsignedSYNACKDoesNotDisableSignatures captures the initial signed SYN from RealDialer, independently verifies its digest, injects an ordinarily checksummed unsigned SYNACK with reversed addresses/ports and acknowledgment equal to that captured sequence plus one, observes the exact injected packet on the peer veth, then requires the same tuple/sequence SYN retransmission with an independently valid digest and a dial timeout. This observes the forbidden downgrade boundary rather than merely retaining MD5Key in a struct. The single-positive annotation is appropriate to a no-downgrade invariant. Observed clean native test passed on the explicitly selected rebuilt Linux 7.2 runtime artifact. PENDING INPUT ONLY: Main must observe and retain the six owed signed native discrimination records, including this positive tag, before stamping; this note does not claim those records exist. This verdict concerns the configured sockets on that runtime kernel, not automatic selection of that kernel by stock appliance builds.",
       "requirement_sha": "1966170c0fdcbb5c",
       "tests": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "903c1cde12f2477d"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "903c1cde12f2477d"
       },
       "units": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "54ee0ce401db5fc7"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "54ee0ce401db5fc7"
       },
       "verdict": "enforced"
     },
@@ -58,14 +58,14 @@
       "tests": {
         "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "4fb13cd61266a660",
         "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "4fb13cd61266a660",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "903c1cde12f2477d",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "903c1cde12f2477d"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "903c1cde12f2477d",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "903c1cde12f2477d"
       },
       "units": {
         "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "fba309906b57361a",
         "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "9ce28b033935792e",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "1b2cd5ea49a73eb0",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "54ee0ce401db5fc7"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "1b2cd5ea49a73eb0",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "54ee0ce401db5fc7"
       },
       "verdict": "enforced"
     },
@@ -73,12 +73,12 @@
       "note": "Independent MD5CaptureReview judgment against RFC2385 Section 2.0: the independent oracle hashes the network-order pseudo-header including complete TCP length, zero-checksum fixed TCP header excluding options, actual payload, then key. The positive captured lifecycle assertions remain intact; the negative corrupts only the digest and rebuilds ordinary checksums, then requires packet silence and an independently signed valid control. Unrelated valid IPv4 UDP traffic proves non-TCP capture filtering cannot escape the 300ms deadline. Main observed the repaired malformed carrier pass every case on runtime Linux 7.2. The shared blocking GTSM wrapper retains its frame bound, validation and owned clone; Main observed TestGTSMConfiguredEgressDoesNotDecrement pass after extraction. Renew the changed malformed unit's native record before closure.",
       "requirement_sha": "9657702d93d6f223",
       "tests": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "903c1cde12f2477d",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "903c1cde12f2477d",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d"
       },
       "units": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "5813c1f982bf37cc",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "5813c1f982bf37cc",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
       },
       "verdict": "enforced"
     },
@@ -86,12 +86,12 @@
       "note": "Independent MD5CaptureReview judgment against RFC2385 Section 3.0: rfc2385Option and assertRFC2385Digest require exactly one Kind19 Length18 option and all 16 digest bytes on captured lifecycle packets. The malformed negative retains missing Kind19, wrong Kind and Length17 cases, each with bounded packet silence and its own independently signed valid control at the same configured listener. Main observed all four malformed subcases pass in 0.30\u20130.31 seconds on runtime Linux 7.2 after the one-frame nonblocking deadline repair. The subsequent native discriminate-record accepted the negative TestRFC2385MalformedWireSignaturesAreDropped cover against setTCPMD5Sig; rfc/discrimination/rfc2385.json now carries both positive and negative native records. The earlier clean-baseline failure was not used as discrimination evidence.",
       "requirement_sha": "e54739f8460b6a9a",
       "tests": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "903c1cde12f2477d",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "903c1cde12f2477d",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d"
       },
       "units": {
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "5813c1f982bf37cc",
-        "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "5813c1f982bf37cc",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
       },
       "verdict": "enforced"
     },

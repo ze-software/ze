@@ -48,7 +48,7 @@
     {
       "rid": "RFC2385-2.0-3",
       "polarity": "positive",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
       "unit-sha": "3f900c6e3553d7c7",
       "claim-sha": "ab789b9c8abee6b7",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC2385-2.0-4",
       "polarity": "positive",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures",
       "unit-sha": "086b7f146f429a81",
       "claim-sha": "3866af5b5de6cfa5",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC2385-2.0-5",
       "polarity": "negative",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature",
       "unit-sha": "2d3a4fe413d5e7ee",
       "claim-sha": "107957f8f749ef8a",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC2385-2.0-5",
       "polarity": "positive",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures",
       "unit-sha": "086b7f146f429a81",
       "claim-sha": "bec5cec06584e518",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC2385-2.0-6",
       "polarity": "positive",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests",
       "unit-sha": "064f5e2323731b8d",
       "claim-sha": "8127f8dd4e0cace2",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC2385-2.0-6",
       "polarity": "negative",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
       "unit-sha": "3f900c6e3553d7c7",
       "claim-sha": "9fb1e8633c042bfd",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC2385-3.0-1",
       "polarity": "positive",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests",
       "unit-sha": "064f5e2323731b8d",
       "claim-sha": "488996715b319beb",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC2385-3.0-1",
       "polarity": "negative",
-      "unit": "internal/core/network/md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
+      "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
       "unit-sha": "3f900c6e3553d7c7",
       "claim-sha": "1bb4cb7ef3bfb6e4",
       "route": "revert",

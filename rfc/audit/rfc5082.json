@@ -34,10 +34,10 @@
       "note": "RFC5082 Section 3 forbids decrementing the TTL of a GTSM-enabled session, in the local-output architecture paragraph. Owner-approved single-positive is appropriate: a transit decrement is not a negative input to this local-output rule. TestGTSMConfiguredEgressDoesNotDecrement configures RealDialer.OutTTL=255, uses an isolated namespace/veth and route lookup, and checks SYN/data TTL at the adjacent receiving interface rather than loopback or getsockopt. RealDialer.DialContext invokes setIPTTL before the connection handshake; parseTTLSettings derives 255 from ttl max. The native setIPTTL-disable record is the observation evidence; retired loopback/value-set tuples are not evidence for this verdict.",
       "requirement_sha": "a5e061d662e2b62b",
       "tests": {
-        "internal/core/network/ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "5d7221d669e107a1"
+        "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "5d7221d669e107a1"
       },
       "units": {
-        "internal/core/network/ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "98554fe674e83959"
+        "internal/core/network/rfc5082_ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "98554fe674e83959"
       },
       "verdict": "enforced"
     },
@@ -46,13 +46,13 @@
       "requirement_sha": "bd0ad5653d46a163",
       "tests": {
         "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "020e378ebd5b0863",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "dc6c6456da36476d",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "dc6c6456da36476d"
+        "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "dc6c6456da36476d",
+        "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "dc6c6456da36476d"
       },
       "units": {
         "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "06231ae097a3e15c",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "bbc0359121576ce1",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "f7737db010b0a5c1"
+        "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "bbc0359121576ce1",
+        "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "f7737db010b0a5c1"
       },
       "verdict": "enforced"
     }
