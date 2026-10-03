@@ -369,9 +369,19 @@ func evidenceStrings(text []byte) ([]evidenceString, error) {
 	decoder.UseNumber()
 	var stack []evidenceFrame
 	var out []evidenceString
+	values := 0
 	for {
 		token, err := decoder.Token()
+		// The decoder answers io.EOF between two tokens at any depth, and reads a
+		// stream of values, so a truncated file and a second value are caught here.
 		if errors.Is(err, io.EOF) {
+			if len(stack) != 0 {
+				return nil, errors.New("the input ends inside an object or array")
+			}
+			if values != 1 {
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str("the input holds ").Int(int64(values)).Str(" values, want one").String())
+			}
 			return out, nil
 		}
 		if err != nil {
@@ -393,8 +403,13 @@ func evidenceStrings(text []byte) ([]evidenceString, error) {
 				continue
 			}
 		}
-		// A value just ended, so the object holding it expects its next key.
-		if len(stack) > 0 && stack[len(stack)-1].Object {
+		// A value just ended: at the top it is the whole document, and inside an
+		// object the object expects its next key.
+		if len(stack) == 0 {
+			values++
+			continue
+		}
+		if stack[len(stack)-1].Object {
 			stack[len(stack)-1].WantKey = true
 		}
 	}
@@ -652,6 +667,8 @@ func applyRename(tree string, plan renamePlan) (RenameReport, error) {
 	report := RenameReport{Mentions: plan.Mentions, Stale: plan.Stale}
 	for index, pair := range plan.Pairs {
 		if err := os.Remove(treePath(tree, pair.Source)); err != nil {
+			// Reachable only through a race: the link above needed write access to
+			// this directory, which a remove needs too, so no test drives this arm.
 			report.Linked = plan.Pairs[index:]
 			return stopRename(report, err)
 		}

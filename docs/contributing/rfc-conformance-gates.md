@@ -1236,7 +1236,10 @@ the old path in a tracked file, by the link sweep's own grammar (`Paths` in
 `internal/le/doc/citation`), and lists every other line that mentions the
 file's base name, for a reader to judge. A citation the grammar expands from
 braces holds no literal path to rewrite, so a line that still cites the old
-path after the rewrite is listed as stale, to be edited by hand. A moved file
+path after the rewrite is listed as stale, to be edited by hand. Two such
+citations go unlisted: one inside a moved file, because a moved file is never
+searched for them, and one whose braces span a directory segment, because the
+search looks for the old directory or the base name spelled out. A moved file
 is never edited. When a write fails part-way, the action answers 2 with the
 report of what it did write: the moves, the rewrites, and each target created
 whose source is still in place.
@@ -1245,8 +1248,10 @@ It refuses the whole batch, and writes nothing, for a target that exists,
 leaves its source's directory, changes the GOOS/GOARCH file-name suffix or is
 not a `_test.go` file; a source that is untracked or differs from HEAD; two
 pairs sharing a source or a target; a target the unit carrier holds that the
-naming rule below refuses for the source's tags; and an evidence or cited file
-another session changed while the rename ran. The suffix is judged by
+naming rule below refuses for the source's tags; an evidence file that is not
+one JSON value, or whose path field spells the old path with an escape such as
+`\/`; and an evidence or cited file another session changed while the rename
+ran. The suffix is judged by
 `go/build` itself: the rename is refused when the source and the target names
 build on different sets of the platforms `go tool dist list` names, so a suffix
 `go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too. `propose` writes a plan of one pair per misnamed file the naming

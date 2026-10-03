@@ -391,7 +391,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// intended: the HEAD^ and origin/main baselines follow a byte-pure rename,
 	// so the covers of a renamed file are owed only when its bytes changed. The
 	// rest is `./le rfc rename`, which judges no record. No record verdict moved.
-	const want = "1fa114798a5311e70e3bb3810655ff2d01037b1a99d07087b83de1d2164418db"
+	//
+	// Re-sealed 2026-10-03 for review round 2 of 150892523b, over the bytes that
+	// fix commit commits. No verdict moved: the change is `./le rfc rename`
+	// alone, which now refuses an evidence file holding anything but one JSON
+	// value, plus a comment on its race-only arm. It judges no record.
+	const want = "d2958187bd87519334b927e4c7d12ccbc8e9f788207c56250aa6daf3f8f58c86"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

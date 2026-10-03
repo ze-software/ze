@@ -545,6 +545,7 @@ Each target stays in its source's directory. Every target was checked absent on 
 - Interop and other non-`_test.go` carriers are not judged (owner decision).
 - Files under `internal/le/` and `test/draft/` are not judged, because `CarrierFor` does not count their tags as evidence.
 - The point is enforced by `./le rfc check`, not by a PreToolUse hook, so `gate-map-report` shows it ungated (R-11).
+- `./le rfc rename` lists no stale brace citation inside a moved file, nor one whose braces span a directory segment (review round 2, N-4); those are edited by hand.
 
 ## Review Gate
 
@@ -554,7 +555,7 @@ Each target stays in its source's directory. Every target was checked absent on 
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 1 (scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package) |
+| Rounds | 2 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -568,6 +569,21 @@ Each target stays in its source's directory. Every target was checked absent on 
 | N-6 | NOTE | A brace citation kept citing the old path, unlisted | `internal/le/rfc/rename.go` `planCitations` | `citesAnySource`, `Stale`; `TestRenameListsBraceCitationsLeftOnTheOldPath` |
 | N-8 | NOTE | The naming rule was applied to targets no carrier judges | `internal/le/rfc/rename.go` `refusePair` | `CarrierFor` unit gate; `TestRenameJudgesTheNameOfUnitCarriersOnly` |
 | N-9 | NOTE | No unit case for unequal blob ids | `internal/le/rfc/check_baseline.go` `parseExactRenames` | `TestParseExactRenamesSkipsUnequalBlobs` |
+
+### Round 2 (scope: 150892523b and the sibling call sites it touched)
+
+Verdict 0 BLOCKER, 1 ISSUE, 5 NOTE. Every round 1 finding was confirmed closed at its producer by a mutation that turned its test red.
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| I-1 | ISSUE | The escaped-path refusal and the not-JSON branch were driven by no test | `internal/le/rfc/rename.go` `rewriteEvidencePaths` | Fixed. `TestRenameRefusesEscapedEvidencePath`, `TestRenameRefusesTruncatedEvidenceJSON`, `TestEvidenceStringsRefusesAllButOneValue`. The truncated case exposed a defect: `json.Decoder.Token` answers `io.EOF` between tokens at any depth and reads a stream, so `evidenceStrings` accepted a file cut after a token, an empty file and two values. It now refuses an EOF inside an open object or array and any count of top-level values but one. Each guard shown red by an overlay mutant |
+| N-1 | NOTE | The `dir/` grep pattern makes the 494-pair plan about 3x slower (62 s against 22 s) and found no extra stale line | `rename.go` `trackedFilesMentioning` | Accepted: cold path, run by hand |
+| N-2 | NOTE | The read-only-directory test gives a false red under root | `rename_test.go` `TestRenameReportsPartialWritesWhenItStops` | Fixed: skips when `os.Geteuid() == 0` |
+| N-3 | NOTE | No test drives the `report.Linked` arm | `rename.go` `applyRename` | Accepted: reachable only through a race, now said in a comment on the arm |
+| N-4 | NOTE | A brace citation inside a moved file, or one whose braces span a directory segment, is never listed as stale | `rename.go` `planCitations` | Documented: `docs/contributing/rfc-conformance-gates.md` "Moving a tagged test file", and Known Limitations |
+| N-5 | NOTE | The verification-debt row for 150892523b cited lines 26 and 382; only line 26 matches the gate | `plan/verification-debt/1d41415e.md` | Row text corrected to line 26; its status is untouched, the owner's confirmation is still owed |
+
+The commit gate's false positive on `rename_test.go` (the file-scope literal `renameTestSource` spelled a tag) is removed by respelling the literal as a concatenation, and recorded in `plan/journal/guard-blocks-its-own-authors-repair.md`.
 
 ## Checklist
 

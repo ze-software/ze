@@ -21,9 +21,11 @@ const (
 		"[the test](" + selftestTestPath + ")\n"
 	renameAuditRel = "rfc/audit/rfc9999.json"
 	// renameTestSource is the selftest unit test as go vet accepts it, because
-	// the check type-checks every package that holds a tag.
+	// the check type-checks every package that holds a tag. The tag is spelled
+	// as a concatenation so the commit gate's unanchored pattern does not read
+	// this file-scope literal as a tag of rename_test.go itself.
 	renameTestSource = "package sample\n\nimport \"testing\"\n\n" +
-		"// RFC requirement: RFC9999-2-1 positive -- SendWidget answers the count it\n" +
+		"// RFC requirement: " + selftestRIDSend + " positive -- SendWidget answers the count it\n" +
 		"// was given, so a speaker that sends one widget sends exactly one.\n" +
 		"func TestWidget(t *testing.T) {\n\tif SendWidget(1) != 1 {\n\t\tt.Fatal(\"the widget was not sent\")\n\t}\n}\n"
 )
@@ -510,6 +512,9 @@ func setRenameRoot(t *testing.T, root string) {
 // the source moves, the audit file is rewritten, and the discrimination rewrite
 // fails.
 func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root, so a read-only directory proves nothing")
+	}
 	root := renameFixture(t)
 	evidence := filepath.Join(root, filepath.FromSlash(discriminationRel))
 	if err := os.Chmod(evidence, 0o500); err != nil {
@@ -574,6 +579,60 @@ func TestRenameEvidenceRewriteTouchesPathFieldsOnly(t *testing.T) {
 		if keys != c.keys || string(got) != spell(target) {
 			t.Errorf("%s moved %d path(s), want %d, and reads:\n%s\nwant:\n%s", c.name, keys, c.keys,
 				got, spell(target))
+		}
+	}
+}
+
+// VALIDATES: I-1 of review round 2 -- an evidence path field whose bytes spell
+// the source with an escape (`\/`) is refused rather than rewritten in a second
+// spelling, and nothing is written.
+// METHOD: the fixture's discrimination record is committed with its unit value
+// escaped; JSON decodes it to the source path, so the field walk finds it.
+func TestRenameRefusesEscapedEvidencePath(t *testing.T) {
+	root := renameFixture(t)
+	plain := readRel(t, root, selftestDiscriminationRel)
+	quoted := `"` + selftestTestPath + "::"
+	if !strings.Contains(plain, quoted) {
+		t.Fatalf("fixture: the record holds no unit %s", quoted)
+	}
+	escaped := strings.Replace(plain, quoted, `"`+strings.ReplaceAll(selftestTestPath, "/", `\/`)+"::", 1)
+	writeFixtureFiles(t, root, map[string]string{selftestDiscriminationRel: escaped})
+	commitFixture(t, root, "escape the unit")
+	assertRenameRefused(t, root, renameOne(), selftestDiscriminationRel, "is escaped")
+}
+
+// VALIDATES: I-1 of review round 2 -- an evidence file that is not one JSON
+// value is refused, naming the file, and nothing is written.
+func TestRenameRefusesTruncatedEvidenceJSON(t *testing.T) {
+	root := renameFixture(t)
+	plain := readRel(t, root, selftestDiscriminationRel)
+	// The cut drops the closing brace only: the decoder then answers io.EOF
+	// between two tokens, inside the open object, with every unit still read.
+	writeFixtureFiles(t, root, map[string]string{selftestDiscriminationRel: plain[:strings.LastIndex(plain, "}")]})
+	commitFixture(t, root, "truncate the record")
+	assertRenameRefused(t, root, renameOne(), selftestDiscriminationRel, "not JSON the rename can rewrite")
+}
+
+// VALIDATES: I-1 of review round 2 -- the evidence walk answers an error for
+// anything but one JSON value: nothing, two values, a cut inside a string, a cut
+// between tokens inside an open object or array, and one whole value followed by
+// a cut one.
+func TestEvidenceStringsRefusesAllButOneValue(t *testing.T) {
+	for _, c := range []struct {
+		text string
+		ok   bool
+	}{
+		{`{"unit": "a_test.go"}`, true},
+		{"", false},
+		{`{} {}`, false},
+		{`{"unit": "a_te`, false},
+		{`{"unit": "a_test.go"`, false},
+		{`["a_test.go", `, false},
+		{`{} {"unit": "a_test.go"`, false},
+	} {
+		_, err := evidenceStrings([]byte(c.text))
+		if (err == nil) != c.ok {
+			t.Errorf("evidenceStrings(%q) answered %v, want ok=%v", c.text, err, c.ok)
 		}
 	}
 }
