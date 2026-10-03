@@ -308,6 +308,10 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | RFC9234-3.1-1 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | RFC7999-3.1-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 | weak | `spec-bgp-update-propagation-rfc-defects` |
+| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (2026-10-02: received link-local-only next hop leaks across multihop egress; existing-generation withdrawal also owed) |
+| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (same red probe, internal multihop case; global-address control passes) |
+| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (same red probe, external multihop case; global-address control passes) |
+| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7 | weak | `spec-bgp-update-propagation-rfc-defects` D6 / AC-5 (2026-10-02: distinct directly attached external-peer probe proves loss of usable next hops sends no withdrawal for an already advertised route) |
 | RFC9830-4.2.1-2 | weak | `spec-bgp-sr-policy-rfc-defects` |
 | RFC9830-2.4.2-6 | weak | `spec-bgp-sr-policy-rfc-defects` (D1: its quote is the row text verbatim, though the spec says "no row names it") |
 | RFC9830-4.2.1-7 | weak | `spec-bgp-sr-policy-rfc-defects` AC-5 (§4.2.1 receive validation: attribute 23 has no validator) |
@@ -401,6 +405,50 @@ Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<
 | No bypassed layers | Yes | every verdict enters through `audit-stamp`, every record through `discriminate-record` |
 | No duplicated functionality | Yes | the listing is the parent's filter restricted to this scope; no id list is committed |
 | Registration over hardcoding | N-A | no feature is added; this child changes tests, rows and D-8 producers |
+
+### MRT D-8 amendment (owner decision, 2026-10-02)
+
+The owner selected context-aware parsing now. RFC 8050 Sections 2, 3 and 5.1
+signal ADD-PATH with one whole-message subtype; they do not encode a per-family
+map. RFC 7911 Section 5 negotiates each direction and family using both OPENs.
+This repair preserves the captured message, not a reconstruction of its routes.
+
+Data flow: the Session's complete inbound wire boundary, before semantic
+validation/coalescing, and successful outbound transport writes feed a separate
+synchronous raw observer. The existing semantic MessageCallback remains the
+route-delivery boundary, including synthesized withdrawals. MRT writes one
+unchanged complete BGP message per record and native LOCAL subtypes for sent
+messages. Directional encoding contexts are immutable; neither observation nor
+subtype selection builds a per-message capability map. Buffered outbound writes
+are observed after transport acceptance, without forcing per-message flushes;
+only split frames need bounded temporary storage, owned by that connection.
+
+Each offline file/read invocation owns bounded context keyed by peer/local
+endpoints and interface, with separate actual OPENs per direction. Capability
+parsing/negotiation uses the existing core capability/family definitions. Actual
+OPEN/AS4 identities must match subsequent record identities. A new OPEN epoch,
+NOTIFICATION or teardown clears context; the recorder's post-handshake
+Idle-to-Established notification preserves the just-observed handshake. Missing
+OPENs, independently rotated files, mid-session starts and identity reuse never
+inherit guessed state. Overflow is an explicit error, not silent eviction.
+
+`ParseBGPMessage(record.BGPMessage)` remains the context-bearing API, borrowing
+the original bytes. Ordinary records and ADD-PATH records with one unambiguous
+family remain readable without OPENs. Multiple-family ADD-PATH records without
+both OPENs return an explicit unavailable/ambiguous-context error, never a
+heuristic decode. Semantic CLI consumers carry context and errors through their
+real entry points; raw/header-only transforms may retain opaque bytes.
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-MRT1 | Actual received/sent messages, including directional OPENs, consecutive/coalesced messages, rejected/dropped UPDATEs and treat-as-withdraw synthesis | Exactly one byte-identical complete original message per MRT record; no synthesized receive messages; sent records use LOCAL subtypes. Partial transport writes publish only complete accepted frames, with connection-specific context and no callback lock inversion. |
+| AC-MRT2 | Both actual OPENs, one-sided/repeated OPEN, teardown/reconnect, peer/ASN reuse, opposite direction, another file, or bounded context exhaustion | Only the valid epoch's direction/family intersection supplies decoding context; no configured-capability substitute, cross-peer/file leakage, silent eviction or stale negotiation. |
+| AC-MRT3 | Classic ordinary plus MP ADD-PATH, and the reverse, using distinct announcement/withdrawal prefixes | With OPEN context, decode exact prefixes, Path Identifiers and counts in all four NLRI locations. The independent mixed-distinct judge fixture without OPENs reports unavailable context. Same-mode legacy fixtures cannot imply recovery of arbitrary mixed captures. |
+| AC-MRT4 | show/density/filter/statistics and other semantic consumers; inject/replay/serve | Every caller preserves context and reports undecodable content as an error/nonzero exit or an explicit incomplete contract, never a silent filter nonmatch or complete-looking partial count. Replay refuses unsupported Path-ID-bearing or ambiguous UPDATEs before transmission; ordinary UPDATEs and harmless empty EOR remain supported without a new replay negotiation feature. |
+| AC-MRT5 | RFC6396-1-1 and RFC6396-4.4.2-2 proof carriers | Independent literal bytes pin ET microseconds, old/new FSM states, RIB_GENERIC AFI and legacy TABLE_DUMP numeric fields; consecutive differently sized BGP messages assert exact per-record framing and total record count. Existing raw-data/UTF-8 coverage remains. |
+| AC-MRT6 | RFC8050-x-3 roundtrip carrier and every added/changed RFC claim or producer | Correct the Path-Identifier claim/fixture mismatch without losing assertions or claim coverage; record native discrimination for changed/new claims and stale affected producers, never handwritten packet evidence or fingerprints. |
+| AC-MRT7 | Public API/architecture/support surfaces and independent rereview | Documentation accurately distinguishes recoverable and ambiguous captures and replay refusal; every caller is migrated without raw-byte compatibility wrappers. Main consolidates formatting/tests/native aggregate checks and assigns an independent judge before closure. |
+
 
 ## Method
 

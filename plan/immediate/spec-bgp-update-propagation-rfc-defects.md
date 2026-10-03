@@ -33,6 +33,36 @@ at its producer in HEAD on 2026-09-27.
 | D5 | RFC 7999 Section 3.1 (RFC7999-3.1-2) | "In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it." | `internal/component/bgp/plugins/cmd/announce/blackhole_agreement.go::agreedSelector`; `internal/component/bgp/plugins/filter_community/config.go` `blackholeGuardToken` (default none) | The agreement gate covers origination by command only; a received BLACKHOLE route is re-advertised to a peer that never agreed, since the Section 3.2 propagation guard is off by default | weak; OWNER DECISION |
 | D6 | RFC 2545 Section 3; draft-ietf-idr-linklocal-capability-06 Section 4 item 1 (DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2) when capability 77 is negotiated | RFC 2545: "The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to." Draft: "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop." | `internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop` (next-hop auto and unchanged map to `nhModeNone`) and `applyFactsNextHop` (`nhModeNone` returns with no attribute 14 op); `reactor_api_forward.go::applyNextHopMod` (auto: no op) | A received 32-octet Global plus Link-Local next hop is forwarded to an internal peer as received, whether or not that peer is on the link. The `peerOnLink` gate in `link_scope.go::linkLocalNextHop` covers only Ze's own configured link-local under next-hop self or explicit | weak (the 4-2 tags test next-hop self only); read at the producer, not reproduced |
 
+D6 also owns the missing-next-hop outcomes for
+`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1`, `-4-4` and `-4-9`
+(2026-10-02). With capability 77 negotiated, Section 4 says: "If, after
+completing these procedures, there are no IPv6 next hop addresses included in
+the next hop, the BGP route MUST not be advertised to its peer. Instead,
+treat-as-withdraw (Section 2 of [RFC7606]) is used." Its internal-peer case
+says: "If, after evaluating the above procedures, there are no IPv6 next hops
+included with the route, the route MUST NOT be announced to the remote BGP
+speaker. (Treat-as-withdraw.)" Its multihop external-peer case says: "If a
+Global IPv6 next hop is not included, the route MUST NOT be advertised to the
+external peer (treat-as-withdraw)."
+
+`TestDraftLinkLocalOnlyRouteCannotCrossMultihopEgress` in
+`internal/component/bgp/reactor/rfc_draft_linklocal_missing_global_test.go`
+reproduces a link-local-only next hop leaking under unchanged/auto forwarding
+to both internal and external multihop peers; its global-address controls
+pass. The probe is untagged: no discrimination record or enforced verdict is
+claimed. D6 must suppress the unusable announcement and withdraw any
+previously advertised generation, while preserving the usable-global control.
+The distinct single-hop external condition in `-4-7` was then reproduced by
+`TestDraftLinkLocalOneHopLostNextHopWithdraws` in
+`internal/component/bgp/reactor/rfc_draft_linklocal_onehop_withdraw_test.go`.
+An already advertised route remains at the external, directly attached peer
+after the speaker loses its usable next-hop-self addresses. Both forwarding
+rails use `wireu.WithdrawalsOnly` on the replacement announcement, which
+contains no withdrawal, and send nothing. Section 4's one-hop default procedure
+says: "If no next hops are included, the route MUST NOT be announced
+(treat-as-withdraw)." D6 owns this missing withdrawal too; its probe remains
+untagged, with no enforced verdict claimed.
+
 ## What a fix must prove
 
 | Obligation | Detail |
@@ -100,7 +130,7 @@ at its producer in HEAD on 2026-09-27.
 | AC-2 | LARGE_COMMUNITY with a repeated value | forwarded once per value |
 | AC-3 | MUP ST1 route with truncated mandatory fields or a bad TLV | treat-as-withdraw |
 | AC-4 | D4, D5 | as the owner rules |
-| AC-5 | the `weak` verdicts of RFC4271-4.3-3, RFC4271-4.3-4, RFC8092-3-1, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10, RFC9234-3.1-1, RFC7999-3.1-2 and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3, 2026-09-28) |
+| AC-5 | the `weak` verdicts of RFC4271-4.3-3, RFC4271-4.3-4, RFC8092-3-1, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7, DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10, RFC9234-3.1-1, RFC7999-3.1-2 and DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1, -4-2, -4-4, -4-7, -4-9, after this spec's producer fix | each verdict reaches `enforced`: a tagged test proves the quoted sentence, and an agent that did not write that test re-judges it with `./le rfc audit-stamp ... mode rejudge`. D6 covers missing-global internal and external multihop cases, loss of usable next hops at a directly attached external peer, withdrawal of an already advertised generation, and usable-global controls. Moved here from "Blocked by" in `plan/pre-release/spec-rfc-verdict-fix-bgp.md` (parent P-3; original transfer 2026-09-28, missing-next-hop extension 2026-10-02) |
 
 ## 🧪 TDD Test Plan
 

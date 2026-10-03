@@ -197,3 +197,107 @@ audit freshness; existing test and record identities retained; partial earns
 zero whole-requirement proof credit. Independent judgment remains mandatory.
 The alternative requiring separate clause identities and record migration was
 not chosen. Native SRv6 BGP EPE origination remains outside this work.
+
+### MSS retirement and EVPN polarity (2026-10-02)
+
+Thomas chose **Retire obsolete MSS row** for RFC2385-4.3-1. RFC6691 Section 3.2
+explicitly corrects that sentence; RFC9293 Section 3.7.1 retains fixed-header
+advertised MSS and option-aware data sizing. Authorize its retirement, removal
+of its audit entry and orphan records, and removal or reassignment of misleading
+tags. Keep packet proof of current behavior; do not enroll all of RFC9293 merely
+to assign that proof an id.
+
+Thomas chose **Authorize single-positive coverage** for RFC7432-8.2.1-9.
+Move label-validity tags to the requirement they prove and retain genuine
+route-support positives, with the D-15 approval citing this ruling. This approves
+the polarity correction, not an enforced verdict: an independent judge must
+still establish what support of the route requires and what Ze proves.
+
+### MRT mixed-family context (2026-10-02)
+
+Thomas chose **Implement context-aware parsing now**. RFC8050's whole-message
+subtype does not encode the per-family modes negotiated under RFC7911. Recover
+those modes from actual captured directional OPENs and session lifecycle;
+when that evidence is unavailable, report ambiguous decoding instead of
+publishing incomplete route totals as complete. Preserve captured message
+bytes: no invented Path Identifiers, synthesized OPENs or split UPDATEs.
+This work runs in the current BGP child's MRT phase, not a deferred spec.
+Unsupported ADD-PATH replay must refuse before sending; a new negotiated
+replay feature is not authorized by this decision.
+
+### Scoped duplicate and test cleanup (2026-10-02)
+
+Thomas authorized deletion of only the retired RFC9086-5-5 audit entry and
+its two orphan discrimination records after all three tags moved to the
+canonical RFC9086-5-3. The retirement explanation and migrated proof remain.
+He also authorized removal of only the newly added
+`TestLLGRCommunityCommandsAreDeclared`: the real `llgr-import-no-llgr`
+daemon workflow exercises both commands. The existing command-summary test,
+workflow assertions, stress evidence and RFC records remain unchanged.
+
+### RFC2385 no-response proof (2026-10-02)
+
+Thomas chose **Move the claim to packet capture** for RFC2385-2.0-3.
+Remove only the misleading timeout-only tag from
+`TestRFC2385MismatchedKeyIsDroppedWithNoResponse`; keep its executable
+assertions. Bind the requirement to direct malformed-signature packet
+observation with an independently signed valid control, then record and
+independently judge that evidence. A failed keyed dial cannot itself prove
+that the peer sent no response.
+
+### LLGR sent-inventory ownership (2026-10-03)
+
+Thomas chose **Generalize Adj-RIB-Out keys**. Extend the existing sent inventory
+and replay path to registered opaque NLRI identities as well as prefixes;
+RIB owns retained attributes and eventual source-specific withdrawals.
+Do not add a second RS lifecycle inventory. Preserve the existing CIDR fast
+path, exact native framing and ADD-PATH identity, including identifier zero.
+Source ownership belongs to each destination's entry rather than one global
+source per family/key. This authorizes the broader sent-store/replay/show
+prerequisite for the four real LLGR workflows, not the separately scoped
+GR/LLGR defects D1–D5.
+
+### Owner-directed commit and pause (2026-10-03)
+
+Thomas requested: "commit all work and pause when you reach the right point
+please", then "commit logically in groups". This is a checkpoint, not acceptance
+or closure of the parent or BGP child. Both specs remain open. No push is
+authorized and no full-worktree green result is claimed.
+
+Evidence below is under
+`tmp/session/2026-10-02-ba93202e-6f62-48a4-9b4e-c0aa37a4cc74/scratch/`.
+
+| Surface | Observed result and remaining obligation |
+|---------|------------------------------------------|
+| Failed-await diagnostics | `job-stable-lifecycle-proof-d0d75fa5.log`: both fence forms and unfinished lingering peer save all four streams, received frames and shutdown-only bytes under `-race`. Independent source review accepted the repair. |
+| GR/LLGR stored state | The same log passes all seven migrated RFC4724/RFC9494 carriers, including no-capability deletion and serial GR/LLGR expiry. Native records for changed claims still need renewal; this is not four-workflow acceptance. |
+| MRT lifecycle | The same log passes the original live collision and deterministic third-arrival `published`/`taken` reservations. Independent review accepted C1/C2/C3 and the reservation repair. RFC8050 x-1/x-4 remain weak because the decisive existing session, boundary and capacity proofs still need accurate tags and native discrimination links, not because those implementations or tests are absent. |
+| EVPN | The same log passes the repaired IPv4/IPv6 sender with mandatory Label1. The single-positive ruling is independently defensible for the declared BGP control-plane role. Five native records, audit stamps and the shifted-row reseal remain owed; no full EVPN PE claim is made. |
+| Generic forwarding | `job-generic-forward-policy-proof-499402fc.log` is red under `-race`: `TestRFC7947AllAttributesReachClient` and `TestRouteServerTransparencyStopsAtOrdinaryPeer` expose startup synchronization races, including `SetAPIProcessCount` against `signalStartupComplete`. Mixed-treatment cache assertions pass. Independent review also found avoidable payload allocation in `forwardWire`; neither finding is fixed at this checkpoint. |
+| Accounting | The UDP deadline regression passed in `job-accounting-fixture-smoke-919d5de0.log`; its repair is `e39d58afe7`. Native `rfc discriminate-record` completed on QEMU Linux 7.2 in 757.53 seconds and wrote RFC2866-4.1-1 positive for `test/l2tp/radius-acct-wire.ci`. The clean workflow passed; disabling `onSessionIPAssigned` produced the observed `Accounting-Start did not arrive within 30s` failure. The recorded citation is the IPCP-negotiated address `10.99.7.10`. |
+
+Resume the existing scope, without rerunning unchanged successful checks:
+
+1. Resolve the observed startup races from their complete race stacks. Apply
+   generic opaque treatment within owned pooled materialization, and include
+   effective treatment in `fwdDedupIdentity` before deduplication. For shared
+   unmodified input, use the existing read-buffer/adopted-handle lifetime.
+   Preserve mixed-role, absent-plugin and inverted-selector wire assertions.
+2. Use the repaired runner to save the real `llgr-rib-stale` dialogue before
+   correcting its peer expectations. Run the family-scope and explicit-port
+   repairs in `llgr-readvertise` and `llgr-peer-stale-time-drives-timer`; finish
+   all four workflows and their required stress proof before promotion.
+3. Enroll the already-reviewed MRT session/boundary proofs, renew changed GR,
+   RIB and forwarding records, and finish the EVPN native commands recorded in
+   `evpn-proof-landing-commands.txt`. Native stamp/reseal writes remain serialized.
+4. Complete the remaining BGP row inventory and independent judgments; the
+   protected red probes and previously named defect specs retain their scope.
+5. Finish child/parent review, goal validation and full-worktree verification.
+   Do not close either spec merely because this checkpoint is committed.
+
+The four unpromoted LLGR drafts remain in ignored `test/draft/plugin/`, not in
+the live suite. Their exact checkpoint bytes are also preserved in
+[`llgr-drafts-2026-10-03.patch`](llgr-drafts-2026-10-03.patch), with original paths
+in each patch header. This records the requested work without promoting
+unproven tests or changing the draft-ignore policy. Do not apply that snapshot
+over newer draft edits.
