@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -37,8 +38,8 @@
       "tests": {
         "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol": "4eb7d1753c913cce",
         "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "4eb7d1753c913cce",
-        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "b73d4aaa80fb87fb",
-        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "b73d4aaa80fb87fb"
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "f39ffa84edbeaf0f",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "f39ffa84edbeaf0f"
       },
       "units": {
         "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol": "fe9892d839b88960",
@@ -52,8 +53,8 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): new TestRFC4302AddressMatchIndicationSetByManualConfig brings a configured AH interface up through the installer (onInterfaceUp) and reads the states handed to the dataplane: exactly three, each Src :: (no source match) with a set Dst (ff02::5, ff02::6, the link-local), the SPI-plus-destination key section 2.4 gives; the same config on fe80::2 keys the unicast state on fe80::2 and none on fe80::1, so the indication follows the manual configuration, not a constant. Revert records on buildIPsecInterfaceSAs observed red. TestAHSAAddressMatchIndication (a selector test) lost its tags; its two old records are orphans.",
       "requirement_sha": "ee4282a89c870777",
       "tests": {
-        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig": "b73d4aaa80fb87fb",
-        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig#2": "b73d4aaa80fb87fb"
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig": "f39ffa84edbeaf0f",
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig#2": "f39ffa84edbeaf0f"
       },
       "units": {
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig": "d1d982dbf0c7e4bf",
@@ -91,16 +92,16 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): whole-stack: new rfc4302_ah_unknown_spi_linux_test.go runs in a private user+net namespace (judge ran it: child PASS, not SKIP), installs the OSPF AH SAs (SPI 256) through newIPsecInstaller over real XFRM, and sends a raw AH packet to fe80::1. Positive: unknown SPI -> nothing reaches a raw-89 socket and XfrmInNoStates rises by exactly 1 (the auditable event; a counter, no audit log with SPI/time/addresses, which is the SHOULD beside this row). Negative: the installed SPI -> XfrmInNoStates unchanged and XfrmInStateProtoError +1, proving the lookup runs against the SAD Ze installed. The kernel performs the discard; Ze's part is the SAD. HEAD tags on TestAHInboundRequirePolicyInstalled kept as supplementary (coverage ratchet).",
       "requirement_sha": "71ad1e125ba6b922",
       "tests": {
+        "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "7de3f752da6c6b0c",
+        "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "7de3f752da6c6b0c",
         "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "4eb7d1753c913cce",
-        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "4eb7d1753c913cce",
-        "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "2e87a960ff18a159",
-        "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "2e87a960ff18a159"
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "4eb7d1753c913cce"
       },
       "units": {
-        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "edb23718e29c581e",
-        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "edb23718e29c581e",
         "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "bd7e211a6ea7bd18",
-        "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "862d8c86cbed26ad"
+        "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "862d8c86cbed26ad",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "edb23718e29c581e",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "edb23718e29c581e"
       },
       "verdict": "enforced"
     },
@@ -126,7 +127,7 @@
       "requirement_sha": "f615c5ec9826eb4d",
       "tests": {
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "5c20e3c0dfa0036c",
-        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "b73d4aaa80fb87fb"
+        "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "f39ffa84edbeaf0f"
       },
       "units": {
         "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "cb5c9ee324c6ddf4",

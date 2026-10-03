@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -34,14 +35,14 @@
       "note": "malformed values are rejected with an error (not only no panic) by every v3 SR decoder and by v6PrefixSIDFromPrefixTLV; well-formed range TLVs still decode",
       "requirement_sha": "47397c9a8d9a2f91",
       "tests": {
+        "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "4c31345aa8a7ddcb",
         "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "b898637e07666ee9",
-        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "b898637e07666ee9",
-        "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "4c31345aa8a7ddcb"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "b898637e07666ee9"
       },
       "units": {
+        "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "6cc00cb85c94df67",
         "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "28b2d01095e0e685",
-        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "c3a55ee7b69680b4",
-        "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "6cc00cb85c94df67"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "c3a55ee7b69680b4"
       },
       "verdict": "enforced"
     },
@@ -317,14 +318,14 @@
       "note": "Re-judged 2026-09-30 (continuation 6, judge): the weak finding (no FSM-driven withdrawal) is closed. TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay drives an OSPFv3 neighbor to Full through the real table (Hello + DD), then a Hello not listing this router moves it to Init; the Adj-SID leaves the manager and the origination store, the E-Router-LSA body no longer carries it, and the mpls-fib pop entry is removed. Revert record on srAdjNeighborLost observed red. Negative: sr_origination_v6_test.go keeps the Adj-SID while the neighbor is up (pre-existing, unproven record). Setup nit: the test allocates the Adj-SID itself if Full did not, which weakens nothing about the withdrawal assertion.",
       "requirement_sha": "c6013fe365987b92",
       "tests": {
-        "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "1b1458ebdf81ba5c",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123"
+        "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "ef61609c1154dc26",
+        "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "ec9a3737d2fcf57d"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "81a5a6159f0e81fe",
-        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "b07bfcd1929996dc",
-        "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "4af1af3c4a026316"
+        "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "4af1af3c4a026316",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "b07bfcd1929996dc"
       },
       "verdict": "enforced"
     }

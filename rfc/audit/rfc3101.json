@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -127,14 +128,14 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): positives TestOSPFNSSABorderRouterDefaultsEveryArea (v4) and TestOSPFv3NSSABorderRouterOriginatesDefault (v6) assert the border router's Type-7 default is P-clear; negative TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport pushes every P-set trigger (NSSA default-originate plus a retained default import from an nssa-propagate source) and asserts applyNSSADefaults still installs the default P-clear. The misplaced install-rule negatives moved to RFC3101-2.5-1. Judge-run overlay mutants in applyNSSADefaults: ABR taking the internal-router propagate decision (line 152 'if !isABR' -> 'if true') reds the negative; 'propagate := true' reds both positives. Four stale 2.4-4 records remain for units that lost the tag (orphans, not gate-named).",
       "requirement_sha": "5580f41ed54eeabb",
       "tests": {
+        "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "fd88bfd481b29f72",
         "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
-        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
-        "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "2b69215e56d2b8cb"
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e"
       },
       "units": {
+        "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "e645ac7412a82308",
         "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
-        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
-        "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "e645ac7412a82308"
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8"
       },
       "verdict": "enforced"
     },
@@ -299,22 +300,22 @@
       "note": "c23 re-judge (independent judge). OSPFv2 as recorded at c22 (rfc3101_nssa_border_ebit_areas_test.go, both polarities, records on NSSABorderEBit). OSPFv3 now proven: rfc3101_v6_nssa_border_ebit_test.go builds an OSPFv3 engine (v6Codec) with backbone, area 0.0.0.1, normal 0.0.0.2 and stub 0.0.0.3, one passive running interface each, and drives v6OriginateSelf (no hand-set nssaBorderE); the E-bit is read as the literal 0x02 of the flags octet at offset 20 of the installed Router-LSA (RFC 5340 A.4.3: 0 0 0 Nt x V E B). Positive: with 0.0.0.1 NSSA, E set in 0, 0.0.0.1 and 0.0.0.2 with no external origination, clear in the stub. Negative: with 0.0.0.1 normal, E clear in all four. Overlays on NSSABorderEBit (scratch/c23/e1..e3): backbone-only reds the positive, dropping the stub check reds it, any-active-area reds the negative; TestOSPFv6OriginateRouterLSAABRNtBits green under all three. Both new units hold observed-red revert records. TestOSPFASBRBitFromNSSAType7 (#2) stays supplementary.",
       "requirement_sha": "0409f2f519db36f9",
       "tests": {
-        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "0d6427b918f145f2",
-        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "0d6427b918f145f2",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "fa377c02d28ef7c6",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "fa377c02d28ef7c6",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "0d6427b918f145f2",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "0d6427b918f145f2",
         "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea": "c864c4021e34b9e0",
         "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "c864c4021e34b9e0"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "61554072b6a1ad56",
-        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "61554072b6a1ad56",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "58b9ac30f97841e6",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "6336aecd21aa6836",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "403ab4b7dbaeffb5",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "403ab4b7dbaeffb5",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "61554072b6a1ad56",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "61554072b6a1ad56",
         "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea": "74b547f31144fe8a",
         "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "0160857821b3a624"
       },
@@ -327,8 +328,8 @@
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "1a75c011dc554ac3",
-        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "1a75c011dc554ac3"
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "0b44af4f77ddfa37",
+        "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "0b44af4f77ddfa37"
       },
       "units": {
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
@@ -366,7 +367,7 @@
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSAPbitNotTranslated": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation#2": "a977f5140de4f2b1",
-        "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "ed1fcad648e40d52"
+        "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "9c6a58e4cc068efe"
       },
       "units": {
         "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSAPbitNotTranslated": "00b5b56941c2e6f5",

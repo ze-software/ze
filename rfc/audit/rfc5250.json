@@ -1,24 +1,25 @@
 {
   "audited": "2026-10-02",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5250-3-1": {
       "note": "Every clause both polarities. LS types 9/10/11 as Opaque: lstype_test.go TestLSTypeKnownValues (+ opaque types IsOpaque, - standard types not), revert records on IsOpaque. Scope by LS type: TestOpaqueScopeRouting (+ Type 11 AS-wide, - Type 9 refused an area store), revert records on Install. 32-bit aligned body: TestRFC5250AlignedOpaqueStoredAndFlooded (+ 8-octet body stored, flooded out eth1 at length 28 with body intact, on the retransmission list) and TestRFC5250UnalignedOpaqueBodyDiscarded (- 5-octet body with a valid checksum not stored, acked or flooded; aligned companion in the same update stored), red on the pre-fix ReceiveUpdate (D-8 fixed at lsdb/flooding.go ReceiveUpdate). Standard flooding: the aligned unit plus TestRFC5250DuplicateOpaqueNotReflooded (- the same instance after MinLSArrival is acked, not reflooded), red under an equal-copies-reflooded overlay. Revert records on ReceiveUpdate for all three new units.",
       "requirement_sha": "4a020d013a84e5ad",
       "tests": {
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded": "5770eaebb772163b",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded": "5770eaebb772163b",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded": "5770eaebb772163b",
         "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting": "458b73167251be99",
         "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting#2": "458b73167251be99",
-        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded": "102a24f8c54239aa",
-        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded": "102a24f8c54239aa",
-        "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded": "102a24f8c54239aa",
         "internal/plugins/ospf/types/rfc5250_lstype_test.go::TestLSTypeKnownValues": "7a2e79b1c9360264",
         "internal/plugins/ospf/types/rfc5250_lstype_test.go::TestLSTypeKnownValues#2": "7a2e79b1c9360264"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting": "683f71e010417287",
-        "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting#2": "683f71e010417287",
         "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250AlignedOpaqueStoredAndFlooded": "994f313b490cce63",
         "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250DuplicateOpaqueNotReflooded": "e0cabf6aaaf38cb9",
         "internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go::TestRFC5250UnalignedOpaqueBodyDiscarded": "ddccb3bdfd51d683",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting": "683f71e010417287",
+        "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting#2": "683f71e010417287",
         "internal/plugins/ospf/types/rfc5250_lstype_test.go::TestLSTypeKnownValues": "f79766a5ed2da7cf",
         "internal/plugins/ospf/types/rfc5250_lstype_test.go::TestLSTypeKnownValues#2": "f79766a5ed2da7cf"
       },
@@ -131,16 +132,16 @@
       "note": "Re-judged 2026-09-30 (independent judge, c12) after the D-8 fix. Section 5 (2): 'the router MUST look up the routing table entries (potentially one per attached area) for the ASBR that originated the LSA. If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.' Producer: spf/reachability.go ASBRReachable reads the SPF border entries of Kind asbr (intra-area Router-LSA E-bit, interarea.go intraAreaBorderRouters; inter-area Type-4 summaries, interarea.go:157), finite metric and a next hop, the same entries the Type-5 calculation reads (external.go); Computer.ASBRReachable gates on the config generation; opaque.go spfASBRReachable is the only production caller (grep: no other RouterReachable user changed; bgpls_export and nssa keep ReachabilitySnapshot.RouterReachable/RouterReachableAny). TestRFC5250Type11LooksUpOriginatorRoutingEntry over the engine's own seam: - pending SPF, reached router without the E-bit, unreached 10.0.0.9 all delivered not usable; + the same router re-originated with the E-bit is usable. Judge overlay (go test -overlay) restoring the old RouterReachableAny answer in Computer.ASBRReachable: red at the no-E-bit negative (scratch/judge-ospf-5250mut.log); author's red at HEAD agrees. Records +/- revert on ASBRReachable observed. The inter-area Type-4 source is not driven by this unit; it feeds the same border slice. opaque_reachability_test.go tags are supplementary (injected predicate). Related defect reported to the main thread: Ze does not set its own E-bit when it originates Type-11 LSAs (lsdb selfIsASBRLocked counts only Type-5/7), against Section 5 (1), so another Ze router now treats those LSAs as unusable.",
       "requirement_sha": "23a09580e5b0c1fe",
       "tests": {
-        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481",
-        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "620e6bdeb9c90481",
         "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "0246bf2f410b1f45",
-        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "0246bf2f410b1f45"
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "0246bf2f410b1f45",
+        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481",
+        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "620e6bdeb9c90481"
       },
       "units": {
-        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b",
-        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "ae0a8ff343d51c2b",
         "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "92cad95874215e04",
-        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "92cad95874215e04"
+        "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "92cad95874215e04",
+        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b",
+        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "ae0a8ff343d51c2b"
       },
       "verdict": "enforced"
     },
@@ -148,14 +149,14 @@
       "note": "Re-judged 2026-09-30 (independent judge, c11). D-8 fixed at the producer: the Extended Prefix receiver cached usable at delivery (extRecvEntry.usable), so a Type-11 entry stayed usable in `show` after its originator became unreachable; the entry now stores scope only and ext_prefix.go::extPrefixUsable (RFC quote above the return) judges it at every read, snapshot deriving it after releasing the receiver lock. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: + two Type-11 LSAs (Opaque IDs 1, 2) from 2.2.2.2 usable while reachable; - the seam flips unreachable, no new LSA, both rows unusable through extOpaqueDecode (the show path). An overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) making extPrefixUsable return true for AS scope turns the negative red (and TestExtPrefixType11UnreachableUnusable). Revert records on extPrefixUsable observed red. The row's false {single-polarity} annotation ('never cached') was removed; the quote is unchanged. The TED consumer already judged at read time (te_ted.go usableLocked).",
       "requirement_sha": "1ace7b50155ea702",
       "tests": {
-        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481",
         "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator": "89e3bd7e3890df87",
-        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "89e3bd7e3890df87"
+        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "89e3bd7e3890df87",
+        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481"
       },
       "units": {
-        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b",
         "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator": "15324195f3bef120",
-        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "15324195f3bef120"
+        "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "15324195f3bef120",
+        "internal/plugins/ospf/rfc5250_opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b"
       },
       "verdict": "enforced"
     },
