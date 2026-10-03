@@ -103,7 +103,7 @@
     {
       "rid": "RFC6396-4.3.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte",
+      "unit": "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte",
       "unit-sha": "208385a569a039b0",
       "claim-sha": "6cdae5dd4fc5f53c",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC6396-4.4.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord",
+      "unit": "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord",
       "unit-sha": "7a6dab6363135cc3",
       "claim-sha": "ec4b917e6114a7fc",
       "route": "revert",

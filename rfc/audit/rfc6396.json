@@ -19,10 +19,10 @@
       "note": "Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.",
       "requirement_sha": "bc7aa97ad7fbe9e2",
       "tests": {
-        "internal/plugins/mrt/dump_test.go::TestRibSubtype": "6ed6559cf54841e4"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "6ed6559cf54841e4"
       },
       "units": {
-        "internal/plugins/mrt/dump_test.go::TestRibSubtype": "afc6c2958382fedb"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "afc6c2958382fedb"
       },
       "verdict": "weak"
     },
@@ -58,10 +58,10 @@
       "note": "Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.",
       "requirement_sha": "a14ee59763ac83fc",
       "tests": {
-        "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "6ed6559cf54841e4"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "6ed6559cf54841e4"
       },
       "units": {
-        "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "80a64893da21da06"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "80a64893da21da06"
       },
       "verdict": "enforced"
     },
@@ -73,14 +73,14 @@
         "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "0ecb81c80cd0b439",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "ef5cdafe1b9e158d",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "ef5cdafe1b9e158d",
-        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "6ed6559cf54841e4"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "6ed6559cf54841e4"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "97f95516d8e9b6cf",
         "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "bdb9751bcb95eebd",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "13986c347835ca8b",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "36a87415e3065443",
-        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "f13a25b7a26f6d8c"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "f13a25b7a26f6d8c"
       },
       "verdict": "enforced"
     },
@@ -88,10 +88,10 @@
       "note": "Independent MRTJudge 2026-10-02. RFC6396 section 4.4.2: Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. TestOneBGPMessagePerBGP4MPRecord correctly migrates to the body-only callback and compares the complete reconstructed KEEPALIVE byte-for-byte, but still invokes OnBGPMessage only once. A writer coalescing consecutive callbacks can pass this sole tagged unit. The reactor observer test does assert many separate complete records, but is not tagged to this row. Keep the finding until the row owns consecutive-message evidence; the refreshed panic record cannot close the missing assertion.",
       "requirement_sha": "83fcb565bbdf4552",
       "tests": {
-        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "0e955cefe41cb14e"
+        "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord": "0e955cefe41cb14e"
       },
       "units": {
-        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "c67fac046385aa00"
+        "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord": "c67fac046385aa00"
       },
       "verdict": "weak"
     }
