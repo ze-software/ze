@@ -427,10 +427,15 @@ Three commits for Phases 1 and 3, and one commit per component for Phase 2. No c
 | `internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go` | `sflow_v5_flow_sampling_test.go` |
 | `internal/plugins/flowexport/sflow/flow_test.go` | `sflow_v5_flow_test.go` |
 | `internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go` | `rfc4760_mup_session_test.go` |
+| `cmd/ze/hub/service_mcp_rfc9325_test.go` | `rfc9728_service_mcp_tls_suites_test.go` |
+| `internal/component/bgp/reactor/config_paths_limit_test.go` | `draft_abraitis_idr_addpath_paths_limit_config_test.go` |
+| `internal/component/bgp/reactor/session_paths_limit_test.go` | `draft_abraitis_idr_addpath_paths_limit_session_test.go` |
 
 Each target stays in its source's directory. Every target was checked absent on 2026-10-03; the rename refuses one that has appeared since.
 
 → Decision (review of fd31c539ce, R-6, 2026-10-03): `rfc_mup_session_test.go` tags only RFC 4760 (its tests drive `capability.Negotiate` over the two MUP Multiprotocol capabilities), and `mup` is no word of `rfc4760`, so the tool keeps `rfc_mup` as topic and proposes `rfc4760_rfc_mup_session_test.go`. That target is free, so `propose` writes the pair rather than leaving it out: the component's plan MUST carry the row above instead.
+→ Decision (review of 71b1772696, F-1, 2026-10-03): `service_mcp_rfc9325_test.go` tags only RFC 9728 (RFC9728-7.1-2, the BCP 195 cipher suites the MCP listener negotiates), and `rfc9325` is no spelling of `rfc9728`, so `propose` writes the free target `rfc9728_service_mcp_rfc9325_test.go`, which names a second RFC the file does not tag. The row above names its subject, the TLS suites, instead.
+→ Decision (review of 71b1772696, F-7, 2026-10-03): `config_paths_limit_test.go` and `session_paths_limit_test.go` tag only the paths-limit draft, whose words `paths` and `limit` the tool keeps when they stand alone (R-2), so `propose` writes `draft_abraitis_idr_addpath_paths_limit_config_paths_limit_test.go`, the stem's words twice. The rows above keep the topic word: `config` (the knob that decides the OPEN limits) and `session`. The session row has the same shape as F-7 and was added with it.
 → Decision (D-1 recount, 2026-10-03): a fresh whole-tree `propose` with the inner stem dropped writes 439 pairs and leaves out 23 collisions and 6 name/tag mismatches. The 23 are the 21 rows above not yet landed (the ike and tacacs rows landed in e52260d978 and 489a1b53a5) plus the sflow `flow` pair, whose two sources now propose the same `sflow_v5_flow_test.go` and gained the last two rows. Every other hand-chosen row is still needed: each of its pairs still collides on its proposed name.
 
 ### Phase 3 untagged RFC-named files (39)
@@ -561,7 +566,7 @@ Each target stays in its source's directory. Every target was checked absent on 
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 2 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce) |
+| Rounds | 5 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -606,13 +611,29 @@ Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/disc
 | # | Severity | Finding | Location | Disposition |
 |---|----------|---------|----------|-------------|
 | R-1 | ISSUE | A topic left empty whose bare `<stem>_test.go` was taken fell back to the old topic, which carried the stem twice | `internal/le/rfc/names.go` `judgeTestFileName` | Fixed: the bare target is kept and `propose` reports it as taken. `TestRenameProposeReportsTakenBareTarget`, red under an overlay of HEAD's `names.go` and `rename.go` (the plan held `rfc9999_rfc_rfc9999_test.go`) |
-| R-2 | ISSUE | The legacy draft abbreviation `rfc_<word>` (`rfc_mup`) was no spelling of the draft stem, so the mup files proposed `draft_ietf_bess_mup_safi_rfc_mup_*` | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed for the draft's own words; `rfc_mup_session_test.go` (RFC 4760) takes a hand-chosen topic. Three mup cases in `TestJudgeTestFileNameDropsTheInnerStem`, red with the new arm removed |
+| R-2 | ISSUE | The legacy draft abbreviation `rfc_<word>` (`rfc_mup`) was no spelling of the draft stem, so the mup files proposed `draft_ietf_bess_mup_safi_rfc_mup_*` | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed for the draft's own words; `rfc_mup_session_test.go` (RFC 4760) takes a hand-chosen topic. Two mup cases in `TestJudgeTestFileNameDropsTheInnerStem` (`rfc_mup_ingress`, `rfc_mup_safi`) go red with the new arm removed; the third, `rfc_mup_session` (RFC 4760), is a negative pin that stays green |
 | R-3 | NOTE | `ai/INDEX.md` still named `citationExcludes`, which fd31c539ce moved | `ai/INDEX.md` | Fixed: it names `citation.Excluded`, `citation.Policed` and `citation.CorpusGlobs` in `internal/le/doc/citation/policed.go` |
 | R-4 | NOTE | A suggested repair can change which platforms compile the file (`linux_test.go` would become `rfc5082_linux_test.go`); `./le rfc rename` refuses that rename, but the finding still suggests it | `internal/le/rfc/names.go` `judgeTestFileName` | Not done: `propose` drops a verdict with no target without a word, so refusing the target needs a new report category, past the 10-line bound the main thread set. The rename's `buildSuffixMoves` refusal still holds |
 | R-5 | NOTE | No test killed the `buildSuffixLength` cap-1 mutant, nor the `existsIn`-always-false mutant | `internal/le/rfc/names.go` | Fixed: the case `foo_rfc_draft_linux_amd64_test.go` (a stem word at n-2 before an arch token) is red under the cap-1 and cap-0 mutants. `existsIn` is deleted by R-1; the taken path is now `proposeRenames`' own collision check, driven by `TestRenameProposeReportsTakenBareTarget` |
 | R-6 | NOTE | Names the tool cannot repair alone | Phase 2 | Hand-chosen topics in Phase 2 (`rfc_mup_session_test.go` row added) |
-| R-7 | NOTE | Owed: the main thread holds the finding text | - | Accepted (main thread) |
-| R-8 | NOTE | Owed: the main thread holds the finding text | - | Accepted (main thread) |
+| R-7 | NOTE | Rename skips exactly what the link sweep skips, except the sweep's own `links.go` and `links_test.go` (`sweepExcluded`), which rename still polices | `internal/le/rfc/rename.go` `planCitations` | Accepted: harmless, both read `citation.Excluded` and the corpus set |
+| R-8 | NOTE | `TestRecordTreesAreExcludedFromCitationPolicing` stays in `links_test.go` calling `citation.Excluded`; it pins the list values and never proved the sweep consults the list (nor did the old version) | `internal/le/doc/check/links_test.go` | Accepted: sound, partly overlaps `TestPolicedKeepsCorpusFilesUnderRecordTrees` |
+
+### Round 5 (scope: 71b1772696, the round 4 fixes)
+
+Verdict 0 BLOCKER, 1 ISSUE, 6 NOTE.
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| F-1 | ISSUE | `cmd/ze/hub/service_mcp_rfc9325_test.go` would be proposed as `rfc9728_service_mcp_rfc9325_test.go`, naming an RFC the file does not tag | Phase 2 | Fixed: hand row `rfc9728_service_mcp_tls_suites_test.go` |
+| F-2 | NOTE | No test killed the mutant that moves the `rfc_<word>` arm before the draft gate | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed: case `c/sf/foo_rfc_v5_test.go` (sflow-v5) wants `sflow_v5_foo_rfc_v5_test.go`; red under the overlay mutant (target `sflow_v5_foo_test.go`), green on the tree |
+| F-3 | NOTE | No test killed the mutant `len(rest) >= 2` to `>= 1` in the `rfc_<word>` arm | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed: case `c/x/foo_rfc_test.go` (a draft stem); red under the overlay mutant (index out of range), green on the tree |
+| F-4 | NOTE | The armed check's message for a taken bare target needs its own wording | `internal/le/rfc/names.go` `checkTestFileNames` | Deferred to Phase 3 and folded with R-4, because the wording belongs to the armed check |
+| F-5 | NOTE | Rounds still said 2, and the R-2 row said three mup cases go red | this section | Fixed |
+| F-6 | NOTE | `bin/le` built before a commit ran without a stale warning | `./le` launcher | Recorded: one row in `plan/journal/` |
+| F-7 | NOTE | `config_paths_limit_test.go` would be proposed as `draft_abraitis_idr_addpath_paths_limit_config_paths_limit_test.go` | Phase 2 | Fixed: hand rows for it and for `session_paths_limit_test.go`, which has the same shape |
+
+The two test-only edits need no fixture re-seal, because the fixture digest skips `_test.go`.
 
 ## Phase 2 progress
 

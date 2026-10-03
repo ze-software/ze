@@ -335,6 +335,11 @@ func TestJudgeTestFileNameDropsTheInnerStem(t *testing.T) {
 		// mup is no word of rfc4760, so rfc_mup is topic here and the file
 		// takes a hand-chosen topic in Phase 2.
 		{"c/mup/rfc_mup_session_test.go", "rfc4760", "c/mup/rfc4760_rfc_mup_session_test.go"},
+		// rfc_<word> is a spelling of a draft stem only: v5 is a word of
+		// sflow-v5, which is no draft, so rfc_v5 stays as topic.
+		{"c/sf/foo_rfc_v5_test.go", "sflow-v5", "c/sf/sflow_v5_foo_rfc_v5_test.go"},
+		// A trailing rfc with no word after it is no spelling of a draft stem.
+		{"c/x/foo_rfc_test.go", "draft-ze-linux-thing", "c/x/draft_ze_linux_thing_foo_rfc_test.go"},
 	}
 	for _, tc := range cases {
 		file := namedTestFile{Rel: tc.rel, TagStems: map[string]bool{tc.stem: true}}
