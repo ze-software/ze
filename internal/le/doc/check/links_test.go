@@ -27,34 +27,6 @@ func TestDocumentActionsCoverNativeOperations(t *testing.T) {
 		}
 	}
 }
-func TestCitationGrammarPreservesFileTargets(t *testing.T) {
-	// VALIDATES: symbol, test node-id, digest line-run, and brace references reduce to files.
-	// PREVENTS: live source citations being reported because their location suffix stayed attached.
-	root := t.TempDir()
-	for _, rel := range []string{
-		"internal/x/owner_test.go",
-		"internal/x/owner.go",
-		"internal/x/first.go",
-		"internal/x/second.go",
-	} {
-		writeFixture(t, root, rel, "")
-	}
-	tests := []struct {
-		raw  string
-		want string
-	}{
-		{raw: "internal/x/owner_test.go::TestCase", want: "internal/x/owner_test.go"},
-		{raw: "internal/x/owner.go:Owner", want: "internal/x/owner.go"},
-		{raw: "internal/x/owner.go,47,64,82-90", want: "internal/x/owner.go"},
-		{raw: "internal/x/{first,second}.go", want: "internal/x/first.go,internal/x/second.go"},
-	}
-	for _, test := range tests {
-		got := strings.Join(candidatePaths(root, test.raw), ",")
-		if got != test.want {
-			t.Errorf("candidatePaths(%q)=%q, want %q", test.raw, got, test.want)
-		}
-	}
-}
 
 func TestTrackedCitationFixtureParity(t *testing.T) {
 	// VALIDATES: citations outside the instruction corpus are checked by citing-file/target pair.

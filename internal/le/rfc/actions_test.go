@@ -2,6 +2,7 @@ package rfc
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -181,5 +182,47 @@ func TestRFCActionsAuditStampRejudgeMode(t *testing.T) {
 				t.Errorf("the answer is %T, want an AuditStampReport", answer)
 			}
 		})
+	}
+}
+
+// VALIDATES: the rename verb is in the table, published as a writer, with the
+// five keywords its three forms use.
+func TestRFCActionsCarryRenameVerb(t *testing.T) {
+	for _, action := range Actions().Actions {
+		if action.Verb != "rename" {
+			continue
+		}
+		if !action.Writes {
+			t.Error("rename is not published as a writer")
+		}
+		var keywords []string
+		for _, parameter := range action.Parameters {
+			keywords = append(keywords, parameter.Keyword)
+		}
+		for _, want := range []string{keyFrom, keyTo, keyPlan, keyPropose, keyUnder} {
+			if !slices.Contains(keywords, want) {
+				t.Errorf("rename does not declare the keyword %s: %v", want, keywords)
+			}
+		}
+		return
+	}
+	t.Fatal("the RFC action catalog does not publish rename")
+}
+
+// VALIDATES: the wiring row -- `./le rfc rename from <old> to <new>` reaches the
+// rename through Answer and moves the file in the checkout ZE_REPO_ROOT names.
+func TestRFCActionsRenameThroughAnswer(t *testing.T) {
+	root := renameFixture(t)
+	setRenameRoot(t, root)
+	answer, code := Answer([]string{"rename", keyFrom, selftestTestPath, keyTo, renameTarget})
+	if code != 0 {
+		t.Fatalf("the rename answered %d", code)
+	}
+	report, isReport := answer.(RenameReport)
+	if !isReport || len(report.Moves) != 1 {
+		t.Fatalf("the answer is %#v, want a report of one move", answer)
+	}
+	if existsRel(root, selftestTestPath) || !existsRel(root, renameTarget) {
+		t.Error("the file did not move")
 	}
 }

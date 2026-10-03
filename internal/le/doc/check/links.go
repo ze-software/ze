@@ -1,8 +1,9 @@
 // Design: docs/architecture/core-design.md -- native documentation link verification
 // Overview: actions.go -- the callable documentation action table.
-// Detail: citation.go -- the shared path-reference grammar.
+// Detail: citation.go -- the ignore markers and path resolution the sweep applies.
 // Detail: names.go -- hook and checker name resolution.
 // Detail: repository.go -- bounded Git populations and ignored paths.
+// Related: internal/le/doc/citation/citation.go -- the shared path-reference grammar.
 
 package doccheck
 
@@ -17,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/doc/citation"
 	docwiring "github.com/ze-software/ze/internal/le/doc/wiring"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
@@ -275,7 +277,7 @@ func checkMarkdown(root string, _ bool) (broken []brokenReference, err error) {
 			if suppressed(line) {
 				continue
 			}
-			for _, target := range lineCitations(root, line) {
+			for _, target := range citation.Paths(root, line) {
 				resolves, err := pathResolves(root, target)
 				if err != nil {
 					return nil, fmt.Errorf("resolving %s from %s: %w", target, rel, err)
@@ -369,7 +371,7 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 			if suppressed(line) {
 				continue
 			}
-			for _, target := range lineCitations(root, line) {
+			for _, target := range citation.Paths(root, line) {
 				resolves, err := pathResolves(root, target)
 				if err != nil {
 					return fmt.Errorf("resolving %s from %s: %w", target, rel, err)
@@ -461,8 +463,8 @@ func baselineFindings(root string, dead []deadCitation, baseline map[citationPai
 	_ bool, drift bool,
 ) ([]string, []string, error) {
 	uniqueTargets := make(map[string]bool)
-	for _, citation := range dead {
-		uniqueTargets[citation.target] = true
+	for _, found := range dead {
+		uniqueTargets[found.target] = true
 	}
 	targets := make([]string, 0, len(uniqueTargets))
 	for target := range uniqueTargets {
@@ -476,16 +478,16 @@ func baselineFindings(root string, dead []deadCitation, baseline map[citationPai
 	live := make([]deadCitation, 0, len(dead))
 	var findings []string
 	var tb textbuf.Buffer
-	for _, citation := range dead {
-		if targetIgnored(ignored, citation.target) {
+	for _, found := range dead {
+		if targetIgnored(ignored, found.target) {
 			continue
 		}
-		live = append(live, citation)
-		if baseline[citationPair{citer: citation.citer, target: citation.target}] {
+		live = append(live, found)
+		if baseline[citationPair{citer: found.citer, target: found.target}] {
 			continue
 		}
-		findings = append(findings, tb.Reset().Str(citation.citer).Byte(':').
-			Int(int64(citation.line)).Str(": dead path reference: ").Str(citation.target).
+		findings = append(findings, tb.Reset().Str(found.citer).Byte(':').
+			Int(int64(found.line)).Str(": dead path reference: ").Str(found.target).
 			Str(" -- repair the reference, or mark the line ").
 			Str("`<!-- doc-links: ignore (why this path cannot resolve) -->`").String())
 	}
@@ -493,8 +495,8 @@ func baselineFindings(root string, dead []deadCitation, baseline map[citationPai
 		return findings, nil, nil
 	}
 	seen := make(map[citationPair]bool, len(live))
-	for _, citation := range live {
-		seen[citationPair{citer: citation.citer, target: citation.target}] = true
+	for _, found := range live {
+		seen[citationPair{citer: found.citer, target: found.target}] = true
 	}
 	stale := make([]citationPair, 0)
 	for pair := range baseline {

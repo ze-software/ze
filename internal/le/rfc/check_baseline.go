@@ -534,17 +534,108 @@ func coversOfTags(index *scopeIndex, tags []Tag, blobs map[string]string) map[Co
 // drops the tags. It goes through coversOfTags rather than keying tags itself:
 // two ways to mint a cover key is two answers to the question the whole
 // comparison rests on.
+//
+// A cover in a file HEAD holds under another name with the same bytes is keyed
+// by its HEAD path (exactRenamesSince), so a byte-pure rename moves no cover.
+// This is the one place a baseline cover is minted, so the HEAD^ obligation and
+// the origin/main backlog both follow it. A rename map git cannot read leaves
+// the whole baseline unknown, because "no renames" would bill every moved cover.
 func coversAt(tree, revision string, carriers []Carrier, index *scopeIndex) (map[Cover]bool, bool) {
 	tags, blobs, known := baselineTaggedAt(tree, revision, carriers)
+	if !known {
+		return nil, false
+	}
+	renames, known := exactRenamesSince(tree, revision, carriers)
 	if !known {
 		return nil, false
 	}
 	covers := coversOfTags(index, tags, blobs)
 	out := make(map[Cover]bool, len(covers))
 	for key := range covers {
+		key.Unit = followRename(key.Unit, renames)
 		out[key] = true
 	}
 	return out, true
+}
+
+// exactRenamesSince answers every carrier file git reports renamed between
+// revision and HEAD with an unchanged blob id, old path to new path, and false
+// when git could not answer.
+//
+// Only an identical blob is followed, compared by id rather than trusted from a
+// similarity score: byte purity is what lets every other gate read the rename as
+// no change, and a rename that carries an edit is reviewed as an edit. The false
+// return is the guard that keeps an unreadable map from reading as "no renames".
+func exactRenamesSince(tree, revision string, carriers []Carrier) (map[string]string, bool) {
+	args := append([]string{"diff", "--raw", "-z", "--no-abbrev", "-M100%", "--diff-filter=R",
+		revision, headRevision, "--"}, testRoots[:]...)
+	raw, ok := gitOutput(tree, args...)
+	if !ok {
+		return nil, false
+	}
+	return parseExactRenames(raw, carriers)
+}
+
+// parseExactRenames reads `git diff --raw -z` rename records, and false when one
+// is truncated or malformed.
+//
+// A record is `:<mode> <mode> <old-sha> <new-sha> R<score>`, then the old and the
+// new path, each NUL terminated. A pair is kept only when both shas are equal and
+// the carrier table holds both paths.
+func parseExactRenames(raw []byte, carriers []Carrier) (map[string]string, bool) {
+	out := map[string]string{}
+	fields := strings.Split(string(raw), "\x00")
+	// Every record ends in NUL, so the field after the last one is empty and the
+	// records fill exactly the fields before it, three each.
+	records := fields[:len(fields)-1]
+	if len(records)%3 != 0 {
+		return nil, false
+	}
+	for position := 0; position < len(records); position += 3 {
+		header := strings.Fields(strings.TrimPrefix(records[position], ":"))
+		if len(header) != 5 {
+			return nil, false
+		}
+		if !strings.HasPrefix(header[4], "R") {
+			return nil, false
+		}
+		source, target := records[position+1], records[position+2]
+		if source == "" {
+			return nil, false
+		}
+		if target == "" {
+			return nil, false
+		}
+		if header[2] != header[3] {
+			continue
+		}
+		if _, held := CarrierFor(source, carriers); !held {
+			continue
+		}
+		if _, held := CarrierFor(target, carriers); !held {
+			continue
+		}
+		out[source] = target
+	}
+	return out, true
+}
+
+// followRename answers a baseline cover's unit with its file part moved through
+// renames, or unchanged when its file was not renamed.
+//
+// The unit is `<path>::<Func>` or the bare path of a file-scoped key; only the
+// text before `::` is a path.
+func followRename(unit string, renames map[string]string) string {
+	path, function, scoped := strings.Cut(unit, "::")
+	target, moved := renames[path]
+	if !moved {
+		return unit
+	}
+	if !scoped {
+		return target
+	}
+	var tb textbuf.Buffer
+	return tb.Str(target).Str("::").Str(function).String()
 }
 
 // baselineDiscrimination answers the covers the recorded proofs carried at

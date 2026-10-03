@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/3 |
 | Handoff | - |
 | Updated | 2026-10-03 |
 
@@ -54,7 +54,7 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 - [ ] `internal/le/rfc/freshness.go` `unitIdentity`, `keyFile`
   -> Constraint: audit verdicts are keyed (file, unit-sha), "the identity a RENAME does not preserve"; 808 verdicts in 117 audit files go STALE_UNIT on rename and `reseal` refuses them. Both hashes are path-independent, so rewriting the keys keeps them FRESH.
 - [ ] `internal/le/rfc/audit.go` `VerdictRecord`
-  → Constraint: a verdict carries three fingerprint maps, `tests`, `units` and `code`, each keyed `<path>::<Func>`. The JSON key for the requirement fingerprint is `requirement_sha`. All three maps are rewritten when their file part is the old path.
+  → Constraint: a verdict carries three fingerprint maps, `tests`, `units` and `code`, each keyed `<path>::<Func>`. The JSON key for the requirement fingerprint is `requirement-sha`. All three maps are rewritten when their file part is the old path.
 - [ ] `internal/le/rfc/discriminate.go` `DiscriminationRecord`, `unitKeyAt`, `behaviorSHA`, `removable`
   → Constraint: a record carries `unit`, `unit-sha`, `claim-sha`, `producer`, `producer-sha`, `break`. `behaviorSHA(path, text)` uses the path only to pick the comment grammar, so a `_test.go` to `_test.go` rename keeps `unit-sha`. A record whose unit is gone reads `removable`, not stale: a record left at the old path after a rename is reported for removal and its cover is owed again.
 - [ ] `internal/le/rfc/check_ratchets.go` `discriminationWithdrawnErrors`
@@ -78,7 +78,7 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 - [ ] `internal/le/commit/rfcchange.go` `rfcChangeProblems`, `internal/le/test/weakened/audit.go` `auditDiff`
   -> Constraint: both pair renames at similarity >= 50, so each rename MUST be byte-pure, landed with plain `mv` plus `remove` of the old path.
   → Constraint: `auditDiff` calls `rfc.ChangedTags(path, oldText, newText)` on the paired texts; identical texts report nothing, so a byte-pure rename needs no `RFC-approved:` trailer.
-- [ ] `internal/le/doc/check/citation.go` `lineCitations`, `internal/le/doc/check/links.go` `sweepTracked`
+- [ ] `internal/le/doc/citation/citation.go` `Paths`, `internal/le/doc/check/links.go` `sweepTracked`
   → Constraint: the link sweep reads a backticked path out of ANY tracked file, Go comments included (`internal/le/rfc/render.go` `summaryRelOf` says so). The rename reuses this grammar instead of writing a second one. `go list -deps ./internal/le/doc/check` holds no `internal/le/rfc`, so `internal/le/rfc` may import it without a cycle.
 - [ ] `internal/le/hookruntime/lifecycle.go` `validateSpecText`
   → Constraint: the sections this file must carry.
@@ -119,7 +119,7 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 - [ ] `internal/le/go/module/rename.go` - the module rename precedent
 - [ ] `internal/le/commit/rfcchange.go` - the RFC-change commit gate pairs renames
 - [ ] `internal/le/test/weakened/audit.go` - `auditDiff` pairs renames with `git diff --name-status -M`
-- [ ] `internal/le/doc/check/citation.go` - the backtick and link citation grammar
+- [ ] `internal/le/doc/citation/citation.go` - the backtick and link citation grammar
 - [ ] `internal/le/doc/check/links.go` - `sweepTracked` reads citations out of tracked files
 
 **Behavior to preserve:**
@@ -159,7 +159,7 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 - `coversAt` in `check_baseline.go` - gains the rename map; both HEAD^ and origin/main baselines use it.
 - `check` in `check.go` - one appended call to `checkTestFileNames`.
 - `actions` in `actions.go` - one `rename` entry.
-- `lineCitations` in `internal/le/doc/check/citation.go` - exported through a thin named function so the rename and the sweep read one grammar.
+- `Paths` in `internal/le/doc/citation/citation.go` - the grammar, moved out of `internal/le/doc/check` into a leaf package so the rename and the sweep read one grammar. Exporting it from `doc/check` made a test import cycle (`doc/wiring` test, `rfc`, `doc/check`, `doc/wiring`).
 - The atomic writer used by `reseal.go` - reused for the JSON rewrites.
 
 ### Architectural Verification
@@ -177,15 +177,15 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `unit-sha`, `claim-sha`, and the audit `tests`/`units`/`code` shas do not depend on the file path for a `_test.go` to `_test.go` rename | `freshness.go` `unitIdentity` comment; `behaviorSHA(path, text)` uses the path for comment grammar only | Rewritten records go stale and rewritten verdicts go STALE_UNIT | `TestRenameKeepsDiscriminationRecordsVerified`, `TestRenameKeepsAuditVerdictsFresh` | unvalidated |
+| A-1 | `unit-sha`, `claim-sha`, and the audit `tests`/`units`/`code` shas do not depend on the file path for a `_test.go` to `_test.go` rename | `freshness.go` `unitIdentity` comment; `behaviorSHA(path, text)` uses the path for comment grammar only | Rewritten records go stale and rewritten verdicts go STALE_UNIT | `TestRenameKeepsDiscriminationRecordsVerified`, `TestRenameKeepsAuditVerdictsFresh` | confirmed 2026-10-03: both tests green |
 | A-2 | The commit gates read a byte-pure rename as unchanged | `rfcchange.go` and `weakened/audit.go` pair renames and compare texts | Every Phase 2 commit needs an `RFC-approved:` trailer or reports WEAKENED | First Phase 2 commit through `./le commit create` reports no RFC-change and no weakened finding | unvalidated |
 | A-3 | Git's exact rename detection is not cut off by `diff.renameLimit` for 179 files in one commit | Git detects exact renames by blob id before the inexact pass the limit governs | Part of a component commit bills owed covers | The bgp Phase 2 commit: the exact-rename count git reports equals the number of moved files, and `./le rfc check` owes nothing new | unvalidated |
-| A-4 | `internal/le/rfc` can import `internal/le/doc/check` without a cycle | `go list -deps ./internal/le/doc/check` run 2026-10-03 held no `internal/le/rfc` | The citation function moves to a leaf package both import | Phase 1 build | unvalidated |
-| A-5 | No stem contains an underscore, and the stem to prefix map is injective over `rfc/short/` | `find rfc/short -name '*_*'` returned 0 on 2026-10-03; nine non-RFC stems, none a prefix of another after mapping | The inverse is ambiguous | `TestStemPrefixesAreInjectiveOverTheCorpus` | unvalidated |
-| A-6 | The 13 backtick citations of candidate paths are the whole citation population | Research count | A dead citation fails `./le doc-check links` after a phase | `./le rfc rename` report per component; `./le doc-check links` before each Phase 2 commit | unvalidated |
+| A-4 | `internal/le/rfc` can import `internal/le/doc/check` without a cycle | `go list -deps ./internal/le/doc/check` run 2026-10-03 held no `internal/le/rfc` | The citation function moves to a leaf package both import | Phase 1 build | confirmed 2026-10-03: `rename.go` imports `doccheck` and the package builds |
+| A-5 | No stem contains an underscore, and the stem to prefix map is injective over `rfc/short/` | `find rfc/short -name '*_*'` returned 0 on 2026-10-03; nine non-RFC stems, none a prefix of another after mapping | The inverse is ambiguous | `TestStemPrefixesAreInjectiveOverTheCorpus` | confirmed 2026-10-03: green over this checkout's `rfc/short/` |
+| A-6 | The 13 backtick citations of candidate paths are the whole citation population | Research count | A dead citation fails `./le doc check links` after a phase | `./le rfc rename` report per component; `./le doc check links` before each Phase 2 commit | unvalidated |
 | A-7 | Phase 2 needs no list that outlives this session | Owner decision 2026-10-03: Phase 2 input is `./le rfc rename propose`, derived from `checkTestFileNames` over the tree in hand; the scratch list was research evidence only | A later session would rename from a stale or missing list | AC-9 test of `propose` over a fixture tree; the per-component run in Phase 2 | validated by design |
 | A-8 | No test reads its own file name or names a sibling test file in a string | No known case | A package test fails after a rename | The rename report lists plain mentions; each Phase 2 commit runs the package tests of its component | unvalidated |
-| A-9 | A gap tag cites its stem for naming purposes just as a proof tag does | A gap tag demonstrates that RFC's requirement | Gap-only files are judged as untagged | `TestCheckTestFileNamesCountsGapTags` | unvalidated |
+| A-9 | A gap tag cites its stem for naming purposes just as a proof tag does | A gap tag demonstrates that RFC's requirement | Gap-only files are judged as untagged | `TestCheckTestFileNamesCountsGapTags` | confirmed 2026-10-03: green |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -206,7 +206,7 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Nothing user-visible. A wrong baseline either owes too much (red gate) or too little (an unproven new cover passes). A wrong rename leaves a stale record or a dead citation, both of which `./le rfc check` and `./le doc-check links` report |
+| What breaks if this is wrong? | Nothing user-visible. A wrong baseline either owes too much (red gate) or too little (an unproven new cover passes). A wrong rename leaves a stale record or a dead citation, both of which `./le rfc check` and `./le doc check links` report |
 | How is it reverted? | Phase 1: single commit revert. Phase 2: each component commit reverts on its own. Phase 3: single commit revert, which disarms the check |
 | Who else touches this path? | Every session that tags tests, writes discrimination records or audit verdicts, or edits test files in the renamed packages |
 
@@ -288,7 +288,8 @@ The candidates file has six tab-separated columns: path, RFC stem, proposed path
 | `TestCheckTestFileNamesCountsGapTags` | `internal/le/rfc/names_test.go` | A-9 | |
 | `TestCheckTestFileNamesSkipsOutOfScopeFiles` | `internal/le/rfc/names_test.go` | AC-17 | |
 | `TestCheckReportsTestFileNameFindings` | `internal/le/rfc/names_test.go` | wiring through `check` | |
-| `TestCitedPathsMatchesTheLinkSweep` | `internal/le/doc/check/citation_test.go` | the exported function answers what `lineCitations` answers | |
+| `TestCitedPathsMatchesTheLinkSweep` | `internal/le/doc/check/citation_test.go` | the link sweep reports, per line, exactly what `citation.Paths` answers | |
+| `TestPathsAnswersEachCitationShape` | `internal/le/doc/citation/citation_test.go` | `citation.Paths` answers each citation shape, and nothing for a plain mention | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -312,7 +313,8 @@ N-A: tooling, no protocol peer, no wire-visible change (`ai/rules/interop-and-go
 - `internal/le/rfc/check.go` - Phase 3: one call to `checkTestFileNames` after `checkSuperseded`
 - `internal/le/rfc/actions.go` - `rename` verb with `from`, `to`, `plan` keywords and `Writes: true`
 - `internal/le/rfc/actions_test.go` - two tests
-- `internal/le/doc/check/citation.go` - exported citation function over `lineCitations`
+- `internal/le/doc/check/citation.go` - the grammar moves out; the ignore markers and path resolution stay
+- `internal/le/doc/citation/citation.go` (new) - the citation grammar, `Paths`, as a leaf package
 - `docs/contributing/rfc-conformance-gates.md` - "Test file names" section; rename following in "The discrimination record"; `./le rfc rename` beside the record writers
 - `docs/contributing/rfc-implementation-guide.md` - one sentence where it says which carrier a tag lives in, pointing at the naming section
 - `docs/architecture/core-design.md` - the Go-writer sentence names `./le rfc rename`
@@ -328,7 +330,7 @@ N-A: tooling, no protocol peer, no wire-visible change (`ai/rules/interop-and-go
 - `internal/le/rfc/rename.go` - the rename plan, refusals, move, JSON and citation rewrites, report
 - `internal/le/rfc/rename_test.go`
 - `internal/le/rfc/check_rename_baseline_test.go`
-- `internal/le/doc/check/citation_test.go` (or the test added to the existing citation test file if one exists)
+- `internal/le/doc/check/citation_test.go`, `internal/le/doc/citation/citation_test.go`
 - `ai/rules/points/testing/rfc-tagged-tests-blocking/name-a-single-rfc-test-file-for-its-rfc.md`
 
 ### Integration Checklist
@@ -382,11 +384,11 @@ Three commits for Phases 1 and 3, and one commit per component for Phase 2. No c
 3. **Phase 1b: the naming predicate** -- `names.go`: stem prefix (`rfcN` gives `rfcN_`; any other stem gives the stem with `-` turned into `_`, plus `_`); inverse (longest prefix among `summaryStems`; a base name beginning `rfc<digits>_` whose stem has no summary is still named for that stem, and can only be satisfied by the marker or a rename); the marker constant; the predicate over (file name, tag stems, marker), returning the violation and the suggested target. `checkTestFileNames` is written and unit-tested here and wired in Phase 3.
    - Tests: the `names_test.go` tests except `TestCheckReportsTestFileNameFindings`
    - Verify: fail, implement, pass
-4. **Phase 1c: `./le rfc rename`** -- export the citation function from `internal/le/doc/check/citation.go`; in `rename.go` build a plan for every pair, run every refusal (AC-7, AC-8, AC-9, R-8) before writing; then move each file with a plain rename, rewrite every record field and every audit map key whose file part is the old path, re-reading each JSON file just before its atomic replace (R-2), rewrite backtick and link citations in tracked files, and report (AC-10).
+4. **Phase 1c: `./le rfc rename`** -- move the citation grammar into the leaf package `internal/le/doc/citation`; in `rename.go` build a plan for every pair, run every refusal (AC-7, AC-8, AC-9, R-8) before writing; then move each file with a plain rename, rewrite every record field and every audit map key whose file part is the old path, re-reading each JSON file just before its atomic replace (R-2), rewrite backtick and link citations in tracked files, and report (AC-10).
    - Tests: the `rename_test.go` tests and `TestCitedPathsMatchesTheLinkSweep`
    - Verify: fail, implement, pass; `TestRenameEndToEndCheckFindingsUnchanged` green
 5. **Phase 1d: docs** -- `rfc-conformance-gates.md` (rename following, the verb, and a "Test file names" section describing the convention as it will arm), `rfc-implementation-guide.md` pointer, `core-design.md` sentence. Commit 1: code, tests, docs.
-6. **Phase 2: renames, one commit per component** -- component is the directory under `internal/component/`, `internal/plugins/`, `internal/core/`, `internal/mrt/`, `cmd/ze/` (research counts: bgp 179, ospf 78, l2tp 51, isis 39, flowexport 35, rsvpte 21, ike 17, config 16, and 21 smaller). Input: the part (b) findings of `checkTestFileNames` over the tree in hand, never the research scratch list. Phase 1 adds `./le rfc rename propose`, which runs the unwired check and writes a `plan` file of one `from`/`to` pair per finding, each target being the exact rename the finding names; a target that collides is left out and named in its report, and takes the hand-chosen target from the table below. The 6 mismatches stay for Phase 3. Files other sessions add between phases are picked up because the list is recomputed per component. Run `./le rfc rename plan <file>` per component, then `./le doc-check links`, the component's package tests, and `./le rfc check`; commit with `./le commit create`, naming each new path and passing each old path to `remove`. The body lists every pair.
+6. **Phase 2: renames, one commit per component** -- component is the directory under `internal/component/`, `internal/plugins/`, `internal/core/`, `internal/mrt/`, `cmd/ze/` (research counts: bgp 179, ospf 78, l2tp 51, isis 39, flowexport 35, rsvpte 21, ike 17, config 16, and 21 smaller). Input: the part (b) findings of `checkTestFileNames` over the tree in hand, never the research scratch list. Phase 1 adds `./le rfc rename propose`, which runs the unwired check and writes a `plan` file of one `from`/`to` pair per finding, each target being the exact rename the finding names; a target that collides is left out and named in its report, and takes the hand-chosen target from the table below. The 6 mismatches stay for Phase 3. Files other sessions add between phases are picked up because the list is recomputed per component. Run `./le rfc rename plan <file>` per component, then `./le doc check links`, the component's package tests, and `./le rfc check`; commit with `./le commit create`, naming each new path and passing each old path to `remove`. The body lists every pair.
    - Verify: AC-18 for each commit
 7. **Phase 3: repair and arm** -- for each of the 39 untagged files: read it; rename it after what it covers, or add the marker with a true reason. For each of the 6 mismatches: read it; add the missing tag only if the test truly covers that requirement, and then record its proof with `./le rfc discriminate-record` and re-judge any audit verdict it stales (R-10); otherwise rename it for the stem it does tag. Run the whole-tree check locally with `checkTestFileNames` wired; repair any file other sessions added (R-7). Wire `checkTestFileNames` after `checkSuperseded` in `check`, write the point file, add its slug to the manifest, the rationale paragraph, run render, condensed, index, lint. Commit 3: the repairs, the wiring, the point and its generated files, the doc section update, together, so the check never arms red.
    - Tests: `TestCheckReportsTestFileNameFindings`
@@ -525,6 +527,14 @@ Each target stays in its source's directory. Every target was checked absent on 
 | Three phases, Phase 2 one commit per component, arming in the Phase 3 commit (owner) | One commit | Each commit stands alone; the check never arms red |
 | Interop carriers out of scope (owner) | Name `.ci` and scenario files too | Scenario names are identities cited elsewhere (`interop-and-goal-validation.md`) |
 | `checkTestFileNames` written in Phase 1, wired in Phase 3 | Write it in Phase 3 | The rename refuses a bad target with the same predicate, so the predicate must exist in Phase 1 |
+
+→ Decision (Phase 1, 2026-10-03): `propose` takes its output path as its value, `propose <file>`, and an optional `under <dir>` narrows it to one component, because Phase 2 runs one plan per component. The output file is created with `O_EXCL`, never overwritten.
+→ Decision (Phase 1): `propose` leaves out a file already named for ANOTHER stem (the name/tag mismatches), lists it in its report, and writes no pair for it, because Phase 3 reads each of those before anything moves.
+→ Decision (Phase 1): R-2 is enforced batch-wide: `applyRename` re-reads every evidence and cited file it will rewrite before it links any target, and refuses the whole batch, writing nothing, when one moved. Targets are created by `os.Link`, so an existing file can never be overwritten.
+→ Decision (Phase 1): the evidence rewrite is textual: a JSON string equal to the old path, or opening with the old path then `::`, is rewritten and nothing else is touched, so formatting and foreign hunks survive (R-4).
+→ Decision (Phase 1): a moved file is never edited, even where it cites itself or another moved file, because the move must stay byte-pure; such a line is listed as a mention instead. A citation is an occurrence whose replacement removes one citation of the old path under `citation.Paths`, so a plain mention on the same line is left alone.
+→ Decision (Phase 1): the GOOS/GOARCH suffix sets come from `go tool dist list` at run time rather than a copied list (`goPlatforms`).
+→ Decision (Phase 1): `TestCheckRenameMapUnreadableAccusesNobody` proves the unknown case at the function level (`exactRenamesSince` over no repository and over an unresolvable revision, `parseExactRenames` over truncated output, `coversAt` over no repository), because no fixture makes `git diff` fail while `git grep` at the same revision succeeds.
 
 ## Known Limitations
 

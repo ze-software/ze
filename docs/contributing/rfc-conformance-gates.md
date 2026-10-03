@@ -977,7 +977,7 @@ refusals exist today.
 | Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |
 | A record whose `producer` no longer resolves in the tree | The break was applied to code that is gone |
 | A record whose `unit-sha`, `claim-sha` or `producer-sha` no longer matches COMMITTED code | Nothing observed the red over the code that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a producer would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit. HEAD and the tree are compared at the granularity the record FINGERPRINTS, which is the producer or unit FUNCTION: comparing whole files let any unrelated uncommitted edit elsewhere in that file silence the author's own violation |
-| A tagged unit the TIP COMMIT added against `HEAD^`, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing. Both sides are COMMITTED (owner decision, 2026-09-01): a tag sitting only in somebody's working tree bills nobody, and `./le verify worktree` checks the commit under test out detached, where a tag that commit added IS the tip |
+| A tagged unit the TIP COMMIT added against `HEAD^`, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing. Both sides are COMMITTED (owner decision, 2026-09-01): a tag sitting only in somebody's working tree bills nobody, and `./le verify worktree` checks the commit under test out detached, where a tag that commit added IS the tip. A carrier file the tip RENAMED with its bytes unchanged added nothing: the baseline follows a rename whose blob id is identical, so its covers keep their proofs and owe none. A rename that changes even one byte is reviewed as an edit, and every unproven cover in it is owed |
 | A record committed at HEAD, deleted from the tree, while the tag it proved is still there | The proven set only goes up. Deleting a record beside a standing tag takes a proof off the published ledger and leaves the claim behind it |
 | Nothing, when a record's TAG is gone | A record dies with the tag it proves, so an orphan has nothing left to be wrong about. It is REPORTED as removable, on a `discrimination:` line of its own, and counted as proven by nothing |
 | A functional or interop record citing an assertion its carrier does not contain, or citing none | No generated break reaches either carrier, so the citation is what ties the recorded red to one assertion rather than to the whole suite. An interop citation is checked against the numbers the checker WRITES OUT, so an assertion numbered by expression -- `fail(index+2, err)` inside a loop -- cannot be cited until its checker writes the number |
@@ -1208,6 +1208,70 @@ So a verified record says the red WAS observed, and that the code it was
 observed over has not moved since. It does not say the red would happen again on
 a machine that never ran it. Re-observing is `./le rfc discriminate`, which an
 author runs deliberately.
+
+## Moving a tagged test file
+
+Every fingerprint in a record and in an audit verdict is independent of the
+file's path, and every KEY names the path. A move therefore breaks nothing but
+the keys, and `./le rfc rename` rewrites the keys rather than re-stamping
+anything.
+
+```
+./le rfc rename from <old> to <new>
+./le rfc rename plan <file>
+./le rfc rename propose <file> [under <dir>]
+```
+
+`from`/`to` moves one file and `plan` moves every `<old> <new>` line of a file.
+The move is byte-pure, so the HEAD^ and origin/main baselines follow it (see
+the obligation row above), the weakened-test audit and the RFC-change commit
+gate read it as no change, and it needs no `RFC-approved:` trailer. After the
+move the action rewrites every `unit` and `producer` naming the old path in
+`rfc/discrimination/`, and every `tests`, `units` and `code` key naming it in
+`rfc/audit/`, textually and nothing else, so another session's hunks in those
+files stay where they are. It rewrites every backtick or link citation of the
+old path in a tracked file, by the link sweep's own grammar (`Paths` in
+`internal/le/doc/citation`), and lists every other line that mentions the
+file's base name, for a reader to judge. A moved file is never edited.
+
+It refuses the whole batch, and writes nothing, for a target that exists,
+leaves its source's directory, changes the GOOS/GOARCH file-name suffix or is
+not a `_test.go` file; a source that is untracked or differs from HEAD; two
+pairs sharing a source or a target; a target the naming rule below refuses for
+the source's tags; and an evidence or cited file another session changed while
+the rename ran. `propose` writes a plan of one pair per misnamed file the naming
+rule finds, each target being the rename the finding names. A target that
+already exists or that two findings share is left out and named, and so is a
+file named for another RFC, which has to be read before it moves. The output
+file is created, never overwritten. Run `./le rfc index-update` after a rename.
+<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, proposeRenames -->
+<!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->
+
+## Test file names
+
+A unit test file's name and its `RFC requirement:` tags agree. A file whose
+proof and gap tags all cite one stem is named for it, `rfcNNNN_<topic>_test.go`.
+A file named for a stem carries at least one tag for it, or this marker with a
+reason on the same line:
+
+```
+// RFC naming: untagged -- <reason>
+```
+
+The prefix of a stem is the stem with its hyphens turned into underscores, then
+one underscore: `rfc792_`, `sflow_v5_`, `draft_ietf_sidrops_8210bis_`, with no
+zero padding. A file name is read back to the longest stem prefix it opens with,
+and a name opening `rfc<digits>_` is named for that RFC even when no summary
+exists. A file whose tags cite two or more stems may carry any name that does
+not claim a stem it never tags. Only `_test.go` files the unit carrier holds are
+judged, so interop carriers, `.ci` files, `internal/le/`, `test/draft/`,
+`testdata/` and `vendor/` are not. Each finding names the exact
+`./le rfc rename` command that repairs it, or the marker to write.
+
+`checkTestFileNames` implements the rule and `./le rfc rename` refuses a target
+through it. It is not yet one of `./le rfc check`'s checks: it arms when the
+tree is renamed to pass it (`plan/spec-rfc-test-file-naming.md`).
+<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, checkTestFileNames -->
 
 ## What the ratchets cannot see
 

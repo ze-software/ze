@@ -1098,7 +1098,7 @@ summaries, the tags and the audits, and reads no generated page.
 
 The five derived outputs are a separate question, and they need one step.
 `rfc/audit/` and `rfc/discrimination/` are inputs to them, but `reseal`,
-`audit-stamp` and `discriminate-record` write those directories from Go. The invalidation hook
+`audit-stamp`, `discriminate-record` and `rename` write those directories from Go. The invalidation hook
 runs for an agent's `Write` or `Edit` alone (`postInvalidateDerived`,
 `internal/le/hookruntime/postwrite.go`), so it never sees a write a native
 action made. An output the tree happens to hold is therefore left present and

@@ -598,6 +598,10 @@ The scanner includes command tests under `cmd/`, including tests of daemon liste
 The four legacy trees under `test/interop*/` carry the same interop kinds through
 `legacyInteropCarriers`, keyed on a `/check.py` suffix.
 
+A unit test file's name follows its tags: a file whose tags cite one RFC is
+named `rfcNNNN_<topic>_test.go`, and one named for an RFC tags it or says why not
+("Test file names" in `docs/contributing/rfc-conformance-gates.md`).
+
 A requirement whose only evidence is nightly-tier is marked `**nightly-only**` on
 its ledger row and counted in its own rollup column. The rollup deliberately
 never sums the two, because a nightly tier is not merge-gate proof.

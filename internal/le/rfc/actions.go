@@ -139,6 +139,22 @@ var actions = leaction.New(area,
 			{Keyword: keyMode, Value: "new|rejudge", Requirement: leaction.Optional},
 		},
 		AnswerArgs: auditStampAnswer},
+	leaction.Action{Verb: "rename", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
+		"<new> moves one file, plan <file> moves every `<old> <new>` line of a file, and propose <file> " +
+		"writes such a plan from the test file naming rule (under <dir> narrows it). The move is " +
+		"byte-pure, then every path key in rfc/discrimination/ and rfc/audit/ and every backtick or " +
+		"link citation is rewritten, and every plain mention is listed. It refuses, writing nothing, " +
+		"a target that exists, leaves its directory or GOOS/GOARCH suffix, or fails the naming rule, " +
+		"a source that is untracked or differs from HEAD, and a plan with one refused pair",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyFrom, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyTo, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyPlan, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyPropose, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyUnder, Value: "dir", Requirement: leaction.Optional},
+		},
+		AnswerArgs: renameAnswer},
 	leaction.Action{Verb: "index-update", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
 		"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
 		"tests themselves carry. It DELETES a table the render no longer produces, " +

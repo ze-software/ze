@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md -- repository citation grammar
 // Overview: links.go -- the checks that apply this grammar.
+// Related: internal/le/doc/citation/citation.go -- what a citation is.
 
 package doccheck
 
@@ -8,140 +9,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/doc/citation"
 )
 
-var (
-	backtickRe      = regexp.MustCompile("`([^`]+)`")
-	markdownLinkRe  = regexp.MustCompile(`\]\(([^)]*)\)`)
-	lineSuffixRe    = regexp.MustCompile(`:\d+(?:-\d+)?$`)
-	lineRunSuffixRe = regexp.MustCompile(`(?:,\d+(?:-\d+)?)+$`)
-	symbolColonRe   = regexp.MustCompile(`::?[A-Za-z_][\w.]*$`)
-	symbolDotRe     = regexp.MustCompile(`\.[A-Z]\w*$`)
-	braceRe         = regexp.MustCompile(`\{([^{}]+)\}`)
-	ignoreMarkerRe  = regexp.MustCompile(`doc-links:\s*ignore`)
-)
-
-var knownRoots = map[string]bool{
-	"ai": true, ".claude": true, ".codex": true, ".agents": true,
-	".github": true, "internal": true, "cmd": true, "pkg": true,
-	"test": true, "plan": true, "docs": true, "rfc": true, "tools": true,
-	"etc": true, "examples": true, "api": true, "contrib": true,
-	"gokrazy": true, "third_party": true, "parked": true, "vendor": true,
-	"rules": true, "patterns": true,
-}
-
-var rootFiles = map[string]bool{
-	"CLAUDE.md": true, "AGENTS.md": true, "README.md": true,
-	"go.mod": true, "go.sum": true, ".gitignore": true, ".golangci.yml": true,
-	"LICENSE": true, "SECURITY.md": true, "CONTRIBUTING.md": true,
-}
-
-var placeholderMarkers = [...]string{"<", ">", "$", "*", "NNN", "...", ".."}
-var skipPrefixes = [...]string{"tmp/", "bin/", "~", "/", "test/tmp/"}
-
-func lineCitations(root, line string) []string {
-	var raw []string
-	for _, found := range backtickRe.FindAllStringSubmatch(line, -1) {
-		raw = append(raw, found[1])
-	}
-	for _, found := range markdownLinkRe.FindAllStringSubmatch(line, -1) {
-		if found[1] == "" {
-			continue
-		}
-		if found[1][0] == '#' {
-			continue
-		}
-		raw = append(raw, found[1])
-	}
-	out := make([]string, 0, len(raw))
-	for _, token := range raw {
-		if externalCitation(token) {
-			continue
-		}
-		out = append(out, candidatePaths(root, token)...)
-	}
-	return out
-}
-
-func candidatePaths(root, raw string) []string {
-	fields := strings.Fields(strings.TrimSpace(raw))
-	if len(fields) == 0 {
-		return nil
-	}
-	token := strings.TrimRight(fields[0], ".,;:)('\"")
-	if before, _, ok := strings.Cut(token, "#"); ok {
-		token = before
-	}
-	token = lineRunSuffixRe.ReplaceAllString(token, "")
-	token = lineSuffixRe.ReplaceAllString(token, "")
-	token = symbolColonRe.ReplaceAllString(token, "")
-	if !pathExists(root, token) {
-		token = symbolDotRe.ReplaceAllString(token, "")
-	}
-	if token == "" {
-		return nil
-	}
-	if !strings.Contains(token, "/") {
-		if !rootFiles[token] {
-			return nil
-		}
-	}
-	if containsMarker(token) {
-		return nil
-	}
-	if hasPrefix(token, skipPrefixes[:]) {
-		return nil
-	}
-	first, _, _ := strings.Cut(token, "/")
-	if !rootFiles[token] {
-		if !knownRoots[first] {
-			return nil
-		}
-	}
-	expanded := expandBraces(token)
-	out := expanded[:0]
-	for _, path := range expanded {
-		if !containsMarker(path) {
-			out = append(out, path)
-		}
-	}
-	return out
-}
-func externalCitation(token string) bool {
-	if strings.HasPrefix(token, "http://") {
-		return true
-	}
-	if strings.HasPrefix(token, "https://") {
-		return true
-	}
-	return strings.HasPrefix(token, "mailto:")
-}
-
-func expandBraces(token string) []string {
-	match := braceRe.FindStringSubmatchIndex(token)
-	if match == nil {
-		return []string{token}
-	}
-	body := token[match[2]:match[3]]
-	if !strings.Contains(body, ",") {
-		return []string{token}
-	}
-	var out []string
-	for alt := range strings.SplitSeq(body, ",") {
-		expanded := token[:match[0]] + alt + token[match[1]:]
-		out = append(out, expandBraces(expanded)...)
-	}
-	return out
-}
-
-func containsMarker(token string) bool {
-	for _, marker := range placeholderMarkers {
-		if strings.Contains(token, marker) {
-			return true
-		}
-	}
-	return false
-}
+var ignoreMarkerRe = regexp.MustCompile(`doc-links:\s*ignore`)
 
 func hasPrefix(token string, prefixes []string) bool {
 	for _, prefix := range prefixes {
@@ -150,11 +22,6 @@ func hasPrefix(token string, prefixes []string) bool {
 		}
 	}
 	return false
-}
-
-func pathExists(root, rel string) bool {
-	_, err := os.Stat(filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(rel, "/"))))
-	return err == nil
 }
 
 func pathResolves(root, rel string) (bool, error) {
@@ -174,7 +41,7 @@ func pathResolves(root, rel string) (bool, error) {
 }
 
 func ignoreMarkers(line string) []string {
-	clean := backtickRe.ReplaceAllString(line, " ")
+	clean := citation.Backtick.ReplaceAllString(line, " ")
 	var tails []string
 	for {
 		start := strings.Index(clean, "<!--")

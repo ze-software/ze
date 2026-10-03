@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/doc/citation"
 )
 
 var nameLintFiles = [...]string{
@@ -44,7 +45,7 @@ var (
 func checkHookNames(root string, _ bool) ([]string, error) {
 	present := make([]string, 0, len(nameLintFiles))
 	for _, rel := range nameLintFiles {
-		if pathExists(root, rel) {
+		if citation.Exists(root, rel) {
 			present = append(present, rel)
 		}
 	}
@@ -69,7 +70,7 @@ func checkHookNames(root string, _ bool) ([]string, error) {
 			if suppressed(line) {
 				continue
 			}
-			for _, match := range backtickRe.FindAllStringSubmatch(line, -1) {
+			for _, match := range citation.Backtick.FindAllStringSubmatch(line, -1) {
 				span := match[1]
 				var dead []string
 				for _, found := range shellTokenRe.FindAllStringSubmatch(span, -1) {
