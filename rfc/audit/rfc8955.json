@@ -234,8 +234,8 @@
         "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "1713f369e08f6db2",
         "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "1713f369e08f6db2",
         "internal/component/bgp/config/routeattr_test.go::TestRFC8955TrafficActionUnusedBitsZero": "7f15c74c8a2ccc2b",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "ccc1d8fecf4d366d",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "ccc1d8fecf4d366d",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "ccc1d8fecf4d366d",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "ccc1d8fecf4d366d",
         "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
         "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
       },
@@ -243,8 +243,8 @@
         "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "f383cf4b1f167750",
         "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "f383cf4b1f167750",
         "internal/component/bgp/config/routeattr_test.go::TestRFC8955TrafficActionUnusedBitsZero": "2492773979cdeba1",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "dd8142e893fcabe3",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "dd8142e893fcabe3",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "dd8142e893fcabe3",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "dd8142e893fcabe3",
         "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
         "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
       },
@@ -272,8 +272,8 @@
         "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "254f93c358e4eb09",
         "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "254f93c358e4eb09",
         "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "254f93c358e4eb09",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "ccc1d8fecf4d366d",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "ccc1d8fecf4d366d",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "ccc1d8fecf4d366d",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "ccc1d8fecf4d366d",
         "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
         "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
       },
@@ -283,8 +283,8 @@
         "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "5bdfdb080a6ce815",
         "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "62d17b12c3c9d526",
         "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "62d17b12c3c9d526",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "96c66870942d774e",
-        "internal/core/bgp/attribute/extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "96c66870942d774e",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "96c66870942d774e",
+        "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "96c66870942d774e",
         "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
         "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
       },

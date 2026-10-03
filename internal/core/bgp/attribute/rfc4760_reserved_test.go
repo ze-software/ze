@@ -20,7 +20,7 @@ import (
 // WriteToWithContext(p.scratch, p.used, ...) at a non-zero offset. So the octet
 // under Reserved on a real send is whatever the previous announce left there.
 //
-// mpReachPoison is declared in mpnlri_nexthop_wire_test.go, which poisons for the
+// mpReachPoison is declared in rfc4760_mpnlri_nexthop_wire_test.go, which poisons for the
 // same reason: one value for one concept across the package.
 
 // TestRFC4760ReservedIsWrittenNotInherited encodes MP_REACH_NLRI over bytes that

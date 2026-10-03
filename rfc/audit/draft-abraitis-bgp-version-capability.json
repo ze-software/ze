@@ -126,12 +126,12 @@
       "note": "Forbidden: using a received Software Version Capability for anything but display, such as a session decision. TestSoftwareVersionCapabilityDecidesNothing asserts Negotiate yields the same ASN4, route refresh, extended message, enhanced route refresh, BFD strict mode, graceful restart, families and encoding with and without code 75, and no mismatch, red if the capability changed any of them. Positive: parseCapability keeps it as an Unknown with the raw value and PeerAdvertised records it.",
       "requirement_sha": "dec94e43b4ec731d",
       "tests": {
-        "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "1bfa9cbe21245f2f",
-        "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "1bfa9cbe21245f2f"
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "1bfa9cbe21245f2f",
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "1bfa9cbe21245f2f"
       },
       "units": {
-        "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "877b16298235e899",
-        "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "eaf498946edf155a"
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing": "877b16298235e899",
+        "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay": "eaf498946edf155a"
       },
       "verdict": "enforced"
     },

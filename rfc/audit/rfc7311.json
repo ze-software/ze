@@ -5,14 +5,14 @@
       "note": "Judge 2026-09-30. TestRFC7311AIGPTLVLengthIsEleven: + WriteTo emits 01 000b and 8 value octets and ParseAIGP reads the metric back; - Type-1 TLVs of Length 12 and 10 are refused by ParseAIGP, the registered parser. Forbidden: accepting a Type-1 TLV whose Length is not 11. Records observed red (AIGPMetricOffset).",
       "requirement_sha": "2c6739873b534578",
       "tests": {
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGP": "682ca5c47e79ad07",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGP": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "682ca5c47e79ad07",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven": "7b179465862209a9",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven#2": "7b179465862209a9"
       },
       "units": {
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGP": "6b490ebba37348d1",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "1126e4fad01f8a02",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGP": "6b490ebba37348d1",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "1126e4fad01f8a02",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven": "f1296a0ef4f9d818",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven#2": "f1296a0ef4f9d818"
       },
@@ -22,14 +22,14 @@
       "note": "Judge 2026-09-30. TestRFC7311AIGPValueIsWholeTLVSet: + a value of two whole TLVs parses into exactly those two; - one, two or three trailing octets that do not form a TLV are refused. Forbidden: accepting a value that is not a whole set of TLVs.",
       "requirement_sha": "86b51cad859556b6",
       "tests": {
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedTruncatedValue": "682ca5c47e79ad07",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedTruncatedValue": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet": "7b179465862209a9",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet#2": "7b179465862209a9"
       },
       "units": {
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedTruncatedValue": "110e6880f1f6bf6d",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedTruncatedValue": "110e6880f1f6bf6d",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet": "4aae734134dce8ed",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet#2": "4aae734134dce8ed"
       },
@@ -41,15 +41,15 @@
       "tests": {
         "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "b58e740361a348ac",
         "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "b58e740361a348ac",
-        "internal/core/bgp/attribute/aigp_test.go::TestAIGPWriteToMultipleTLVs": "682ca5c47e79ad07",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestAIGPWriteToMultipleTLVs": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "7b179465862209a9"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "dc98c15be7a86a7c",
         "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "dc98c15be7a86a7c",
-        "internal/core/bgp/attribute/aigp_test.go::TestAIGPWriteToMultipleTLVs": "5e582b6e3264ec78",
-        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestAIGPWriteToMultipleTLVs": "5e582b6e3264ec78",
+        "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
         "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "8cee172e5190f0ea"
       },
       "verdict": "enforced"
@@ -88,12 +88,12 @@
       "note": "Forbidden: judging an AIGP malformed for a repeated TLV type or an unknown TLV type. TestRFC7311DuplicateAndUnknownTLVsAreWellFormed parses two Type-1 TLVs and a Type-200 TLV with require.NoError, so rejecting either shape goes red; ParseAIGP and the receive validator validateAIGPAttr share AIGPMetricOffset. TestRFC7311MalformedVerdictIsForLengthOnly shows the malformed verdict exists (ErrMalformedValue on a Type-1 TLV of Length 8) and is lifted when only the length is repaired.",
       "requirement_sha": "00a55309f0c3a452",
       "tests": {
-        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed": "bb11d3aadfeb234d",
-        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311MalformedVerdictIsForLengthOnly": "bb11d3aadfeb234d"
+        "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed": "bb11d3aadfeb234d",
+        "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311MalformedVerdictIsForLengthOnly": "bb11d3aadfeb234d"
       },
       "units": {
-        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed": "907cbe3545834edf",
-        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311MalformedVerdictIsForLengthOnly": "401021c32fc67084"
+        "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed": "907cbe3545834edf",
+        "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311MalformedVerdictIsForLengthOnly": "401021c32fc67084"
       },
       "verdict": "enforced"
     },

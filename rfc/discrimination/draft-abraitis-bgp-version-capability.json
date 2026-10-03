@@ -191,7 +191,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
       "polarity": "negative",
-      "unit": "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing",
+      "unit": "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing",
       "unit-sha": "0a5f25d653c41c32",
       "claim-sha": "9c92badce562e940",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
       "polarity": "positive",
-      "unit": "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay",
+      "unit": "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay",
       "unit-sha": "cfb76742e83a6b6d",
       "claim-sha": "6bbfaf8b2937b399",
       "route": "revert",

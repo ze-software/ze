@@ -64,18 +64,18 @@
       "tests": {
         "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "26a71306610a9841",
         "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "26a71306610a9841",
-        "internal/core/bgp/nlri/base_len_test.go::TestWriteNLRI_AddPath": "3c6772f5e0872a93",
-        "internal/core/bgp/nlri/base_len_test.go::TestWriteNLRI_WithStoredPathID": "3c6772f5e0872a93",
-        "internal/core/bgp/nlri/inet_test.go::TestINETWithAddPath": "8bce51e9e1913405",
+        "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath": "3c6772f5e0872a93",
+        "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID": "3c6772f5e0872a93",
+        "internal/core/bgp/nlri/rfc7911_inet_test.go::TestINETWithAddPath": "8bce51e9e1913405",
         "test/plugin/adj-rib-in-replay-addpath-source.ci": "abb27ebf50a5e2c5",
         "test/plugin/adj-rib-in-replay-addpath-source.ci#2": "abb27ebf50a5e2c5"
       },
       "units": {
         "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "e1bd5b4cff58ace4",
         "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "efcd852d178772a2",
-        "internal/core/bgp/nlri/base_len_test.go::TestWriteNLRI_AddPath": "8bcc4d3f1b7428b3",
-        "internal/core/bgp/nlri/base_len_test.go::TestWriteNLRI_WithStoredPathID": "5e8b6ff791a60f12",
-        "internal/core/bgp/nlri/inet_test.go::TestINETWithAddPath": "df8dfeb8242762a2",
+        "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath": "8bcc4d3f1b7428b3",
+        "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID": "5e8b6ff791a60f12",
+        "internal/core/bgp/nlri/rfc7911_inet_test.go::TestINETWithAddPath": "df8dfeb8242762a2",
         "test/plugin/adj-rib-in-replay-addpath-source.ci": "abb27ebf50a5e2c5",
         "test/plugin/adj-rib-in-replay-addpath-source.ci#2": "abb27ebf50a5e2c5"
       },
@@ -103,13 +103,13 @@
       "requirement_sha": "1b66371d2804b242",
       "tests": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "79de3d0b159f3a42",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
       },
       "units": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "3544b2bad14868e7",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
       },
       "verdict": "weak"
     },
@@ -118,13 +118,13 @@
       "requirement_sha": "1b66371d2804b242",
       "tests": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "79de3d0b159f3a42",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
       },
       "units": {
         "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "3544b2bad14868e7",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
-        "internal/core/bgp/context/negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
+        "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
       },
       "verdict": "weak"
     },

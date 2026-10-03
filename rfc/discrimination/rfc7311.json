@@ -125,7 +125,7 @@
     {
       "rid": "RFC7311-3.2-6",
       "polarity": "positive",
-      "unit": "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed",
+      "unit": "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed",
       "unit-sha": "f6d3f74c8cbdcebf",
       "claim-sha": "495667d2089f8695",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC7311-3.2-6",
       "polarity": "negative",
-      "unit": "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311MalformedVerdictIsForLengthOnly",
+      "unit": "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311MalformedVerdictIsForLengthOnly",
       "unit-sha": "7f6978cb73063662",
       "claim-sha": "dd8abb0aa03f042c",
       "route": "revert",

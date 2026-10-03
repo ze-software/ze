@@ -832,7 +832,7 @@ func TestPeerEncodingContextASN4(t *testing.T) {
 //	TestPeerClearEncodingContexts       | Contexts cleared on teardown
 //	TestPeerEncodingContextAddPath      | Asymmetric ADD-PATH (Send/Receive case)
 //
-// Note: Full ADD-PATH permutation testing is in pkg/bgp/context/negotiated_test.go.
+// Note: Full ADD-PATH permutation testing is in internal/core/bgp/context/rfc7911_negotiated_test.go.
 // These tests focus on Peer integration, not the FromNegotiated logic itself.
 // =============================================================================
 

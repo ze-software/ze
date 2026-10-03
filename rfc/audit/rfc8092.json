@@ -36,10 +36,10 @@
       "note": "Forbidden behaviour: a canonical rendering with a leading zero (e.g. 065001) or a zero rendered as anything but a single 0 (00, empty). TestAppendText_LargeCommunityElement asserts exact strings: {0,0,0} -> 0:0:0 goes red on either zero-clause violation, and 65001:100:200 and the 4294967295 case go red on any padding. LargeCommunity.String derives from AppendText. Single-polarity marker present.",
       "requirement_sha": "913aca09f69ac6ac",
       "tests": {
-        "internal/core/bgp/attribute/text_append_test.go::TestAppendText_LargeCommunityElement": "b78f403b03fcae4c"
+        "internal/core/bgp/attribute/rfc8092_text_append_test.go::TestAppendText_LargeCommunityElement": "b78f403b03fcae4c"
       },
       "units": {
-        "internal/core/bgp/attribute/text_append_test.go::TestAppendText_LargeCommunityElement": "45f32dca8d5c3377"
+        "internal/core/bgp/attribute/rfc8092_text_append_test.go::TestAppendText_LargeCommunityElement": "45f32dca8d5c3377"
       },
       "verdict": "enforced"
     },
