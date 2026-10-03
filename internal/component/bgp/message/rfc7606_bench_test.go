@@ -1,5 +1,7 @@
 package message
 
+// RFC naming: untagged -- benchmarks of the rfc7606.go walk measure its cost and assert no behavior, so they prove no requirement.
+
 import (
 	"testing"
 )

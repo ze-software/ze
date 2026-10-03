@@ -3,6 +3,8 @@
 
 package fibvpp
 
+// RFC naming: untagged -- a red defect probe: VPP refuses the SR steer with no local policy, so the RFC 9252 Section 5 encapsulation is unmet.
+
 import (
 	"errors"
 	"net/netip"

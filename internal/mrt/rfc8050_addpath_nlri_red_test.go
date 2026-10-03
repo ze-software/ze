@@ -1,5 +1,7 @@
 package mrt_test
 
+// RFC naming: untagged -- a red defect probe: ParseBGPMessage ignores the add-path BGP4MP subtype, so the requirement is unmet until the fix lands.
+
 import (
 	"net/netip"
 	"slices"

@@ -476,6 +476,60 @@ Each target stays in its source's directory. Every target was checked absent on 
 | `internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go` | rfc2548 | rfc2865 |
 | `internal/component/l2tp/ppp/rfc1877_dns_options_test.go` | rfc1877 | rfc1661 |
 
+### Phase 3 decisions (2026-10-03, each file read)
+
+The armed check over the tree before the repairs reported exactly the 39 + 6 above (45 naming findings, 139 violations against 94). Every file was read; no tag was added, so no discrimination record is owed.
+
+| File (directory as in the tables above) | Decision | Reason |
+|------|----------|--------|
+| `bfd/engine/rfc5881_link_local_test.go` | rename `link_local_first_packet_test.go` | link-local first-packet session selection; no RFC 5881 tag |
+| `bfd/engine/rfc5882_join_test.go` | rename `session_join_test.go` | registry join of requests to one session; no tag |
+| `bgp/message/rfc7606_addpath_test.go` | rename `nlri_syntax_addpath_test.go` | ADD-PATH path-id skip in the NLRI syntax walker; no tag |
+| `bgp/message/rfc7606_bench_test.go` | marker | benchmarks assert no behavior; pairs with `rfc7606.go` |
+| `bgp/message/rfc7606_bgpls_nlri_fuzz_test.go` | marker | fuzz target asserts no panic only; pairs with `rfc7606_bgpls_nlri.go` |
+| `bgp/message/rfc7606_bgpls_nlri_test.go` | marker | boundary tests of the RFC 9552 §8.2.2 walk; its RFC 9552 proof is `reactor/rfc9552_nlri_test.go` (20 tags) |
+| `bgp/message/rfc7606_withdraw_families_test.go` | rename `withdraw_families_test.go` | two-family treat-as-withdraw synthesis; no tag |
+| `bgp/plugins/filter_path_asn/rfc6793_subject_test.go` | rename `as_trans_subject_test.go` | reject-asn subject behind AS_TRANS; no tag |
+| `bgp/plugins/nlri/evpn/rfc7606_test.go` | marker | unit tests of the EVPN recognizer in `rfc7606.go`; the EVPN RFC7606-5.4-1 proof is at ingress (`reactor/rfc7606_session_validation_nlritype_test.go`) |
+| `bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go` | marker | RFC 8571 states no local MUST (its summary's enrolment reason); semantics deferred to RFC 8570 and RFC 7471 |
+| `bgp/plugins/nlri/ls/rfc9514_srv6_descriptor_test.go` | rename `srv6_sid_descriptor_walk_test.go` | descriptor walk regression; no tag |
+| `bgp/plugins/nlri/srpolicy/rfc9012_test.go` | rename `tunnel_encap_self_describing_test.go` | encoder/decoder agreement; no tag |
+| `bgp/plugins/rib/rfc4364_vpn_bestchange_test.go` | rename `vpn_bestchange_test.go` | VPN best-change publication; no tag |
+| `bgp/plugins/rib/rfc8277_addpath_comparable_red_test.go` | marker | red defect probe for RFC8277-3.1-1 |
+| `bgp/plugins/rib/storage/rfc6793_reconstruct_test.go` | rename `as4_reconstruct_test.go` | ParseAttributes AS4 cost and no double merge; no tag |
+| `bgp/reactor/rfc6793_ingest_collapse_test.go` | rename `as4_ingest_collapse_test.go` | AS4 collapse at ingest and forward; no tag |
+| `bgp/reactor/rfc7606_session_families_test.go` | rename `treat_as_withdraw_families_test.go` | two-family treat-as-withdraw dispatch; no tag |
+| `bgp/reactor/rfc7705_local_as_announce_test.go` | rename `local_as_announce_test.go` | local-as on the announce rail; no tag |
+| `bgp/reactor/rfc8669_duplicate_tlv_red_test.go` | marker | red defect probe |
+| `bgp/reactor/rfc8950_family_scope_test.go` | rename `extended_next_hop_family_scope_test.go` | which families the RFC 8950 gates cover; no tag |
+| `bgp/wireu/rfc7606_split_test.go` | marker | proves the re-chunk path only, part of RFC7606-5.1-2 |
+| `ike/crypto/rfc5903_ecp_test.go` | rename `ecp_public_value_test.go` | ECP public value encoding; no tag |
+| `ike/dataplane/rfc7296_ecn_test.go` | marker | mode mapping, not ECN; the RFC7296-2.24 tags sit on `rfc7296_ecn_linux_test.go` and `engine/rfc7296_ecn_test.go` |
+| `ike/engine/rfc7296_invalid_syntax_fatal_test.go` | rename `invalid_syntax_fatal_test.go` | INVALID_SYNTAX ends Ze's own IKE SA; no tag |
+| `ike/engine/rfc7296_teardown_notify_test.go` | rename `teardown_notify_test.go` | teardown Delete and Notify payloads; no tag |
+| `ike/engine/rfc7427_algid_test.go` | rename `auth_algorithm_identifier_test.go` | DER AlgorithmIdentifier shape; no tag |
+| `ike/engine/rfc9190_crl_wiring_test.go` | rename `eap_tls_crl_wiring_test.go` | CRL wiring to EAP-TLS configs; no tag |
+| `ike/engine/rfc9190_ocsp_wiring_test.go` | rename `eap_tls_ocsp_wiring_test.go` | OCSP wiring; no tag |
+| `ike/engine/rfc9190_resumption_wiring_test.go` | rename `eap_tls_resumption_wiring_test.go` | resumption store wiring; no tag |
+| `ike/ipsec/rfc4301_policy_order_test.go` | rename `policy_priority_default_test.go` | YANG default equals the Go constant; no tag |
+| `l2tp/plugins/authradius/rfc5176_disconnect_service_stopped_test.go` | rename `disconnect_service_stopped_test.go` | Disconnect-NAK when the service stopped; no tag |
+| `l2tp/ppp/rfc1661_invalid_reply_test.go` | rename `ncp_invalid_reply_test.go` | NCP invalid Reject/Nak discard; no tag |
+| `core/eap/rfc7296_method_test.go` | rename `key_deriving_method_test.go` | key-deriving methods accepted; the RFC7296-2.16 proof moved to the engine |
+| `core/eap/rfc9190_peer_indication_test.go` | marker | RFC 9190 §2.5 binds the server; no rfc9190 row binds the peer |
+| `mrt/rfc8050_addpath_nlri_red_test.go` | marker | red defect probe |
+| `plugins/fib/vpp/rfc9252_srv6_encap_red_test.go` | marker | red defect probe |
+| `plugins/geodns/rfc1035_server_test.go` | marker | pins the absence of the RFC 1035 §3.3.13 floor that RFC 2308 §4 deprecates |
+| `plugins/ospf/rfc5340_checksum_test.go` | rename `ospfv3_checksum_test.go` | OSPFv3 engine finalizes the checksum; no tag |
+| `plugins/ospf/spf/rfc4577_test.go` | rename `asbr_summary_redistribution_test.go` | RFC 2328 §16.2 split; RFC4577-4.2.6-5 retired |
+| `bgp/message/rfc7606_aigp_test.go` (mismatch) | rename `rfc7311_aigp_test.go` | tags RFC7311-3.2-4 only |
+| `bgp/reactor/rfc7606_session_addpath_test.go` (mismatch) | rename `rfc7911_session_addpath_test.go` | tags RFC7911-5-5 only |
+| `bgp/reactor/rfc8050_wire_capture_test.go` (mismatch) | rename `rfc6396_wire_capture_test.go` | tags RFC6396-4.4.2-2 only |
+| `ike/engine/rfc3748_ikev2_method_selection_test.go` (mismatch) | rename `rfc7296_ikev2_method_selection_test.go` | tags RFC7296-2.16-16 only; RFC3748-7.10-3 was retired |
+| `l2tp/plugins/authradius/rfc2548_mschap2_success_test.go` (mismatch) | rename `rfc2865_mschap2_success_test.go` | tags RFC2865-4.1-3 only |
+| `l2tp/ppp/rfc1877_dns_options_test.go` (mismatch) | rename `rfc1661_dns_options_test.go` | tags RFC1661-5.2/5.4 only; the file says RFC 1877 states neither rule |
+
+Totals: 26 untagged renamed, 13 untagged marked, 6 mismatches renamed, 0 tags added.
+
 ### Critical Review Checklist
 
 | Check | What to verify for this spec |
@@ -613,7 +667,7 @@ Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/disc
 | R-1 | ISSUE | A topic left empty whose bare `<stem>_test.go` was taken fell back to the old topic, which carried the stem twice | `internal/le/rfc/names.go` `judgeTestFileName` | Fixed: the bare target is kept and `propose` reports it as taken. `TestRenameProposeReportsTakenBareTarget`, red under an overlay of HEAD's `names.go` and `rename.go` (the plan held `rfc9999_rfc_rfc9999_test.go`) |
 | R-2 | ISSUE | The legacy draft abbreviation `rfc_<word>` (`rfc_mup`) was no spelling of the draft stem, so the mup files proposed `draft_ietf_bess_mup_safi_rfc_mup_*` | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed for the draft's own words; `rfc_mup_session_test.go` (RFC 4760) takes a hand-chosen topic. Two mup cases in `TestJudgeTestFileNameDropsTheInnerStem` (`rfc_mup_ingress`, `rfc_mup_safi`) go red with the new arm removed; the third, `rfc_mup_session` (RFC 4760), is a negative pin that stays green |
 | R-3 | NOTE | `ai/INDEX.md` still named `citationExcludes`, which fd31c539ce moved | `ai/INDEX.md` | Fixed: it names `citation.Excluded`, `citation.Policed` and `citation.CorpusGlobs` in `internal/le/doc/citation/policed.go` |
-| R-4 | NOTE | A suggested repair can change which platforms compile the file (`linux_test.go` would become `rfc5082_linux_test.go`); `./le rfc rename` refuses that rename, but the finding still suggests it | `internal/le/rfc/names.go` `judgeTestFileName` | Not done: `propose` drops a verdict with no target without a word, so refusing the target needs a new report category, past the 10-line bound the main thread set. The rename's `buildSuffixMoves` refusal still holds |
+| R-4 | NOTE | A suggested repair can change which platforms compile the file (`linux_test.go` would become `rfc5082_linux_test.go`); `./le rfc rename` refuses that rename, but the finding still suggests it | `internal/le/rfc/names.go` `judgeTestFileName` | Not done: `propose` drops a verdict with no target without a word, so refusing the target needs a new report category, past the 10-line bound the main thread set. The rename's `buildSuffixMoves` refusal still holds. Fixed in Phase 3 at the armed check (F-4 row); `propose` still writes such a pair, which the rename then refuses |
 | R-5 | NOTE | No test killed the `buildSuffixLength` cap-1 mutant, nor the `existsIn`-always-false mutant | `internal/le/rfc/names.go` | Fixed: the case `foo_rfc_draft_linux_amd64_test.go` (a stem word at n-2 before an arch token) is red under the cap-1 and cap-0 mutants. `existsIn` is deleted by R-1; the taken path is now `proposeRenames`' own collision check, driven by `TestRenameProposeReportsTakenBareTarget` |
 | R-6 | NOTE | Names the tool cannot repair alone | Phase 2 | Hand-chosen topics in Phase 2 (`rfc_mup_session_test.go` row added) |
 | R-7 | NOTE | Rename skips exactly what the link sweep skips, except the sweep's own `links.go` and `links_test.go` (`sweepExcluded`), which rename still polices | `internal/le/rfc/rename.go` `planCitations` | Accepted: harmless, both read `citation.Excluded` and the corpus set |
@@ -628,7 +682,7 @@ Verdict 0 BLOCKER, 1 ISSUE, 6 NOTE.
 | F-1 | ISSUE | `cmd/ze/hub/service_mcp_rfc9325_test.go` would be proposed as `rfc9728_service_mcp_rfc9325_test.go`, naming an RFC the file does not tag | Phase 2 | Fixed: hand row `rfc9728_service_mcp_tls_suites_test.go` |
 | F-2 | NOTE | No test killed the mutant that moves the `rfc_<word>` arm before the draft gate | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed: case `c/sf/foo_rfc_v5_test.go` (sflow-v5) wants `sflow_v5_foo_rfc_v5_test.go`; red under the overlay mutant (target `sflow_v5_foo_test.go`), green on the tree |
 | F-3 | NOTE | No test killed the mutant `len(rest) >= 2` to `>= 1` in the `rfc_<word>` arm | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed: case `c/x/foo_rfc_test.go` (a draft stem); red under the overlay mutant (index out of range), green on the tree |
-| F-4 | NOTE | The armed check's message for a taken bare target needs its own wording | `internal/le/rfc/names.go` `checkTestFileNames` | Deferred to Phase 3 and folded with R-4, because the wording belongs to the armed check |
+| F-4 | NOTE | The armed check's message for a taken bare target needs its own wording | `internal/le/rfc/names.go` `checkTestFileNames` | Fixed in Phase 3 with R-4: `repairBlocked` turns a taken, shared or suffix-moving target into a request for a hand-chosen topic. Test: `TestCheckTestFileNamesNeverSuggestsARefusedTarget` |
 | F-5 | NOTE | Rounds still said 2, and the R-2 row said three mup cases go red | this section | Fixed |
 | F-6 | NOTE | `bin/le` built before a commit ran without a stale warning | `./le` launcher | Recorded: one row in `plan/journal/` |
 | F-7 | NOTE | `config_paths_limit_test.go` would be proposed as `draft_abraitis_idr_addpath_paths_limit_config_paths_limit_test.go` | Phase 2 | Fixed: hand rows for it and for `session_paths_limit_test.go`, which has the same shape |

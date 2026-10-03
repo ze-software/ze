@@ -9,6 +9,8 @@
 
 package message
 
+// RFC naming: untagged -- boundary tests of the RFC 9552 Section 8.2.2 walk in rfc7606_bgpls_nlri.go; its RFC9552 proof is ../reactor/rfc9552_nlri_test.go.
+
 import (
 	"testing"
 

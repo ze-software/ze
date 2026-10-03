@@ -3,6 +3,8 @@
 
 package reactor
 
+// RFC naming: untagged -- a red defect probe: nothing on the receive path discards a duplicate Prefix-SID TLV yet.
+
 import (
 	"encoding/hex"
 	"net/netip"

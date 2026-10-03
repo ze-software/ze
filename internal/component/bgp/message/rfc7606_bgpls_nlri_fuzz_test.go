@@ -4,6 +4,8 @@
 
 package message
 
+// RFC naming: untagged -- a fuzz target of rfc7606_bgpls_nlri.go asserts only that no input panics the walk, which is no RFC requirement.
+
 import (
 	"testing"
 

@@ -499,7 +499,7 @@
     {
       "rid": "RFC7296-2.16-16",
       "polarity": "positive",
-      "unit": "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod",
+      "unit": "internal/component/ike/engine/rfc7296_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod",
       "unit-sha": "2a078d277358fb00",
       "claim-sha": "c6e6b5eed9cadf26",
       "route": "revert",
@@ -510,7 +510,7 @@
     {
       "rid": "RFC7296-2.16-16",
       "polarity": "negative",
-      "unit": "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod",
+      "unit": "internal/component/ike/engine/rfc7296_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod",
       "unit-sha": "3861fe981d655c22",
       "claim-sha": "357d167cad6f2356",
       "route": "revert",

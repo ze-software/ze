@@ -114,7 +114,7 @@
     {
       "rid": "RFC6396-4.4.2-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc8050_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis",
+      "unit": "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis",
       "unit-sha": "ae3c0f287bf02317",
       "claim-sha": "8448f0768b0de878",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC6396-4.4.2-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc8050_wire_capture_test.go::TestRFC6396WireMessagesNeverCoalesce",
+      "unit": "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireMessagesNeverCoalesce",
       "unit-sha": "3a0a6cdaebddad3d",
       "claim-sha": "6127f06edbe4fe0a",
       "route": "revert",

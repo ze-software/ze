@@ -1,5 +1,7 @@
 package ls
 
+// RFC naming: untagged -- RFC 8571 Sections 2.1-2.3 defer these reserved bits to RFC 8570 and RFC 7471, so RFC 8571 states no requirement they prove.
+
 // These tests check the reserved bits in RFC 8571 TLVs 1114, 1115, and 1116.
 // RFC 8571 Sections 2.1-2.3 state: "The semantics and values of the fields in
 // the TLV are described in [RFC8570] and [RFC7471]." RFC 8571 has no local

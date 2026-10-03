@@ -364,3 +364,63 @@ func TestBuildSuffixTokenFollowsGoBuild(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: F-4 and R-4 -- a finding whose repair `./le rfc rename` would
+// refuse says a topic must be chosen by hand, and names no command that fails:
+// a target that exists, a target two files' repairs share, and a target whose
+// build-constraint suffix compiles the file on other platforms.
+// PREVENTS: the armed check suggesting a rename the action then refuses, which
+// sends the reader round a loop with no way out.
+func TestCheckTestFileNamesNeverSuggestsARefusedTarget(t *testing.T) {
+	tagged := func(rels ...string) []Tag {
+		var tags []Tag
+		for _, rel := range rels {
+			tags = append(tags, Tag{RID: "RFC7311-4-1", Polarity: PolarityPositive, File: rel})
+		}
+		return tags
+	}
+	for _, one := range []struct {
+		name   string
+		files  []string
+		judged string
+		target string
+		reason string
+	}{
+		{"taken", []string{"internal/sample/aigp_test.go", "internal/sample/rfc7311_aigp_test.go"},
+			"internal/sample/aigp_test.go", "internal/sample/rfc7311_aigp_test.go",
+			"the name its repair takes, internal/sample/rfc7311_aigp_test.go, is taken"},
+		{"shared", []string{"internal/sample/aigp_test.go", "internal/sample/rfc7606_aigp_test.go"},
+			"internal/sample/aigp_test.go", "internal/sample/rfc7311_aigp_test.go",
+			"another file's repair takes the same name, internal/sample/rfc7311_aigp_test.go"},
+		{"build suffix", []string{"internal/sample/linux_test.go"},
+			"internal/sample/linux_test.go", "internal/sample/rfc7311_linux_test.go",
+			"the name its repair takes, internal/sample/rfc7311_linux_test.go, changes which platforms build it"},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			files := map[string]string{}
+			for _, rel := range one.files {
+				files[rel] = namingBody
+			}
+			var finding string
+			for _, line := range judgeNames(t, files, tagged(one.files...)) {
+				if strings.HasPrefix(line, one.judged+":") {
+					finding = line
+				}
+			}
+			if finding == "" {
+				t.Fatalf("no finding for %s", one.judged)
+			}
+			if !strings.Contains(finding, one.reason) {
+				t.Errorf("the finding does not say %q: %s", one.reason, finding)
+			}
+			hand := "choose its topic by hand: ./le rfc rename from " + one.judged +
+				" to internal/sample/rfc7311_<topic>_test.go"
+			if !strings.Contains(finding, hand) {
+				t.Errorf("the finding does not ask for a hand-chosen topic (%q): %s", hand, finding)
+			}
+			if strings.Contains(finding, "rename from "+one.judged+" to "+one.target) {
+				t.Errorf("the finding suggests the target the rename refuses: %s", finding)
+			}
+		})
+	}
+}

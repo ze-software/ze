@@ -6,7 +6,7 @@
 // arm of the reconciliation is judged by the bytes a peer would receive rather
 // than by the value the rule returned. The entry-point tests that prove a
 // received UPDATE reaches this code at all live in
-// internal/component/bgp/reactor/rfc6793_ingest_collapse_test.go.
+// internal/component/bgp/reactor/as4_ingest_collapse_test.go.
 
 package wireu
 

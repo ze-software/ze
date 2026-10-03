@@ -407,7 +407,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// stem target when it is taken, so propose reports the collision, and a
 	// draft's rfc_<word> abbreviation counts as a spelling of its stem. Neither
 	// judges a record.
-	const want = "698b0a734dd284e40c6de3c63644d25be320665f36d0aad79cd0504275c06b64"
+	//
+	// Re-sealed 2026-10-03 for the commit that arms the test file naming rule,
+	// over the bytes that commit commits. One check was added: `./le rfc check`
+	// now runs checkTestFileNames over the whole tree, and a finding whose repair
+	// the rename would refuse asks for a hand-chosen topic instead. Only naming
+	// findings moved; no record, audit or ledger verdict moved.
+	const want = "220f2abc1656fdcaf630a0a722c2021b735711c4766e9dd990d0d1cefb7bfbae"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

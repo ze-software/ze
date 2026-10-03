@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7311-3-1": {
       "note": "Judge 2026-09-30. TestRFC7311AIGPTLVLengthIsEleven: + WriteTo emits 01 000b and 8 value octets and ParseAIGP reads the metric back; - Type-1 TLVs of Length 12 and 10 are refused by ParseAIGP, the registered parser. Forbidden: accepting a Type-1 TLV whose Length is not 11. Records observed red (AIGPMetricOffset).",
@@ -58,14 +59,14 @@
       "note": "Forbidden: keeping or passing along an AIGP whose transitive bit is set. TestRFC7606AIGPTransitiveIsDiscarded asserts Action==AttributeDiscard on code 26 with DiscardReasonMalformedValue and require.False(found) for AIGP after ApplyAttrDiscard, with ORIGIN, AS_PATH, NEXT_HOP intact; TestRFC7311AIGPTransitiveDiscardedOnReceive asserts the same through enforceRFC7606 with no error (discard, not reset). Positives with flags 0x80 assert RFC7606ActionNone and the AIGP bytes unchanged, so a codepoint-only check goes red.",
       "requirement_sha": "69a550d0d0d623bb",
       "tests": {
-        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept": "d11b870505a5b12f",
-        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded": "d11b870505a5b12f",
-        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive": "7f52170b1752013c",
-        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive": "7f52170b1752013c"
+        "internal/component/bgp/message/rfc7311_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept": "d11b870505a5b12f",
+        "internal/component/bgp/message/rfc7311_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded": "d11b870505a5b12f",
+        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive": "c86703324b524442",
+        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive": "c86703324b524442"
       },
       "units": {
-        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept": "600be71c156d99db",
-        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded": "dd924033947ce4f7",
+        "internal/component/bgp/message/rfc7311_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept": "600be71c156d99db",
+        "internal/component/bgp/message/rfc7311_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded": "dd924033947ce4f7",
         "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive": "4833c52d30c4ead9",
         "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive": "0c7d0fc1021c86b3"
       },

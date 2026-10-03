@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/attributes.md -- the announce rail builds the UPDATE ze originates
 // RFC: rfc/short/rfc4271.md
 // Related: reactor_api_batch.go -- AnnounceNLRIBatch and WithdrawNLRIBatch, the entry points under test
-// Related: rfc7705_local_as_announce_test.go -- newAnnounceLocalASPeer, the Established peer these tests reuse
+// Related: local_as_announce_test.go -- newAnnounceLocalASPeer, the Established peer these tests reuse
 //
 // RFC 4271 Section 9.2: "Changes to the reachable destinations within its own
 // autonomous system SHALL also be advertised in an UPDATE message." A destination

@@ -345,7 +345,7 @@
     {
       "rid": "RFC1661-5.2-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
+      "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
       "unit-sha": "983f98ab680a4c29",
       "claim-sha": "fc7d5a95b0d549a5",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "RFC1661-5.2-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
+      "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
       "unit-sha": "983f98ab680a4c29",
       "claim-sha": "1ffb23a2223b29b4",
       "route": "revert",
@@ -532,7 +532,7 @@
     {
       "rid": "RFC1661-5.4-1",
       "polarity": "negative",
-      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
+      "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
       "unit-sha": "4119340d64a6de8c",
       "claim-sha": "7dc8d088aff69a2e",
       "route": "revert",
@@ -576,7 +576,7 @@
     {
       "rid": "RFC1661-5.4-2",
       "polarity": "positive",
-      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
+      "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
       "unit-sha": "4119340d64a6de8c",
       "claim-sha": "61dd98a992f415c2",
       "route": "revert",

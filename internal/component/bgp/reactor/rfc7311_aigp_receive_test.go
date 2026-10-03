@@ -3,7 +3,7 @@
 //
 // Overview: session_validation.go -- enforceRFC7606 applies the verdict on the receive path
 // Related: ../message/rfc7606.go -- validateAttributeFlags reaches the verdict
-// Related: ../message/rfc7606_aigp_test.go -- the same rule isolated at the validator
+// Related: ../message/rfc7311_aigp_test.go -- the same rule isolated at the validator
 //
 // The message-package tests hold the validator. These hold the whole path, because the
 // verdict only matters if enforceRFC7606 acts on it: the walk can answer attribute discard

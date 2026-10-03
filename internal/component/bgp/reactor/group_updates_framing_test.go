@@ -1,7 +1,7 @@
 // Design: docs/architecture/update-building.md -- route grouping and the framing this file guards
 // Related: reactor_api_batch.go -- nlriUnitLen, announceBatchToPeers, withdrawBatchFromPeers
 // Related: peer_initial_sync.go -- the config-driven sync, which read the same leaf first
-// Overview: rfc7705_local_as_announce_test.go -- the harness these tests borrow
+// Overview: local_as_announce_test.go -- the harness these tests borrow
 //
 // `behavior { group-updates false }` asks for one UPDATE per prefix toward one
 // peer. Until 2026-09-06 only the config-driven initial sync read the leaf, so

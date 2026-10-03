@@ -2591,3 +2591,28 @@ func TestCheckMetaRatchetsSeeTipCommit(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: AC-19 wiring -- `./le rfc check` runs the naming rule over the whole
+// tree: an untagged file named for an enrolled RFC is a violation naming the file
+// and the marker, and the same file carrying the marker with a reason is not.
+// PREVENTS: checkTestFileNames existing, tested, and never called by Check.
+func TestCheckReportsTestFileNameFindings(t *testing.T) {
+	const rel = "internal/widget/rfc9999_widget_test.go"
+
+	root := checkFixtureTree(t, map[string]string{rel: "package widget\n"})
+	report, code := Check(root, nil)
+	violations := strings.Join(report.Violations, "\n")
+	if report.CannotRun != "" || code != 2 ||
+		!strings.Contains(violations, rel+": test file name: it is named for rfc9999") ||
+		!strings.Contains(violations, namingMarkerText) {
+		t.Fatalf("the untagged rfc9999 file was not reported, exit %d:\n%s", code, report.Text())
+	}
+
+	marked := checkFixtureTree(t, map[string]string{
+		rel: "package widget\n\n" + namingMarkerText + " a fixture that proves nothing.\n",
+	})
+	report, _ = Check(marked, nil)
+	if strings.Contains(strings.Join(report.Violations, "\n"), "test file name") {
+		t.Fatalf("a file carrying the marker with a reason was reported:\n%s", report.Text())
+	}
+}

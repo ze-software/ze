@@ -449,6 +449,15 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	if err != nil {
 		return CheckReport{}, err
 	}
+	// The naming rule judges the whole tree, not only where the enrolled sets
+	// meet: a file's name and its tags disagree whatever the baseline holds. A
+	// gap tag names its stem as a proof tag does, so both are read.
+	nameFindings, err := checkTestFileNames(tree, carriers, slices.Concat(collected.Tags, collected.GapTags),
+		collected.Requirements, stems)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	findings = append(findings, notes(nameFindings)...)
 	// A gap test is evidence only when it runs, exactly as a proof test is, so
 	// its package is type-checked with theirs.
 	compileErrors, err := checkTagPackagesCompile(tree, slices.Concat(collected.Tags, collected.GapTags), carriers)

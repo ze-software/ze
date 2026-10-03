@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -12,7 +13,7 @@
       "requirement_sha": "eff52418bb3a7dea",
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "799e0e527a57d59c",
@@ -26,7 +27,7 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "799e0e527a57d59c",
@@ -41,8 +42,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "36f84904ce37bb2d",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "5b577a81c25bf218",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod": "595c925e4ca2da63",
@@ -58,8 +59,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "36f84904ce37bb2d",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "5b577a81c25bf218",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult": "d61a083c6ef032f0",
@@ -129,8 +130,8 @@
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength#2": "01da78c989864de5",
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength": "01da78c989864de5",
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748PeerDiscardsAnOverlongEAPLength#2": "01da78c989864de5",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "36f84904ce37bb2d",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "5b577a81c25bf218",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "5b577a81c25bf218"
       },
       "units": {
         "internal/component/ike/engine/rfc3748_eap_length_test.go::TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength": "ac2f731e78310cd6",
@@ -148,8 +149,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "36f84904ce37bb2d",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "5b577a81c25bf218",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket": "c84bc537ec81c2dc",
@@ -195,7 +196,7 @@
       "tests": {
         "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "0491dc997a27dbd8",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "a4c2ccc90d93cad9",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "94286487aa968dd3",
@@ -265,7 +266,7 @@
       "note": "{single-polarity: positive} carried on the row. Forbidden: the authenticator re-sending Success or Failure. TestRFC3748SuccessFailureNotRetransmitted fails on a non-nil packet from Process after a Failure (Nak path) and after a Success (full MS-CHAPv2 flight).",
       "requirement_sha": "c0a1e960bf77e219",
       "tests": {
-        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "cf8077ad6658a84d"
@@ -306,7 +307,7 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData": "f980dd0725d0f151",
@@ -483,7 +484,7 @@
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "82ca9b4e9bade4f2",
         "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9",
-        "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "36f84904ce37bb2d"
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "5b577a81c25bf218"
       },
       "units": {
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",

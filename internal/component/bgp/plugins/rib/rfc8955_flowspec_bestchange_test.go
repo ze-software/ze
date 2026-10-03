@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc8955.md -- Section 6, path selection over Flow Specification routes
 // Related: rib_bestchange.go -- checkBestPathChange, the producer under test
-// Related: rfc4364_vpn_bestchange_test.go -- the VPN-IPv4 sibling these mirror
+// Related: vpn_bestchange_test.go -- the VPN-IPv4 sibling these mirror
 
 package rib
 

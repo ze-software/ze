@@ -1,5 +1,7 @@
 package wireu
 
+// RFC naming: untagged -- proves only that the re-chunk path emits one NLRI-bearing field per message, which is part of RFC7606-5.1-2 and not the whole MUST.
+
 // The tests below prove that the RE-CHUNK path emits one NLRI-bearing field per
 // message. They do NOT prove the full RFC 7606 Section 5.1 second-bullet MUST,
 // because two relay paths still reproduce a received mixed shape (forward_body.go

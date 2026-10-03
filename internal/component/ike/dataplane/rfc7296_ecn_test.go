@@ -2,6 +2,8 @@
 
 package dataplane
 
+// RFC naming: untagged -- proves the XFRM mode mapping, not ECN handling; the RFC7296-2.24 tags sit on the tests that drive the production mapping.
+
 import (
 	"testing"
 )

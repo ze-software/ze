@@ -9,7 +9,7 @@
 // an IKEv2 exchange may select is not decided here: the eap package builds every
 // method RFC 3748 Section 5 obliges it to, and the two producers that pick one
 // for IKEv2 live in the engine package, where
-// rfc3748_ikev2_method_selection_test.go covers them.
+// rfc7296_ikev2_method_selection_test.go covers them.
 // Lower-layer obligations (Section 3.1) and pass-through (Section 2.3) are
 // annotated in the summary as not-applicable: ze carries EAP only inside IKEv2
 // and terminates every method locally. The peer's Notification and Nak duties

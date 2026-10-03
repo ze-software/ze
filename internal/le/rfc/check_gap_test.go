@@ -8,9 +8,10 @@ import (
 // The demonstrated-gap fixture: a Go module holding its own copy of the helper
 // under the import path suffix the gate matches, and one test file whose body
 // the case chooses. A fixture module cannot import Ze's internal package, and
-// the gate matches the suffix for exactly that reason (rfcgapImportSuffix).
+// the gate matches the suffix for exactly that reason (rfcgapImportSuffix). The
+// test file is named for the one RFC it tags, as the naming rule asks.
 const (
-	gapFixtureTestPath = "cmd/widget/widget_test.go"
+	gapFixtureTestPath = "cmd/widget/rfc9999_widget_test.go"
 	gapFixtureHelper   = "package rfcgap\n\nimport \"testing\"\n\n" +
 		"// Demonstrate runs body against tb.\n" +
 		"func Demonstrate(tb testing.TB, id string, body func(testing.TB)) {\n\ttb.Helper()\n\t_ = id\n\tbody(tb)\n}\n"

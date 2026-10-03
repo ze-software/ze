@@ -204,12 +204,12 @@
       "note": "Non-compliant behaviour: an IKEv2 exchange selecting an EAP method that establishes no key when the operator did not name one. Positive: TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod fails ('auth mode %s selected an EAP method that derives no key') for any EAP mode other than AuthEAPMD5 whose newEAPSession session answers false to DerivesKey. Negative: TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod sweeps every AuthMode value through newEAPSession and startEAPExchange, and assertKeylessModeIsNamedAndAnnounced goes red when a keyless method is reached by an unnamed value or without the adoption warning. The SHOULD NOT is met as a deviation the operator must name, which the warning makes visible.",
       "requirement_sha": "c81b7cdf23badad2",
       "tests": {
-        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod": "73ec0b7d5e707b6d",
-        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod": "73ec0b7d5e707b6d"
+        "internal/component/ike/engine/rfc7296_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod": "73ec0b7d5e707b6d",
+        "internal/component/ike/engine/rfc7296_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod": "73ec0b7d5e707b6d"
       },
       "units": {
-        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod": "518b5131067059a4",
-        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod": "9df895fefa308d6e"
+        "internal/component/ike/engine/rfc7296_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod": "518b5131067059a4",
+        "internal/component/ike/engine/rfc7296_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod": "9df895fefa308d6e"
       },
       "verdict": "enforced"
     },

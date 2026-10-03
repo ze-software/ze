@@ -170,18 +170,18 @@
       "tests": {
         "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "75b4ff7b6ed1bd04",
         "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily#2": "75b4ff7b6ed1bd04",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04"
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "da5d88f2c8b20920",
         "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily#2": "da5d88f2c8b20920",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "b1a86e67ee138224",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "b1a86e67ee138224",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "968617fdd0387cf2",
-        "internal/component/bgp/reactor/rfc7606_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "968617fdd0387cf2"
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "b1a86e67ee138224",
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "b1a86e67ee138224",
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "968617fdd0387cf2",
+        "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "968617fdd0387cf2"
       },
       "verdict": "enforced"
     }

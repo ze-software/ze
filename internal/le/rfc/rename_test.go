@@ -515,7 +515,8 @@ func TestRenameReportNamesIndexUpdate(t *testing.T) {
 
 // VALIDATES: AC-1, AC-4, AC-5 and R-9 together -- a rename through the action,
 // committed, leaves every finding of `./le rfc check` as it was, with the moved
-// path read for the old one, and owes nothing new.
+// path read for the old one, except the naming finding the move repairs, and
+// owes nothing new.
 func TestRenameEndToEndCheckFindingsUnchanged(t *testing.T) {
 	root := renameFixture(t)
 	commitFixtureEmptyTip(t, root)
@@ -532,9 +533,21 @@ func TestRenameEndToEndCheckFindingsUnchanged(t *testing.T) {
 	if afterCode != beforeCode {
 		t.Errorf("the exit code moved from %d to %d:\n%s", beforeCode, afterCode, after.Text())
 	}
+	// The source is misnamed for the one RFC it tags, so the naming rule reports
+	// it before the move, and the move is that finding's repair: it MUST be gone
+	// after, and every other finding MUST stay, with the moved path read for the
+	// old one.
 	moved := make([]string, 0, len(before.Violations))
+	repaired := false
 	for _, violation := range before.Violations {
+		if strings.HasPrefix(violation, selftestTestPath+": test file name:") {
+			repaired = true
+			continue
+		}
 		moved = append(moved, strings.ReplaceAll(violation, selftestTestPath, renameTarget))
+	}
+	if !repaired {
+		t.Errorf("the misnamed source carried no naming finding before the move:\n%s", before.Text())
 	}
 	if !slices.Equal(moved, after.Violations) {
 		t.Errorf("the findings moved.\nbefore:\n%s\nafter:\n%s", strings.Join(moved, "\n"),

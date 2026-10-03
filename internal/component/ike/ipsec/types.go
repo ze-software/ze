@@ -502,7 +502,7 @@ type AuthConfig struct {
 	//
 	// A zero value means no resumption, which is what ze did before resumption
 	// existed and is conformant on its own. Only parseAuthConfig produces an
-	// AuthConfig an operator wrote (rfc9190_resumption_wiring_test.go pins that
+	// AuthConfig an operator wrote (eap_tls_resumption_wiring_test.go pins that
 	// the default reaches both roles as true).
 	//
 	// It sits BESIDE HashAndURL so it fills the tail padding of that word rather

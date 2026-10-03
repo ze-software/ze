@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-TLS inside IKE_AUTH
-// Related: rfc9190_postauth_test.go, rfc9190_crl_wiring_test.go -- the EAP-TLS PKI fixtures; child.go -- createFirstChildSA.
+// Related: rfc9190_postauth_test.go, eap_tls_crl_wiring_test.go -- the EAP-TLS PKI fixtures; child.go -- createFirstChildSA.
 package engine
 
 import (

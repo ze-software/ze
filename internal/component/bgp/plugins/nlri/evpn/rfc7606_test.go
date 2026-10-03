@@ -1,5 +1,7 @@
 package evpn
 
+// RFC naming: untagged -- unit tests of the EVPN recognizer in rfc7606.go; the EVPN proof of RFC7606-5.4-1 is at ingress, in the reactor's rfc7606_session_validation_nlritype_test.go.
+
 import (
 	"testing"
 

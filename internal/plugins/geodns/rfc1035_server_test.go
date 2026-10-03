@@ -11,6 +11,8 @@
 
 package geodns
 
+// RFC naming: untagged -- pins the absence of the RFC 1035 Section 3.3.13 TTL floor, which RFC 2308 Section 4 deprecates, so Ze implements nothing here to prove.
+
 import (
 	"net/netip"
 	"testing"

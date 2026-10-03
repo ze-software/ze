@@ -81,7 +81,7 @@
     {
       "rid": "RFC7311-3.2-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept",
+      "unit": "internal/component/bgp/message/rfc7311_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept",
       "unit-sha": "88e1084a82b1a5f3",
       "claim-sha": "84088e2ea7c172ac",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC7311-3.2-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded",
+      "unit": "internal/component/bgp/message/rfc7311_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded",
       "unit-sha": "0f45feb85c16daed",
       "claim-sha": "df9d51bd54eee73b",
       "route": "revert",

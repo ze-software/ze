@@ -24,6 +24,8 @@
 
 package eap
 
+// RFC naming: untagged -- RFC 9190 Section 2.5 binds the EAP-TLS server, and no requirement in rfc/short/rfc9190.md binds the peer these tests drive.
+
 import (
 	"crypto/tls"
 	"errors"

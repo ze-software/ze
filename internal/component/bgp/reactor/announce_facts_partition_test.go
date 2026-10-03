@@ -1,5 +1,5 @@
 // Design: reactor_api_batch.go -- announceFacts, the struct this file guards.
-// Related: rfc7705_local_as_announce_test.go -- the same harness on one field.
+// Related: local_as_announce_test.go -- the same harness on one field.
 // Related: plan/journal/key-omits-a-fact-the-builder-uses.md -- the defect class.
 //
 // AnnounceNLRIBatch builds ONE UPDATE for each group of peers and sends it to

@@ -1298,14 +1298,22 @@ the draft name's own after `draft` (`rfc_draft_abraitis`, and `rfc_mup` for
 `rfc_mup_safi_test.go` repairs to `draft_ietf_bess_mup_safi_safi_test.go`. The
 trailing elements `go/build` reads as a GOOS/GOARCH suffix are never removed. A
 topic that held nothing else repairs to the bare `<stem>_test.go` whether or not
-a file has that name. When one does, `./le rfc rename propose` leaves the file
-out as a taken target, so a hand-chosen topic replaces it rather than a name
-that carries the stem twice.
+a file has that name.
 
-`checkTestFileNames` implements the rule and `./le rfc rename` refuses a target
-through it. It is not yet one of `./le rfc check`'s checks: it arms when the
-tree is renamed to pass it (`plan/spec-rfc-test-file-naming.md`).
-<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames -->
+`./le rfc check` runs `checkTestFileNames` over the whole tree on every run, not
+only where the enrolled sets of HEAD and HEAD^ meet, because a name and its tags
+disagree whatever the baseline holds. A finding names the `./le rfc rename`
+command that repairs it only when the rename would take that target. When the
+target exists, when two files' repairs take the same name, or when the new name
+changes which platforms `go/build` compiles the file for (`linux_test.go` would
+become `rfc5082_linux_test.go`, which builds on Linux alone), the finding says
+so and asks for a hand-chosen topic, `./le rfc rename from <file> to
+<dir>/<prefix><topic>_test.go`, rather than a name that carries the stem twice or a
+command the rename refuses. `./le rfc rename propose` leaves a taken or shared
+target out of its plan for the same reason. `./le rfc rename` refuses a target
+through the same predicate.
+<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, repairBlocked -->
+<!-- source: internal/le/rfc/check.go -- check -->
 
 ## What the ratchets cannot see
 

@@ -4,6 +4,8 @@
 
 package rib
 
+// RFC naming: untagged -- a red defect probe: RFC8277-3.1-1 is unmet on one ADD-PATH session until best-path keying is fixed.
+
 import (
 	"net/netip"
 	"testing"
