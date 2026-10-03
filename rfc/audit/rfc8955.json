@@ -151,14 +151,14 @@
       "tests": {
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "328da0a428605906",
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906",
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "4f7648cd1aea1d61",
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "4f7648cd1aea1d61"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "4f7648cd1aea1d61",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "4f7648cd1aea1d61"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "12fd4ff344e8089e",
         "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e",
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "1063226399da508d",
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "1063226399da508d"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "1063226399da508d",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "1063226399da508d"
       },
       "verdict": "enforced"
     },
@@ -254,12 +254,12 @@
       "note": "the continuing case only pairs a marking with a later discard, so the test sees the discard and never the marking on the same packet; an implementation that skipped the first rule's actions when T is set would stay green. No case observes two actions from two matched rules applied together",
       "requirement_sha": "476dfe1e6c45cf3e",
       "tests": {
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "4f7648cd1aea1d61",
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "4f7648cd1aea1d61"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "4f7648cd1aea1d61",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "4f7648cd1aea1d61"
       },
       "units": {
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "1063226399da508d",
-        "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "1063226399da508d"
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics": "1063226399da508d",
+        "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics#2": "1063226399da508d"
       },
       "verdict": "weak"
     },

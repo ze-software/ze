@@ -60,7 +60,7 @@
     {
       "rid": "RFC8955-5.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
       "unit-sha": "682ef46b74cff9a9",
       "claim-sha": "816251ae780212b7",
       "route": "revert",
@@ -71,7 +71,7 @@
     {
       "rid": "RFC8955-5.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
       "unit-sha": "682ef46b74cff9a9",
       "claim-sha": "a6993c56fe7548ba",
       "route": "revert",
@@ -126,7 +126,7 @@
     {
       "rid": "RFC8955-7.3-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
       "unit-sha": "682ef46b74cff9a9",
       "claim-sha": "c44fcfef4f342fdb",
       "route": "revert",
@@ -137,7 +137,7 @@
     {
       "rid": "RFC8955-7.3-2",
       "polarity": "negative",
-      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
       "unit-sha": "682ef46b74cff9a9",
       "claim-sha": "be8e7ac9775ed572",
       "route": "revert",

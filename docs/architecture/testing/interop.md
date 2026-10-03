@@ -811,7 +811,7 @@ deferred DSCP marking, withdrawal, and excess-rate drops. It requires
 is not packet-forwarding evidence.
 
 <!-- source: internal/le/interoplab/bgp/checkers.go -- bgp-flowspec-sctp-gobgp -->
-<!-- source: internal/plugins/flowspec-firewall/selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
 
 | # | Scenario | Daemons | What It Tests |
 |---|----------|---------|---------------|

@@ -193,7 +193,7 @@ than installing fresh rules over uncertain state. The anomaly-shape responder
 does not yet carry this startup sweep.
 
 <!-- source: internal/plugins/flowspec-firewall/engine.go -- clearStaleRules and runEngine -->
-<!-- source: internal/plugins/flowspec-firewall/selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
+<!-- source: internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
 
 <!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- shouldDeleteTable -->
