@@ -26,7 +26,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "negative",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255",
       "unit-sha": "cfc7e192d2f6df6e",
       "claim-sha": "0f633d6916d6b6e3",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "positive",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMDropsADangerousQuotedICMPError",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDropsADangerousQuotedICMPError",
       "unit-sha": "8d681ef60afb9f06",
       "claim-sha": "e2799312a1113b08",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "positive",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error",
       "unit-sha": "635e58a91a6a6c7e",
       "claim-sha": "085ca86194889f42",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "positive",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255",
       "unit-sha": "d01ab2dd6e6bc3f7",
       "claim-sha": "e7ee536e1ff7d50a",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "negative",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255",
       "unit-sha": "bb664788c135c55b",
       "claim-sha": "1f5b5374f2e1afba",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "positive",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255",
       "unit-sha": "678b8b388aeb0282",
       "claim-sha": "6f4a46597bc1c308",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "negative",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255",
       "unit-sha": "e877bb5d20f955bf",
       "claim-sha": "5fe2a4609c3896a1",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC5082-3-2",
       "polarity": "negative",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error",
       "unit-sha": "7f2e795d2efed7e7",
       "claim-sha": "d83e46d97336ed73",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC5082-3-4",
       "polarity": "positive",
-      "unit": "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims",
+      "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims",
       "unit-sha": "88e46f293c6e7c9f",
       "claim-sha": "a4dbf69c87c3f5e1",
       "route": "revert",

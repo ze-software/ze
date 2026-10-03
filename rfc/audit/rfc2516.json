@@ -274,12 +274,12 @@
       "note": "TestRFC2516HostReturnsToDiscoveryForTheNextSession shows the client redials (Discovery) after Done with SESSION_ID 0 and the old session cleaned up",
       "requirement_sha": "616cc6844fcdba92",
       "tests": {
-        "internal/component/iface/rfc2516_pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "c4a113866441e589",
-        "internal/component/iface/rfc2516_pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "c4a113866441e589"
+        "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "c4a113866441e589",
+        "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "c4a113866441e589"
       },
       "units": {
-        "internal/component/iface/rfc2516_pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "b8c082dd880adc6b",
-        "internal/component/iface/rfc2516_pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "b8c082dd880adc6b"
+        "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession": "b8c082dd880adc6b",
+        "internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2": "b8c082dd880adc6b"
       },
       "verdict": "enforced"
     },

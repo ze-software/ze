@@ -70,7 +70,7 @@
     {
       "rid": "RFC2131-3.2-4",
       "polarity": "positive",
-      "unit": "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
+      "unit": "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent",
       "unit-sha": "1680e32bae82e472",
       "claim-sha": "6e1d7c3cb6ca6422",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC2131-3.2-4",
       "polarity": "negative",
-      "unit": "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
+      "unit": "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent",
       "unit-sha": "1680e32bae82e472",
       "claim-sha": "cefb4b1bf09107ca",
       "route": "revert",

@@ -38,12 +38,12 @@
       "note": "positive relays a SELECTING REQUEST with giaddr 192.168.1.254 and asserts responseAddr gives 192.168.1.254:67 for the resulting NAK; negative asserts the same NAK with giaddr zero goes to 255.255.255.255:68, not to a relay",
       "requirement_sha": "066d0698cabb7a1d",
       "tests": {
-        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "482103f2b84d410a",
-        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "482103f2b84d410a"
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent": "482103f2b84d410a",
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent#2": "482103f2b84d410a"
       },
       "units": {
-        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "20b652f3498fa673",
-        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "20b652f3498fa673"
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent": "20b652f3498fa673",
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_test.go::TestNakDeliveredToRelayAgent#2": "20b652f3498fa673"
       },
       "verdict": "enforced"
     },
