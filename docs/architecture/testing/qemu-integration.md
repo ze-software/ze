@@ -96,8 +96,9 @@ tests on 2026-09-05, with no BusyBox usage text anywhere in its log.
 ### Running ONE `.ci` test in a throwaway guest
 
 The tight loop for a single Linux-only test, about 30 seconds of test after the
-boot. It does the binary shim by hand because that is `all-tests`'s job and this
-path skips `all-tests`:
+boot. It does by hand what `all-tests` does for each suite, because this path
+skips `all-tests`: the binary shim, and the two variables that make the runner
+use the binary you built:
 
 ```bash
 ./le test qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
@@ -105,8 +106,17 @@ path skips `all-tests`:
     && ln -sf /workspace/bin/ze-linux-arm64 /tmp/zb/ze \
     && ln -sf /workspace/tmp/qemu/linux-arm64/le /tmp/zb/le \
     && ln -sf /workspace/bin/ze-stripped-linux-arm64 /tmp/zb/ze-stripped \
-    && cd /workspace && PATH=/tmp/zb:\$PATH le test bgp plugin <test-name>"
+    && cd /workspace && PATH=/tmp/zb:\$PATH LE_TEST_NO_BUILD=1 \
+       ZE_BIN=/workspace/bin/ze-linux-arm64 le test bgp plugin <test-name>"
 ```
+
+`LE_TEST_NO_BUILD=1` and `ZE_BIN` are not optional. Without them the runner
+builds its own ze from the source tree inside the guest and never looks at the
+`ze` on `PATH` (`NewRunner` and `setupBinShims`, `internal/test/runner/runner.go`).
+The test then passes or fails on a binary you did not build. A red you forced by
+cross-building a broken ze, or by an overlay, never reaches the test, and the
+green it reports proves nothing. `all-tests` sets both for every suite
+(`environment`, `internal/le/test/qemu/alltests.go`).
 
 Wrap it in `./le job run label <name> quiet command ...` so it takes its turn
 with the other sessions on the machine.
