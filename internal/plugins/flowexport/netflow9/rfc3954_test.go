@@ -1,5 +1,5 @@
 // Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- NetFlow v9 export
-// Related: flow_adapter_test.go -- recvDatagrams and newLoopbackEncoderTarget
+// Related: rfc3954_flow_adapter_test.go -- recvDatagrams and newLoopbackEncoderTarget
 //
 // VALIDATES: RFC 3954 Sections 4, 5.1 and 7 on the packets the real counter and
 // flow encoders put on one sender: the Template and per-flow Data FlowSets are

@@ -4,7 +4,7 @@
     {
       "rid": "RFC7012-4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7012_flow_template_test.go::TestIPFIXFlowTemplate",
       "unit-sha": "ba500c9d6bad2178",
       "claim-sha": "4ec24e8d9c6bbaaa",
       "route": "revert",

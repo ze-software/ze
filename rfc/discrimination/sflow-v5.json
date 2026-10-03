@@ -4,7 +4,7 @@
     {
       "rid": "SFLOW-V5-x-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv4",
       "unit-sha": "44bcf5a5a445d6e9",
       "claim-sha": "0e18938ae463d604",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "SFLOW-V5-x-10",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5SamplingRateIsTheSourceRate",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5SamplingRateIsTheSourceRate",
       "unit-sha": "c792c72ca33b4bf0",
       "claim-sha": "d2f2ee6adef702ed",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "SFLOW-V5-x-10",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/flow_test.go::TestSFlowFlowSample",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_test.go::TestSFlowFlowSample",
       "unit-sha": "058e6268be0448e8",
       "claim-sha": "694a52b3a6d7c172",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "SFLOW-V5-x-11",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal",
       "unit-sha": "58796a9ae7dd8b60",
       "claim-sha": "65b5bd999314ec43",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "SFLOW-V5-x-12",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowCounterSampleSourceIDOverflow",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowCounterSampleSourceIDOverflow",
       "unit-sha": "5c8fe5893d16534a",
       "claim-sha": "50ca72b553a6b89b",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "SFLOW-V5-x-14",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval",
+      "unit": "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestSFlowCounterPollAtInterval",
       "unit-sha": "92d81f42bebc618b",
       "claim-sha": "89f0a941b49f5746",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "SFLOW-V5-x-14",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5CounterGapNeverExceedsInterval",
+      "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval",
       "unit-sha": "a8609677d3c38f65",
       "claim-sha": "1e184457317b845c",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "SFLOW-V5-x-14",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5CounterGapNeverExceedsInterval",
+      "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval",
       "unit-sha": "a8609677d3c38f65",
       "claim-sha": "e5b0345041805c07",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "SFLOW-V5-x-15",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/register_test.go::TestInterfaceCountersFromCumulative",
+      "unit": "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromCumulative",
       "unit-sha": "1c5463a8d5868b23",
       "claim-sha": "230143c03795f92c",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "SFLOW-V5-x-16",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable",
+      "unit": "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable",
       "unit-sha": "583939ca1364a30b",
       "claim-sha": "2b7e8305ab42a7f1",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "SFLOW-V5-x-16",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll",
+      "unit": "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll",
       "unit-sha": "6355b8a78fe517ae",
       "claim-sha": "49e5353e61be8aa7",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "SFLOW-V5-x-16",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5UnknownEgressInterfaceIsZero",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero",
       "unit-sha": "95c873b34eba5856",
       "claim-sha": "524b9abb42b59119",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "SFLOW-V5-x-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressIsTheAgentKey",
       "unit-sha": "f9c6aa12aa54b0a6",
       "claim-sha": "e02c094937872231",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "SFLOW-V5-x-2",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressIsTheAgentKey",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressIsTheAgentKey",
       "unit-sha": "f9c6aa12aa54b0a6",
       "claim-sha": "fbe4782aed590019",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "SFLOW-V5-x-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent",
       "unit-sha": "c9cd95408f21d60e",
       "claim-sha": "8b5576b00b23b0c0",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "SFLOW-V5-x-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv4",
       "unit-sha": "44bcf5a5a445d6e9",
       "claim-sha": "9ffc723103d00a54",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "SFLOW-V5-x-26",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5DueCountersAreSent",
+      "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent",
       "unit-sha": "b61b147a4fbd0c8a",
       "claim-sha": "5c834a73c3bfebda",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "SFLOW-V5-x-26",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/polling_sflow_v5_test.go::TestSFlowV5DueCountersAreSent",
+      "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent",
       "unit-sha": "b61b147a4fbd0c8a",
       "claim-sha": "89ddfbbec06fc40e",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "SFLOW-V5-x-28",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/sequence_rfc_sflow_v5_test.go::TestSFlowV5FlowSequencePerSourceID",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5FlowSequencePerSourceID",
       "unit-sha": "26e99b49f25944fa",
       "claim-sha": "ce1d769a46ac53a2",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "SFLOW-V5-x-29",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity",
       "unit-sha": "409b68d7dd8ee5f0",
       "claim-sha": "1120f10c7f5d83da",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "SFLOW-V5-x-29",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceResetWithCounters",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceResetWithCounters",
       "unit-sha": "2450ef40827e76d4",
       "claim-sha": "5f100b781f3d2eaf",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "SFLOW-V5-x-29",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/sequence_rfc_sflow_v5_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack",
       "unit-sha": "ac2c97da4cab7441",
       "claim-sha": "9907f8098ba52c90",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "SFLOW-V5-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv6",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv6",
       "unit-sha": "eb511dfa0e80d666",
       "claim-sha": "dbd3eac304006b0c",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "SFLOW-V5-x-30",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go::TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go::TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady",
       "unit-sha": "fddb4f68679a1cdc",
       "claim-sha": "4698f8b2c3f7b46c",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "SFLOW-V5-x-30",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go::TestSFlowV5SequenceResetOnDiscontinuityTime",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go::TestSFlowV5SequenceResetOnDiscontinuityTime",
       "unit-sha": "690aedb405013e01",
       "claim-sha": "c5b1e226d8621a7d",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "SFLOW-V5-x-31",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource",
       "unit-sha": "d200c71490bcc02a",
       "claim-sha": "d629627189a0ccd7",
       "route": "revert",
@@ -389,7 +389,7 @@
     {
       "rid": "SFLOW-V5-x-31",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/config_rfc_sflow_v5_test.go::TestSFlowV5OneSubAgentPerDataSource",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource",
       "unit-sha": "d200c71490bcc02a",
       "claim-sha": "3035886490240917",
       "route": "revert",
@@ -422,7 +422,7 @@
     {
       "rid": "SFLOW-V5-x-31",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/subagent_rfc_sflow_v5_test.go::TestSFlowV5DataSourceKeepsOneSubAgent",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent",
       "unit-sha": "ebaabce768ed7790",
       "claim-sha": "cef02bc00eb5f05b",
       "route": "revert",
@@ -433,7 +433,7 @@
     {
       "rid": "SFLOW-V5-x-32",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable",
+      "unit": "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable",
       "unit-sha": "583939ca1364a30b",
       "claim-sha": "807eb15d35fb58a5",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "SFLOW-V5-x-32",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll",
+      "unit": "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll",
       "unit-sha": "6355b8a78fe517ae",
       "claim-sha": "68c0f82d96666982",
       "route": "revert",
@@ -477,7 +477,7 @@
     {
       "rid": "SFLOW-V5-x-34",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5FrameCompensationNeverUnstripped",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5FrameCompensationNeverUnstripped",
       "unit-sha": "a40d1345db675023",
       "claim-sha": "8385c863c61998de",
       "route": "revert",
@@ -488,7 +488,7 @@
     {
       "rid": "SFLOW-V5-x-34",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5FrameLengthAndStrippedIncludeFCS",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5FrameLengthAndStrippedIncludeFCS",
       "unit-sha": "793fd38ce47f3cd9",
       "claim-sha": "2b7f31753ec93db8",
       "route": "revert",
@@ -499,7 +499,7 @@
     {
       "rid": "SFLOW-V5-x-4",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface",
       "unit-sha": "bec38e1b719b6ae0",
       "claim-sha": "1b252ce6617f7309",
       "route": "revert",
@@ -510,7 +510,7 @@
     {
       "rid": "SFLOW-V5-x-5",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/datagram_rfc_sflow_v5_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram",
       "unit-sha": "43663d9ad9eed19b",
       "claim-sha": "32779285015a2745",
       "route": "revert",
@@ -521,7 +521,7 @@
     {
       "rid": "SFLOW-V5-x-5",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface",
       "unit-sha": "bec38e1b719b6ae0",
       "claim-sha": "dc28f224df935095",
       "route": "revert",
@@ -532,7 +532,7 @@
     {
       "rid": "SFLOW-V5-x-6",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch",
+      "unit": "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch",
       "unit-sha": "b1a13056581e43b5",
       "claim-sha": "6349e527500d0a1b",
       "route": "revert",
@@ -543,7 +543,7 @@
     {
       "rid": "SFLOW-V5-x-6",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/datagram_rfc_sflow_v5_test.go::TestSFlowV5FlowSampleSentWithinOneSecond",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond",
       "unit-sha": "0524c19a3c920c8d",
       "claim-sha": "6915e2d86a9cef00",
       "route": "revert",
@@ -554,7 +554,7 @@
     {
       "rid": "SFLOW-V5-x-7",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowIfCounters",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowIfCounters",
       "unit-sha": "e35bc7190ad84a95",
       "claim-sha": "70b5f3b409c3f997",
       "route": "revert",
@@ -565,7 +565,7 @@
     {
       "rid": "SFLOW-V5-x-7",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go::TestSFlowV5FlowDatagramIsXDR",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5FlowDatagramIsXDR",
       "unit-sha": "20d5073c1965d23b",
       "claim-sha": "79217345376ef7dd",
       "route": "revert",
@@ -576,7 +576,7 @@
     {
       "rid": "SFLOW-V5-x-7",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5CounterSampleWrapperIsXDR",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5CounterSampleWrapperIsXDR",
       "unit-sha": "3643d35b0522ffce",
       "claim-sha": "18bc7c76d9173e81",
       "route": "revert",
@@ -587,7 +587,7 @@
     {
       "rid": "SFLOW-V5-x-7",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5ExtendedGatewayIsXDR",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5ExtendedGatewayIsXDR",
       "unit-sha": "deeaff3d3f5a8f0f",
       "claim-sha": "25e1590dd116148a",
       "route": "revert",
@@ -598,7 +598,7 @@
     {
       "rid": "SFLOW-V5-x-7",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/xdr_rfc_sflow_v5_test.go::TestSFlowV5FlowSampleWordsAreXDR",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5FlowSampleWordsAreXDR",
       "unit-sha": "494856bb2c4a7d26",
       "claim-sha": "7325d527882f50f1",
       "route": "revert",
@@ -609,7 +609,7 @@
     {
       "rid": "SFLOW-V5-x-9",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowCounterResetDoesNotResetDatagrams",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowCounterResetDoesNotResetDatagrams",
       "unit-sha": "28ddbc73ebf8bc6a",
       "claim-sha": "a6cb6769a9c97d17",
       "route": "revert",
@@ -620,7 +620,7 @@
     {
       "rid": "SFLOW-V5-x-9",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowMixedDatagramSequenceWraps",
+      "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowMixedDatagramSequenceWraps",
       "unit-sha": "7d6ed4d8b0888223",
       "claim-sha": "bfcb4ad86051a386",
       "route": "revert",

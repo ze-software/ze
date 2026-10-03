@@ -5,11 +5,11 @@
       "note": "Single-polarity row. TestRFC7012EmittedIEIdentifiersInRange walks every field specifier of all three emitted templates (counter, IPv4 flow, IPv6 flow) and requires the IE identifier word to be neither 0 nor above 32767, so a template referencing IE 0 in any field goes red (recorded).",
       "requirement_sha": "eaa3a43563fba7bf",
       "tests": {
-        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "0a51ff851038eff5",
+        "internal/plugins/flowexport/ipfix/rfc7012_flow_template_test.go::TestIPFIXFlowTemplate": "0a51ff851038eff5",
         "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7012EmittedIEIdentifiersInRange": "a52a12ad5bf1fd57"
       },
       "units": {
-        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "8482e23ae37ecd23",
+        "internal/plugins/flowexport/ipfix/rfc7012_flow_template_test.go::TestIPFIXFlowTemplate": "8482e23ae37ecd23",
         "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7012EmittedIEIdentifiersInRange": "e4afed8c731ccc4e"
       },
       "verdict": "enforced"

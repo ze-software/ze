@@ -1,5 +1,5 @@
 // Design: docs/architecture/flowexport/flow-export-1-counter-export.md -- IPFIX counter export
-// Related: export_rfc7011_test.go -- the per-flow record's integral encoding
+// Related: rfc7011_export_test.go -- the per-flow record's integral encoding
 //
 // VALIDATES: the counter Data Record integrals are big-endian, the three
 // Template IDs one Transport Session carries are distinct and in range, and

@@ -4,7 +4,7 @@
 // PREVENTS: a consumer in another plugin importing flowexport/enrich to fetch
 // the AS itself, which fails `./le arch tier check`.
 //
-// These tests live beside exporter_test.go rather than inside it because that
+// These tests live beside sflow_v5_exporter_test.go rather than inside it because that
 // file carries RFC-tagged NetFlow and sFlow proofs; a new file keeps this
 // spec's additions clear of them.
 

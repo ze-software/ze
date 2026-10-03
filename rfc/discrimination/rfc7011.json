@@ -4,7 +4,7 @@
     {
       "rid": "RFC7011-10.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/config_rfc7011_test.go::TestRFC7011CollectorPortConfigurable",
+      "unit": "internal/plugins/flowexport/rfc7011_config_test.go::TestRFC7011CollectorPortConfigurable",
       "unit-sha": "b0718cb9cb26472f",
       "claim-sha": "8231ddac2149e073",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC7011-10.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/config_rfc7011_test.go::TestRFC7011CollectorPortOutOfRangeRefused",
+      "unit": "internal/plugins/flowexport/rfc7011_config_test.go::TestRFC7011CollectorPortOutOfRangeRefused",
       "unit-sha": "9a9ab8b3ecfa318c",
       "claim-sha": "14efbf9311a74d27",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC7011-3.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/template_test.go::TestIPFIXTemplateSet",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet",
       "unit-sha": "f449c54c561834f9",
       "claim-sha": "61e632eea010f32d",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC7011-3.3.1-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011OneRecordTypePerSet",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011OneRecordTypePerSet",
       "unit-sha": "822ebcfb12b7ae79",
       "claim-sha": "cadbff541f7f3fca",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC7011-3.3.1-3",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011RecordTypesNotMixedInSet",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011RecordTypesNotMixedInSet",
       "unit-sha": "2780f50adc03700e",
       "claim-sha": "440ca8cb85eb154c",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC7011-6.1.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNetworkByteOrder",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNetworkByteOrder",
       "unit-sha": "2ba69eb63c8b2a37",
       "claim-sha": "fdcd9293aa5dd60f",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC7011-6.1.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNeverLittleEndian",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNeverLittleEndian",
       "unit-sha": "3eb34287739b948f",
       "claim-sha": "32f809134efe4f7a",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC7011-6.1.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData",
       "unit-sha": "b3d052cc71dd846b",
       "claim-sha": "bb1f58f54348a693",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC7011-6.1.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011AddressOctetsNetworkByteOrder",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011AddressOctetsNetworkByteOrder",
       "unit-sha": "a98c42037c9dc324",
       "claim-sha": "88e8804bfe328b9f",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC7011-6.1.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets",
       "unit-sha": "2370cd25545f9080",
       "claim-sha": "2ba7895cdbfeb48a",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC7011-8-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval",
+      "unit": "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval",
       "unit-sha": "d2b04a3022ae2426",
       "claim-sha": "2ff5a87d3f7af2a6",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC7011-8-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit",
+      "unit": "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit",
       "unit-sha": "c9fcb809e4f07afa",
       "claim-sha": "09bb22c8b1346c79",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC7011-8-2",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/template_refresh_rfc7011_test.go::TestRFC7011ConfiguredRefreshOverridesDefault",
+      "unit": "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault",
       "unit-sha": "5a1edf4f20ca0936",
       "claim-sha": "a6ba8b01a84e04e8",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC7011-8-3",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/withdrawal_rfc7011_test.go::TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal",
+      "unit": "internal/plugins/flowexport/rfc7011_withdrawal_test.go::TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal",
       "unit-sha": "c0448545c9a72961",
       "claim-sha": "8f880bcc74e59811",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC7011-8-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/withdrawal_rfc7011_test.go::TestRFC7011UDPExporterSendsNoTemplateWithdrawal",
+      "unit": "internal/plugins/flowexport/rfc7011_withdrawal_test.go::TestRFC7011UDPExporterSendsNoTemplateWithdrawal",
       "unit-sha": "bc0640d57896b735",
       "claim-sha": "b3df814c9a264543",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC7011-8.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeIsSendTime",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeIsSendTime",
       "unit-sha": "a9179e1e58610e68",
       "claim-sha": "3c824f527ef98c39",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC7011-8.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeNeverRegresses",
       "unit-sha": "5c46bdc69f0d697d",
       "claim-sha": "8c7cd587e86a6ad7",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC7011-8.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/template_time_rfc7011_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime",
       "unit-sha": "b1d97b4d2024882b",
       "claim-sha": "2f38f2738bd60651",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC7011-8.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/template_time_rfc7011_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder",
       "unit-sha": "bbdba96ab01a29b9",
       "claim-sha": "4c1bbb9d01453259",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "RFC7011-8.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011DataExportTimeNotBeforeTemplate",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011DataExportTimeNotBeforeTemplate",
       "unit-sha": "2673cca201e24b1c",
       "claim-sha": "3156b98c903cfcf3",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC7011-8.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011StaleSnapshotClampedToTemplateTime",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011StaleSnapshotClampedToTemplateTime",
       "unit-sha": "14c0917d7aa2fc79",
       "claim-sha": "e42ed358c64199f7",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "RFC7011-8.2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011DataSetNeverPrecedesTemplate",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011DataSetNeverPrecedesTemplate",
       "unit-sha": "3aafe79e73c0d409",
       "claim-sha": "9c5c20556139b29a",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC7011-8.2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateSetPrecedesDataSet",
+      "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateSetPrecedesDataSet",
       "unit-sha": "2c01e5dde6f4add6",
       "claim-sha": "fdc7dcfedab67a29",
       "route": "revert",

@@ -1,5 +1,5 @@
 // Design: docs/architecture/flowexport/flow-export-0-umbrella.md -- exporter lifecycle
-// Related: withdrawal_rfc7011_test.go -- the external test that drives these
+// Related: rfc7011_withdrawal_test.go -- the external test that drives these
 //
 // The external test package links the encoder subpackages, which an internal
 // test cannot import because each one imports flowexport to register itself.

@@ -5,14 +5,14 @@
       "note": "Both halves now proven. Exporter ordering: TestExporterTemplateFailureRetriesBeforeData (counter and flow subtests) goes red if data leaves after a failed Template or the retry transcript is not template-then-data (recorded, notifySnapshot). Corresponding Template: TestRFC3954RestartedEncodersSendTemplateBeforeData drives fresh real CounterEncoder and FlowEncoder and requires every Data FlowSet 256/257/258 to follow a packet whose Template FlowSet defines that ID, and each ID to be seen, so an encoder omitting 258 goes red (recorded, EncodeFlowTemplate). TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket pins same-packet order (recorded). The Options Template clause is vacuous: Ze emits no Options Data. TestWriteExportPacketWithTemplate stays a count-only floor and carries no record.",
       "requirement_sha": "7e3aed98162306b2",
       "tests": {
-        "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "506b02f76d337928",
-        "internal/plugins/flowexport/netflow9/encoder_test.go::TestWriteExportPacketWithTemplate": "969513badc07322a",
+        "internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "506b02f76d337928",
+        "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestWriteExportPacketWithTemplate": "969513badc07322a",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954RestartedEncodersSendTemplateBeforeData": "56a1d51e8ae601b1",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket": "56a1d51e8ae601b1"
       },
       "units": {
-        "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "a5a3c267e9f24278",
-        "internal/plugins/flowexport/netflow9/encoder_test.go::TestWriteExportPacketWithTemplate": "bba2887a5f92539b",
+        "internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "a5a3c267e9f24278",
+        "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestWriteExportPacketWithTemplate": "bba2887a5f92539b",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954RestartedEncodersSendTemplateBeforeData": "f43501eb33e40def",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket": "fdc4ae23302d6666"
       },
@@ -22,22 +22,22 @@
       "note": "Single-polarity row, every writer now compared byte for byte with distinct-octet values: Packet Header (TestNetflow9Header), counter Data FlowSet (TestNetflow9DataFlowSet), counter Template (TestRFC3954CounterTemplateFlowSetBigEndian), IPv4 and IPv6 flow Templates, IPv4 flow Data FlowSet, the shared tail with non-zero SRC_AS, DST_AS, FIRST_SWITCHED, LAST_SWITCHED (TestRFC3954FlowTailBigEndian), and the IPv6 Data FlowSet header and tail. A little-endian write of any field changes compared bytes. Every unit recorded.",
       "requirement_sha": "c125091d7c45771e",
       "tests": {
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954CounterTemplateFlowSetBigEndian": "b04d9191f3710e02",
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954FlowTailBigEndian": "b04d9191f3710e02",
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian": "b04d9191f3710e02",
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian": "b04d9191f3710e02",
-        "internal/plugins/flowexport/netflow9/data_test.go::TestNetflow9DataFlowSet": "db3160a7f234cc64",
-        "internal/plugins/flowexport/netflow9/encoder_test.go::TestNetflow9Header": "969513badc07322a",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954CounterTemplateFlowSetBigEndian": "b04d9191f3710e02",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954FlowTailBigEndian": "b04d9191f3710e02",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian": "b04d9191f3710e02",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian": "b04d9191f3710e02",
+        "internal/plugins/flowexport/netflow9/rfc3954_data_test.go::TestNetflow9DataFlowSet": "db3160a7f234cc64",
+        "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestNetflow9Header": "969513badc07322a",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954FlowDataFlowSetBigEndian": "56a1d51e8ae601b1",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetBigEndian": "56a1d51e8ae601b1"
       },
       "units": {
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954CounterTemplateFlowSetBigEndian": "b7385e79676660d1",
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954FlowTailBigEndian": "eece44f34597f9e8",
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian": "85df8480999836f0",
-        "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian": "8d228581da4e0fa3",
-        "internal/plugins/flowexport/netflow9/data_test.go::TestNetflow9DataFlowSet": "f0bc557a8aff050c",
-        "internal/plugins/flowexport/netflow9/encoder_test.go::TestNetflow9Header": "1b42f17cb75ca570",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954CounterTemplateFlowSetBigEndian": "b7385e79676660d1",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954FlowTailBigEndian": "eece44f34597f9e8",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian": "85df8480999836f0",
+        "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian": "8d228581da4e0fa3",
+        "internal/plugins/flowexport/netflow9/rfc3954_data_test.go::TestNetflow9DataFlowSet": "f0bc557a8aff050c",
+        "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestNetflow9Header": "1b42f17cb75ca570",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954FlowDataFlowSetBigEndian": "56c522a896252571",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetBigEndian": "5774c3c6afe1b666"
       },
@@ -47,13 +47,13 @@
       "note": "TestRFC3954SequenceCountsEveryExportPacket sends template-only, counter Data and flow Data packets from two encoders on one sender over two rounds and requires ten consecutive sequence values, so a template-only packet left out, or a per-encoder counter, goes red (recorded, sendTemplatePacket). Negative TestNetflow9SeqNumNotAdvancedOnSendError: an unsent packet does not advance the count of packets sent (recorded).",
       "requirement_sha": "a8e194547afca21e",
       "tests": {
-        "internal/plugins/flowexport/netflow9/adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "a0a2734ee2e7877a",
-        "internal/plugins/flowexport/netflow9/flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "02cf4ff90ef1f4b1",
+        "internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "a0a2734ee2e7877a",
+        "internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "02cf4ff90ef1f4b1",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954SequenceCountsEveryExportPacket": "56a1d51e8ae601b1"
       },
       "units": {
-        "internal/plugins/flowexport/netflow9/adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "ba975a43e2467d77",
-        "internal/plugins/flowexport/netflow9/flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "80668a109a568110",
+        "internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "ba975a43e2467d77",
+        "internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "80668a109a568110",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954SequenceCountsEveryExportPacket": "ac85259fe2819c50"
       },
       "verdict": "enforced"
@@ -62,14 +62,14 @@
       "note": "Single-polarity row. TestRFC3954TemplateIDsConstantAcrossRefresh sends two full rounds and requires Templates 256, 257, 258 unchanged in round two and the Data FlowSets to name 256 and 257, so a refresh that reassigns an ID goes red (recorded, BuildFlowTemplate6). The IPv6 Template 258 is now asserted.",
       "requirement_sha": "14e790065b81cd48",
       "tests": {
-        "internal/plugins/flowexport/netflow9/flow_template_test.go::TestNetflow9FlowTemplate": "21633af1362424a6",
+        "internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go::TestNetflow9FlowTemplate": "21633af1362424a6",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateIDsConstantAcrossRefresh": "56a1d51e8ae601b1",
-        "internal/plugins/flowexport/netflow9/template_test.go::TestNetflow9Template": "0081b80a2c9f5a4d"
+        "internal/plugins/flowexport/netflow9/rfc3954_template_test.go::TestNetflow9Template": "0081b80a2c9f5a4d"
       },
       "units": {
-        "internal/plugins/flowexport/netflow9/flow_template_test.go::TestNetflow9FlowTemplate": "231bf739d29fa46f",
+        "internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go::TestNetflow9FlowTemplate": "231bf739d29fa46f",
         "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateIDsConstantAcrossRefresh": "11abca04fecba78b",
-        "internal/plugins/flowexport/netflow9/template_test.go::TestNetflow9Template": "b2a9999aaa04cad0"
+        "internal/plugins/flowexport/netflow9/rfc3954_template_test.go::TestNetflow9Template": "b2a9999aaa04cad0"
       },
       "verdict": "enforced"
     }

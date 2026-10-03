@@ -1,5 +1,5 @@
 // Design: docs/architecture/flowexport/flow-export-2-flow-records.md -- sFlow v5 exporter obligations
-// Related: flow_adapter_test.go -- loopback target helpers reused here
+// Related: sflow_v5_flow_adapter_test.go -- loopback target helpers reused here
 //
 // Tagged proofs for the sFlow v5 transport and sample-format sentences the
 // 2026-09-21 extraction walk added (SFLOW-V5-x-25 and following). Each test

@@ -4,7 +4,7 @@
     {
       "rid": "RFC3954-x-1",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData",
+      "unit": "internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData",
       "unit-sha": "a0388cf45e2b0eec",
       "claim-sha": "a0dc9ff0dfef36ff",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC3954-x-1",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/encoder_test.go::TestWriteExportPacketWithTemplate",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestWriteExportPacketWithTemplate",
       "unit-sha": "dfaf770f3ddeb672",
       "claim-sha": "22eb3e86a6b0915d",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC3954-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954CounterTemplateFlowSetBigEndian",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954CounterTemplateFlowSetBigEndian",
       "unit-sha": "74ce4a6262c47571",
       "claim-sha": "bfe4072486f3e86a",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC3954-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954FlowTailBigEndian",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954FlowTailBigEndian",
       "unit-sha": "f8c5a11505309b9a",
       "claim-sha": "903f953831b3540f",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC3954-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian",
       "unit-sha": "cda63430b815f8ed",
       "claim-sha": "6292306273c09896",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC3954-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/byteorder_rfc3954_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian",
       "unit-sha": "cdc3ae3cde4da0ea",
       "claim-sha": "bdb26730cb1cb11a",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC3954-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/data_test.go::TestNetflow9DataFlowSet",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_data_test.go::TestNetflow9DataFlowSet",
       "unit-sha": "657460760150bdab",
       "claim-sha": "18c217b0a58940ae",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC3954-x-3",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/encoder_test.go::TestNetflow9Header",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestNetflow9Header",
       "unit-sha": "8051c04dff52c7c1",
       "claim-sha": "af8c5b2187a7476c",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC3954-x-8",
       "polarity": "negative",
-      "unit": "internal/plugins/flowexport/netflow9/adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError",
       "unit-sha": "46f0e4117aea0c9c",
       "claim-sha": "fc6a2be0a1ff720b",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC3954-x-8",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket",
       "unit-sha": "139725e3b45a87e3",
       "claim-sha": "bf0794f8709df6c6",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC3954-x-9",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/flow_template_test.go::TestNetflow9FlowTemplate",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go::TestNetflow9FlowTemplate",
       "unit-sha": "7c8e6607d9459af3",
       "claim-sha": "7f526b92eaf581f0",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC3954-x-9",
       "polarity": "positive",
-      "unit": "internal/plugins/flowexport/netflow9/template_test.go::TestNetflow9Template",
+      "unit": "internal/plugins/flowexport/netflow9/rfc3954_template_test.go::TestNetflow9Template",
       "unit-sha": "053077b70703103c",
       "claim-sha": "89228dec2c5baabe",
       "route": "revert",
