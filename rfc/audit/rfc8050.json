@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-03",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8050-4.1-1": {
@@ -74,25 +74,35 @@
       "verdict": "enforced"
     },
     "RFC8050-x-4": {
-      "note": "Independent MRTJudge 2026-10-02. RFC8050 section 2: In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. Substantial old classifier-only hole is closed: TestRFC8050SubtypeControlsEveryNLRILocation drives literal base/ADDPATH records across both MRT types and AS widths, asserting exact classic/MP announcement/withdrawal prefixes and truncated-ID errors; command test asserts show/density 2/2 and filter acceptance. However all coexisting fields in those fixtures have the same mode, while the observer test isolates one location per UPDATE. updateAddPath ORs per-family negotiated modes into one subtype; every parser then applies one AddPath bit to all fields. A valid mixed-mode capture (ordinary classic plus ADDPATH IPv6 MP) is not covered. Independent 131-byte mixed-distinct fixture produced show W=1 A=1 and density 1/1 with malformed warnings instead of 2/2. RFC8050 section 3 preserves the entire message and defines no per-family mode metadata; stateless reconstruction of mixed modes is not generally determined by this subtype. Keep weak until lossless context/ambiguity handling is specified and proved; do not invent Path Identifiers or split captured messages. All five new x-4 native claims are current panic-reachability records, not evidence of this missing case.",
+      "note": "Independent rejudge 2026-10-03 over all seven tagged units. RFC 8050 section 2: 'MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.' RESOLVED from the 2026-10-02 verdict: the mixed-mode hole. TestRFC8050SessionContextDecodesMixedDirections reads both directional OPENs (RFC 7911 section 5 send/receive pairing, checked by hand: peer 1/2 plus local 2/1 gives ADD-PATH MP inbound and ADD-PATH classic outbound), asserts four distinct prefixes and exact Path IDs in both arrangements, and nine context cases (absent, one-sided, repeated, teardown, notification, identity reuse, other peer, other interface, new epoch) return ErrContextUnavailable. TestRFC8050CommandsRequireMixedContext carries this through show, density, filter and four more commands, and fails when an error is swallowed. No Path ID is invented and no message is split. NEW FINDINGS keep this weak. (1) The stateless subtype-directed path, which is what the sentence is about, lost most of its proof. TestRFC8050SubtypeControlsEveryNLRILocation and TestRFC8050CommandsReadSubtypeContext now put a matching OPEN prelude before every record, and with negotiated context present BGPMessage.AddPathFor (internal/mrt/context.go) returns the OPEN-derived mode and never reads m.AddPath, while updateContext returns early. So their decode assertions over all four subtypes and all four NLRI locations would still pass if the subtype were ignored when decoding. Only the AddPath flag check in the context test still ties to the subtype. Subtype-only decoding is proven by TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype alone: one subtype (9), one location (classic NLRI), positive only. No tagged negative shows a base-subtype record with no OPEN decoding ordinary NLRI. TestIsAddPathHelpers proves the classifier and not the decoder. (2) When the subtype contradicts the OPEN evidence (base subtype with ADD-PATH negotiated, or ADDPATH subtype with none), the decoder silently follows the OPENs and discards the RFC's signal. docs/architecture/mrt.md calls the subtype a 'hint' and states no conflict policy, and no test covers the case, so which answer is right is unspecified and unproven. (3) The TestIsAddPathHelpers negative claim, 'the add-path decision comes from the subtype code alone and never from a negotiated capability lookup', is now false for the decoder (AddPathFor consults capability.Negotiated), and so is the comment 'RFC 8050 Section 2: the MRT subtypes are utilized' above the AddPathFor call in parseUpdate (internal/mrt/bgp.go). Every recorded discrimination for x-4 is a whole-body panic, which shows the producer is reachable and does not show the mode semantics. Upgrade needs: subtype-only fixtures with no OPEN for all four NLRI locations, the eight subtypes and both MRT types, with base-subtype negatives; a specified and tested subtype-versus-OPEN conflict policy (refusing a conflict would match the existing ambiguity policy); and corrected claims.",
       "requirement_sha": "3dcf23f1c1c7357c",
       "tests": {
-        "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "48b7dd1cd55d3321",
-        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "2255fe2f4c3e84e9",
-        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "2255fe2f4c3e84e9",
-        "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "e61180c0b2ad8e39",
-        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "e61180c0b2ad8e39",
-        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation": "16257fc91749ce98",
-        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation#2": "16257fc91749ce98"
+        "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "abbbdfb9379e4224",
+        "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext": "092e56e2c8a0c01d",
+        "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext#2": "092e56e2c8a0c01d",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "c8f453ceb06be0d3",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "c8f453ceb06be0d3",
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "fb2e8a7edf55af3c",
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "fb2e8a7edf55af3c",
+        "internal/mrt/rfc8050_addpath_nlri_test.go::TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype": "37fb83c5282d6c43",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation": "570107487400bf0b",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation#2": "570107487400bf0b",
+        "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections": "3b70e71b8c564087",
+        "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections#2": "3b70e71b8c564087"
       },
       "units": {
-        "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "dee5e23192536ca3",
-        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "201703b544777906",
-        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "201703b544777906",
+        "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "9dd56e4d87351f3a",
+        "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext": "19a55e5a1b3200e6",
+        "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext#2": "19a55e5a1b3200e6",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "b79da361682978fc",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "b79da361682978fc",
         "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "0a755beddd59ee75",
         "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "0a755beddd59ee75",
-        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation": "4d6078515642a8a2",
-        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation#2": "4d6078515642a8a2"
+        "internal/mrt/rfc8050_addpath_nlri_test.go::TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype": "e14303ebd11bca93",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation": "78ad305fbae5ad9e",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation#2": "78ad305fbae5ad9e",
+        "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections": "587a572be995a8a5",
+        "internal/mrt/rfc8050_session_context_test.go::TestRFC8050SessionContextDecodesMixedDirections#2": "587a572be995a8a5"
       },
       "verdict": "weak"
     }
