@@ -17,7 +17,7 @@
 //            worked.
 //
 // It is the mirror of TestShowBgpSummaryIsNotRegistered
-// (internal/component/plugin/server/command_test.go), which proves a RETIRED
+// (internal/component/plugin/server/rfc8907_command_test.go), which proves a RETIRED
 // path produces no command. DO NOT MOVE THIS BESIDE IT. It was written there
 // first and passed while asserting nothing: the module is registered by this
 // plugin's own yang package, internal/component/plugin/server does not import

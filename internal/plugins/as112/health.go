@@ -86,7 +86,7 @@ func defaultHealthTarget() string {
 // plugin RPC handler -- "request as112 healthcheck target 1.2.3.4" reaches the handler
 // as args=["target","1.2.3.4"], matching every other multi-leaf command
 // handler's convention (e.g. diag's tcp-check parses "source"/"timeout"
-// keywords itself; internal/component/plugin/server/command_test.go's
+// keywords itself; internal/component/plugin/server/rfc8907_command_test.go's
 // TestDispatcherKeywordExtraction pins this for the "count <value>" case).
 // Returns "" (no error) when no target was given, so the caller falls back
 // to defaultHealthTarget().

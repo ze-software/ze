@@ -138,7 +138,7 @@ func TestDefaultHealthTarget_NoStateFallsBackToIPv4Loopback(t *testing.T) {
 // VALIDATES: the CLI dispatcher passes command args through with any
 // keyword token still attached (e.g. "request as112 healthcheck target 1.2.3.4" reaches
 // the handler as args=["target","1.2.3.4"], not args=["1.2.3.4"] -- see
-// internal/component/plugin/server/command_test.go's
+// internal/component/plugin/server/rfc8907_command_test.go's
 // TestDispatcherKeywordExtraction and internal/plugins/diag/cmd/tcp_check.go's
 // parseTCPCheckArgs for the established, verified convention every
 // keyword-arg command handler must follow). The YANG usage string
