@@ -1765,6 +1765,12 @@ Common run options:
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain -->
 <!-- source: internal/test/cli/cmd_web.go -- cmdWebMain -->
 
+`--save` also preserves a failed `await=stderr` fence, with or without
+`then=stop`. After stopping the daemon and draining the peers, the runner saves
+both stdout and stderr streams for peers and clients, plus the received wire
+messages. The fence's original failure remains the verdict; teardown output is
+diagnostic evidence, not a substitute for the missing assertion.
+
 ### Replaying a captured BGP session
 
 `le test replay` is a tool root, not a suite: it takes one capture file instead

@@ -1246,6 +1246,14 @@ the stop in step 3 produces (`test/reload/reload-dynamic-peer-survives.ci`).
 Await the reload's OUTCOME line, never an earlier one: `sighup reload complete`
 for a reload that succeeded, `reload error` for one that was refused.
 
+If either fence step fails, the runner retains that failure while stopping the
+daemon, signaling the peers immediately, and reaping them. A failed exchange
+gets no further completion grace that could exhaust the test's deadline before
+SIGTERM reaches the peers. The runner collects their final stdout and stderr
+before extracting received messages and writing `--save` files. This includes a
+lingering peer's shutdown output: the missing needle must not discard the
+dialogue that explains why it never appeared.
+
 ```
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 await=stderr:contains=incomplete peer definition:then=stop

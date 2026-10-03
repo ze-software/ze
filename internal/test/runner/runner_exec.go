@@ -1254,6 +1254,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// daemonStopped is set when an arm below already stopped and reaped fgProc,
 	// so the teardown after the switch leaves it alone.
 	daemonStopped := false
+	// A failed fence still MUST drain and save the dialogue before returning.
+	fenceFailed := false
 
 	switch {
 	case awaitStderrSW != nil && rec.AwaitThenStop:
@@ -1262,12 +1264,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// needs no fixed-delay SIGTERM from a fixture (see awaitThenStop).
 		daemonErr, peerErr, fenced := r.awaitThenStop(testCtx, rec, awaitStderrSW, fgProc, peerOutputs, testBudget)
 		if !fenced {
-			// Same repair as the arm below: the report must carry what the
-			// daemon and the peers said, or a failed fence explains nothing.
-			setClientOutput(rec, clientStdout.String(), clientStderr.String())
-			rec.PeerOutput = collectPeerOutput(peerOutputs)
-			rec.Duration = time.Since(rec.StartTime)
-			return false
+			fenceFailed = true
+			daemonStopped = true
+			break
 		}
 		daemonStopped = true
 		// Mirror the two arms this one replaces: an exit-code test asserts the
@@ -1283,16 +1282,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// under test aborts startup and no in-daemon observer can run. On timeout
 		// the helper tears the daemon down and records the failure.
 		if !r.awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs, testBudget) {
-			// The fence expired, and this early return skips the output collection
-			// at the bottom of the function -- so the report used to print "expected
-			// 0 / received 0" and NOTHING the daemon said, which is the one thing
-			// that explains why the needle never arrived (a daemon that died in
-			// startup looks identical to one that is merely slow).
-			// ai/rules/evidence.md: the guard must speak.
-			setClientOutput(rec, clientStdout.String(), clientStderr.String())
-			rec.PeerOutput = collectPeerOutput(peerOutputs)
-			rec.Duration = time.Since(rec.StartTime)
-			return false
+			fenceFailed = true
+			daemonStopped = true
+			break
 		}
 		// The fence is a PRECONDITION of the peer wait, never a replacement for
 		// it. A needle the FIRST reload prints says nothing about the work the
@@ -1339,6 +1331,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// its echo peer to reflect an UPDATE back before `ze` exits), so an earlier
 	// signal would cut the exchange the test measures.
 	terminateScaffoldPeers(peerOutputs)
+	if fenceFailed {
+		// No exchange can complete after its fence failed. Signal check peers
+		// now, before the test deadline can kill them without shutdown output,
+		// and MUST reap them before reading their final pipe bytes.
+		_ = collectReapedPeers(peerOutputs, reapCheckPeers(peerOutputs), 0) //nolint:errcheck // preserve the fence error
+	}
 
 	// Barrier: every peer's output must be complete before anything reads it. Only
 	// the default arm above waits peers; the await=stderr and exit-code arms wait
@@ -1365,6 +1363,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if saveErr := r.saveTestOutput(rec, out, opts.SaveDir); saveErr != nil {
 			logger().Warn("save test output failed", "nick", rec.Nick, "error", saveErr)
 		}
+	}
+	if fenceFailed {
+		return false
 	}
 
 	// Observer sentinel takes precedence in the orchestrated path too.

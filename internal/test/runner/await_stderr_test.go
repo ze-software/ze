@@ -3,7 +3,9 @@ package runner
 import (
 	"context"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -245,6 +247,7 @@ func TestAwaitThenStop(t *testing.T) {
 		require.False(t, ok)
 		require.ErrorContains(t, rec.Error, "stdin=peer never completed")
 		require.NotNil(t, daemon.ProcessState, "a failed fence still stops the daemon")
+		assert.True(t, peers[0].waited, "failed linger fences must settle their existing waiters")
 	})
 
 	t.Run("a needle that never appears fails the fence", func(t *testing.T) {
@@ -312,6 +315,85 @@ func TestDefaultAwaitStderrTimeoutDerivesFromTestBudget(t *testing.T) {
 			if tc.budget > awaitStderrDefaultTimeout {
 				assert.Less(t, got, tc.budget,
 					"above the floor the fence must expire strictly first")
+			}
+		})
+	}
+}
+
+// TestFailedAwaitSavesDialogue runs real child processes through runTest and
+// checks the files a failed fence leaves, including bytes written at shutdown.
+// The failure remains a timeout; saving its dialogue must not turn it green.
+func TestFailedAwaitSavesDialogue(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		thenStop  bool
+		needle    string
+		wantError string
+	}{
+		{name: "plain", needle: "missing", wantError: "never contained"},
+		{name: "then-stop", thenStop: true, needle: "missing", wantError: "never contained"},
+		{name: "unfinished-linger", thenStop: true, needle: "daemon-start", wantError: "never completed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			baseDir := t.TempDir()
+			tests := NewEncodingTests(baseDir)
+			r, err := NewRunner(tests, baseDir)
+			require.NoError(t, err)
+			defer r.Cleanup()
+
+			// These processes exercise runner capture and teardown, not BGP.
+			// Their final lines exist only after SIGTERM, so reading before the
+			// process drain cannot satisfy the saved-content assertions.
+			r.lePath = filepath.Join(baseDir, "peer")
+			require.NoError(t, os.WriteFile(r.lePath, []byte(`#!/bin/sh
+trap 'echo peer-stop; echo peer-stop-error >&2; exit 0' TERM
+echo 'listening on fixture'
+echo peer-start-error >&2
+echo 'msg  recv   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000'
+while :; do sleep 0.01; done
+`), 0o700))
+			r.zePath = filepath.Join(baseDir, "daemon")
+			require.NoError(t, os.WriteFile(r.zePath, []byte(`#!/bin/sh
+trap 'echo daemon-stop; echo daemon-stop-error >&2; exit 0' TERM
+echo daemon-start
+echo daemon-start >&2
+while :; do sleep 0.01; done
+`), 0o700))
+
+			rec := tests.Add(tc.name)
+			rec.Active = true
+			rec.Conf = map[string]any{}
+			rec.Extra = map[string]string{"timeout": "10s"}
+			rec.AwaitStderr = []string{tc.needle}
+			rec.AwaitStderrTimeout = "200ms"
+			rec.AwaitThenStop = tc.thenStop
+			rec.StdinBlocks = map[string][]byte{"peer": []byte("option=linger:value=true\n")}
+			rec.RunCommands = []RunCommand{
+				{Mode: modeBackground, Seq: 1, Exec: "le test peer -", Stdin: "peer"},
+				{Mode: modeBackground, Seq: 2, Exec: "ze start", Ready: "daemon-start"},
+			}
+			saveDir := t.TempDir()
+			require.False(t, r.runTest(t.Context(), rec, &RunOptions{SaveDir: saveDir}))
+			require.ErrorContains(t, rec.Error, tc.wantError)
+			require.Equal(t, stateTimeout, rec.FailureType)
+			const eor = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"
+			require.Equal(t, []string{eor}, rec.ReceivedRaw)
+			require.Contains(t, rec.PeerOutput, "peer-stop-error")
+			require.Contains(t, rec.ClientOutput, "daemon-stop-error")
+
+			saved := filepath.Join(saveDir, rec.Nick+"-"+tc.name)
+			for name, want := range map[string][]string{
+				"peer-stdout.log":   {"listening", "msg  recv", "peer-stop"},
+				"peer-stderr.log":   {"peer-start-error", "peer-stop-error"},
+				"client-stdout.log": {"daemon-start", "daemon-stop"},
+				"client-stderr.log": {"daemon-start", "daemon-stop-error"},
+				"received.txt":      {eor},
+			} {
+				content, err := os.ReadFile(filepath.Join(saved, name))
+				require.NoError(t, err)
+				for _, text := range want {
+					require.Contains(t, string(content), text, name)
+				}
 			}
 		})
 	}

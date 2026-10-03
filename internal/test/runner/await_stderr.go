@@ -207,7 +207,11 @@ func (r *Runner) awaitThenStop(ctx context.Context, rec *Record, sw *syncWriter,
 		rec.Error = fmt.Errorf("await=stderr:then=stop: lingering check peer(s) %s never completed their expectations within %s", strings.Join(pending, ", "), timeout)
 		rec.FailureType = stateTimeout
 		terminateGracefully(fgProc)
-		return nil, nil, false
+		// The fence failed: signal now rather than spending the remaining test
+		// budget waiting for an exchange that cannot complete. MUST settle these
+		// waiters before the caller drains output.
+		peerErr = collectReapedPeers(peers, reaped, 0)
+		return nil, peerErr, false
 	}
 
 	daemonErr = stopAndReap(fgProc)
