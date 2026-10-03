@@ -20,6 +20,8 @@ import (
 // framing, while the stored best is keyed with the withdrawal framing: the
 // gather then keys the Compatibility field into the Route Distinguisher, finds
 // no candidate, and withdraws the route PE B still carries.
+//
+// RFC requirement: RFC8277-2.4-1 positive -- a VPN withdrawal from PE A whose Compatibility field is 0x800000 or 0x000000 removes PE A's route, keeps PE B's, and the best change it publishes promotes PE B rather than withdrawing the route.
 func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
