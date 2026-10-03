@@ -417,6 +417,13 @@ func TestCheckTestFileNamesNeverSuggestsARefusedTarget(t *testing.T) {
 			"internal/sample/rfc5881_linux_test.go", "internal/sample/linux_test.go",
 			"the name its repair takes, internal/sample/linux_test.go, changes which platforms build it",
 			"internal/sample/<topic>_test.go", true},
+		// The offer drops the first stem and keeps the second, so the target is
+		// named for RFC 7311 and carries no tag for it: the rename judges it
+		// with the source's tags and refuses it under part (a).
+		{"untagged named for a second stem", []string{"internal/sample/rfc5881_rfc7311_test.go"},
+			"internal/sample/rfc5881_rfc7311_test.go", "internal/sample/rfc7311_test.go",
+			"the name its repair takes, internal/sample/rfc7311_test.go, fails the test file naming rule",
+			"internal/sample/<topic>_test.go", true},
 	} {
 		t.Run(one.name, func(t *testing.T) {
 			files := map[string]string{}

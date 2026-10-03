@@ -620,7 +620,7 @@ Totals in b3ff2855fb: 26 untagged renamed, 13 untagged marked, 6 mismatches rena
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 6 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
+| Rounds | 7, with rounds 7 and 8 authorised by the owner (Thomas, 2026-10-03) (round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -698,10 +698,20 @@ The two test-only edits need no fixture re-seal, because the fixture digest skip
 | F3 | ISSUE | The rename part (a) offers an untagged stem-named file skipped `repairBlocked`, so `rfc5881_linux_test.go` was offered `linux_test.go`, which every platform builds | `internal/le/rfc/names.go` `judgeTestFileName`, `checkTestFileNames` | Fixed: `nameVerdict.Offer`, `verdictRename`, `repairBlocked` takes the rename. Three part (a) cases (taken, shared, build suffix) in `TestCheckTestFileNamesNeverSuggestsARefusedTarget`, red before the fix. Both sentences of "Test file names" corrected |
 | F4 | NOTE | The b3ff2855fb message miscounted: it says 92 where the count is 94 | commit message | Recorded here, no other action |
 | F5 | NOTE | The two RFC6396-4.4.2-2 records in `rfc/discrimination/rfc6396.json` were sealed over uncommitted text in 5050b3ec88 and never verified | `rfc/discrimination/rfc6396.json` | Recorded: one row in `plan/journal/concurrent-rfc-gate-stale.md` |
-| F6 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
-| F7 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
+| F6 | NOTE | Test FUNCTION names in renamed files still name RFCs their file does not tag (e.g. `TestRFC7606AIGP*` in `rfc7311_aigp_test.go`, `TestRFC3748IKEv2*`, `TestRFC1877Configure*`) | renamed test files | Accepted: the convention covers file names only |
+| F7 | NOTE | The rfc8669 and rfc8277 red probes could not be re-run in review because the reactor and rib builds were broken by concurrent edits; the HEAD producer still did a keyed lookup, so the rfc8277 marker was true at HEAD | `rfc8669_duplicate_tlv_red_test.go`, `rfc8277_addpath_comparable_red_test.go` | Accepted: both probes are now being fixed and retagged by their own specs |
 
 `TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`.
+
+### Round 7 (scope: the round 6 fixes to b3ff2855fb; authorised by the owner, Thomas, 2026-10-03, with round 8)
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| R7-1 | ISSUE | The rename part (a) offers could name an exact `./le rfc rename` command the rename refuses: `repairBlocked` checked taken, shared and build suffix, while `refusePair` also judged the target with the naming rule. An untagged `rfc5881_rfc7311_test.go` was offered `rfc7311_test.go`, named for RFC 7311 with no tag for it | `internal/le/rfc/names.go` `repairBlocked`, `internal/le/rfc/rename.go` `refusePair` | Fixed: one predicate, `judgeRenameTarget`, answers a taken target, a moved build suffix and a target the naming rule refuses for the source's tags and marker; `refusePair` and `repairBlocked` both call it, and `nameVerdict.Source` carries the judged file's tags and marker. Case "untagged named for a second stem" in `TestCheckTestFileNamesNeverSuggestsARefusedTarget`, red before the fix (reviewer probe reproduced). "Test file names" in `docs/contributing/rfc-conformance-gates.md` names the predicate |
+| R7-2 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
+| R7-3 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
+
+Recorded with this round: a stale RFC 8050 comment in `internal/mrt/bgp.go` and a false negative claim in `TestIsAddPathHelpers`, found by the RFC8050-x-4 re-judge 2fbc610996, one row in `plan/journal/comment-describes-superseded-behaviour.md`. `TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`.
 
 ## Phase 2 progress
 

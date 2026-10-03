@@ -419,7 +419,14 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// stem-named file now passes the same refusals as a repair, so a taken,
 	// shared or platform-changing name asks for a hand-chosen topic. Only the
 	// wording of naming findings moved; no record, audit or ledger verdict moved.
-	const want = "51458dfbf7347af35e1941c27056b667615709ea2d71bda0f83bc105f2a597e8"
+	//
+	// Re-sealed 2026-10-03 for review round 7 of the naming rule, over the bytes
+	// that fix commit commits. A naming finding and `./le rfc rename` now judge
+	// a target through one predicate, judgeRenameTarget, so an offered name the
+	// naming rule refuses for the source's tags asks for a hand-chosen topic.
+	// Only the wording of naming findings moved; no record, audit or ledger
+	// verdict moved.
+	const want = "facc89b47f854cd8c86d1cd5daa7d4fe8173e4310dfef21e06b54b8be0ffbc94"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

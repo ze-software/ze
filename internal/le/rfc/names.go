@@ -121,6 +121,9 @@ type nameVerdict struct {
 	// never a Target, because a tag or a marker repairs the file as well, so
 	// `./le rfc rename propose` writes no pair for it.
 	Offer string
+	// Source is the file judged. A rename target is judged with its tags and
+	// its marker (judgeRenameTarget), because the rename moves both with it.
+	Source namedTestFile
 }
 
 // judgeTestFileName applies the naming rule to one file, and false when the
@@ -366,6 +369,7 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 			}
 			file := namedTestFile{Rel: rel, TagStems: stemsByFile[rel], Marker: readNamingMarker(src)}
 			if verdict, refused := judgeTestFileName(file, stems); refused {
+				verdict.Source = file
 				out = append(out, verdict)
 			}
 			return nil
@@ -396,8 +400,9 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 		}
 	}
 	// Read once, and only when a finding names a target, because listing the
-	// platforms runs the toolchain.
-	var platforms []goPlatform
+	// platforms runs the toolchain. TagStems stays unset: a verdict carries its
+	// own source's tags.
+	judged := renameJudgement{Stems: stems, Carriers: carriers}
 	out := make([]string, 0, len(verdicts))
 	for _, verdict := range verdicts {
 		var tb textbuf.Buffer
@@ -407,13 +412,13 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 			out = append(out, tb.String())
 			continue
 		}
-		if platforms == nil {
-			platforms, err = goPlatforms()
+		if judged.Platforms == nil {
+			judged.Platforms, err = goPlatforms()
 			if err != nil {
 				return nil, err
 			}
 		}
-		blocked, err := repairBlocked(tree, verdict.Rel, rename, shared[rename], platforms)
+		blocked, err := repairBlocked(tree, verdict, rename, shared[rename], judged)
 		if err != nil {
 			return nil, err
 		}
@@ -446,24 +451,27 @@ func verdictRename(verdict nameVerdict) string {
 }
 
 // repairBlocked answers why `./le rfc rename` would refuse a verdict's target,
-// and empty when it would take it. The rename refuses a target that exists, a
-// target two files would share, and a target whose build-constraint suffix
-// compiles the file on other platforms than its current name does, so a
-// finding that suggested one of those would name a command that fails.
-// claimants is how many verdicts name the same target.
-func repairBlocked(tree, rel, target string, claimants int, platforms []goPlatform) (string, error) {
-	if _, statErr := os.Lstat(treePath(tree, target)); statErr == nil {
+// and empty when it would take it, so a finding never names a command that
+// fails. The rename's own refusals come from judgeRenameTarget, the predicate
+// refusePair calls too; a target two files would share is the one refusal a
+// single pair cannot see, so claimants is how many verdicts name the target.
+func repairBlocked(tree string, verdict nameVerdict, target string, claimants int,
+	judged renameJudgement) (string, error) {
+	refusal, err := judgeRenameTarget(tree, target, verdict.Source, judged)
+	if err != nil {
+		return "", err
+	}
+	if refusal.Taken {
 		return "the name its repair takes, " + target + ", is taken", nil
 	}
 	if claimants > 1 {
 		return "another file's repair takes the same name, " + target, nil
 	}
-	moves, err := buildSuffixMoves(path.Base(rel), path.Base(target), platforms)
-	if err != nil {
-		return "", err
-	}
-	if moves {
+	if refusal.MovesPlatforms {
 		return "the name its repair takes, " + target + ", changes which platforms build it", nil
+	}
+	if refusal.Misnamed {
+		return "the name its repair takes, " + target + ", fails the test file naming rule", nil
 	}
 	return "", nil
 }

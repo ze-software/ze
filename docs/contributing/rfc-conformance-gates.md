@@ -1310,15 +1310,23 @@ command only when the rename would take that target. When the target exists,
 when two files' renames take the same name, or when the new name changes which
 platforms `go/build` compiles the file for (`linux_test.go` would become
 `rfc5082_linux_test.go`, which builds on Linux alone, and `rfc5881_linux_test.go`
-would become `linux_test.go`, which every platform builds), the finding says so
+would become `linux_test.go`, which every platform builds), or when the naming
+rule refuses the new name for the file's own tags and marker (an untagged
+`rfc5881_rfc7311_test.go` would become `rfc7311_test.go`, named for an RFC it
+never tags), the finding says so
 and asks for a hand-chosen topic, `./le rfc rename from <file> to
 <dir>/<prefix><topic>_test.go`, with no prefix for the untagged file, rather
 than a name that carries the stem twice or a command the rename refuses. An
 untagged file named for its stem alone has no topic to keep, so its finding
 names the `<topic>` form directly. `./le rfc rename propose` leaves a taken or shared
-target out of its plan for the same reason. `./le rfc rename` refuses a target
-through the same predicate.
+target out of its plan for the same reason. The finding and `./le rfc rename`
+judge a target through one predicate, `judgeRenameTarget`, which answers a
+taken name, a moved build suffix and a name the naming rule refuses for the
+source's tags and marker, so a command a finding names is one the rename takes.
+Two files sharing a target is the one refusal a single pair cannot see, and the
+check counts it across its findings.
 <!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, verdictRename, repairBlocked -->
+<!-- source: internal/le/rfc/rename.go -- judgeRenameTarget, refusePair -->
 <!-- source: internal/le/rfc/check.go -- check -->
 
 ## What the ratchets cannot see

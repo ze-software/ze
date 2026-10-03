@@ -176,6 +176,8 @@ func refuseBatchShape(pairs []renamePair) []string {
 
 // renameJudgement is what every pair of one batch is judged against.
 type renameJudgement struct {
+	// TagStems is read by refusePair to judge a pair's source; the naming
+	// check leaves it unset, because each of its verdicts carries its source.
 	TagStems  map[string]map[string]bool
 	Stems     map[string]bool
 	Carriers  []Carrier
@@ -183,10 +185,6 @@ type renameJudgement struct {
 }
 
 // refusePair answers every reason one pair is refused, each naming its path.
-//
-// The naming rule judges a target only where the check judges it: a file
-// CarrierFor holds as a unit carrier (testFileNameVerdicts). A file the check
-// never names cannot be refused a name the check would accept.
 func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	var out []string
 	refuse := func(rel, why string) {
@@ -205,41 +203,78 @@ func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	if path.Dir(pair.Source) != path.Dir(pair.Target) {
 		refuse(pair.Target, "is in another directory than its source; a rename stays in its package")
 	}
-	moves, err := buildSuffixMoves(path.Base(pair.Source), path.Base(pair.Target), judged.Platforms)
-	if err != nil {
-		refuse(pair.Target, err.Error())
-	}
-	if moves {
-		refuse(pair.Target, "changes the GOOS/GOARCH file-name suffix, so another set of platforms would compile it")
-	}
-	if _, err := os.Lstat(treePath(tree, pair.Target)); err == nil {
-		refuse(pair.Target, "already exists")
-	}
 	if why := sourceDiffersFromHead(tree, pair.Source); why != "" {
 		refuse(pair.Source, why)
-	}
-	if len(out) > 0 {
-		return out
-	}
-	if carrier, held := CarrierFor(pair.Target, judged.Carriers); !held || carrier.Kind != kindUnit {
-		return out
 	}
 	src, err := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a cleaned repo-relative path
 	if err != nil {
 		refuse(pair.Source, "cannot be read")
 		return out
 	}
-	file := namedTestFile{Rel: pair.Target, TagStems: judged.TagStems[pair.Source],
+	source := namedTestFile{Rel: pair.Source, TagStems: judged.TagStems[pair.Source],
 		Marker: readNamingMarker(string(src))}
-	if verdict, refused := judgeTestFileName(file, judged.Stems); refused {
+	refusal, err := judgeRenameTarget(tree, pair.Target, source, judged)
+	if err != nil {
+		refuse(pair.Target, err.Error())
+		return out
+	}
+	if refusal.MovesPlatforms {
+		refuse(pair.Target, "changes the GOOS/GOARCH file-name suffix, so another set of platforms would compile it")
+	}
+	if refusal.Taken {
+		refuse(pair.Target, "already exists")
+	}
+	if refusal.Misnamed {
 		var tb textbuf.Buffer
-		why := tb.Str("fails the test file naming rule: ").Str(verdict.Problem)
-		if verdict.Target != "" {
-			why.Str("; expected ").Str(verdict.Target)
+		why := tb.Str("fails the test file naming rule: ").Str(refusal.Naming.Problem)
+		if refusal.Naming.Target != "" {
+			why.Str("; expected ").Str(refusal.Naming.Target)
 		}
 		refuse(pair.Target, why.String())
 	}
 	return out
+}
+
+// targetRefusal is every reason `./le rfc rename` refuses one target that
+// judgeRenameTarget decides. Each is a named outcome, so an accepted target is
+// one with every field false rather than an empty reason.
+type targetRefusal struct {
+	// Taken is set when a file already holds the target's name.
+	Taken bool
+	// MovesPlatforms is set when the target's GOOS/GOARCH suffix compiles the
+	// file on other platforms than the source's name does.
+	MovesPlatforms bool
+	// Misnamed is set when the naming rule refuses the target, and Naming is
+	// then its verdict.
+	Misnamed bool
+	Naming   nameVerdict
+}
+
+// judgeRenameTarget is the one predicate for whether a target may take a
+// source's place: refusePair applies it to every pair, and repairBlocked to
+// every rename a finding would name, so a finding never suggests a target the
+// rename refuses. The target is judged with the source's tags and marker,
+// because the move carries both.
+//
+// The naming rule judges a target only where the check judges it: a file
+// CarrierFor holds as a unit carrier (testFileNameVerdicts). A file the check
+// never names cannot be refused a name the check would accept.
+func judgeRenameTarget(tree, target string, source namedTestFile, judged renameJudgement) (targetRefusal, error) {
+	var refusal targetRefusal
+	moves, err := buildSuffixMoves(path.Base(source.Rel), path.Base(target), judged.Platforms)
+	if err != nil {
+		return targetRefusal{}, err
+	}
+	refusal.MovesPlatforms = moves
+	if _, statErr := os.Lstat(treePath(tree, target)); statErr == nil {
+		refusal.Taken = true
+	}
+	if carrier, held := CarrierFor(target, judged.Carriers); !held || carrier.Kind != kindUnit {
+		return refusal, nil
+	}
+	moved := namedTestFile{Rel: target, TagStems: source.TagStems, Marker: source.Marker}
+	refusal.Naming, refusal.Misnamed = judgeTestFileName(moved, judged.Stems)
+	return refusal, nil
 }
 
 // cleanRepoPath reports whether rel is a clean, relative, slash-separated path
