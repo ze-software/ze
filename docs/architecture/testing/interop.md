@@ -229,6 +229,24 @@ needing a `bgpd` module (`-M bmp` for one that drives Ze's BMP receiver) carries
 its own copy instead of adding the module to every scenario in the suite. Without
 one, the shared `test/interop/daemons` is mounted.
 
+It may also carry an `frr-image` file holding one image reference. Its FRR
+containers then start from that release instead of the suite's FRR (and
+`FRR_IMAGE` does not replace it), and the suite pulls each pinned release once.
+A scenario needs this when the behavior under test exists only in a later FRR:
+`bgp-linklocal-only-multihop-withdraw-frr` pins FRR 10.4.1, the first release
+here that negotiates the Link-Local Next Hop capability (77), because without it
+a different gate withholds the route and the scenario cannot go red. A file
+naming no image, or two, is an error.
+<!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
+<!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
+
+`bgp-linklocal-only-multihop-withdraw-frr` is also the multihop topology on the
+one lab network: FRR's session address is on its loopback (10.255.0.3), outside
+every subnet Ze is attached to, and the checker gives Ze a host route to it
+through FRR. Ze's link scope reads the interface table, not the TTL, so a peer
+on the lab bridge is one hop away whatever `ebgp-multihop` says.
+<!-- source: internal/le/interoplab/bgp/check_linklocal_multihop.go -- checkLinkLocalOnlyMultihopWithdraw -->
+
 A BMP scenario with no `pmbmpd.conf` starts `le test interop-bgp bmp-collector`. Announcement and
 observer process plugins use `le test interop-bgp process <scenario> <plugin>`.
 These personalities are compiled into `le`; no interpreter or source mount

@@ -368,7 +368,11 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		if scenarioDaemons := filepath.Join(scenario, "daemons"); regularFile(scenarioDaemons) {
 			daemons = scenarioDaemons
 		}
-		peers = append(peers, interoplab.PeerConfig{Name: frr.name, Container: containerName(frr.name, suffix), Image: peerFRR, Host: frr.host,
+		image, err := scenarioFRRImage(scenario)
+		if err != nil {
+			return nil, err
+		}
+		peers = append(peers, interoplab.PeerConfig{Name: frr.name, Container: containerName(frr.name, suffix), Image: image, Host: frr.host,
 			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})
 	}
@@ -415,6 +419,52 @@ func readArguments(directory, name string) ([]string, error) {
 		return nil, errors.Join(readErr, closeErr)
 	}
 	return strings.Fields(string(data)), closeErr
+}
+
+// frrImageFile names the FRR release a scenario needs when the suite's image
+// cannot answer it, such as a capability the suite's FRR does not speak. It
+// holds one image reference.
+const frrImageFile = "frr-image"
+
+// scenarioFRRImage returns the logical image name the FRR containers of
+// scenario start from: the suite's FRR, or the release the scenario's
+// frrImageFile pins, which suiteFor pulls under frrImageName.
+func scenarioFRRImage(scenario string) (string, error) {
+	reference, err := scenarioFRRReference(scenario)
+	if err != nil {
+		return "", err
+	}
+	if reference == "" {
+		return peerFRR, nil
+	}
+	return frrImageName(reference), nil
+}
+
+// scenarioFRRReference reads the image reference a scenario's frrImageFile
+// pins. A scenario without the file answers "", which is the suite's image; a
+// file holding anything but one reference is an error, never the suite image.
+func scenarioFRRReference(scenario string) (string, error) {
+	fields, err := readArguments(scenario, frrImageFile)
+	if err != nil {
+		return "", err
+	}
+	if len(fields) == 0 {
+		if regularFile(filepath.Join(scenario, frrImageFile)) {
+			return "", fmt.Errorf("%s in %s names no image", frrImageFile, filepath.Base(scenario))
+		}
+		return "", nil
+	}
+	if len(fields) != 1 {
+		return "", fmt.Errorf("%s in %s names %d images, expected one", frrImageFile, filepath.Base(scenario), len(fields))
+	}
+	return fields[0], nil
+}
+
+// frrImageName is the logical image name of a pinned FRR reference, distinct
+// from peerFRR so the suite's FRR_IMAGE override never replaces a pin.
+func frrImageName(reference string) string {
+	var name textbuf.Buffer
+	return name.Str(peerFRR).Byte('@').Str(reference).String()
 }
 
 func containerName(role, suffix string) string {

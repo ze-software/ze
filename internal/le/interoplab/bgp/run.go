@@ -100,10 +100,14 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 	if err != nil {
 		return interoplab.Suite{}, err
 	}
+	pinned, err := pinnedFRRImages(sources)
+	if err != nil {
+		return interoplab.Suite{}, err
+	}
 	return interoplab.Suite{
 		Docker:    interoplab.NewDocker(),
 		Preflight: interoplab.StageBinaries(root, options.NoBuild, LabBinaries()...),
-		Images: []interoplab.ImageBuild{
+		Images: append([]interoplab.ImageBuild{
 			{Name: "ze", Tag: "ze-interop", Dockerfile: filepath.Join(producer, "Dockerfile.ze"), Context: root, Required: true},
 			{Name: peerBIRD, Tag: "bird-interop", Dockerfile: filepath.Join(producer, "Dockerfile.bird"), Context: producer, Required: true},
 			{Name: peerGoBGP, Tag: "gobgp-interop", Dockerfile: filepath.Join(producer, "Dockerfile.gobgp"), Context: producer},
@@ -111,7 +115,7 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 			{Name: peerStayRTR, Tag: "stayrtr-interop", Dockerfile: filepath.Join(producer, "Dockerfile.stayrtr"), Context: producer},
 			{Name: peerFRR, Tag: environment.Image, Pull: true, Required: true},
 			{Name: peerPMACCT, Tag: defaultPMACCTImage, Pull: true},
-		},
+		}, pinned...),
 		Scenarios: plans,
 		NoBuild:   options.NoBuild,
 	}, nil
@@ -119,4 +123,27 @@ func suiteFor(root string, options Options) (interoplab.Suite, error) {
 
 func setupFailure(err error) interoplab.SuiteReport {
 	return interoplab.SuiteReport{SetupError: err.Error(), Code: 1}
+}
+
+// pinnedFRRImages declares one pulled image for each FRR release a selected
+// scenario pins in its frrImageFile, once per release. Each is optional: a pin
+// that cannot be pulled fails its own scenario, not the rest of the suite.
+func pinnedFRRImages(sources []interoplab.ScenarioSource) ([]interoplab.ImageBuild, error) {
+	var images []interoplab.ImageBuild
+	seen := make(map[string]bool)
+	for _, source := range sources {
+		reference, err := scenarioFRRReference(source.Directory)
+		if err != nil {
+			return nil, err
+		}
+		if reference == "" {
+			continue
+		}
+		if seen[reference] {
+			continue
+		}
+		seen[reference] = true
+		images = append(images, interoplab.ImageBuild{Name: frrImageName(reference), Tag: reference, Pull: true})
+	}
+	return images, nil
 }
