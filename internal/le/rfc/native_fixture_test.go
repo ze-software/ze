@@ -413,7 +413,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// now runs checkTestFileNames over the whole tree, and a finding whose repair
 	// the rename would refuse asks for a hand-chosen topic instead. Only naming
 	// findings moved; no record, audit or ledger verdict moved.
-	const want = "220f2abc1656fdcaf630a0a722c2021b735711c4766e9dd990d0d1cefb7bfbae"
+	//
+	// Re-sealed 2026-10-03 for the review fixes to b3ff2855fb, over the bytes
+	// that fix commit commits. The rename a naming finding offers an untagged
+	// stem-named file now passes the same refusals as a repair, so a taken,
+	// shared or platform-changing name asks for a hand-chosen topic. Only the
+	// wording of naming findings moved; no record, audit or ledger verdict moved.
+	const want = "51458dfbf7347af35e1941c27056b667615709ea2d71bda0f83bc105f2a597e8"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

@@ -116,6 +116,11 @@ type nameVerdict struct {
 	Target  string
 	// Stem is the stem Target is named for, set whenever Target is.
 	Stem string
+	// Offer is the rename part (a) offers an untagged stem-named file, one of
+	// its three repairs, and empty when its topic held nothing to keep. It is
+	// never a Target, because a tag or a marker repairs the file as well, so
+	// `./le rfc rename propose` writes no pair for it.
+	Offer string
 }
 
 // judgeTestFileName applies the naming rule to one file, and false when the
@@ -149,14 +154,14 @@ func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, 
 		return nameVerdict{}, false
 	}
 	var tb textbuf.Buffer
-	suggested := topic
-	if suggested == "test.go" {
-		suggested = "<topic>_test.go"
-	}
 	tb.Str("it is named for ").Str(nameStem).Str(" and carries no tag for it: tag what it ").
 		Str("covers, add `").Str(namingMarkerText).Str(" <reason>`, or name it after what ").
-		Str("it covers (./le rfc rename from ").Str(file.Rel).Str(" to ").Str(dir).Str(suggested).Str(")")
-	return nameVerdict{Rel: file.Rel, Problem: tb.String()}, true
+		Str("it covers")
+	if topic == bareTopic {
+		tb.Str(" (./le rfc rename from ").Str(file.Rel).Str(" to ").Str(dir).Str("<topic>_test.go)")
+		return nameVerdict{Rel: file.Rel, Problem: tb.String()}, true
+	}
+	return nameVerdict{Rel: file.Rel, Problem: tb.String(), Offer: dir + topic}, true
 }
 
 // bareTopic is the topic of a file named for its stem alone, rfcN_test.go.
@@ -374,9 +379,10 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 }
 
 // checkTestFileNames answers one finding per unit test file whose name and RFC
-// tags disagree. A finding with a repair names the exact `./le rfc rename`
-// command that makes it, unless the rename would refuse that target, in which
-// case the finding says a topic must be chosen by hand (repairBlocked).
+// tags disagree. A finding with a repair, or with the rename part (a) offers,
+// names the exact `./le rfc rename` command that makes it, unless the rename
+// would refuse that target, in which case the finding says a topic must be
+// chosen by hand (repairBlocked).
 func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirements []Requirement,
 	stems map[string]bool) ([]string, error) {
 	verdicts, err := testFileNameVerdicts(tree, carriers, tags, requirements, stems)
@@ -385,8 +391,8 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 	}
 	shared := map[string]int{}
 	for _, verdict := range verdicts {
-		if verdict.Target != "" {
-			shared[verdict.Target]++
+		if rename := verdictRename(verdict); rename != "" {
+			shared[rename]++
 		}
 	}
 	// Read once, and only when a finding names a target, because listing the
@@ -396,7 +402,8 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 	for _, verdict := range verdicts {
 		var tb textbuf.Buffer
 		tb.Str(verdict.Rel).Str(": test file name: ").Str(verdict.Problem)
-		if verdict.Target == "" {
+		rename := verdictRename(verdict)
+		if rename == "" {
 			out = append(out, tb.String())
 			continue
 		}
@@ -406,21 +413,36 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 				return nil, err
 			}
 		}
-		blocked, err := repairBlocked(tree, verdict, shared[verdict.Target], platforms)
+		blocked, err := repairBlocked(tree, verdict.Rel, rename, shared[rename], platforms)
 		if err != nil {
 			return nil, err
 		}
 		if blocked != "" {
+			// A part (a) file is renamed off its stem, so its hand-chosen name
+			// carries no prefix; Stem is empty for it.
 			dir, _ := path.Split(verdict.Rel)
+			prefix := ""
+			if verdict.Stem != "" {
+				prefix = stemPrefix(verdict.Stem)
+			}
 			tb.Str(": ").Str(blocked).Str(", so choose its topic by hand: ./le rfc rename from ").
-				Str(verdict.Rel).Str(" to ").Str(dir).Str(stemPrefix(verdict.Stem)).Str("<topic>_test.go")
+				Str(verdict.Rel).Str(" to ").Str(dir).Str(prefix).Str("<topic>_test.go")
 			out = append(out, tb.String())
 			continue
 		}
-		tb.Str(": ./le rfc rename from ").Str(verdict.Rel).Str(" to ").Str(verdict.Target)
+		tb.Str(": ./le rfc rename from ").Str(verdict.Rel).Str(" to ").Str(rename)
 		out = append(out, tb.String())
 	}
 	return out, nil
+}
+
+// verdictRename answers the rename a finding names: the repair when the file
+// has one, else the rename part (a) offers, and empty for neither.
+func verdictRename(verdict nameVerdict) string {
+	if verdict.Target != "" {
+		return verdict.Target
+	}
+	return verdict.Offer
 }
 
 // repairBlocked answers why `./le rfc rename` would refuse a verdict's target,
@@ -429,19 +451,19 @@ func checkTestFileNames(tree string, carriers []Carrier, tags []Tag, requirement
 // compiles the file on other platforms than its current name does, so a
 // finding that suggested one of those would name a command that fails.
 // claimants is how many verdicts name the same target.
-func repairBlocked(tree string, verdict nameVerdict, claimants int, platforms []goPlatform) (string, error) {
-	if _, statErr := os.Lstat(treePath(tree, verdict.Target)); statErr == nil {
-		return "the name its repair takes, " + verdict.Target + ", is taken", nil
+func repairBlocked(tree, rel, target string, claimants int, platforms []goPlatform) (string, error) {
+	if _, statErr := os.Lstat(treePath(tree, target)); statErr == nil {
+		return "the name its repair takes, " + target + ", is taken", nil
 	}
 	if claimants > 1 {
-		return "another file's repair takes the same name, " + verdict.Target, nil
+		return "another file's repair takes the same name, " + target, nil
 	}
-	moves, err := buildSuffixMoves(path.Base(verdict.Rel), path.Base(verdict.Target), platforms)
+	moves, err := buildSuffixMoves(path.Base(rel), path.Base(target), platforms)
 	if err != nil {
 		return "", err
 	}
 	if moves {
-		return "the name its repair takes, " + verdict.Target + ", changes which platforms build it", nil
+		return "the name its repair takes, " + target + ", changes which platforms build it", nil
 	}
 	return "", nil
 }

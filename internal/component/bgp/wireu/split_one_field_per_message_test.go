@@ -1,15 +1,11 @@
 package wireu
 
-// RFC naming: untagged -- proves only that the re-chunk path emits one NLRI-bearing field per message, which is part of RFC7606-5.1-2 and not the whole MUST.
-
-// The tests below prove that the RE-CHUNK path emits one NLRI-bearing field per
-// message. They do NOT prove the full RFC 7606 Section 5.1 second-bullet MUST,
-// because two relay paths still reproduce a received mixed shape (forward_body.go
-// verbatim forward, and its whole emit of a re-encoded destUpdate that fits).
-// Tagging them as proof of RFC7606-5.1-2 overclaims, and `./le rfc check`
-// reports the contradiction against the requirement's surviving {gap} annotation.
-// They stay as regression protection for the narrowed behavior that annotation
-// describes.
+// The tests below pin the re-chunk path, SplitWireUpdate, over one mixed UPDATE:
+// every message it emits carries at most one NLRI-bearing field, withdrawals
+// precede announcements, and no field is lost. They carry no RFC requirement tag:
+// the units that prove RFC7606-5.1-2 are the ones its verdict in
+// rfc/audit/rfc7606.json names. These stay as regression protection for the
+// splitter's ordering and completeness.
 
 import (
 	"encoding/binary"
@@ -25,8 +21,7 @@ import (
 //
 // buildCombinedUpdates used to fill all four into one message per iteration. It now drains
 // each component into its own message. Nothing pinned that before this file, so a refactor
-// could silently restore the violation while docs/features/rfc-status.md and
-// rfc/short/rfc7606.md continued to describe the narrowed behavior.
+// could silently restore the violation.
 
 // nlriBearingFields counts how many of the four NLRI-bearing fields an UPDATE body carries.
 // Returns the count plus which ones, for a readable failure.
@@ -120,8 +115,6 @@ func mixedUpdateBody() []byte {
 // VALIDATES: every UPDATE ze re-chunks carries at most one NLRI-bearing field.
 // PREVENTS: the pre-change buildCombinedUpdates, which packed IPv4 withdrawn, MP_UNREACH,
 // MP_REACH and IPv4 NLRI into a single message per iteration -- four at once.
-//
-// NOT an RFC requirement tag: see the approval note at the top of this file.
 func TestSplitWireUpdateOneNLRIFieldPerMessage(t *testing.T) {
 	body := mixedUpdateBody()
 	before, which := nlriBearingFields(t, body)
@@ -147,8 +140,6 @@ func TestSplitWireUpdateOneNLRIFieldPerMessage(t *testing.T) {
 //
 // Also pins Section 5.1's FIRST bullet ordering choice, which is ze's deliberate divergence
 // (docs/architecture/wire/mp-nlri-ordering.md): MP_UNREACH is emitted before MP_REACH.
-//
-// NOT an RFC requirement tag: see the approval note at the top of this file.
 func TestSplitWireUpdateWithdrawalsPrecedeAnnouncements(t *testing.T) {
 	wu := NewWireUpdate(mixedUpdateBody(), 0)
 	chunks, err := SplitWireUpdate(wu, 120, nil)

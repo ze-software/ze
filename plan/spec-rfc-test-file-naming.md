@@ -478,7 +478,7 @@ Each target stays in its source's directory. Every target was checked absent on 
 
 ### Phase 3 decisions (2026-10-03, each file read)
 
-The armed check over the tree before the repairs reported exactly the 39 + 6 above (45 naming findings, 139 violations against 94). Every file was read; no tag was added, so no discrimination record is owed.
+The armed check over the tree before the repairs reported exactly the 39 + 6 above (45 naming findings, 139 violations against 94). Every file was read; no tag was added in b3ff2855fb, so that commit owed no discrimination record. The review of b3ff2855fb (Review Gate, round 6) corrected two rows below: `mrt/rfc8050_addpath_nlri_red_test.go` carried a false marker and is now tagged with its record, and `bgp/wireu/rfc7606_split_test.go` is renamed to its topic.
 
 | File (directory as in the tables above) | Decision | Reason |
 |------|----------|--------|
@@ -502,7 +502,7 @@ The armed check over the tree before the repairs reported exactly the 39 + 6 abo
 | `bgp/reactor/rfc7705_local_as_announce_test.go` | rename `local_as_announce_test.go` | local-as on the announce rail; no tag |
 | `bgp/reactor/rfc8669_duplicate_tlv_red_test.go` | marker | red defect probe |
 | `bgp/reactor/rfc8950_family_scope_test.go` | rename `extended_next_hop_family_scope_test.go` | which families the RFC 8950 gates cover; no tag |
-| `bgp/wireu/rfc7606_split_test.go` | marker | proves the re-chunk path only, part of RFC7606-5.1-2 |
+| `bgp/wireu/rfc7606_split_test.go` | rename `split_one_field_per_message_test.go` (round 6, F2; was marker) | pins SplitWireUpdate's one-field-per-message, ordering and completeness over one mixed UPDATE; no tag. The marker's reason and the file header claimed RFC7606-5.1-2 keeps a {gap} and two relay paths still reproduce mixed shapes; the row carries no {gap} and `rfc/audit/rfc7606.json` judges it enforced |
 | `ike/crypto/rfc5903_ecp_test.go` | rename `ecp_public_value_test.go` | ECP public value encoding; no tag |
 | `ike/dataplane/rfc7296_ecn_test.go` | marker | mode mapping, not ECN; the RFC7296-2.24 tags sit on `rfc7296_ecn_linux_test.go` and `engine/rfc7296_ecn_test.go` |
 | `ike/engine/rfc7296_invalid_syntax_fatal_test.go` | rename `invalid_syntax_fatal_test.go` | INVALID_SYNTAX ends Ze's own IKE SA; no tag |
@@ -516,7 +516,7 @@ The armed check over the tree before the repairs reported exactly the 39 + 6 abo
 | `l2tp/ppp/rfc1661_invalid_reply_test.go` | rename `ncp_invalid_reply_test.go` | NCP invalid Reject/Nak discard; no tag |
 | `core/eap/rfc7296_method_test.go` | rename `key_deriving_method_test.go` | key-deriving methods accepted; the RFC7296-2.16 proof moved to the engine |
 | `core/eap/rfc9190_peer_indication_test.go` | marker | RFC 9190 §2.5 binds the server; no rfc9190 row binds the peer |
-| `mrt/rfc8050_addpath_nlri_red_test.go` | marker | red defect probe |
+| `mrt/rfc8050_addpath_nlri_red_test.go` | tag RFC8050-x-4 positive, rename `rfc8050_addpath_nlri_test.go` (round 6, F1; was marker) | the marker said ParseBGPMessage ignores the add-path subtype; the test passes since 5050b3ec88, where DecodeBGP4MPMessage sets `AddPath` from IsAddPathBGP4MPSubtype and parseUpdate reads it. Proof: revert record over `internal/mrt/types.go::IsAddPathBGP4MPSubtype` in `rfc/discrimination/rfc8050.json` |
 | `plugins/fib/vpp/rfc9252_srv6_encap_red_test.go` | marker | red defect probe |
 | `plugins/geodns/rfc1035_server_test.go` | marker | pins the absence of the RFC 1035 §3.3.13 floor that RFC 2308 §4 deprecates |
 | `plugins/ospf/rfc5340_checksum_test.go` | rename `ospfv3_checksum_test.go` | OSPFv3 engine finalizes the checksum; no tag |
@@ -528,7 +528,7 @@ The armed check over the tree before the repairs reported exactly the 39 + 6 abo
 | `l2tp/plugins/authradius/rfc2548_mschap2_success_test.go` (mismatch) | rename `rfc2865_mschap2_success_test.go` | tags RFC2865-4.1-3 only |
 | `l2tp/ppp/rfc1877_dns_options_test.go` (mismatch) | rename `rfc1661_dns_options_test.go` | tags RFC1661-5.2/5.4 only; the file says RFC 1877 states neither rule |
 
-Totals: 26 untagged renamed, 13 untagged marked, 6 mismatches renamed, 0 tags added.
+Totals in b3ff2855fb: 26 untagged renamed, 13 untagged marked, 6 mismatches renamed, 0 tags added. After round 6: 28 untagged renamed (one of them also tagged), 11 untagged marked, 6 mismatches renamed, 1 tag added with its record.
 
 ### Critical Review Checklist
 
@@ -620,7 +620,7 @@ Totals: 26 untagged renamed, 13 untagged marked, 6 mismatches renamed, 0 tags ad
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 5 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696) |
+| Rounds | 6 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -688,6 +688,20 @@ Verdict 0 BLOCKER, 1 ISSUE, 6 NOTE.
 | F-7 | NOTE | `config_paths_limit_test.go` would be proposed as `draft_abraitis_idr_addpath_paths_limit_config_paths_limit_test.go` | Phase 2 | Fixed: hand rows for it and for `session_paths_limit_test.go`, which has the same shape |
 
 The two test-only edits need no fixture re-seal, because the fixture digest skips `_test.go`.
+
+### Round 6 (scope: b3ff2855fb, Phase 3: the repairs, the wiring, the doc section)
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| F1 | BLOCKER | The marker on `rfc8050_addpath_nlri_red_test.go` said ParseBGPMessage ignores the add-path subtype; the test passes since 5050b3ec88 | `internal/mrt/` | Fixed: renamed with `./le rfc rename` to `rfc8050_addpath_nlri_test.go`, marker and the "red on purpose" comment removed, tagged `RFC8050-x-4 positive` with a claim scoped to the one record the body reads. Revert record over `IsAddPathBGP4MPSubtype` observed the unit red. The x-4 audit verdict was already STALE at HEAD (it omits the four x-4 tags of the two session-context files) and is left for an independent `/ze-rfc-audit` re-judge, because the author of the new tag does not judge it |
+| F2 | ISSUE | The `rfc7606_split_test.go` header said RFC7606-5.1-2 keeps a {gap} and two relay paths reproduce mixed shapes; the row has no {gap} and the audit says enforced | `internal/component/bgp/wireu/` | Fixed: renamed to `split_one_field_per_message_test.go` (plain move: the file carries no tag and no record names it, and `./le rfc rename` refuses a file that differs from HEAD), marker dropped, header rewritten to what the three tests assert |
+| F3 | ISSUE | The rename part (a) offers an untagged stem-named file skipped `repairBlocked`, so `rfc5881_linux_test.go` was offered `linux_test.go`, which every platform builds | `internal/le/rfc/names.go` `judgeTestFileName`, `checkTestFileNames` | Fixed: `nameVerdict.Offer`, `verdictRename`, `repairBlocked` takes the rename. Three part (a) cases (taken, shared, build suffix) in `TestCheckTestFileNamesNeverSuggestsARefusedTarget`, red before the fix. Both sentences of "Test file names" corrected |
+| F4 | NOTE | The b3ff2855fb message miscounted: it says 92 where the count is 94 | commit message | Recorded here, no other action |
+| F5 | NOTE | The two RFC6396-4.4.2-2 records in `rfc/discrimination/rfc6396.json` were sealed over uncommitted text in 5050b3ec88 and never verified | `rfc/discrimination/rfc6396.json` | Recorded: one row in `plan/journal/concurrent-rfc-gate-stale.md` |
+| F6 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
+| F7 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
+
+`TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`.
 
 ## Phase 2 progress
 

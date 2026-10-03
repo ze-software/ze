@@ -136,6 +136,17 @@
     {
       "rid": "RFC8050-x-4",
       "polarity": "positive",
+      "unit": "internal/mrt/rfc8050_addpath_nlri_test.go::TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype",
+      "unit-sha": "116647365afd511c",
+      "claim-sha": "00a02e15535df735",
+      "route": "revert",
+      "producer": "internal/mrt/types.go::IsAddPathBGP4MPSubtype",
+      "producer-sha": "8db190a4d67e7982",
+      "break": "body of IsAddPathBGP4MPSubtype replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8050-x-4",
+      "polarity": "positive",
       "unit": "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation",
       "unit-sha": "6c62cd2263ea99e2",
       "claim-sha": "ee4d4c66ec1fbb52",

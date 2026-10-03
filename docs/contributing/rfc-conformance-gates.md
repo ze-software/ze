@@ -1286,8 +1286,9 @@ and a name opening `rfc<digits>_` is named for that RFC even when no summary
 exists. A file whose tags cite two or more stems may carry any name that does
 not claim a stem it never tags. Only `_test.go` files the unit carrier holds are
 judged, so interop carriers, `.ci` files, `internal/le/`, `test/draft/`,
-`testdata/` and `vendor/` are not. Each finding names the exact
-`./le rfc rename` command that repairs it, or the marker to write.
+`testdata/` and `vendor/` are not. Each finding names the marker to write, or
+a `./le rfc rename` command: the exact one when the rename would take its
+target, and one whose `<topic>` the reader chooses when it would not.
 
 The repair keeps the old name as its topic, less every spelling of the target
 stem it already carried: the stem itself (`gtsm_rfc5082_linux_test.go` becomes
@@ -1302,17 +1303,22 @@ a file has that name.
 
 `./le rfc check` runs `checkTestFileNames` over the whole tree on every run, not
 only where the enrolled sets of HEAD and HEAD^ meet, because a name and its tags
-disagree whatever the baseline holds. A finding names the `./le rfc rename`
-command that repairs it only when the rename would take that target. When the
-target exists, when two files' repairs take the same name, or when the new name
-changes which platforms `go/build` compiles the file for (`linux_test.go` would
-become `rfc5082_linux_test.go`, which builds on Linux alone), the finding says
-so and asks for a hand-chosen topic, `./le rfc rename from <file> to
-<dir>/<prefix><topic>_test.go`, rather than a name that carries the stem twice or a
-command the rename refuses. `./le rfc rename propose` leaves a taken or shared
+disagree whatever the baseline holds. Two renames are named: the repair of a
+file whose tags cite one other stem, and the rename offered to an untagged file
+named for a stem, which drops the stem and keeps its topic. Either is named as a
+command only when the rename would take that target. When the target exists,
+when two files' renames take the same name, or when the new name changes which
+platforms `go/build` compiles the file for (`linux_test.go` would become
+`rfc5082_linux_test.go`, which builds on Linux alone, and `rfc5881_linux_test.go`
+would become `linux_test.go`, which every platform builds), the finding says so
+and asks for a hand-chosen topic, `./le rfc rename from <file> to
+<dir>/<prefix><topic>_test.go`, with no prefix for the untagged file, rather
+than a name that carries the stem twice or a command the rename refuses. An
+untagged file named for its stem alone has no topic to keep, so its finding
+names the `<topic>` form directly. `./le rfc rename propose` leaves a taken or shared
 target out of its plan for the same reason. `./le rfc rename` refuses a target
 through the same predicate.
-<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, repairBlocked -->
+<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, verdictRename, repairBlocked -->
 <!-- source: internal/le/rfc/check.go -- check -->
 
 ## What the ratchets cannot see
