@@ -757,6 +757,9 @@ bytes for one path), the RFC 6793 mixed-width relay
 AS_TRANS and whose AS4_PATH carries the real four-octet AS number, and requires FRR to report that
 AS number and never 23456; `as-path-prepend-two-octet-peer` turns the direction around, so ze's own
 non-mappable AS is prepended toward an FRR that refused the four-octet AS capability), the
+RFC 8669 Section 6 repeated Prefix-SID TLV (`bgp-prefix-sid-duplicate-tlv-frr` gives ze an SRv6
+L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
+parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the
 Software Version capability (`frr-software-version` holds two sessions to one FRR: peer `legacy`
 sends the length-prefixed form over IPv4 and must reach Established with FRR showing ze's version,
 while peer `draft` sends the draft's bare form over IPv6 and must be refused, with ze recording

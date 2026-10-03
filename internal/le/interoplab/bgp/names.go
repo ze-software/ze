@@ -508,6 +508,27 @@ const (
 	frrShowMixedWidthPrefixJSON = "show bgp ipv4 unicast " + mixedWidthPrefix + " json"
 )
 
+// The bgp-prefix-sid-duplicate-tlv-frr scenario, where a raw injector announces
+// prefixSIDDuplicatePrefix as an SRv6 L3VPN route whose Prefix-SID repeats the
+// SRv6 L3 Service TLV, and ze relays it to FRR over iBGP.
+//
+// prefixSIDDuplicateFirstSID is the SID of the first type-5 TLV, the one
+// RFC 8669 Section 6 keeps, and prefixSIDDuplicateSecondSID the SID of the
+// repeat it discards. Each is spelled the way FRR prints an IPv6 address.
+// prefixSIDDuplicateFRRRefusal is the error FRR's attribute parser logs when a
+// second type-5 TLV reaches it, and prefixSIDDuplicateFRRSessionUp is the
+// adjacency line FRR logs when the session with ze comes up, which proves the
+// log was read before its silence is taken as absence.
+const (
+	prefixSIDDuplicatePrefix       = "10.98.0.0/24"
+	prefixSIDDuplicateFirstSID     = "fc00:0:1:1::"
+	prefixSIDDuplicateSecondSID    = "fc00:0:2:2::"
+	prefixSIDDuplicateFRRRefusal   = "Prefix SID SRv6 L3VPN field repeated"
+	prefixSIDDuplicateFRRSessionUp = "ADJCHANGE"
+
+	frrShowPrefixSIDDuplicatePrefix = "show bgp ipv4 vpn " + prefixSIDDuplicatePrefix
+)
+
 // flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the
 // flowspec scenario lowers, and whose absence proves the rule was withdrawn.
 const flowspecMatchSCTP = "sctp"

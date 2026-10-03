@@ -148,6 +148,49 @@ var scenarioOperations = map[string][]operation{
 		},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 8669 Section 6, judged by FRR. A raw injector announces an SRv6
+	// L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and
+	// ze relays it to FRR over iBGP. "All the occurrences of the TLV other than
+	// the first one SHALL be discarded", and ze does that at ingest.
+	//
+	// THE SESSION AND ROUTE ASSERTIONS ARE THE DISCRIMINATING ONES. FRR's
+	// parser refuses a second type-5 TLV with a NOTIFICATION (UPDATE Message
+	// Error, Malformed Attribute List), so a relay that copied the attribute
+	// as received never holds the session up long enough to deliver the route.
+	// With the discard reverted on 2026-10-03, ze image
+	// sha256:4952f40ee73e69ec338da1a39cb52ba013c794c1ef1067034767b54d9727b420,
+	// the scenario went red at assertion 1: 44 sessions established and
+	// dropped, FRR showing the relayed UPDATE with both type-5 TLVs. The SID
+	// pair then says WHICH TLV survived: the first SID present and the second
+	// absent, read from one answer that also names the prefix. The log absence
+	// comes last and only after FRR logged the adjacency, so silence in an
+	// unread log cannot pass.
+	"bgp-prefix-sid-duplicate-tlv-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: prefixSIDDuplicatePrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},
+		{
+			kind:     opWaitContains,
+			peer:     peerFRR,
+			command:  []string{cmdVtysh, "-c", frrShowPrefixSIDDuplicatePrefix},
+			contains: []string{prefixSIDDuplicatePrefix, prefixSIDDuplicateFirstSID},
+			timeout:  30 * time.Second,
+		},
+		{
+			kind:    opRequireAbsent,
+			peer:    peerFRR,
+			command: []string{cmdVtysh, "-c", frrShowPrefixSIDDuplicatePrefix},
+			absent:  []string{prefixSIDDuplicateSecondSID},
+			proof:   []string{prefixSIDDuplicatePrefix, prefixSIDDuplicateFirstSID},
+		},
+		{
+			kind:    opRequireAbsent,
+			peer:    peerFRR,
+			command: []string{cmdCat, frrLogPath},
+			absent:  []string{prefixSIDDuplicateFRRRefusal},
+			proof:   []string{prefixSIDDuplicateFRRSessionUp},
+		},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	// RFC 6793 Section 4.2.2, judged by FRR rather than by ze's own encoder. Ze
 	// prepends its non-mappable local AS twice toward a peer that refused the
 	// four-octet AS capability, so the segment ze splices into the AS_PATH has
