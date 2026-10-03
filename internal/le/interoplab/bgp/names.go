@@ -246,6 +246,29 @@ const (
 	pmacctStatisticsPeriodic = `test $(grep -c '"bmp_msg_type": "stats"' ` + pmacctMsgLogPath + `) -ge 2 && echo periodic`
 )
 
+// The bgp-addpath-best-path-pmacct scenario. One injector session announces
+// 10.0.0.0/24 under two ADD-PATH identifiers, the MED 10 path first and the
+// MED 50 path second, and pmacct reports what Ze's RFC 9069 Loc-RIB stream says
+// the best is. Each command prints the msglog Route Monitoring lines for the
+// prefix from one RIB, so a needle matched in its output belongs to that RIB:
+// pmacct names it in `bmp_rib_type` (its route lines carry no `peer_type`).
+// When nothing matches yet the command still succeeds while the msglog exists,
+// so a wait reports the rows it saw instead of a failed probe.
+//
+// The paths are told apart by AS_PATH, not by MED: Ze's Loc-RIB Route
+// Monitoring carries ORIGIN, AS_PATH and the next hop and drops MED, so pmacct
+// printed `"med"` on the two Adj-RIB-In rows and on no Loc-RIB row (run of
+// 2026-10-03). The MED 10 path is AS_PATH 65004 65010, the MED 50 path 65004
+// 65050.
+const (
+	pmacctAddPathLocRIBRows = `grep '"bmp_rib_type": "Loc-Rib"' ` + pmacctMsgLogPath +
+		` | grep '"ip_prefix": "10.0.0.0/24"' || test -e ` + pmacctMsgLogPath
+	pmacctAddPathAdjInRows = `grep '"bmp_rib_type": "Adj-Rib-In Pre-Policy"' ` + pmacctMsgLogPath +
+		` | grep '"ip_prefix": "10.0.0.0/24"' || test -e ` + pmacctMsgLogPath
+	pmacctAddPathBetterPath = `"as_path": "65004 65010"`
+	pmacctAddPathWorsePath  = `"as_path": "65004 65050"`
+)
+
 // Prefixes the inject peer announces to the daemon under test. The first
 // carries the standard and extended communities, the second the large
 // community and the withdrawal cases, and the third the extra path.

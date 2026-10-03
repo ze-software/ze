@@ -256,6 +256,32 @@ var scenarioOperations = map[string][]operation{
 	"bfd-simple-password-bird": {
 		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowBFDSessions}, contains: []string{zeLabAddress, birdBFDStateUp}, timeout: 90 * time.Second},
 	},
+	// RFC 7911 Section 2: "a particular path for an address prefix can be
+	// identified by the combination of the address prefix and the Path
+	// Identifier". The identifier names a path and never partitions the
+	// election, so the two paths one session sends for 10.0.0.0/24 meet in ONE
+	// best-path selection and Ze's Loc-RIB holds the better one alone. pmacct
+	// reads that answer out of the RFC 9069 Loc-RIB stream.
+	//
+	// The injector sends MED 10 (path id 2) before MED 50 (path id 1), and the
+	// order is the discrimination: an election per path identifier installs the
+	// later path as the only candidate of its own election, and the Loc-RIB then
+	// reports it. The paths are told apart by AS_PATH (names.go says why). The
+	// first row waits for pmacct to hold both paths on the Adj-RIB-In, so the
+	// absence below is judged after the worse path has arrived, and the delayed
+	// row gives the Loc-RIB report that path would cause time to reach the
+	// collector. The absence carries its proof: the Loc-RIB rows the same
+	// command printed hold the MED 10 best.
+	"bgp-addpath-best-path-pmacct": {
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathAdjInRows},
+			contains: []string{pmacctAddPathBetterPath, pmacctAddPathWorsePath}, timeout: 120 * time.Second},
+		{kind: opWaitContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathLocRIBRows},
+			contains: []string{pmacctAddPathBetterPath}, timeout: 60 * time.Second},
+		{kind: opDelayRequireContains, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathLocRIBRows},
+			contains: []string{pmacctAddPathBetterPath}, delay: 10 * time.Second},
+		{kind: opRequireAbsent, peer: peerPMACCT, command: []string{"sh", "-c", pmacctAddPathLocRIBRows},
+			absent: []string{pmacctAddPathWorsePath}, proof: []string{pmacctAddPathBetterPath}},
+	},
 	scenarioAddPathFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst},

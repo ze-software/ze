@@ -736,7 +736,12 @@ pmacct to print the configured Peer AS, the configured Peer BGP ID, the `global`
 VRF/Table Name TLV and reason code 6 on the Peer Down; `bmp-locrib-receiver-frr`
 turns the direction around, so FRR's `bmpd` drives Ze's BMP receiver and
 `show bmp peers` must report the third party's Loc-RIB peer and its address
-family), PATHS-LIMIT,
+family; `bgp-addpath-best-path-pmacct` has the raw injector announce one prefix
+under two ADD-PATH identifiers, MED 10 then MED 50, and requires pmacct's reading
+of the Loc-RIB stream to carry the MED 10 best and never the MED 50 path, told
+apart by their AS_PATHs since Ze's Loc-RIB Route Monitoring carries no MED, because
+Ze advertises no best path to a BGP peer and the Loc-RIB feed is where a foreign
+implementation can observe its election), PATHS-LIMIT,
 max-prefix cease, a reload of the global router-id (`bgp-reload-global-router-id`
 starts Ze with 10.255.0.1, reloads it to 10.255.0.2, and requires BIRD, a static
 peer, and FRR, which Ze adds after the reload with `create bgp peer`, each to
