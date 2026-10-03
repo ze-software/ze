@@ -599,6 +599,26 @@ Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/disc
 
 | Component | Pairs | SHA | Deferred |
 |-----------|-------|-----|----------|
+| `internal/component/gtsm` | 1 | 0a32d2fa12 | none |
+| `internal/component/iface` | 1 | 4c0b32a9f9 | none |
+| `internal/component/resolve` | 1 | 3f179b497c | none |
+| `internal/plugins/dhcpserver` | 1 | df534fa193 | none |
+| `internal/plugins/tftpserver` | 1 | e85f2c8f66 | none |
+| `internal/plugins/geodns` | 2 | b370d44b11 | none |
+| `internal/plugins/mrt` | 2 | a47fb81e0a | none |
+| `internal/plugins/fib` | 3 | 31636a09f5 | none |
+| `internal/core/eap` | 5 | 9696844f4e | none |
+| `internal/plugins/flowspec-firewall` | 1 | 052811c772 | none |
+| `internal/plugins/iface` | 2 | e0854e9eb8 | none |
+| `internal/component/tacacs` | 4 (1 from the collision table) | 489a1b53a5 | none |
+| `internal/component/ike` | 16 (4 from the collision table) | e52260d978 | none |
+| reseal of the verdicts the comment edits shifted | - | 3168d066aa | - |
+
+Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new. `./le doc check links` stayed at its 12 pre-existing broken references.
+
+→ Constraint (Phase 2): a comment edit in another tagged test file shifts its audit verdicts (`./le rfc reseal` re-stamps them), and one INSIDE a tagged unit stales the verdict, so a mention inside a tagged unit is left on the old name.
+→ Constraint (Phase 2): `./le rfc rename` rewrites citations in `test/weakened/<session>.md`, which `./le commit create` refuses to carry for another session and the link sweep exempts as history; those lines were restored to HEAD. It also rewrites journal rows over the 600-character cap, which `./le commit create` then refuses (`row-too-long`).
+→ Constraint (Phase 2): `propose` keeps an inner stem, so `gtsm_rfc5082_linux_test.go` becomes `rfc5082_gtsm_rfc5082_linux_test.go` (155 of the 494 targets). The collision table assumed the inner stem dropped, so most of its pairs no longer collide.
 
 ## Checklist
 
