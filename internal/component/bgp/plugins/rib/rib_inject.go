@@ -114,7 +114,7 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 			if len(wdBytes) > 0 {
 				withdrawns, _ := nlrisplit.Split(fam, wdBytes, false)
 				for _, wd := range withdrawns {
-					peerRIB.Remove(fam, wd)
+					peerRIB.Withdraw(fam, wd)
 				}
 			}
 		}

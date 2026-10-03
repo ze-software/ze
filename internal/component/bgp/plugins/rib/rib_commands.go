@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -1135,7 +1136,8 @@ func (r *RIBManager) gatherFramedCandidates(fam family.Family, nlriBytes []byte,
 // either case, so the path identifier never partitions the election.
 func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte, addPath bool) []*Candidate {
 	if !storage.IsCIDRFamily(fam) {
-		routeKey, ok := routeKeyOf(nlriBytes, addPath)
+		var scratch [nlrisplit.PrefixKeyScratchSize]byte
+		routeKey, ok := routeIdentity(fam, nlriBytes, addPath, false, scratch[:])
 		if !ok {
 			return nil
 		}
@@ -1197,7 +1199,12 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 
 // gatherKeyCandidatesLocked collects every stored path of the route routeKey
 // names from every peer, for a family whose NLRI is no CIDR prefix. routeKey
-// carries no path identifier. Caller MUST hold r.peerMu.RLock.
+// is a routeIdentity result: no path identifier and no label. Caller MUST hold
+// r.peerMu.RLock.
+//
+// RFC 8277 Section 3.1 compares routes "even if they specify different
+// labels": two PEs announcing one RD and prefix under different labels are
+// paths of ONE route, so the route key never carries the label.
 //
 // RFC 7911 Section 2 makes the path identifier a name for one path of a route,
 // so it does not make a second route: the paths of one ADD-PATH session, and
@@ -1215,7 +1222,7 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 		for i := range paths {
 			path := &paths[i]
 			// Validation keys a route by the NLRI its own session sent.
-			nlri := framedRouteNLRI(nlriBuf[:0], routeKey, path.PathID, peerAddPath)
+			nlri := framedRouteNLRI(nlriBuf[:0], path.Route, path.PathID, peerAddPath)
 			if !r.validationEligible(peer, peerRIB, fam, nlri, path.Entry.MsgID) {
 				continue
 			}
@@ -1227,6 +1234,7 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 			c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), path.Entry)
 			c.PathID = path.PathID
 			c.AddPath = peerAddPath
+			c.Route = path.Route
 			candidates = append(candidates, c)
 		}
 	}

@@ -14,6 +14,7 @@ import (
 	"sort"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -106,7 +107,8 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 			// non-CIDR route key, from every peer in either ADD-PATH mode,
 			// lands on one key, so the route answers with one best (RFC 8277
 			// Section 3.1, RFC 7911 Section 2).
-			identity, ok := routeKeyOf(nlriBytes, addPath[fam])
+			var scratch [nlrisplit.PrefixKeyScratchSize]byte
+			identity, ok := routeIdentity(fam, nlriBytes, addPath[fam], false, scratch[:])
 			if !ok {
 				return true
 			}
@@ -160,8 +162,8 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 				winnerNLRI = candidateNLRI(best, pfx, make([]byte, cidrKeyOctetsMax))
 				rk.prefixS = formatNLRIAsPrefix(rk.fam, winnerNLRI, best.AddPath)
 			}
-		} else if routeKey, ok := routeKeyOf(winnerNLRI, rk.addPath); ok {
-			winnerNLRI = framedRouteNLRI(nil, routeKey, best.PathID, best.AddPath)
+		} else {
+			winnerNLRI = framedRouteNLRI(nil, best.Route, best.PathID, best.AddPath)
 			rk.prefixS = formatNLRIAsPrefix(rk.fam, winnerNLRI, best.AddPath)
 		}
 

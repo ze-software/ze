@@ -15,8 +15,9 @@
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
 //
-// RFC 7911: ADD-PATH path-id is included in route keys when present.
-// Multiple paths to the same prefix with different path-ids are stored separately.
+// RFC 7911: the ADD-PATH path-id names a path of a route, never a second route.
+// Multiple paths to the same prefix with different path-ids are stored separately
+// in the value layer, and one election covers every path of the route.
 package rib
 
 import (
@@ -1127,7 +1128,7 @@ func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 		logger().Warn("pool: withdrawal split error", "peer", peerRIB.PeerAddr(), "family", famStr, "error", err, "parsed", len(withdrawns))
 	}
 	for _, wd := range withdrawns {
-		peerRIB.Remove(fam, wd)
+		peerRIB.Withdraw(fam, wd)
 	}
 	if m := metricsPtr.Load(); m != nil {
 		m.routeWithdrawals.With(peerRIB.PeerAddr(), famStr).Add(float64(len(withdrawns)))

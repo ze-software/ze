@@ -49,6 +49,7 @@ type FamilyRIB struct {
 	multi       *store.Store[pathSet]         // cidr && addPath
 	opaque      map[string]RouteEntry         // !cidr && !addPath
 	opaqueMulti map[string]pathSet            // !cidr && addPath: keyed by the route without its path id
+	wire        map[opaquePath]string         // !cidr: the wire route of each path whose route key drops fields (labels, ESI)
 	labels      *store.Store[attrpool.Handle] // labeled && cidr && !addPath: parallel BART for label handles; under ADD-PATH each pathEntry holds its own
 }
 
@@ -59,6 +60,9 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 		addPath: addPath,
 		cidr:    IsCIDRFamily(fam),
 		labeled: fam.SAFI == family.SAFIMPLSLabel,
+	}
+	if !r.cidr {
+		r.wire = make(map[opaquePath]string)
 	}
 	switch {
 	case !r.cidr && addPath:
@@ -155,11 +159,11 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	attrLen := uint32(len(attrBytes))
 
 	if !r.cidr {
-		pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+		pathID, key, route, ok := r.opaqueRouteKey(nlriBytes, false)
 		if !ok {
 			return
 		}
-		if r.insertOpaqueNoOp(pathID, key, fp, attrLen, 0) {
+		if r.insertOpaqueNoOp(pathID, key, route, fp, attrLen, 0) {
 			return
 		}
 		newEntry, err := ParseAttributes(attrBytes)
@@ -168,7 +172,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		}
 		newEntry.AttrFingerprint = fp
 		newEntry.AttrLen = attrLen
-		r.insertOpaque(pathID, key, newEntry)
+		r.insertOpaque(pathID, key, route, newEntry)
 		return
 	}
 
@@ -229,18 +233,18 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 // copy after all inserts.
 func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, attrLen uint32) {
 	if !r.cidr {
-		pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+		pathID, key, route, ok := r.opaqueRouteKey(nlriBytes, false)
 		if !ok {
 			return
 		}
-		if r.insertOpaqueNoOp(pathID, key, fp, attrLen, entry.MsgID) {
+		if r.insertOpaqueNoOp(pathID, key, route, fp, attrLen, entry.MsgID) {
 			return
 		}
 		clone := entry
 		if err := clone.AddRef(); err != nil {
 			return
 		}
-		r.insertOpaque(pathID, key, clone)
+		r.insertOpaque(pathID, key, route, clone)
 		return
 	}
 
@@ -315,11 +319,29 @@ func (r *FamilyRIB) insertMulti(pfx netip.Prefix, pathID uint32, newEntry RouteE
 	r.multi.Insert(pfx, ps)
 }
 
-// Remove withdraws an NLRI from the RIB. Returns true if the NLRI existed.
+// Remove removes the path an NLRI in announcement framing names, the form a
+// walk hands back. Returns true if the path existed.
 func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 	if !r.cidr {
-		return r.removeOpaque(nlriBytes)
+		return r.removeOpaque(nlriBytes, false)
 	}
+	return r.removeCIDR(nlriBytes)
+}
+
+// Withdraw removes the path a received withdrawal names. Returns true if the
+// path existed. It differs from Remove for a family whose withdrawal frames
+// the route differently: RFC 8277 Section 2.4 puts one Compatibility field
+// where the announcement carried its label stack, and "Upon reception, the
+// value of the Compatibility field MUST be ignored."
+func (r *FamilyRIB) Withdraw(nlriBytes []byte) bool {
+	if !r.cidr {
+		return r.removeOpaque(nlriBytes, true)
+	}
+	return r.removeCIDR(nlriBytes)
+}
+
+// removeCIDR removes the path of a CIDR prefix an NLRI names.
+func (r *FamilyRIB) removeCIDR(nlriBytes []byte) bool {
 
 	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
 	if !ok {
@@ -377,9 +399,14 @@ func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 // PrefixPath is one stored path of a route, a CIDR prefix or a non-CIDR route
 // key: the path identifier it was received under and its route. PathID is zero
 // for a family stored without ADD-PATH, where the route alone names the path.
+//
+// Route is the wire NLRI a non-CIDR path was received with, without its path
+// identifier: the labels a route key drops live here, so every read of what
+// the path carries goes through it. It is empty for a CIDR prefix.
 type PrefixPath struct {
 	PathID uint32
 	Entry  RouteEntry
+	Route  string
 }
 
 // appendPrefixPaths appends every path stored for pfx to dst and returns the

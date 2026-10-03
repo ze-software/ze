@@ -781,7 +781,18 @@ remain.
 Other non-CIDR families take the same opaque-map backend `FamilyRIB` does, for the
 same reason: its NLRI leads with a label stack and a Route Distinguisher, or
 with a route type, so `store.NLRIToPrefix` names no `netip.Prefix` for it. The
-key is the route key: the wire bytes without the ADD-PATH path identifier. Under
+key is the route key: the wire bytes without the ADD-PATH path identifier, less
+every field the family's registered key operation (`nlrisplit.GetPrefixKey`)
+says does not identify the route (`storage.RouteKey`). A VPN route loses its
+label stack, an EVPN route its labels, ESI and gateway, so two PEs announcing
+one RD and prefix under two labels are two paths of one route (RFC 8277
+Section 3.1), a relabel replaces the route (Section 2.5), and a withdrawal whose
+label field is the Compatibility value is read with the withdrawal framing
+(`FamilyRIB.Withdraw`, Section 2.4). The wire route each path was received with,
+labels included, is kept beside the key (`FamilyRIB.wire`, only for a route
+whose key differs from it), and every walk, `PrefixPath.Route`,
+`Candidate.Route` and the stored best (`opaqueBestPrev`) read the labels from
+there. Under
 ADD-PATH `FamilyRIB` keeps a `pathSet` per route key (`opaqueMulti`), as it does
 per CIDR prefix, so the path identifier names a path of the route and never a
 second route (RFC 7911 Section 2). `PeerRIB.AppendKeyPaths` hands every path of
@@ -789,7 +800,7 @@ the key to `gatherKeyCandidatesLocked`, which asks every peer by the route key,
 so the paths of one ADD-PATH session and the same route from a session without
 ADD-PATH meet in one election. A walk hands each path back framed as its
 session sent it. In `FamilyRIB`, a FlowSpec key uses the shortest length field,
-so both framings of one rule share one stored route (`opaqueKey`), and
+so both framings of one rule share one stored route (`storage.RouteKey`), and
 `storage.IsCIDRFamily` is the one predicate both stores partition by. Such a
 route is published on `(bgp-rib, best-change)` through
 `ribevents.BestChangeEntry.NLRI`, the winner's own wire NLRI with `AddPath` and
@@ -805,7 +816,8 @@ backends; `FamilyRIB` retains its two build-tagged files
 <!-- source: internal/core/rib/store/store_bart.go -- Store[T] default BART+map dispatch -->
 <!-- source: internal/core/rib/store/store_map.go -- Store[T] map-only under maprib -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore picks BART or opaque map per family -->
-<!-- source: internal/component/bgp/plugins/rib/storage/familyrib_opaque.go -- opaqueRouteKey, appendKeyPaths -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib_opaque.go -- opaqueRouteKey, RouteKey, routeNLRI, appendKeyPaths -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetPrefixKey -->
 
 `bestPathRecord` is a named `uint64` -- four 16-bit fields (MetricIdx,
 PeerIdx, NextHopIdx, Flags bit 0 = isEBGP) packed into one scalar. The

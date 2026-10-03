@@ -145,6 +145,17 @@
       "break": "body of WriteLabelStack replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8277-2.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute",
+      "unit-sha": "87a00626980c99de",
+      "claim-sha": "9aea71d210935925",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib_opaque.go::RouteKey",
+      "producer-sha": "f74a828a006cd4b6",
+      "break": "body of RouteKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8277-2.5-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath",
@@ -176,6 +187,17 @@
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesLocked",
       "producer-sha": "27bd98677c852b43",
       "break": "body of gatherPrefixCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go::TestRFC8277VPNAddPathLabelsAreOneElection",
+      "unit-sha": "2dd8af54316f3868",
+      "claim-sha": "5fe736b392a0397d",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherKeyCandidatesLocked",
+      "producer-sha": "c6b0c338204e6286",
+      "break": "body of gatherKeyCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8277-3.2.1-1",

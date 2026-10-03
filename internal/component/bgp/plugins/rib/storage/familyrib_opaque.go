@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"slices"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -19,9 +20,11 @@ import (
 const opaqueFrameOctetsInitial = 64
 
 // opaqueRouteKey splits one wire NLRI of a non-CIDR family into the path
-// identifier its session sent and the route key that names the route. Without
-// ADD-PATH the identifier is zero and the whole NLRI is the route. Returns false
-// for an ADD-PATH NLRI too short to carry its identifier.
+// identifier its session sent, the route key that names the route, and the
+// route's own wire NLRI without the identifier. Without ADD-PATH the
+// identifier is zero. withdraw says the NLRI came from a withdrawal, whose
+// framing RouteKey reads differently. Returns false for an ADD-PATH NLRI too
+// short to carry its identifier.
 //
 // RFC 7911 Section 3: "the assignment of the Path Identifier for a path by a
 // BGP speaker is purely a local matter", and Section 2 identifies a path by
@@ -29,46 +32,109 @@ const opaqueFrameOctetsInitial = 64
 // identifier names a path of the route, so it is held in the value layer and
 // never in the map key: two paths of one route on one session, or one route
 // from sessions with and without ADD-PATH, are then one map entry.
-func (r *FamilyRIB) opaqueRouteKey(nlriBytes []byte) (uint32, string, bool) {
-	if !r.addPath {
-		return 0, opaqueKey(r.fam, nlriBytes), true
+func (r *FamilyRIB) opaqueRouteKey(nlriBytes []byte, withdraw bool) (uint32, string, []byte, bool) {
+	var pathID uint32
+	route := nlriBytes
+	if r.addPath {
+		if len(nlriBytes) < 4 {
+			return 0, "", nil, false
+		}
+		pathID = binary.BigEndian.Uint32(nlriBytes)
+		route = nlriBytes[4:]
 	}
-	if len(nlriBytes) < 4 {
-		return 0, "", false
-	}
-	return binary.BigEndian.Uint32(nlriBytes), opaqueKey(r.fam, nlriBytes[4:]), true
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	return pathID, string(RouteKey(r.fam, route, scratch[:], withdraw)), route, true
 }
 
-// opaqueKey returns the map identity of one route key, an NLRI without a path
-// identifier. It is the whole key, except that FlowSpec takes the shortest
-// length encoding: RFC 8955 Section 4 lets a rule under 240 octets use either
-// length field, and both name one rule, so a replacement or a withdrawal in the
-// other framing MUST reach the stored route. The identity stays valid wire
-// NLRI, because a walk hands it back to callers as NLRI bytes.
-func opaqueKey(fam family.Family, key []byte) string {
-	if !ribevents.IsFlowSpec(fam) {
-		return string(key)
+// RouteKey returns the identity of one route of a non-CIDR family: its wire
+// NLRI without the path identifier, less every field the family's registered
+// key operation (nlrisplit.GetPrefixKey) says does not identify the route. A
+// VPN route loses its label stack, an EVPN route its labels, ESI and gateway.
+// withdraw says route came from a withdrawal, whose label field the key
+// operation reads as a Compatibility field. The result aliases route or
+// scratch, which MUST hold nlrisplit.PrefixKeyScratchSize octets.
+//
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." RFC 8277 Section 2.5 binds a new label to the same prefix
+// when the label changes, so the label never names a second route.
+//
+// FlowSpec keeps its own canonical form, which stays valid wire NLRI: RFC 8955
+// Section 4 lets a rule under 240 octets use either length field, and both
+// name one rule, so a replacement or a withdrawal in the other framing MUST
+// reach the stored route. A route the key operation refuses keeps its whole
+// wire form as its identity: the splitter already accepted its framing, and no
+// field of it can then be shown not to identify it.
+func RouteKey(fam family.Family, route, scratch []byte, withdraw bool) []byte {
+	if ribevents.IsFlowSpec(fam) {
+		// FlowSpecKey answers "" for a malformed length. The splitter already
+		// refused such an NLRI, so the whole wire form stays its own identity.
+		canonical := ribevents.FlowSpecKey(route)
+		if canonical == "" {
+			return route
+		}
+		return []byte(canonical)
 	}
-	// FlowSpecKey answers "" for a malformed length. The splitter already
-	// refused such an NLRI, so the whole wire form stays its own identity.
-	canonical := ribevents.FlowSpecKey(key)
-	if canonical == "" {
-		return string(key)
+	key, err := nlrisplit.GetPrefixKey(fam)(route, scratch, withdraw)
+	if err != nil {
+		return route
 	}
-	return canonical
+	return key
+}
+
+// opaquePath names one stored path of a non-CIDR route: its route key and its
+// path identifier, zero without ADD-PATH.
+type opaquePath struct {
+	key    string
+	pathID uint32
+}
+
+// routeNLRI returns the wire NLRI the path (pathID, key) was received with,
+// without its path identifier. It is the key itself for a route every field of
+// which identifies it, which holds no entry in r.wire.
+func (r *FamilyRIB) routeNLRI(pathID uint32, key string) string {
+	if len(r.wire) == 0 {
+		return key
+	}
+	if route, ok := r.wire[opaquePath{key: key, pathID: pathID}]; ok {
+		return route
+	}
+	return key
+}
+
+// setRouteNLRI records the wire NLRI the path (pathID, key) was last received
+// with. A route equal to its key needs no record, and any earlier one goes.
+//
+// RFC 8277 Section 2.5: "If I1 is the same as I2, UPDATE U2 MUST be
+// interpreted as meaning that L2 is now bound to P at N1 and that L1 is no
+// longer bound to P at N1." The latest UPDATE's labels replace the stored ones.
+func (r *FamilyRIB) setRouteNLRI(pathID uint32, key string, route []byte) {
+	path := opaquePath{key: key, pathID: pathID}
+	if string(route) == key {
+		delete(r.wire, path)
+		return
+	}
+	if stored, ok := r.wire[path]; ok && stored == string(route) {
+		return
+	}
+	r.wire[path] = string(route)
 }
 
 // appendFramedKey appends to dst the NLRI an ADD-PATH session names one path
-// by: the path identifier, then the route key.
-func appendFramedKey(dst []byte, pathID uint32, key string) []byte {
+// by: the path identifier, then the route.
+func appendFramedKey(dst []byte, pathID uint32, route string) []byte {
 	dst = binary.BigEndian.AppendUint32(dst, pathID)
-	return append(dst, key...)
+	return append(dst, route...)
 }
 
 // insertOpaqueNoOp checks whether the path (pathID, key) is stored with a
-// matching fingerprint and length. If so, it refreshes stale state and
-// received ownership and reports true: the UPDATE re-announced the same route.
-func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, fp uint64, attrLen uint32, messageID uint64) bool {
+// matching fingerprint and length and was received as the same wire route. If
+// so, it refreshes stale state and received ownership and reports true: the
+// UPDATE re-announced the same route. A new label stack under equal attributes
+// is a replacement (RFC 8277 Section 2.5), never a no-op.
+func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp uint64, attrLen uint32, messageID uint64) bool {
+	if r.routeNLRI(pathID, key) != string(route) {
+		return false
+	}
 	if r.addPath {
 		ps, exists := r.opaqueMulti[key]
 		if !exists {
@@ -100,10 +166,12 @@ func fingerprintMatches(entry RouteEntry, fp uint64, attrLen uint32) bool {
 	return entry.AttrFingerprint != 0 && entry.AttrFingerprint == fp && entry.AttrLen == attrLen
 }
 
-// insertOpaque upserts newEntry as the path (pathID, key). Equal attributes
-// keep the stored entry and release the new one, the same short-circuit the
-// CIDR backends apply.
-func (r *FamilyRIB) insertOpaque(pathID uint32, key string, newEntry RouteEntry) {
+// insertOpaque upserts newEntry as the path (pathID, key), received as the
+// wire route. Equal attributes keep the stored entry and release the new one,
+// the same short-circuit the CIDR backends apply; the wire route is recorded
+// either way, because it carries the path's labels.
+func (r *FamilyRIB) insertOpaque(pathID uint32, key string, route []byte, newEntry RouteEntry) {
+	r.setRouteNLRI(pathID, key, route)
 	if r.addPath {
 		ps := r.opaqueMulti[key]
 		if oldEntry, have := ps.lookup(pathID); have && entriesEqual(oldEntry, newEntry) {
@@ -131,13 +199,14 @@ func (r *FamilyRIB) insertOpaque(pathID uint32, key string, newEntry RouteEntry)
 	r.opaque[key] = newEntry
 }
 
-// removeOpaque withdraws one path of a non-CIDR route. Returns true when the
-// path existed.
-func (r *FamilyRIB) removeOpaque(nlriBytes []byte) bool {
-	pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+// removeOpaque removes one path of a non-CIDR route. withdraw says nlriBytes
+// came from a withdrawal (opaqueRouteKey). Returns true when the path existed.
+func (r *FamilyRIB) removeOpaque(nlriBytes []byte, withdraw bool) bool {
+	pathID, key, _, ok := r.opaqueRouteKey(nlriBytes, withdraw)
 	if !ok {
 		return false
 	}
+	delete(r.wire, opaquePath{key: key, pathID: pathID})
 	if !r.addPath {
 		entry, exists := r.opaque[key]
 		if !exists {
@@ -167,7 +236,7 @@ func (r *FamilyRIB) removeOpaque(nlriBytes []byte) bool {
 // lookupOpaque returns a copy of the entry stored for one path of a non-CIDR
 // route, with lookupEntry's contract.
 func (r *FamilyRIB) lookupOpaque(nlriBytes []byte) (RouteEntry, bool) {
-	pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+	pathID, key, _, ok := r.opaqueRouteKey(nlriBytes, false)
 	if !ok {
 		return RouteEntry{}, false
 	}
@@ -183,10 +252,11 @@ func (r *FamilyRIB) lookupOpaque(nlriBytes []byte) (RouteEntry, bool) {
 }
 
 // appendKeyPaths appends every path stored for the route key to dst and
-// returns the extended slice. key carries no path identifier, whatever framing
-// the session that triggered the lookup uses. Without ADD-PATH the route holds
-// at most one path, under path identifier zero. A CIDR family appends nothing:
-// its routes are asked by prefix (appendPrefixPaths).
+// returns the extended slice. key is a RouteKey result: no path identifier,
+// whatever framing the session that triggered the lookup uses, and no label.
+// Each path carries the wire route it was received with. Without ADD-PATH the
+// route holds at most one path, under path identifier zero. A CIDR family
+// appends nothing: its routes are asked by prefix (appendPrefixPaths).
 //
 // The entries are copies whose pool handles are NOT retained, lookupEntry's
 // contract.
@@ -194,10 +264,10 @@ func (r *FamilyRIB) appendKeyPaths(key []byte, dst []PrefixPath) []PrefixPath {
 	if r.cidr {
 		return dst
 	}
-	identity := opaqueKey(r.fam, key)
+	identity := string(key)
 	if !r.addPath {
 		if entry, ok := r.opaque[identity]; ok {
-			dst = append(dst, PrefixPath{Entry: entry})
+			dst = append(dst, PrefixPath{Entry: entry, Route: r.routeNLRI(0, identity)})
 		}
 		return dst
 	}
@@ -206,7 +276,8 @@ func (r *FamilyRIB) appendKeyPaths(key []byte, dst []PrefixPath) []PrefixPath {
 		return dst
 	}
 	for i := range ps.entries {
-		dst = append(dst, PrefixPath{PathID: ps.entries[i].pathID, Entry: ps.entries[i].entry})
+		pathID := ps.entries[i].pathID
+		dst = append(dst, PrefixPath{PathID: pathID, Entry: ps.entries[i].entry, Route: r.routeNLRI(pathID, identity)})
 	}
 	return dst
 }
@@ -225,13 +296,14 @@ func (r *FamilyRIB) opaqueLen() int {
 }
 
 // modifyAllOpaque calls fn with each stored path's NLRI and a pointer to its
-// entry, and writes the entry back. Under ADD-PATH the NLRI is framed with the
-// path identifier, the form the session sent it in. The NLRI is valid for the
+// entry, and writes the entry back. The NLRI is the wire route the path was
+// received with, labels included; under ADD-PATH it is framed with the path
+// identifier, the form the session sent it in. The NLRI is valid for the
 // duration of that callback only. fn MUST NOT add or remove routes.
 func (r *FamilyRIB) modifyAllOpaque(fn func(nlriBytes []byte, entry *RouteEntry)) {
 	if !r.addPath {
 		for key, entry := range r.opaque {
-			fn([]byte(key), &entry)
+			fn([]byte(r.routeNLRI(0, key)), &entry)
 			r.opaque[key] = entry
 		}
 		return
@@ -239,14 +311,16 @@ func (r *FamilyRIB) modifyAllOpaque(fn func(nlriBytes []byte, entry *RouteEntry)
 	frame := make([]byte, 0, opaqueFrameOctetsInitial)
 	for key, ps := range r.opaqueMulti {
 		for i := range ps.entries {
-			frame = appendFramedKey(frame[:0], ps.entries[i].pathID, key)
+			pathID := ps.entries[i].pathID
+			frame = appendFramedKey(frame[:0], pathID, r.routeNLRI(pathID, key))
 			fn(frame, &ps.entries[i].entry)
 		}
 	}
 }
 
-// releaseOpaque releases every non-CIDR path and empties both maps.
+// releaseOpaque releases every non-CIDR path and empties every map.
 func (r *FamilyRIB) releaseOpaque() {
+	clear(r.wire)
 	for key, entry := range r.opaque {
 		entry.Release()
 		delete(r.opaque, key)
@@ -260,7 +334,7 @@ func (r *FamilyRIB) releaseOpaque() {
 // modifyOpaque calls fn with a pointer to the entry for one path of a
 // non-CIDR route. Returns false if the path is not stored.
 func (r *FamilyRIB) modifyOpaque(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
-	pathID, key, ok := r.opaqueRouteKey(nlriBytes)
+	pathID, key, _, ok := r.opaqueRouteKey(nlriBytes, false)
 	if !ok {
 		return false
 	}
@@ -289,6 +363,7 @@ func (r *FamilyRIB) purgeStaleOpaque() int {
 		if entry.StaleLevel > StaleLevelFresh {
 			entry.Release()
 			delete(r.opaque, key)
+			delete(r.wire, opaquePath{key: key})
 			purged++
 		}
 	}
@@ -302,6 +377,7 @@ func (r *FamilyRIB) purgeStaleOpaque() int {
 			removed, ok := ps.remove(path.pathID)
 			if ok {
 				removed.Release()
+				delete(r.wire, opaquePath{key: key, pathID: path.pathID})
 				purged++
 			}
 		}
@@ -321,7 +397,7 @@ func (r *FamilyRIB) purgeStaleOpaque() int {
 func (r *FamilyRIB) iterateOpaque(fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	if !r.addPath {
 		for key, entry := range r.opaque {
-			if !fn([]byte(key), entry) {
+			if !fn([]byte(r.routeNLRI(0, key)), entry) {
 				return
 			}
 		}
@@ -330,7 +406,8 @@ func (r *FamilyRIB) iterateOpaque(fn func(nlriBytes []byte, entry RouteEntry) bo
 	frame := make([]byte, 0, opaqueFrameOctetsInitial)
 	for key, ps := range r.opaqueMulti {
 		for i := range ps.entries {
-			frame = appendFramedKey(frame[:0], ps.entries[i].pathID, key)
+			pathID := ps.entries[i].pathID
+			frame = appendFramedKey(frame[:0], pathID, r.routeNLRI(pathID, key))
 			if !fn(frame, ps.entries[i].entry) {
 				return
 			}

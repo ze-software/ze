@@ -116,6 +116,10 @@ type Candidate struct {
 	// AddPath false, for a family received without ADD-PATH.
 	PathID  uint32
 	AddPath bool
+	// Route is the wire NLRI a non-CIDR path was received with, without its
+	// path identifier (storage.PrefixPath.Route). Its route key drops the
+	// labels, so the winner's labels are read from here. Empty for CIDR.
+	Route string
 }
 
 // SelectBest selects the best route from a list of candidates.

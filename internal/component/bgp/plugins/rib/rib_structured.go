@@ -61,10 +61,14 @@ func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 }
 
 // affectedPrefix tracks a prefix that was inserted or removed for best-path checking.
+//
+// withdraw says nlriBytes was split from a withdrawal, whose route key is read
+// with the withdrawal framing (checkRouteBestChange).
 type affectedPrefix struct {
 	fam       family.Family
 	nlriBytes []byte
 	addPath   bool
+	withdraw  bool
 }
 
 // handleReceivedStructured processes received UPDATE events from wire types.
@@ -214,8 +218,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 					if isLabeled {
 						r.removeLabeled(peerRIB, fam, wd, addPath, &affected)
 					} else {
-						peerRIB.Remove(fam, wd)
-						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath})
+						// RFC 8277 Section 2.4: a withdrawal frames its label
+						// field as a Compatibility field, read as such.
+						peerRIB.Withdraw(fam, wd)
+						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath, withdraw: true})
 					}
 				}
 			}
@@ -317,7 +323,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	var multiFam map[family.Family][]bestChangeEntry
 
 	for _, ap := range affected {
-		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath, forward)
+		change, ok := r.checkRouteBestChange(ap.fam, ap.nlriBytes, ap.addPath, ap.withdraw, forward)
 		if !ok {
 			continue
 		}

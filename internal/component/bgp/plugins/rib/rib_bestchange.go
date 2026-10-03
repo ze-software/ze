@@ -434,7 +434,7 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action routeaction.A
 type bestPrevStore struct {
 	cidr   bool
 	direct *store.Store[bestPrevRecord] // cidr: one record per prefix
-	opaque map[string]bestPrevRecord    // !cidr: one record per wire NLRI
+	opaque map[string]opaqueBestPrev    // !cidr: one record per route key (routeIdentity)
 }
 
 // bestPrevRecord is the stored best path of one route: the packed winner and
@@ -447,12 +447,23 @@ type bestPrevRecord struct {
 	addPath bool
 }
 
+// opaqueBestPrev is the stored best of one non-CIDR route: the record, and
+// the winner's wire NLRI without its path identifier. The route key drops the
+// labels (routeIdentity), so the wire route is kept beside the record: a
+// best-change published for the route names it as the winner's session sent
+// it, labels included. Kept out of bestPrevRecord so the CIDR store's records
+// still hold no pointer.
+type opaqueBestPrev struct {
+	prev  bestPrevRecord
+	route string
+}
+
 // newBestPrevStore creates a bestPrevStore for a family: a BART store for a
 // CIDR family, the opaque map for every other one. Every reader below branches
 // on cidr first.
 func newBestPrevStore(fam family.Family) *bestPrevStore {
 	if !storage.IsCIDRFamily(fam) {
-		return &bestPrevStore{opaque: make(map[string]bestPrevRecord)}
+		return &bestPrevStore{opaque: make(map[string]opaqueBestPrev)}
 	}
 	return &bestPrevStore{
 		cidr:   true,
@@ -479,20 +490,22 @@ func parsePrevKey(fam family.Family, nlriBytes []byte, addPath bool) (uint32, ne
 }
 
 // lookup returns the previously-recorded best path: by pfx for a CIDR family,
-// by nlriBytes for every other one.
-func (s *bestPrevStore) lookup(pfx netip.Prefix, nlriBytes []byte) (bestPrevRecord, bool) {
+// by route key for every other one, with the winner's wire route (empty for
+// a CIDR prefix).
+func (s *bestPrevStore) lookup(pfx netip.Prefix, routeKey []byte) (bestPrevRecord, string, bool) {
 	if !s.cidr {
-		rec, ok := s.opaque[string(nlriBytes)]
-		return rec, ok
+		best, ok := s.opaque[string(routeKey)]
+		return best.prev, best.route, ok
 	}
-	return s.direct.Lookup(pfx)
+	rec, ok := s.direct.Lookup(pfx)
+	return rec, "", ok
 }
 
-// insert stores rec under the same key lookup reads. Overwrites any previous
-// record at that key.
-func (s *bestPrevStore) insert(pfx netip.Prefix, nlriBytes []byte, rec bestPrevRecord) {
+// insert stores rec, and for a non-CIDR route the winner's wire route, under
+// the same key lookup reads. Overwrites any previous record at that key.
+func (s *bestPrevStore) insert(pfx netip.Prefix, routeKey []byte, rec bestPrevRecord, route string) {
 	if !s.cidr {
-		s.opaque[string(nlriBytes)] = rec
+		s.opaque[string(routeKey)] = opaqueBestPrev{prev: rec, route: route}
 		return
 	}
 	s.direct.Insert(pfx, rec)
@@ -568,14 +581,15 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 				// during the range is defined in Go, so no victim list is
 				// needed. No locrib.Remove: the mirror never ran for these
 				// families (see mirrorToLocRIB).
-				for key, rec := range sh.store.opaque {
+				for key, best := range sh.store.opaque {
+					rec := best.prev
 					if rec.rec.peerIdx() != peerIdx {
 						continue
 					}
 					delete(sh.store.opaque, key)
 					changes = append(changes, bestChangeEntry{
 						Action:  ribevents.BestChangeWithdraw,
-						NLRI:    framedRouteNLRI(nil, []byte(key), rec.pathID, rec.addPath),
+						NLRI:    framedRouteNLRI(nil, best.route, rec.pathID, rec.addPath),
 						AddPath: rec.addPath,
 						PathID:  rec.pathID,
 					})
@@ -696,6 +710,13 @@ func parseNextHopAddr(data []byte) netip.Addr {
 //     mutation).
 //  3. Intern the winner's fields, pack, store, and emit.
 func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
+	return r.checkRouteBestChange(fam, nlriBytes, addPath, false, forward)
+}
+
+// checkRouteBestChange is checkBestPathChange for an NLRI whose framing the
+// caller states: withdraw says nlriBytes was split from a received withdrawal,
+// whose label field is a Compatibility field (RFC 8277 Section 2.4).
+func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, addPath, withdraw bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
 	if ribevents.IsFlowSpec(fam) {
 		r.reconcileFlowSpecs()
 		return bestChangeEntry{}, false
@@ -714,10 +735,13 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// stack and a Route Distinguisher, or with a route type. Its route key, the
 	// wire bytes without the path identifier, keys the election and the record
 	// instead, for the same RFC 7911 reason: the Adj-RIB-In stores every path of
-	// the route under that key (storage.FamilyRIB.opaqueRouteKey).
+	// the route under that key (storage.FamilyRIB.opaqueRouteKey). The key
+	// carries no label either (storage.RouteKey), so a relabel replaces the
+	// route and a withdrawal's Compatibility field reaches it.
 	cidr := storage.IsCIDRFamily(fam)
 	var pfx netip.Prefix
-	routeKey, keyOK := routeKeyOf(nlriBytes, addPath)
+	var keyScratch [nlrisplit.PrefixKeyScratchSize]byte
+	routeKey, keyOK := routeIdentity(fam, nlriBytes, addPath, withdraw, keyScratch[:])
 	if !keyOK {
 		return bestChangeEntry{}, false
 	}
@@ -760,7 +784,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	)
 	if newBest != nil {
 		winnerPathID, winnerAddPath = newBest.PathID, newBest.AddPath
-		winnerNLRI = candidateRouteNLRI(newBest, cidr, pfx, routeKey, winnerBuf[:0])
+		winnerNLRI = candidateRouteNLRI(newBest, cidr, pfx, winnerBuf[:0])
 		nextHop = r.bestCandidateNextHopAddr(fam, winnerNLRI, newBest)
 		isEBGP = r.protocolType(newBest) == routeaction.ProtocolEBGP
 		if fam.SAFI == family.SAFIMPLSLabel {
@@ -778,7 +802,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			// A BGP sibling names a gateway address and never a device or a
 			// weight, so the group is unweighted: nexthop.NextHop's zero Weight
 			// is what "share equally" is spelled as.
-			siblingNLRI := candidateRouteNLRI(s, cidr, pfx, routeKey, siblingBuf[:0])
+			siblingNLRI := candidateRouteNLRI(s, cidr, pfx, siblingBuf[:0])
 			nh := nexthop.NextHop{Addr: r.bestCandidateNextHopAddr(fam, siblingNLRI, s)}
 			if nh.Addr.IsValid() && nh.Addr != nextHop && !slices.Contains(ecmpNextHops, nh) {
 				ecmpNextHops = append(ecmpNextHops, nh)
@@ -817,7 +841,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 
-	prev, havePrev := sh.store.lookup(pfx, routeKey)
+	prev, prevRoute, havePrev := sh.store.lookup(pfx, routeKey)
 
 	if newBest == nil {
 		// No candidates remain -- withdraw if we had a previous best.
@@ -833,7 +857,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if !cidr {
 			return bestChangeEntry{
 				Action:  ribevents.BestChangeWithdraw,
-				NLRI:    framedRouteNLRI(nil, routeKey, prev.pathID, prev.addPath),
+				NLRI:    framedRouteNLRI(nil, prevRoute, prev.pathID, prev.addPath),
 				AddPath: prev.addPath,
 				PathID:  prev.pathID,
 			}, true
@@ -929,6 +953,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		// value equal: the best-change names the winning path by its path id.
 		if ir.peerAt(prev.rec.peerIdx()) == newBest.PeerAddr &&
 			prev.pathID == winnerPathID && prev.addPath == winnerAddPath &&
+			prevRoute == winnerRoute(newBest, cidr) &&
 			ir.nextHopAt(prev.rec.nextHopIdx()) == nextHop &&
 			ir.metricAt(prev.rec.metricIdx()) == (bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP}) &&
 			prev.rec.IsEBGP() == isEBGP &&
@@ -968,7 +993,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	}
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
-	sh.store.insert(pfx, routeKey, bestPrevRecord{rec: newRec, pathID: winnerPathID, addPath: winnerAddPath})
+	sh.store.insert(pfx, routeKey, bestPrevRecord{rec: newRec, pathID: winnerPathID, addPath: winnerAddPath}, winnerRoute(newBest, cidr))
 	// Mirror the best path (and its equal-cost multipath set) into the shared
 	// Loc-RIB via the same closure the same-best short-circuit uses.
 	mirrorToLocRIB()
@@ -1041,6 +1066,33 @@ func candidateNLRI(c *Candidate, pfx netip.Prefix, buf []byte) []byte {
 // CIDR key, so it is never smaller than cidrKeyOctetsMax.
 const opaqueKeyOctetsInline = 64
 
+// routeIdentity returns the identity one election and one stored best are
+// keyed by: for a CIDR family the NLRI without its path identifier (routeKeyOf),
+// for every other family that route less its non-identifying fields, the
+// labels among them (storage.RouteKey). withdraw says nlriBytes was split from
+// a withdrawal. The result aliases nlriBytes or scratch, which MUST hold
+// nlrisplit.PrefixKeyScratchSize octets. Returns false for an ADD-PATH NLRI
+// too short to carry its identifier.
+func routeIdentity(fam family.Family, nlriBytes []byte, addPath, withdraw bool, scratch []byte) ([]byte, bool) {
+	route, ok := routeKeyOf(nlriBytes, addPath)
+	if !ok {
+		return nil, false
+	}
+	if storage.IsCIDRFamily(fam) {
+		return route, true
+	}
+	return storage.RouteKey(fam, route, scratch, withdraw), true
+}
+
+// winnerRoute returns what bestPrevRecord.route holds for the winner: its
+// wire route for a non-CIDR family, nothing for a CIDR prefix or no winner.
+func winnerRoute(winner *Candidate, cidr bool) string {
+	if winner == nil || cidr {
+		return ""
+	}
+	return winner.Route
+}
+
 // routeKeyOf returns the route key of nlriBytes, the NLRI without the 4-octet
 // path identifier an ADD-PATH session frames it with (RFC 7911 Section 3).
 // Returns false for an ADD-PATH NLRI too short to carry one.
@@ -1055,13 +1107,13 @@ func routeKeyOf(nlriBytes []byte, addPath bool) ([]byte, bool) {
 }
 
 // framedRouteNLRI appends to dst the NLRI one session names a path of a
-// non-CIDR route by: the path identifier then the route key under ADD-PATH,
-// the route key alone otherwise. A nil dst gives an owned copy.
-func framedRouteNLRI(dst, routeKey []byte, pathID uint32, addPath bool) []byte {
+// non-CIDR route by: the path identifier then the wire route under ADD-PATH,
+// the wire route alone otherwise. A nil dst gives an owned copy.
+func framedRouteNLRI(dst []byte, route string, pathID uint32, addPath bool) []byte {
 	if addPath {
 		dst = binary.BigEndian.AppendUint32(dst, pathID)
 	}
-	return append(dst, routeKey...)
+	return append(dst, route...)
 }
 
 // candidateRouteNLRI appends to dst the key the candidate's own session stored
@@ -1071,11 +1123,11 @@ func framedRouteNLRI(dst, routeKey []byte, pathID uint32, addPath bool) []byte {
 // RFC 7911 Section 2: "a particular path for an address prefix can be
 // identified by the combination of the address prefix and the Path
 // Identifier". Every read of what the winner carries goes through this key.
-func candidateRouteNLRI(c *Candidate, cidr bool, pfx netip.Prefix, routeKey, dst []byte) []byte {
+func candidateRouteNLRI(c *Candidate, cidr bool, pfx netip.Prefix, dst []byte) []byte {
 	if cidr {
 		return candidateNLRI(c, pfx, dst[:cidrKeyOctetsMax])
 	}
-	return framedRouteNLRI(dst, routeKey, c.PathID, c.AddPath)
+	return framedRouteNLRI(dst, c.Route, c.PathID, c.AddPath)
 }
 
 // entryNLRI returns the wire bytes a published bestChangeEntry names its route
@@ -1529,9 +1581,10 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 				// Non-CIDR family: the wire bytes name the route, and the
 				// prefix stays zero. appendRec is the CIDR path and refuses a
 				// zero prefix, so replay builds these entries directly.
-				for key, rec := range sh.store.opaque {
+				for _, best := range sh.store.opaque {
+					rec := best.prev
 					e := rec.rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, netip.Prefix{}, rec.pathID, rec.addPath)
-					e.NLRI = framedRouteNLRI(nil, []byte(key), rec.pathID, rec.addPath)
+					e.NLRI = framedRouteNLRI(nil, best.route, rec.pathID, rec.addPath)
 					changes = append(changes, e)
 				}
 				sh.mu.RUnlock()

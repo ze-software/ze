@@ -90,8 +90,8 @@ func (r *PeerRIB) InsertEntry(fam family.Family, entry RouteEntry, fp uint64, at
 	rib.InsertEntry(nlriBytes, entry, fp, attrLen)
 }
 
-// Remove withdraws an NLRI from the RIB.
-// Returns true if the NLRI existed.
+// Remove removes the path an NLRI in announcement framing names, the form
+// Iterate hands back (FamilyRIB.Remove). Returns true if the path existed.
 func (r *PeerRIB) Remove(fam family.Family, nlriBytes []byte) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -101,6 +101,19 @@ func (r *PeerRIB) Remove(fam family.Family, nlriBytes []byte) bool {
 		return false
 	}
 	return rib.Remove(nlriBytes)
+}
+
+// Withdraw removes the path an NLRI split from a received withdrawal names
+// (FamilyRIB.Withdraw). Returns true if the path existed.
+func (r *PeerRIB) Withdraw(fam family.Family, nlriBytes []byte) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib, exists := r.families[fam]
+	if !exists {
+		return false
+	}
+	return rib.Withdraw(nlriBytes)
 }
 
 // Lookup finds the RouteEntry for an NLRI.
@@ -148,7 +161,7 @@ func (r *PeerRIB) AppendPrefixPaths(fam family.Family, pfx netip.Prefix, dst []P
 // path's own NLRI is framed: the path identifier then the key, or the key alone.
 // key carries no path identifier.
 //
-// Best-path selection asks every peer by the route key, never by another
+// key is a RouteKey result. Best-path selection asks every peer by the route key, never by another
 // session's wire NLRI, for the reason AppendPrefixPaths states: the four path-id
 // octets of an ADD-PATH key would keep a route from ever meeting the same route
 // held by a session without ADD-PATH.
