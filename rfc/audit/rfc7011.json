@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7011-10.3.2-2": {
       "note": "Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.",
@@ -27,12 +28,12 @@
       "note": "Forbidden: an Enterprise Number following a field specifier whose E bit is 0. TestRFC7011NoEnterpriseNumberWhenEClear asserts each of the counter, flow4 and flow6 templates is exactly 8 + 4 x fieldCount octets (red if any specifier carries 4 more octets) and that bit 15 is clear in every specifier; TestIPFIXTemplateSet pins the counter Template Set. Single-polarity marker: no code path sets E.",
       "requirement_sha": "93e531e7d3c32257",
       "tests": {
-        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "1e121054ccd5ea2a",
-        "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet": "f7d94a4b8bb76e78"
+        "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet": "f7d94a4b8bb76e78",
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "1e121054ccd5ea2a"
       },
       "units": {
-        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "7546da9e02a094f3",
-        "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet": "a7641091aa45010e"
+        "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet": "a7641091aa45010e",
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "7546da9e02a094f3"
       },
       "verdict": "enforced"
     },
@@ -64,7 +65,7 @@
       "note": "Single-polarity row. TestRFC7011TemplateIDsUniqueInSession reads the Template ID of all three Template Sets one Transport Session carries (counter, IPv4 flow, IPv6 flow) and requires each >= 256 and all three distinct, so setting FlowTemplateID to 256 goes red (recorded). The exporter emits no other Template.",
       "requirement_sha": "c8c69648254189bc",
       "tests": {
-        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011TemplateIDsUniqueInSession": "a52a12ad5bf1fd57",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011TemplateIDsUniqueInSession": "d2589d22d82f3024",
         "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "1e121054ccd5ea2a"
       },
       "units": {
@@ -77,18 +78,18 @@
       "note": "Both Data Record paths now proven. Per-flow path: the three existing units (recorded). Counter path writeCounterRecord: TestRFC7011CounterRecordIntegralsNetworkByteOrder compares the whole record to the big-endian concatenation of ingressInterface, octetTotalCount, packetTotalCount, egressInterface and the two dateTimeSeconds, each built from distinct octets; TestRFC7011CounterRecordIntegralsNeverLittleEndian requires no byte-reversed field (both recorded, writeCounterRecord).",
       "requirement_sha": "0595711242bc3bb2",
       "tests": {
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "d2589d22d82f3024",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "d2589d22d82f3024",
         "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNetworkByteOrder": "49e03ede36d04954",
         "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNeverLittleEndian": "49e03ede36d04954",
-        "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData": "b257f38e5c551214",
-        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "a52a12ad5bf1fd57",
-        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "a52a12ad5bf1fd57"
+        "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData": "b257f38e5c551214"
       },
       "units": {
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "c45cd60ec1fb4062",
+        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "3eb937d917ef0be2",
         "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNetworkByteOrder": "8d8fcbd94e108e09",
         "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNeverLittleEndian": "03a780b25c8da618",
-        "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData": "5acac2d3797049aa",
-        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "c45cd60ec1fb4062",
-        "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "3eb937d917ef0be2"
+        "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData": "5acac2d3797049aa"
       },
       "verdict": "enforced"
     },
@@ -120,14 +121,14 @@
       "note": "TestRFC7011EachActiveTemplateRetransmittedEveryInterval counts the counter Template and the flow Templates separately over seven half-interval exports (0..1800 s) and requires exactly one send per elapsed 600 s interval, four in all, so a single resend, no resend, or a flow Template never refreshed goes red (recorded). The same exact count forbids a resend at a half interval. The old negative (no resend at +2 s) tests over-sending, not this MUST, and carries no record; the new unit carries both directions. The flow count is of EncodeFlowTemplate calls; that one call sends both 257 and 258 is shown by the 8.2-1 rollback unit, which reads three Template messages.",
       "requirement_sha": "24edda6c621b7b5d",
       "tests": {
+        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval": "30cf331c7f3ccf14",
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval": "9a9f62bba8b4a49a",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "9a9f62bba8b4a49a",
-        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval": "30cf331c7f3ccf14"
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "9a9f62bba8b4a49a"
       },
       "units": {
+        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval": "8089928d08617d7d",
         "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval": "c6cee6dcffd7ee50",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "65b8b4e746c278f7",
-        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval": "8089928d08617d7d"
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "65b8b4e746c278f7"
       },
       "verdict": "enforced"
     },
@@ -135,16 +136,16 @@
       "note": "TestRFC7011ConfiguredRefreshDrivesRetransmit sets template-refresh 30 s and requires counter and flow resends at 30 s and not at 29 s; TestRFC7011ConfiguredRefreshOverridesDefault sets 900 s and requires no resend at 600 or 899 s, so an exporter hard-coding 600 s goes red (both recorded). The config parse into CollectorConfig.TemplateRefresh is the existing TestRFC7011TemplateRefreshConfigurable.",
       "requirement_sha": "d8a3941caf7e374b",
       "tests": {
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "9a9f62bba8b4a49a",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "9a9f62bba8b4a49a",
         "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "30cf331c7f3ccf14",
-        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "30cf331c7f3ccf14"
+        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "30cf331c7f3ccf14",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "9a9f62bba8b4a49a",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "9a9f62bba8b4a49a"
       },
       "units": {
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "d81b4418df553d83",
-        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3",
         "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "d408e2b61c03cb9c",
-        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "b77550278df04535"
+        "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "b77550278df04535",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "d81b4418df553d83",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3"
       },
       "verdict": "enforced"
     },

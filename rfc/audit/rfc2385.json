@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-03",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2385-2.0-1": {
@@ -32,12 +35,12 @@
       "note": "Independent MD5CaptureReview judgment: RFC2385 Section 2.0 says a failing comparison must drop the segment and produce no response. TestRFC2385MalformedWireSignaturesAreDropped now owns the positive claim and directly observes no matching TCP response during a bounded 300ms window for the corrupt-digest SYN, then requires an independently verified signed SYNACK for a distinct-port valid control at the same listener. This is bounded wire evidence, not unrestricted temporal proof. The retained MatchingKeys negative carries 256KiB over the valid connection. MismatchedKey preserves executable assertions but no longer claims a dial timeout proves peer silence. Main observed the noisy old capture fail all four cases with EAGAIN after 5\u201315 seconds, then the repaired carrier pass all four in 1.30 seconds on runtime Linux 7.2. receiveFrame consumes one frame with MSG_DONTWAIT; the caller checks its positive remaining deadline after filtered traffic and retries only EAGAIN. Native records must match these current units before closure.",
       "requirement_sha": "9207f41bd81ad29e",
       "tests": {
-        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "903c1cde12f2477d"
       },
       "units": {
-        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7",
-        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9"
+        "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9",
+        "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
       },
       "verdict": "enforced"
     },
@@ -56,8 +59,8 @@
       "note": "Independent source re-judgment against RFC2385 Section 2.0: application control and resistance to remote unsigned negotiation are both asserted. Retained TestRFC2385ConfiguredKeyReachesBothSockets and TestRFC2385NoKeyWithoutConfiguration trace the configured password or its absence through parsePeerFromTree, NewSession and md5PeersForListener. New TestRFC2385UnsignedSYNACKDoesNotDisableSignatures observes the application-keyed socket retain an independently valid wire signature after a causally matched unsigned SYNACK; TestRFC2385UnconfiguredSocketSendsNoSignature observes unsigned handshake packets when RealDialer and RealListenerFactory receive no key. RealDialer.DialContext and RealListenerFactory.Listen propagate setTCPMD5Sig errors instead of falling back. Signed clean native run and the earlier unchanged unconfigured clean/negative record were read, not rerun. PENDING INPUT ONLY: Main must observe and retain the six owed signed native discrimination records, including this new positive tag, before stamping; the unconfigured negative record is already retained and needs no confirmation rerun. This does not certify the stock appliance kernel-selection path.",
       "requirement_sha": "611964454087c34b",
       "tests": {
-        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "4fb13cd61266a660",
-        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "4fb13cd61266a660",
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "96faf21876447ffa",
+        "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "96faf21876447ffa",
         "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "903c1cde12f2477d",
         "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "903c1cde12f2477d"
       },

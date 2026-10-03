@@ -2,6 +2,7 @@
   "audited": "2026-09-29",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -62,7 +63,7 @@
       "requirement_sha": "1406f4bb85de3721",
       "tests": {
         "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowCounterSampleSourceIDOverflow": "7769a8fe6e20a7e4",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "3b99215d0d627c33"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "2b3441f1e34ff01f"
       },
       "units": {
         "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowCounterSampleSourceIDOverflow": "0e3eb3f470ac17ec",
@@ -100,14 +101,14 @@
       "note": "Integer clause: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires real values (including zero) for the rest. All three units now carry observed-red records.",
       "requirement_sha": "578792369cb72d8c",
       "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "c09c030ae4130286",
         "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
-        "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274",
-        "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "c09c030ae4130286"
+        "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274"
       },
       "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "5b78f29b2dc2278f",
         "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "b04a9e934cca7756",
-        "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034",
-        "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "5b78f29b2dc2278f"
+        "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034"
       },
       "upgrade_reason": "The earlier weak verdict rested only on the counter-clause units lacking a discrimination record; both now carry observed-red records against interfaceCountersFrom. Re-read both units: they assert the exact sentinel and the exact available values, so a 0-for-unknown or sentinel-everywhere producer fails.",
       "verdict": "enforced"
@@ -133,8 +134,8 @@
       "note": "positive: one sample yields exactly one datagram sent at once; negative: three samples yield three datagrams, the sender count advancing by one each, and no datagram carries more than one flow_sample",
       "requirement_sha": "b47a6015e4000f36",
       "tests": {
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SampleSentWithoutWaitingForBuffer": "3b99215d0d627c33"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "2b3441f1e34ff01f",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SampleSentWithoutWaitingForBuffer": "2b3441f1e34ff01f"
       },
       "units": {
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "731d8613be31cf1b",
@@ -146,16 +147,16 @@
       "note": "Chain now whole. TestSFlowV5DueCountersAreSent requires every due poll over 30 late ticks to send a datagram listing all three interfaces, and requires a due snapshot that meets a held exporter mutex still to send them (the old TryLock drop goes red). The real encoder's part: writeCounterDatagrams units require all 30 sources emitted with the partial tail not held back, and TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram counts all 30 samples on the collector socket through CounterEncoder.Encode. Trigger (x-14) now enforced.",
       "requirement_sha": "3f8b68a2d68e6d5b",
       "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "2b3441f1e34ff01f",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "2b3441f1e34ff01f",
         "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent": "86e3042da06611be",
-        "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent#2": "86e3042da06611be",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "3b99215d0d627c33"
+        "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent#2": "86e3042da06611be"
       },
       "units": {
-        "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent": "a6cc19a1799b69f2",
-        "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent#2": "a6cc19a1799b69f2",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "f29492873650df5d",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "4d5b75c2446d7845"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "4d5b75c2446d7845",
+        "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent": "a6cc19a1799b69f2",
+        "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent#2": "a6cc19a1799b69f2"
       },
       "verdict": "enforced"
     },
@@ -163,8 +164,8 @@
       "note": "Ze cannot promise its ifIndex stays below 2^24 (Linux ifindex is a full int), so it falls in the quote's 'Otherwise' branch and the compact-for-all clause does not bind it; mixing: a compact format 1 or 2 among the six records fails 'compact data_format emitted'; expanded for all: alternating low and full-width ifIndex values fail 'want expanded 4' and 'want expanded 3' if any interface drops to compact",
       "requirement_sha": "7ac6ae4088e0e26a",
       "tests": {
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "3b99215d0d627c33"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "2b3441f1e34ff01f",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "2b3441f1e34ff01f"
       },
       "units": {
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "4e858a2b54d00b55",
@@ -177,8 +178,8 @@
       "requirement_sha": "8ebe9d4eea6df732",
       "tests": {
         "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5FlowSequencePerSourceID": "6cb76dae8620dd81",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence": "3b99215d0d627c33"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether": "2b3441f1e34ff01f",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence": "2b3441f1e34ff01f"
       },
       "units": {
         "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5FlowSequencePerSourceID": "07159d6bc151e677",
@@ -233,16 +234,16 @@
       "tests": {
         "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource": "c2cd21e69892f0da",
         "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "c2cd21e69892f0da",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "315e39ecc463c856"
+        "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "315e39ecc463c856",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "2b3441f1e34ff01f",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "2b3441f1e34ff01f"
       },
       "units": {
         "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource": "b735f437b22cb398",
         "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "b735f437b22cb398",
+        "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "942fe6cee1d8dd4e",
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "dcb1773c1e0d5c55",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "4f7849814f539a22",
-        "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "942fe6cee1d8dd4e"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "4f7849814f539a22"
       },
       "verdict": "enforced"
     },
@@ -263,8 +264,8 @@
       "note": "positive: the flow_sample carries one sampled_header record with the 14 captured bytes; negative: a 1500-byte capture that cannot fit is truncated but still carried as a non-empty sampled_header prefix",
       "requirement_sha": "19f9b84f99b41d45",
       "tests": {
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "3b99215d0d627c33",
-        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader": "3b99215d0d627c33"
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "2b3441f1e34ff01f",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader": "2b3441f1e34ff01f"
       },
       "units": {
         "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "164a1c4a435c0ba8",
@@ -313,12 +314,12 @@
       "note": "Single-polarity row. TestSFlowV5FlowSampleSentWithinOneSecond hands a sample to the real sflow FlowEncoder with a real Sender and requires the datagram on the collector socket within one second of the call, so an encoder holding a sample longer than 1 s goes red while one flushing sooner passes, matching the quote; TestExportFlowSampleDispatch proves exportFlowSample dispatches synchronously. Counter samples are sent synchronously in the poll (x-26 units).",
       "requirement_sha": "b9952440cdffd397",
       "tests": {
-        "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch": "5b23473bbddf172c",
-        "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e743d810dcc73b88"
+        "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e743d810dcc73b88",
+        "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch": "5b23473bbddf172c"
       },
       "units": {
-        "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch": "cee0a841cf2b1aba",
-        "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e229bcab8ed88a71"
+        "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e229bcab8ed88a71",
+        "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch": "cee0a841cf2b1aba"
       },
       "verdict": "enforced"
     },
