@@ -411,7 +411,7 @@
     {
       "rid": "RFC2516-7-4",
       "polarity": "positive",
-      "unit": "internal/component/iface/pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession",
+      "unit": "internal/component/iface/rfc2516_pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession",
       "unit-sha": "a176185d49c88c8e",
       "claim-sha": "9a85720981ba588e",
       "route": "revert",
@@ -422,7 +422,7 @@
     {
       "rid": "RFC2516-7-4",
       "polarity": "negative",
-      "unit": "internal/component/iface/pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession",
+      "unit": "internal/component/iface/rfc2516_pppoe_client_rfc2516_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession",
       "unit-sha": "a176185d49c88c8e",
       "claim-sha": "1967110a59f82fe1",
       "route": "revert",
