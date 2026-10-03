@@ -1,7 +1,7 @@
 //go:build linux
 
 // Design: docs/architecture/testing/qemu-integration.md -- a kernel test owns a namespace of its own
-// Overview: gtsm_rfc5082_linux_test.go -- the RFC 5082 proofs this harness carries
+// Overview: rfc5082_gtsm_rfc5082_linux_test.go -- the RFC 5082 proofs this harness carries
 //
 // The proofs need a kernel that really generates an ICMP error, and really
 // evaluates an nftables input chain, so they need a network namespace of their

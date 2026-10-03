@@ -4,7 +4,7 @@
 // These tests read what this package asks the kernel for, through the two
 // seams SetPeers writes through, so they run on any platform and touch no
 // kernel. The proofs that the kernel then behaves as RFC 5082 requires are the
-// tagged tests in gtsm_rfc5082_linux_test.go.
+// tagged tests in rfc5082_gtsm_rfc5082_linux_test.go.
 
 package gtsm
 

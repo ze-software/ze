@@ -364,7 +364,7 @@ ever be observed to redden it
 bare `linux`, and it calls `t.Skip` when the capability is absent, so it stays
 silent in the merge gate and runs for real in a privileged guest or container.
 `internal/core/network/ttl_gtsm_linux_test.go` and
-`internal/component/gtsm/gtsm_rfc5082_linux_test.go` are the two files that do
+`internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go` are the two files that do
 this, and both say so in their headers.
 
 A bare `linux` unit that needs only its own network, a fixed port or an
