@@ -4,7 +4,7 @@
     {
       "rid": "RFC2759-x-1",
       "polarity": "positive",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
       "unit-sha": "0bf0abdce09fb312",
       "claim-sha": "74a21532c77aa47a",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC2759-x-1",
       "polarity": "negative",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
       "unit-sha": "0bf0abdce09fb312",
       "claim-sha": "b4385b6d7fd37fac",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC2759-x-10",
       "polarity": "positive",
-      "unit": "internal/core/eap/mschapv2_test.go::TestNtPasswordHash",
+      "unit": "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash",
       "unit-sha": "05e5272465b9e851",
       "claim-sha": "4b4b8dddc4ab3f18",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC2759-x-10",
       "polarity": "negative",
-      "unit": "internal/core/eap/mschapv2_test.go::TestNtPasswordHash",
+      "unit": "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash",
       "unit-sha": "05e5272465b9e851",
       "claim-sha": "3e225b210b7502d9",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC2759-x-2",
       "polarity": "positive",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
       "unit-sha": "0bf0abdce09fb312",
       "claim-sha": "7b16f11af0f5822d",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC2759-x-2",
       "polarity": "negative",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
       "unit-sha": "0bf0abdce09fb312",
       "claim-sha": "a9f3a485ea196ac2",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC2759-x-3",
       "polarity": "positive",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
       "unit-sha": "0bf0abdce09fb312",
       "claim-sha": "c35614c2c708d362",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC2759-x-3",
       "polarity": "negative",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
       "unit-sha": "0bf0abdce09fb312",
       "claim-sha": "6c7dfce039e88061",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC2759-x-4",
       "polarity": "positive",
-      "unit": "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix",
+      "unit": "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix",
       "unit-sha": "10a62be26609d32a",
       "claim-sha": "8e7d74c1fc68e338",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC2759-x-4",
       "polarity": "negative",
-      "unit": "internal/core/eap/mschapv2_test.go::TestChallengeHashExcludesDomainPrefix",
+      "unit": "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix",
       "unit-sha": "10a62be26609d32a",
       "claim-sha": "773752dae02213b4",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC2759-x-8",
       "polarity": "positive",
-      "unit": "internal/core/eap/eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16",
+      "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16",
       "unit-sha": "7d46cca5d7d39cd2",
       "claim-sha": "227a2f5667fdcd82",
       "route": "revert",

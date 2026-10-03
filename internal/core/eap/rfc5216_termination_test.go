@@ -14,7 +14,7 @@
 // packet", and on a reply carrying no data "the EAP-Server MUST send an
 // EAP-Failure packet and terminate the conversation."
 //
-// eap_tls_alert_flight_test.go pins the SERVER-rejects-peer flight in detail.
+// rfc5216_eap_tls_alert_flight_test.go pins the SERVER-rejects-peer flight in detail.
 // This file pins the PEER-rejects-server direction, which no test reached: the
 // exchange ended with the peer reporting its own error and nobody asserted what
 // the authenticator answered.

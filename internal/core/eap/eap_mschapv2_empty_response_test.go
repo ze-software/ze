@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-MSCHAPv2 handler tests
 //
-// Lives beside eap_mschapv2_test.go rather than inside it: that file carries
+// Lives beside rfc2759_eap_mschapv2_test.go rather than inside it: that file carries
 // `RFC requirement:` tags, and .claude/hooks/pretool-writeedit.py refuses every edit to a
 // tagged test file, an addition included. This file changes no tagged assertion.
 

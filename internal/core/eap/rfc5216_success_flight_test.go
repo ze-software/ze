@@ -13,7 +13,7 @@
 //	EAP-Response packet of EAP-Type=EAP-TLS, and no data.  The EAP Server then
 //	MUST respond with an EAP-Success message."
 //
-// rfc5216_termination_test.go and eap_tls_alert_flight_test.go pin the FAILURE
+// rfc5216_termination_test.go and rfc5216_eap_tls_alert_flight_test.go pin the FAILURE
 // direction. This file pins the success direction, which no test reached: the
 // existing handshake tests assert that EAP-Success arrives and that the two MSKs
 // match, and neither of those sees the three packets the section names.
@@ -48,7 +48,7 @@ import (
 
 // tlsRecordChangeCipherSpec is the TLS record content type of a
 // change_cipher_spec record. The handshake content type that follows it in the
-// closing flight is tlsRecordHandshake, declared in eap_tls_flight_test.go.
+// closing flight is tlsRecordHandshake, declared in rfc5216_eap_tls_flight_test.go.
 const tlsRecordChangeCipherSpec byte = 0x14
 
 // eapTLSFlight is what driving one EAP-TLS conversation revealed, packet by

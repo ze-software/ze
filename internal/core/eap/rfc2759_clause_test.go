@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- EAP-MSCHAPv2 (RFC 2759)
 // RFC: rfc/short/rfc2759.md -- Sections 3, 4, 9.1.3 and 9.2: the clauses the older units left unasserted
-// Related: eap_mschapv2_test.go -- the first Response field units
+// Related: rfc2759_eap_mschapv2_test.go -- the first Response field units
 // Related: rfc2759_peer_challenge_test.go -- the Peer-Challenge source unit
 //
 // The older units for these rows read the Response on the authenticator side

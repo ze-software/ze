@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS in the IKEv2 responder and initiator seats
 // RFC: rfc/short/rfc9190.md -- EAP-TLS 1.3, Section 5.10 "Discovered Vulnerabilities"
-// Related: eap_tls_handshake_test.go (the PKI and the exchange harness), rfc5216_success_flight_test.go (driveTunedEAPTLSFlight)
+// Related: rfc5216_eap_tls_handshake_test.go (the PKI and the exchange harness), rfc5216_success_flight_test.go (driveTunedEAPTLSFlight)
 //
 // RFC 9190 Section 5.10: "[RFC7457] summarizes the attacks that were known at
 // the time of publishing, and BCP 195 [RFC7525] [RFC8996] provides
@@ -24,10 +24,10 @@
 // | 6 | 2.6 CRIME, TIME, BREACH | TestRFC9190MitigationOffersOnlyNullCompression | TestRFC9190MitigationRefusesACompressingClientHello |
 // | 7 | 2.9 Diffie-Hellman parameters | TestRFC9190MitigationUsesANamedGroup | TestRFC9190MitigationOffersNoFiniteFieldDHGroup |
 // | 8 | 2.1 SSL stripping, 2.2 STARTTLS injection, 2.12 virtual host confusion | TestRFC9190MitigationCarriesNoServerName | TestRFC9190MitigationRefusesAMethodDowngrade, TestRFC9190MitigationDropsBytesPipelinedBehindTheStart |
-// | 9 | 2.15 Usability | TestEAPTLSMutualAuthHandshakeSucceeds (eap_tls_handshake_test.go) | TestEAPTLSPeerWithoutCARefusesToStart (eap_tls_handshake_test.go) |
+// | 9 | 2.15 Usability | TestEAPTLSMutualAuthHandshakeSucceeds (rfc5216_eap_tls_handshake_test.go) | TestEAPTLSPeerWithoutCARefusesToStart (rfc5216_eap_tls_handshake_test.go) |
 //
 // The certificate path validation half of row 4 is proven in
-// eap_tls_handshake_test.go (TestEAPTLSServerRejectsUntrustedClientChain,
+// rfc5216_eap_tls_handshake_test.go (TestEAPTLSServerRejectsUntrustedClientChain,
 // TestEAPTLSPeerRejectsUntrustedServerChain) and its revocation half in
 // rfc9190_revocation_test.go. A polarity already proven is CITED, never copied:
 // a second assertion over the same behavior is not more coverage.
@@ -624,7 +624,7 @@ func TestRFC9190MitigationOffersNoPostHandshakeAuthentication(t *testing.T) {
 // The certificate path validation half of RFC 7457 Section 2.7 is proven
 // elsewhere and is not copied here: TestEAPTLSMutualAuthHandshakeSucceeds,
 // TestEAPTLSServerRejectsUntrustedClientChain and
-// TestEAPTLSPeerRejectsUntrustedServerChain (eap_tls_handshake_test.go), and the
+// TestEAPTLSPeerRejectsUntrustedServerChain (rfc5216_eap_tls_handshake_test.go), and the
 // revocation tests in rfc9190_revocation_test.go.
 func TestRFC9190MitigationNegotiatesEphemeralKeyExchange(t *testing.T) {
 	pki := newEAPTLSPKI(t)

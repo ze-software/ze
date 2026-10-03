@@ -36,7 +36,7 @@ import (
 )
 
 // naiCertSerial is the serial number every certificate this file issues carries.
-// The harness CRL revokes nothing (newEAPTLSPKI, eap_tls_handshake_test.go), so
+// The harness CRL revokes nothing (newEAPTLSPKI, rfc5216_eap_tls_handshake_test.go), so
 // the number only has to miss the two the PKI already uses.
 const naiCertSerial int64 = 30
 

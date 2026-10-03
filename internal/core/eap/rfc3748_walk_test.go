@@ -10,7 +10,7 @@
 // Both roles ze plays are driven against each other with real credentials: the
 // authenticator through Session (Begin and Process) and the peer through
 // PeerSession (Process). EAP-TLS uses the handshake harness in
-// eap_tls_handshake_test.go.
+// rfc5216_eap_tls_handshake_test.go.
 //
 // VALIDATES: octets past the Length field never reach the method; every new
 // Request changes the Identifier; a Response echoes the outstanding Request's

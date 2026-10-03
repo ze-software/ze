@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc5216.md -- EAP-TLS server certificate validation (Section 5.3)
 //
 // Focused regression tests for four EAP-TLS fixes that the end-to-end handshake
-// harness (eap_tls_handshake_test.go) only exercises indirectly (a dropped
+// harness (rfc5216_eap_tls_handshake_test.go) only exercises indirectly (a dropped
 // wakeup shows up there as a deadlock, not a clean assertion):
 //   1. notifyCh must never drop a wakeup when the buffered channel has space
 //      (the old `case <-time.After(0)` fallback fired ~immediately, so the

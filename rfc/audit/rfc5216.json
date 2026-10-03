@@ -11,15 +11,15 @@
       "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). D-8 fixed: tlsClientConfig answers every certificate_request through GetClientCertificate (answerCertificateRequest, peer.go), so the peer no longer drops to an empty certificate_list when the request names another CA. Positive: TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames reads the TLS 1.2 peer flight off the wire after a certificate_request naming a CA other than the peer certificate's issuer: a certificate message whose first entry is the configured DER, and a certificate_verify (red before the fix, record on answerCertificateRequest); TestRFC5216PeerFlightAnswersTheCertificateRequest keeps the exact compliant flight. Negative (R1 a, non-compliant form on the wire): TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate configures a TRUSTED client cert, empties the peer's answer after the TLS client starts, asserts the empty certificate_list and absent certificate_verify on the wire, and the authenticator sends no EAP-Success, does not succeed or complete its handshake, and refuses with an error that is not a certificate verification failure. Privacy (Section 2.1.4) is not implemented, so the unless-clause never applies. Every tagged unit carries an observed-red record.",
       "requirement_sha": "93cfbce29401fdaf",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "24154b07f453f130",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "95ff448a085f9fb0",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "17b33557ac5ec62f",
         "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "0bd9dc5fe4a89761"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "c18bebd2e0f28023",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
         "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "f8a0c918ccde8362"
@@ -45,12 +45,12 @@
       "note": "Forbidden: the answer to the Start is not an EAP-Response of Type 13, or its data is not a TLS record carrying client_hello. TestEAPTLSPeerFirstResponseCarriesClientHello fatals on Code != CodeResponse or Type != TypeTLS, and assertHandshakeRecord fails unless the TypeData holds a handshake record of type client_hello. Negative: TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging fatals if a peer whose TLS engine produced nothing sends any Response instead of errTLSClientStalled, so an EAP-TLS Response with no client_hello is refused.",
       "requirement_sha": "bcd0f831cd05295d",
       "tests": {
-        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "ab1c361f29703a0d",
-        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "ab1c361f29703a0d"
+        "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "ab1c361f29703a0d",
+        "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "ab1c361f29703a0d"
       },
       "units": {
-        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "706520c303aed14d",
-        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "8a5286332a11a78b"
+        "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "706520c303aed14d",
+        "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "8a5286332a11a78b"
       },
       "verdict": "enforced"
     },
@@ -168,12 +168,12 @@
       "note": "Forbidden: the server concluding (EAP-Failure) on the round it sends its alert, instead of waiting for the peer's Response. alertFlight fatals if the round that records the cause carries CodeFailure, TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure errors unless that round is an EAP-Request with a TLS alert record, and only the later Response draws the Failure. Negative: TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend fatals if a failure with no alert to send reports no error, so the wait is bound to an alert.",
       "requirement_sha": "ab9e7542ea0e4170",
       "tests": {
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "e222ad1f56734ddc",
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc"
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "e222ad1f56734ddc",
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc"
       },
       "units": {
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "6b9bf0e9fc1216ed",
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99"
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "6b9bf0e9fc1216ed",
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99"
       },
       "verdict": "enforced"
     },
@@ -181,14 +181,14 @@
       "note": "Both clauses asserted: the no-data Response after the authenticator's alert draws EAP-Failure, and later Responses (same one, Identifiers at and after the Failure's) draw nothing with Succeeded false; the alert is on the wire before EAP-Failure. Control negative: a mutually authenticated exchange sends no EAP-Failure and reaches EAP-Success, so the Failure answers the rejection only. All units recorded.",
       "requirement_sha": "8089903a1b56451e",
       "tests": {
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc",
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "e222ad1f56734ddc",
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc",
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "e222ad1f56734ddc",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure": "17b33557ac5ec62f",
         "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "62aa13fd49a71dab"
       },
       "units": {
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99",
-        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "13510c58710e62a3",
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99",
+        "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "13510c58710e62a3",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure": "098102330a6ab9e9",
         "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3451722f3567d342"
       },
@@ -346,12 +346,12 @@
       "note": "Unchanged after comment-only edits. Single-polarity positive (row marker): with the literal label 'client EAP encryption' and the 128-octet export read from the TLS session, the authenticator MSK equals octets 0-63 and the EMSK 64-127 (TLS 1.2); MSKs identical on both ends. Recorded.",
       "requirement_sha": "d3491a145ec72315",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
         "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "3990b6e26fb0e890"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
         "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "e482c403b597818e"
       },
@@ -361,11 +361,11 @@
       "note": "Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): TestRFC5216BothRolesInstallAVersionFloor reads the peer tls.Config tlsClientConfig builds, MinVersion TLS 1.2; the handshake unit asserts the negotiated version >= TLS 1.0. Recorded.",
       "requirement_sha": "3f2b411fe539e697",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a"
       },
       "verdict": "enforced"
@@ -374,11 +374,11 @@
       "note": "Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): the tls.Config newTLSMethod installs carries MinVersion TLS 1.2; the handshake unit asserts the authenticator's negotiated version >= TLS 1.0. Recorded.",
       "requirement_sha": "017cf68000dadaf9",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a"
       },
       "verdict": "enforced"
@@ -402,12 +402,12 @@
       "tests": {
         "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216DataCipherComesFromTheESPProposal": "8b1c5a0f0f5861e6",
         "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216TLSSessionDoesNotChooseTheDataCipher": "8b1c5a0f0f5861e6",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130"
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130"
       },
       "units": {
         "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216DataCipherComesFromTheESPProposal": "b29a8419a5842319",
         "internal/component/ike/engine/rfc5216_data_cipher_test.go::TestRFC5216TLSSessionDoesNotChooseTheDataCipher": "8ad0f28315528624",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae"
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae"
       },
       "verdict": "enforced"
     },
@@ -495,12 +495,12 @@
       "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server path-validation SHOULD. Positive: a valid peer chain is path-validated and accepted (TestEAPTLSMutualAuthHandshakeSucceeds). Negative no longer confounded: since D-8 the peer sends its untrusted certificate, and TestEAPTLSServerRejectsUntrustedClientChain asserts the authenticator's refusal is a tls.CertificateVerificationError wrapping x509.UnknownAuthorityError whose UnverifiedCertificates[0] is the configured untrusted leaf, besides no EAP-Success and an incomplete handshake; it is distinct from the certless refusal of 2.1.1-1, which asserts NOT a verification error. Records observed red on newTLSMethod for both polarities.",
       "requirement_sha": "aad42ad6fc241725",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "24154b07f453f130"
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "24154b07f453f130"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "cd0a07850a01a5cc"
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "cd0a07850a01a5cc"
       },
       "verdict": "enforced"
     },
@@ -508,17 +508,17 @@
       "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server clause now exercised with a real intermediate: TestRFC5216ServerSendsItsIntermediateButNotTheRoot configures leaf+intermediate under the peer's root and reads the certificate message off the wire: exactly [leaf, intermediate], the root absent (the root is also the authenticator's ClientCAs anchor, so a server appending its pool would fail), peer validates and reaches EAP-Success. Negative (R1 a): TestRFC5216PeerRefusesAServerChainMissingItsIntermediate puts [leaf] alone on the wire and the peer refuses with x509.UnknownAuthorityError, never concluding. Peer clause also by TestEAPTLSPeerRejectsUntrustedServerChain and TestEAPTLSPeerWithoutCARefusesToStart (record re-observed on the changed startTLSClient). Limit named: Ze sends the chain the operator configures; it does not strip a configured root nor complete a leaf-only configuration, so the minus-the-root property rests on the configured chain.",
       "requirement_sha": "7c0df425b052cea6",
       "tests": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "24154b07f453f130",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "24154b07f453f130",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "24154b07f453f130",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "17b33557ac5ec62f",
         "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate": "3f3d4fd3f9006191",
         "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot": "3f3d4fd3f9006191"
       },
       "units": {
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "d1ccf6928aa1e0a1",
-        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "5f1e66590b7448d1",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "d1ccf6928aa1e0a1",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "5f1e66590b7448d1",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "b059f88ccf09695d",
         "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate": "7cfccd073c625b00",
         "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot": "46ac10e5f6cccc9d"

@@ -5,14 +5,14 @@
 // VALIDATES: the EAP-TLS MSK is the TLS export the RFC names, under the exporter
 // label the RFC spells, on both the TLS 1.2 and the TLS 1.3 branch.
 // PREVENTS: the failure this file was written for. The tagged assertions in
-// eap_tls_handshake_test.go check that the two MSKs are non-zero, 64 octets and
+// rfc5216_eap_tls_handshake_test.go check that the two MSKs are non-zero, 64 octets and
 // EQUAL. Both sides call one producer, exportEAPTLSKeys, so replacing either label
 // constant with a made-up string leaves all three true and every test green,
 // while every real supplicant derives a different key and authentication fails.
 // The TLS 1.2 branch was not reached at all: crypto/tls negotiates TLS 1.3 by
 // default, so no test executed the RFC 5216 label it was tagged for.
 //
-// The tests live beside eap_tls_handshake_test.go rather than inside it: that
+// The tests live beside rfc5216_eap_tls_handshake_test.go rather than inside it: that
 // file carries `RFC requirement:` tags and the pretool-writeedit hook refuses
 // every edit to a tagged test file, an addition included (ai/rules/testing.md).
 
