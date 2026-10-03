@@ -126,18 +126,11 @@ func TestRFC2385NoKeyWithoutConfiguration(t *testing.T) {
 // TestRFC2385FailedConnectDoesNotDisableSigning dials a port nobody listens on
 // and reads the session's dialer afterwards.
 //
-// A connection ze signs is never answered by a peer that does not hold the key,
-// so a failed attempt is exactly the moment an implementation could be tempted
-// to retry unsigned. Ze holds the key on the dialer for the peer's whole life
-// and rebuilds it from PeerSettings, so nothing the far end does removes it.
+// This is configuration-state evidence only. It does not observe an unsigned
+// SYNACK or prove the next packet carries a signature; the namespace/veth
+// carrier in internal/core/network/md5_egress_integration_linux_test.go does.
 //
-// VALIDATES: the key survives a connection attempt that failed.
-// PREVENTS: a silent downgrade to an unsigned retry after a peer refuses or
-// ignores a signed SYN.
-// RFC requirement: RFC2385-2.0-4 positive -- a failed connection attempt, which
-// is what the absence of a signed answer looks like to the dialer, leaves the
-// key in place: the next attempt is signed with the same key and the same peer
-// address.
+// VALIDATES: the configured key and peer address survive a failed connection.
 func TestRFC2385FailedConnectDoesNotDisableSigning(t *testing.T) {
 	const password = "rfc2385-retry-key"
 
