@@ -261,6 +261,7 @@ const (
 
 	statusBadProtocolVersion                     = statusFatalBit | 0x00000002
 	statusUnknownTLV                      uint32 = 0x00000006
+	statusShutdown                              = statusFatalBit | 0x0000000A
 	statusLoopDetected                    uint32 = 0x0000000B
 	statusSessionRejectedNoHello                 = statusFatalBit | 0x00000010
 	statusSessionRejectedBadKeepaliveTime        = statusFatalBit | 0x00000018

@@ -82,6 +82,8 @@ var (
 	// errPeerFatalNotification is a Notification from the peer whose Status Code
 	// carries the E bit (RFC 5036 Section 3.5.1.1).
 	errPeerFatalNotification = errors.New("ldp: peer sent a fatal notification")
+	// Initialization accepts only the next message prescribed by the session FSM.
+	errUnexpectedInitializationMessage = errors.New("ldp: unexpected message during initialization")
 )
 
 // Session represents a single LDP TCP session with a peer.
@@ -465,6 +467,31 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 		msgEnd := off + ldpTLVHdrLen + int(msgHdr.Length)
 		if msgEnd > len(body) {
 			break
+		}
+		// RFC 5036 Section 2.5.4, OPENSENT and OPENREC: "Receive Any other
+		// LDP msg NON EXISTENT Action: Transmit Error Notification msg (NAK)
+		// and close transport connection". OPENSENT expects Initialization;
+		// OPENREC expects KeepAlive. Check before decoding or applying a body.
+		var expectedType uint16
+		switch s.State() {
+		case StateOpenSent:
+			expectedType = MsgTypeInitialize
+		case StateOpenReceived:
+			expectedType = MsgTypeKeepAlive
+		default:
+			// Other states retain their normal message dispatch.
+		}
+		if expectedType != 0 {
+			// RFC 5036 Section 3.5.1.1: "When an LSR receives a Shutdown
+			// message during session initialization, it SHOULD transmit a
+			// Shutdown message and then close the transport connection."
+			// Thus even a Notification is NAK'd here, before normal dispatch.
+			if msgHdr.Type != expectedType {
+				if err := s.sendNotification(statusShutdown, msgHdr.MessageID, msgHdr.Type); err != nil {
+					s.log.Warn("ldp: initialization shutdown notification could not be sent", "error", err)
+				}
+				return fmt.Errorf("%w: type %#04x", errUnexpectedInitializationMessage, msgHdr.Type)
+			}
 		}
 		msgBody := body[off+ldpMsgHdrLen : msgEnd]
 

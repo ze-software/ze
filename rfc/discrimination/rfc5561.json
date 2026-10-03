@@ -5,11 +5,11 @@
       "rid": "RFC5561-6-4",
       "polarity": "negative",
       "unit": "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification",
-      "unit-sha": "59e4af39aac87ae5",
+      "unit-sha": "e4d8fefa9cf5a234",
       "claim-sha": "5647d92672cb8c05",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::processMessages",
-      "producer-sha": "c7ce7d6ec022edd1",
+      "producer-sha": "ba31adc407e2ad7d",
       "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

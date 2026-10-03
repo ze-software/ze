@@ -1,8 +1,8 @@
 // RFC: rfc/short/rfc5561.md -- gated MUST coverage for a Capability Parameter ze
 // does not support
 // Design: docs/architecture/ldp/mpls-ldp.md -- LDP plugin
-// Related: rfc5036_test.go -- rfcTestSession; sessionparams_rfc5036_test.go --
-// expectNoPDU
+// Related: rfc5036_test.go -- rfcTestSession; establishment_rfc5036_test.go --
+// expectSilence.
 //
 // VALIDATES: an Initialization message carrying a Capability Parameter whose U-bit
 // is 1 is processed as if the parameter were absent (RFC 5561 Section 6): the
@@ -125,7 +125,7 @@ func TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification(t *testing.T) {
 			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 				t.Fatalf("processMessages returned %v: the Initialization was refused", err)
 			}
-			expectNoPDU(t, remote, "a Notification was sent for a Capability Parameter whose U-bit is 1")
+			expectSilence(t, remote, 200*time.Millisecond, "a Notification was sent for a Capability Parameter whose U-bit is 1")
 		})
 	}
 }

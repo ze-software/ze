@@ -78,18 +78,6 @@ func readSentInit(t *testing.T, sess *Session, remote net.Conn) []byte {
 	return tlv.Value
 }
 
-// expectNoPDU fails when anything arrives on conn inside a short window.
-func expectNoPDU(t *testing.T, conn net.Conn, what string) {
-	t.Helper()
-	if err := conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
-		t.Fatalf("SetReadDeadline: %v", err)
-	}
-	var probe [1]byte
-	if _, err := conn.Read(probe[:]); err == nil {
-		t.Errorf("%s", what)
-	}
-}
-
 // --------------------------------------------------------------------------
 // RFC5036-3.5.3-3 -- Downstream Unsolicited is the discipline off ATM and FR
 // --------------------------------------------------------------------------
@@ -143,7 +131,7 @@ func TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited(t *testing.T) {
 	if rx.State() != StateOperational {
 		t.Fatalf("state = %s, want operational: Downstream Unsolicited MUST be used, not refused", rx.State())
 	}
-	expectNoPDU(t, remote, "a Notification was sent for a Downstream On Demand proposal")
+	expectSilence(t, remote, 200*time.Millisecond, "a Notification was sent for a Downstream On Demand proposal")
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- rx.SendLabelMapping(netip.MustParsePrefix("10.1.0.0/24"), 100) }()
@@ -256,7 +244,7 @@ func TestRFC5036InitReservedBitsIgnoredOnReceipt(t *testing.T) {
 	if got := rx.currentKeepalive(); got != 30*time.Second {
 		t.Errorf("keepalive = %v, want 30s: the reserved bits disturbed the negotiation", got)
 	}
-	expectNoPDU(t, remote, "a Notification was sent for an Initialization with reserved bits set")
+	expectSilence(t, remote, 200*time.Millisecond, "a Notification was sent for an Initialization with reserved bits set")
 }
 
 // --------------------------------------------------------------------------
@@ -287,10 +275,19 @@ func TestRFC5036InitMaxPDULengthTakesTheSmallerProposal(t *testing.T) {
 			defer func() { _ = remote.Close() }()
 
 			rx := rfcTestSession(local)
-			rx.state = StateOpenSent
+			stop := runSessionForTest(t, rx)
+			defer stop()
+
+			if _, hdr, _ := readLDPPDU(t, remote); hdr.Type != MsgTypeInitialize {
+				t.Fatalf("first message = %#x, want Initialization", hdr.Type)
+			}
+			// RFC 5036 Section 3.5.3: negotiate on the live receive path.
 			pdu := encodeInitPDURaw(0, 30, tc.peer)
-			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
-				t.Fatalf("processMessages: %v", err)
+			if _, err := remote.Write(pdu); err != nil {
+				t.Fatalf("write peer Initialization: %v", err)
+			}
+			if _, hdr, _ := readLDPPDU(t, remote); hdr.Type != MsgTypeKeepAlive {
+				t.Fatalf("reply = %#x, want KeepAlive, not a rejection Notification", hdr.Type)
 			}
 			rx.mu.Lock()
 			got := rx.maxPDU
@@ -298,6 +295,15 @@ func TestRFC5036InitMaxPDULengthTakesTheSmallerProposal(t *testing.T) {
 			if got != tc.want {
 				t.Errorf("max PDU length = %d, want %d", got, tc.want)
 			}
+			if rx.State() != StateOpenReceived {
+				t.Fatalf("state = %s, want open-received before the peer's KeepAlive", rx.State())
+			}
+			// RFC 5036 Section 2.5.3 item 2.d: the peer confirms our parameters.
+			if _, err := remote.Write(encodeKeepAlivePDU()); err != nil {
+				t.Fatalf("write peer KeepAlive: %v", err)
+			}
+			awaitOperational(t, rx)
+			expectSilence(t, remote, 200*time.Millisecond, "a Notification was sent for an acceptable Max PDU Length")
 		})
 	}
 }

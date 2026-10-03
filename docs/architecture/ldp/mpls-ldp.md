@@ -72,6 +72,17 @@ cost. Publishing `session-up` on the TCP connect was rejected for that reason:
 OSPF started its hold-down on a session that did not exist, and declared the link
 synchronized when the hold-down expired.
 
+In OPENSENT, every complete message other than Initialization draws a fatal
+Shutdown Notification before the connection closes; in OPENREC, only KeepAlive
+is accepted (RFC 5036 section 2.5.4). The check precedes message-body decoding
+and dispatch: a Label Mapping or Address message cannot install state before
+establishment, and an unknown message's U bit cannot authorize ignoring it.
+This includes a peer Shutdown Notification: section
+3.5.1.1 explicitly requires a Shutdown response during initialization. A failed
+Notification write is logged and the connection still closes; the existing
+write deadline bounds the attempt. Notification handling on an operational
+session is unchanged.
+
 A KeepAlive sent right after the Initialization was rejected. A KeepAlive tells
 the peer that its parameters are acceptable, and ze has not read them yet. When
 the peer's Initialization is unacceptable, a KeepAlive sent ahead of it
@@ -109,12 +120,16 @@ clear draws Unknown TLV (0x06) and the message it arrived in is ignored, as RFC
 optional parameter ze reads nothing from is skipped whatever its U bit says. A
 Label Mapping whose Hop Count TLV exceeds `ldp/hop-count-max` draws Loop
 Detected (0x0B) and the mapping is not applied (section 3.4.4.1).
+The same check is not implemented for Label Request: `processMessages` leaves
+that message type unhandled. RFC5036-3.4.4.1-1 and -2 therefore remain weak for
+their whole-message scope; the Label Mapping proof does not cover that absent
+receive path. `plan/spec-ldp-label-request-path.md` owns it.
 
 A received Notification is read too: a Status Code with the E bit set ends the
 read loop, which closes the connection and drops the peer's bindings (section
-3.5.1.1). Every other fatal error still closes the session with nothing on the
-wire, which `rfc/short/rfc5036.md` records as the remaining half of
-RFC5036-2.5.3-2 and RFC5036-3.5.1-1.
+3.5.1.1). Other fatal causes, including KeepAlive expiry and decoding errors
+outside the initialization type checks, still close silently; `rfc/short/rfc5036.md`
+records these remaining gaps in RFC5036-2.5.3-2 and RFC5036-3.5.1-1.
 
 <!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit, sendNotification, ignoreUnknownTLV -->
 <!-- source: internal/plugins/ldp/wire.go -- encodeNotification, decodeNotification, skipTLV, statusSessionRejectedNoHello -->

@@ -70,6 +70,60 @@
       },
       "verdict": "enforced"
     },
+    "RFC5036-2.5.3-8": {
+      "note": "RFC5036 section 2.5.3 item 2.c: the live OpenReceivedKeepAliveEstablishesSession test first proves OPENREC after acceptable Initialization, then requires Operational on peer KeepAlive and timeout-only wire silence. OpenReceivedWaitsForPeerKeepAlive instead withholds that message, requires timeout (not EOF), and pins OPENREC. Reviewed processMessages, handleInit, keepaliveReceived, ReadLoop and runSession; acceptance is not inferred from TCP connect.",
+      "requirement_sha": "f104bdec6f8845ac",
+      "tests": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "5c84a426fe4ed18b"
+      },
+      "units": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "42a39c5467a7d3c6"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-2.5.3-9": {
+      "note": "The live positive requires acceptable Initialization followed by peer KeepAlive before Operational. Independent negative controls withhold KeepAlive or send it before any peer Initialization. The latter now requires fatal Shutdown 0x8000000a referencing KeepAlive 9, EOF and no recorded SessionUp after joining the worker; it no longer blesses premature KeepAlive silence. The former requires OPENREC and timeout-only silence. These distinguish both required peer messages.",
+      "requirement_sha": "42b6e4999220dac8",
+      "tests": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "5c84a426fe4ed18b",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "5c84a426fe4ed18b"
+      },
+      "units": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "043234a8c4115477",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "42a39c5467a7d3c6"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-2.5.4-1": {
+      "note": "OPENREC common guard in Session.processMessages precedes body dispatch. OpenReceivedOtherMessageRejected delegates to testInitializationOtherMessageRejected: twelve non-KeepAlive types, valid Mapping/Address/Initialization/Shutdown controls and unknown U=0/U=1 require fatal Shutdown, exact offending reference, EOF, no SessionUp after worker exit and no applied mapping/address. Section 2.5.3 overrides unknown-message U handling during initialization; section 3.5.1.1 expressly requires a Shutdown response here. Live KeepAlive control requires OPENREC to Operational and timeout-only silence, not EOF. Prior twelve-case red evidence preserved.",
+      "requirement_sha": "f25ab01f6ac48f49",
+      "tests": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedOtherMessageRejected": "5c84a426fe4ed18b"
+      },
+      "units": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedOtherMessageRejected": "407b94360c3bcfae"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-2.5.4-2": {
+      "note": "OPENSENT common guard in Session.processMessages accepts only Initialization. OpenSentOtherMessageRejected uses twelve other types including KeepAlive, valid Shutdown/Mapping/Address and both unknown U bits; requires fatal Shutdown with offending reference, EOF, no SessionUp and no applied mapping/address. The live acceptable Initialization control requires a KeepAlive response and OPENREC, then peer KeepAlive reaches Operational without Notification or close (strict timeout). This judges both complete table branches, not solely non-establishment.",
+      "requirement_sha": "a8c162467598e293",
+      "tests": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "5c84a426fe4ed18b",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenSentOtherMessageRejected": "5c84a426fe4ed18b"
+      },
+      "units": {
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+        "internal/plugins/ldp/openrec_rfc5036_test.go::TestRFC5036OpenSentOtherMessageRejected": "8dc314b38aebde05"
+      },
+      "verdict": "enforced"
+    },
     "RFC5036-2.6.1.2-2": {
       "note": "Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036.",
       "requirement_sha": "0a71a332a4cb1b43",
@@ -110,8 +164,21 @@
       },
       "verdict": "enforced"
     },
+    "RFC5036-3.4.4.1-1": {
+      "note": "The tagged HopCountWithinMaximumIsApplied and HopCountAboveMaximumDrawsLoopDetected correctly distinguish Label Mapping hop counts 4 and 5 at configured maximum 4, including callback data/suppression and exact advisory reply. But full RFC5036 section 3.4.4.1 covers received Label Request as well as Label Mapping. Session.processMessages groups MsgTypeLabelRequest among unhandled message types, without parsing/checking Hop Count. Both tagged tests send Mapping only, so they cannot detect this uncovered receive behavior. Renewed producer-halt records prove reachability, not whole-row enforcement.",
+      "requirement_sha": "1ef5c86d59f79f6a",
+      "tests": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "1229c7e2acc6a715",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "1229c7e2acc6a715"
+      },
+      "units": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "df8a68a89ce160da",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "45dd72d50ddc6b2d"
+      },
+      "verdict": "weak"
+    },
     "RFC5036-3.4.4.1-2": {
-      "note": "TestRFC5036HopCountAboveMaximumDrawsLoopDetected checks a hop count above the configured maximum draws a Loop Detected Notification referring to the Label Mapping, the mapping is not applied and the session stays up; TestRFC5036HopCountWithinMaximumIsApplied checks a hop count at the maximum draws no Notification.",
+      "note": "Prior enforcement overstated full RFC5036 section 3.4.4.1. The two tagged tests correctly prove Label Mapping count 5 above maximum 4 yields advisory Loop Detected with exact offending reference, no callback and Operational state, while count 4 is applied with timeout-only wire silence. But the RFC also covers Label Request containing Hop Count; Session.processMessages treats MsgTypeLabelRequest as unhandled and never checks its hop count or sends Loop Detected. Both tests send Mapping, leaving that receive case untested. Renewed producer-halt records do not close the semantic gap.",
       "requirement_sha": "8808099b55d76524",
       "tests": {
         "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "1229c7e2acc6a715",
@@ -121,7 +188,7 @@
         "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "df8a68a89ce160da",
         "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "45dd72d50ddc6b2d"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5036-3.5.2-1": {
       "note": "TestRFC5036HelloHoldTimeZeroUsesDefault checks Hold Time 0 keeps the adjacency with 15s for a Link Hello and 45s for a Targeted Hello and not expired; TestRFC5036HelloHoldTimeNonZeroNotDefaulted checks non-zero values below and above the default are used as sent.",
@@ -149,6 +216,30 @@
       },
       "verdict": "enforced"
     },
+    "RFC5036-3.5.3-3": {
+      "note": "On non-ATM/non-Frame-Relay sessions, InitProposesDownstreamUnsolicited pins A=0 in the sent Common Session Parameters. InitOnDemandProposalKeepsDownstreamUnsolicited constructs A=1, confirms decoding, processes Initialization plus peer KeepAlive, requires Operational and strict timeout-only silence, then successfully sends and reads an unsolicited Mapping. handleInit retains Downstream Unsolicited regardless of peer A, and runSession advertises local bindings without a request.",
+      "requirement_sha": "30726a109fcbc895",
+      "tests": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "c0aa8fdb104978d5",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitProposesDownstreamUnsolicited": "c0aa8fdb104978d5"
+      },
+      "units": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "1f1213aa626ca766",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitProposesDownstreamUnsolicited": "a0aa10f672328674"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-4": {
+      "note": "Reviewed the negative-only annotation: handleInit accepts Downstream Unsolicited for all supported IP sessions and has no unacceptable advertisement-mode policy. The A=1 control requires Operational, timeout-only silence rather than EOF, and a subsequent unsolicited Mapping. Thus the tested supported negotiation cannot spuriously reject an acceptable mode; no absent ATM/Frame Relay capability is claimed.",
+      "requirement_sha": "06d9c8c1f2214310",
+      "tests": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "c0aa8fdb104978d5"
+      },
+      "units": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "1f1213aa626ca766"
+      },
+      "verdict": "enforced"
+    },
     "RFC5036-3.5.3-5": {
       "note": "TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection reads the Initialization ze sends and checks D=0 with PVLim 0; TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection gives EncodeInit a limit of 7 and checks 0 reaches the wire beside D=0 and 7 beside D=1.",
       "requirement_sha": "4f722a9ee8016940",
@@ -163,15 +254,39 @@
       "verdict": "enforced"
     },
     "RFC5036-3.5.3-6": {
-      "note": "TestRFC5036InitReservedBitsZeroOnTransmission checks the six reserved bits of the Common Session Parameters flags octet are zero in the sent Initialization; TestRFC5036InitReservedBitsIgnoredOnReceipt sets them all and checks A and D are not read from them, the session goes operational and no Notification is sent. ze sends no ATM or Frame Relay Session Parameters (RFC5036-3.5.3-13 gap). Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).",
+      "note": "Re-read both reserved-bit tests and EncodeInit/DecodeInit. Transmission requires all six reserved bits zero. Reception sets all six, requires neither A nor D set, processes Initialization plus peer KeepAlive to Operational, pins negotiated 30s and now requires a deadline timeout for silence (EOF fails). The initialization guard continues to accept the conforming message types; reserved bits do not change negotiation.",
       "requirement_sha": "38160fab47d2e744",
       "tests": {
-        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "b287aaf3bd7ef063",
-        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "b287aaf3bd7ef063"
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "c0aa8fdb104978d5",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "c0aa8fdb104978d5"
       },
       "units": {
-        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "0b8d67c01792150f",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "31017477865d6d4b",
         "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "bce63c08b2edc184"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-7": {
+      "note": "First judgment. Live InitMaxPDULengthTakesTheSmallerProposal preserves proposals 1000,255,100,0 and pins negotiated values 1000,4096,4096,4096, a KeepAlive response, OPENREC before peer KeepAlive, Operational afterward and timeout-only silence. Independent 8000 proposal control pins the unchanged local maximum 4096. Reviewed handleInit normalization at <=255 and minimum selection. This proves negotiation, not a separate promise about enforcing received PDU size.",
+      "requirement_sha": "4e2cbcf69038a50f",
+      "tests": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal": "c0aa8fdb104978d5",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "c0aa8fdb104978d5"
+      },
+      "units": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal": "a148d95a7bf5ddc8",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "fc886fcee7bc55a5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-8": {
+      "note": "First judgment; negative-only annotation is supported by handleInit: no Max PDU proposal is unacceptable to this implementation after <=255 normalization and minimum selection. Four live cases require KeepAlive rather than Notification, exact negotiated maximum, OPENREC then peer-KeepAlive Operational, and a timeout rather than EOF. No fatal rejection branch for an unsupported policy is invented.",
+      "requirement_sha": "4207680ac6ca8584",
+      "tests": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "c0aa8fdb104978d5"
+      },
+      "units": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "fc886fcee7bc55a5"
       },
       "verdict": "enforced"
     },

@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-RFC 5036 Section 3.4.5 calls this "the optional LDP Loop Detection mechanism". Ze offers no configuration for it (`register.go::parseLDPConfig` reads no loop-detection leaf), so it advertises no Path Vector Limit and runs none of the Path Vector procedures. The Hop Count check of Section 3.4.4.1 is implemented and proven (RFC5036-3.4.4.1-1, -2); the rows here are the Path-Vector-driven procedures that only run once Loop Detection is configured.
+RFC 5036 Section 3.4.5 calls this "the optional LDP Loop Detection mechanism". Ze offers no configuration for it (`register.go::parseLDPConfig` reads no loop-detection leaf), so it advertises no Path Vector Limit and runs none of the Path Vector procedures. The Hop Count check of Section 3.4.4.1 is implemented for Label Mapping only: `processMessages` leaves Label Request unhandled, so RFC5036-3.4.4.1-1 and -2 remain weak and belong to `plan/spec-ldp-label-request-path.md` AC-HC-1..3. The earlier claim that those whole rows were proven was based on Mapping-only tests. This spec covers the Path-Vector-driven procedures that run once Loop Detection is configured.
 
 Ze does not offer this feature today. The owner can decline it in one word,
 which turns every row below from `{gap}` into `{feature-declined}`; until then

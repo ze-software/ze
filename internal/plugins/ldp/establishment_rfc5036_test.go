@@ -83,7 +83,9 @@ func expectSilence(t *testing.T, remote net.Conn, window time.Duration, what str
 // read on the peer end returns end of file, not a timeout and not data.
 func expectClosed(t *testing.T, remote net.Conn) {
 	t.Helper()
-	if err := remote.SetReadDeadline(time.Now().Add(ldpReadTimeout)); err != nil {
+	// net.Pipe may already observe the peer's close here. The read below must
+	// still prove EOF; a deadline-setting error alone is not closure evidence.
+	if err := remote.SetReadDeadline(time.Now().Add(ldpReadTimeout)); err != nil && !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("SetReadDeadline: %v", err)
 	}
 	var probe [1]byte

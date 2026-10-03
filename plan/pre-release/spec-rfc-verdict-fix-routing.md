@@ -154,12 +154,14 @@ Copied from the parent's "Narrowing audit findings, 2026-09-28", where the proce
 
 ### Blocked by
 
-Each id below was checked on 2026-09-28: a weak or wrong verdict in `rfc/audit/<stem>.json`, or a row of the R-7 table above. The blocking spec owns the producer fix (AC-C4), and the verdict moves into its acceptance criteria (P-3).
+The original inventory below was checked on 2026-09-28; later transfers name their dates. Each entry is a weak or wrong verdict in `rfc/audit/<stem>.json`, or a row of the R-7 table above. The blocking spec owns the producer fix (AC-C4), and the verdict moves into its acceptance criteria (P-3).
 
 | ID | Verdict | Blocking spec |
 |----|---------|---------------|
 | RFC4090-6-6 | weak | `spec-rsvpte-frr-link-protection-fallback` |
 | RFC3209-4.6.1-2 | wrong | `spec-rsvpte-ipv6-lsp-tunnel` (added 2026-09-29: Ze has no LSP_TUNNEL_IPv6 SESSION codec) |
+| RFC5036-3.4.4.1-1 | weak | `spec-ldp-label-request-path` AC-HC-1..3 (2026-10-02: Hop Count is checked for Label Mapping only; Label Request is unhandled) |
+| RFC5036-3.4.4.1-2 | weak | `spec-ldp-label-request-path` AC-HC-1..3 (2026-10-02: no Loop Detected reply for an excessive Label Request; existing Mapping proof retained) |
 
 - RFC905-x-3 and RFC905-x-4 tag OSPF checksum units and stay in the parent (AC-9); their split rows (RFC905-x-3, x-4 in the split table) are this child's, because it owns rfc905.
 
