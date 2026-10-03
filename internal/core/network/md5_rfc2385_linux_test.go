@@ -81,15 +81,6 @@ func rfc2385DialDropped(t *testing.T, dialer *RealDialer, address string) error 
 // 256 KiB crosses intact.
 // RFC requirement: RFC2385-2.0-3 negative -- a segment whose digest DOES verify
 // is not dropped: the payload arrives whole rather than being discarded.
-// RFC requirement: RFC2385-2.0-6 positive -- every segment of this connection
-// carried a digest the peer's kernel recomputed and accepted, over the same
-// pseudo-header, header, data and key.
-// RFC requirement: RFC2385-3.0-1 positive -- the option ze's key produces is the
-// one the peer's TCP accepts, so its Kind, its length and its 16-octet digest
-// are the encoding this document fixes.
-// RFC requirement: RFC2385-4.3-1 positive -- 256 KiB crosses a signed
-// connection, so the MSS offered at setup left room for the option rather than
-// producing segments the path could not carry.
 // RFC requirement: RFC2385-4.3-2 positive -- the handshake completes with the
 // option present, so the header and its options fit the 60 octets TCP allows.
 // RFC requirement: RFC4271-Security-1 positive -- Ze supports the TCP MD5 option on
@@ -150,22 +141,13 @@ func TestRFC2385MatchingKeysCarryASignedSession(t *testing.T) {
 // different keys, so the digest the listener computes cannot match the one the
 // dialer sent.
 //
-// VALIDATES: a segment whose digest does not verify is dropped and answered
-// with nothing, which reaches the dialer as a timeout rather than a refusal.
+// VALIDATES: mismatched keys prevent establishment and the dial times out.
+// Wire silence is proved separately by the injected-packet capture test.
 // PREVENTS: a session established under a key the peer does not hold, which is
 // the whole protection this option exists to give.
 // RFC requirement: RFC2385-2.0-2 negative -- the receiver refuses a segment
 // whose digest does not match the one its own key produces, so no session is
 // established under a key the two ends do not share.
-// RFC requirement: RFC2385-2.0-3 positive -- the failing comparison drops the
-// segment and produces NO response: the dial ends in a timeout, and neither a
-// refusal nor a reset comes back.
-// RFC requirement: RFC2385-2.0-6 negative -- a digest computed over a different
-// key is not the digest this section demands, and the segment carrying it is
-// refused.
-// RFC requirement: RFC2385-3.0-1 negative -- a well-formed option carrying the
-// wrong digest is refused, so acceptance rests on the digest and not on the
-// option merely being present.
 func TestRFC2385MismatchedKeyIsDroppedWithNoResponse(t *testing.T) {
 	ln := rfc2385Listener(t, "rfc2385-listener-key")
 	defer closeOrLog(t, ln)

@@ -75,14 +75,9 @@ func TestGTSMDialerWithoutOutTTLLeavesTheDefault(t *testing.T) {
 	}
 }
 
-// TestGTSMTransmittedTTLArrivesUndecremented reads the TTL off the wire rather
-// than off the sending socket. The receiver reports what the stack delivered,
-// so a value of 255 at the peer is the stack-level answer RFC 5082 Section 3
-// asks for: nothing between ze and the peer decremented it.
-//
-// RFC requirement: RFC5082-3-3 positive -- a datagram ze transmits after
-// SetIPTTL(255) is delivered to the peer with an inbound TTL of exactly 255,
-// so the TTL of a GTSM-enabled session was not decremented in transit.
+// TestGTSMTransmittedTTLArrivesUndecremented calibrates the loopback TTL reader.
+// This is not evidence of local forwarding-plane behavior; the configured
+// egress proof lives in ttl_gtsm_egress_integration_linux_test.go.
 func TestGTSMTransmittedTTLArrivesUndecremented(t *testing.T) {
 	receiver, sender := udpPairV4(t)
 	defer closeOrLog(t, receiver)
@@ -103,14 +98,10 @@ func TestGTSMTransmittedTTLArrivesUndecremented(t *testing.T) {
 	}
 }
 
-// TestGTSMTransmittedTTLReportsTheValueSet is the discrimination for the test
-// above. The two datagrams differ in the TTL ze sets, so a 255 observed there
-// is bound to what SetIPTTL wrote and not to a receiver that answers 255 for
-// everything.
-//
-// RFC requirement: RFC5082-3-3 negative -- a datagram ze transmits after
-// SetIPTTL(254) is delivered with an inbound TTL of exactly 254. The receive
-// path reports the true TTL, and no layer rewrites it upward to 255.
+// TestGTSMTransmittedTTLReportsTheValueSet keeps the lower-TTL calibration:
+// SetIPTTL(254) must be reported as 254, not rewritten upward by the reader.
+// Owner ruling 11 (2026-10-02 continuation) removes only its misleading
+// RFC5082-3-3 negative tag; no refusal path exists for local no-decrement.
 func TestGTSMTransmittedTTLReportsTheValueSet(t *testing.T) {
 	receiver, sender := udpPairV4(t)
 	defer closeOrLog(t, receiver)

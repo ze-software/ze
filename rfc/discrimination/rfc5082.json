@@ -114,20 +114,9 @@
     {
       "rid": "RFC5082-3-3",
       "polarity": "positive",
-      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented",
-      "unit-sha": "09f0bd8792709a14",
-      "claim-sha": "13fb1bfac396ec77",
-      "route": "revert",
-      "producer": "internal/core/network/ttl_linux.go::setIPTTL",
-      "producer-sha": "46e81fbdb8c0773f",
-      "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC5082-3-3",
-      "polarity": "negative",
-      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLReportsTheValueSet",
-      "unit-sha": "f979897950d14eae",
-      "claim-sha": "76c5b95836b902f8",
+      "unit": "internal/core/network/ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement",
+      "unit-sha": "f2bc767ae984d353",
+      "claim-sha": "37bcce2b5732b4a4",
       "route": "revert",
       "producer": "internal/core/network/ttl_linux.go::setIPTTL",
       "producer-sha": "46e81fbdb8c0773f",

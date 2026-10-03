@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc2385.txt",
   "source-sha": "d4667cc1ab9fd8ab",
-  "signed-off": "2026-09-01",
-  "reviewer": "ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 7 (Class B, rfc2385)",
+  "signed-off": "2026-10-02",
+  "reviewer": "Original 2026-09-01 walk retained; MD5LinuxAuthor re-read RFC2385 Section 4.3 and RFC6691 Section 3.2 for the owner-authorized MSS retirement on 2026-10-02",
+  "resign-reason": "Only site 4.3:1 changes: RFC6691 Section 3.2 explicitly calls the RFC2385 MSS sentence incorrect, and RFC9293 Section 3.7.1 retains fixed-header MSS and option-aware data length. Owner ruling MSS retirement and EVPN polarity (2026-10-02) authorizes retirement of RFC2385-4.3-1. Exclusions rise from one to two. No new walk of unchanged sections is claimed.",
   "sections": [
     {
       "id": "front",
@@ -60,7 +61,7 @@
       "id": "4.3",
       "sites": 2,
       "disposition": "walked",
-      "reason": "TCP Header Size. Two derived sites, both mapped: the option's 18 octets have to be allowed for in the MSS offered at setup, and the whole header including options has to fit the 60 bytes the data-offset field can express. The 4.4BSD worked example that follows is arithmetic over those two, and states nothing further."
+      "reason": "TCP Header Size. Two derived sites: 4.3:1 is excluded because RFC6691 Section 3.2 explicitly corrects the advertised-MSS advice (retirement authorized 2026-10-02); 4.3:2 remains mapped to the 60-byte TCP header ceiling. The 4.4BSD worked example states no further obligation."
     },
     {
       "id": "4.4",
@@ -130,9 +131,9 @@
     {
       "id": "4.3:1",
       "quote": "As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation.",
-      "disposition": "mapped",
-      "mapped-to": "RFC2385-4.3-1",
-      "reason": "The MSS has to allow for the option. The MSS is chosen by the kernel that signs the segments, which knows the option is installed on the socket; ze contributes no MSS and no TCP option. Met through the kernel, and asserted at ze's boundary by a payload larger than one segment crossing a keyed connection intact."
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "No current MSS requirement: RFC6691 Section 3.2 quotes this exact sentence and states 'This is incorrect. The value for the MSS option is only adjusted by the fixed IP and TCP headers.' RFC9293 Section 3.7.1 retains the correction. Owner ruling MSS retirement and EVPN polarity (2026-10-02) retires RFC2385-4.3-1; this exclusion records that explicit standards correction, not an absent implementation."
     },
     {
       "id": "4.3:2",

@@ -1,8 +1,8 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-03",
   "requirements": {
     "RFC5082-3-2": {
-      "note": "Re-read 2026-09-27 against the §6.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.",
+      "note": "Re-read 2026-09-27 against the \u00a76.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.",
       "requirement_sha": "5ee896f8d5f5b1e8",
       "tests": {
         "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "020e378ebd5b0863",
@@ -27,17 +27,18 @@
       "verdict": "enforced"
     },
     "RFC5082-3-3": {
-      "note": "SB-3 strict re-read 2026-09-27. Forbidden: a GTSM session's packets arriving with their TTL decremented. TestGTSMTransmittedTTLArrivesUndecremented sets IP_TTL 255 on a loopback socket and reads 255 back; there is no GTSM session, and a loopback path has no forwarding hop that could decrement, so the assertion cannot go red on the behaviour the sentence forbids. TestGTSMTransmittedTTLReportsTheValueSet (254 arrives as 254) calibrates the probe and violates nothing, so the pair has no negative.",
+      "code": {
+        "internal/core/network/ttl_linux.go::setIPTTL": "09ae7e3dcba3563e"
+      },
+      "note": "RFC5082 Section 3 forbids decrementing the TTL of a GTSM-enabled session, in the local-output architecture paragraph. Owner-approved single-positive is appropriate: a transit decrement is not a negative input to this local-output rule. TestGTSMConfiguredEgressDoesNotDecrement configures RealDialer.OutTTL=255, uses an isolated namespace/veth and route lookup, and checks SYN/data TTL at the adjacent receiving interface rather than loopback or getsockopt. RealDialer.DialContext invokes setIPTTL before the connection handshake; parseTTLSettings derives 255 from ttl max. The native setIPTTL-disable record is the observation evidence; retired loopback/value-set tuples are not evidence for this verdict.",
       "requirement_sha": "a5e061d662e2b62b",
       "tests": {
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented": "58c73a28cf4589b4",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLReportsTheValueSet": "58c73a28cf4589b4"
+        "internal/core/network/ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "5d7221d669e107a1"
       },
       "units": {
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented": "71054b4ad9f46aa2",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLReportsTheValueSet": "5f1eeda728df5608"
+        "internal/core/network/ttl_gtsm_egress_integration_linux_test.go::TestGTSMConfiguredEgressDoesNotDecrement": "98554fe674e83959"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC5082-3-4": {
       "note": "Re-read 2026-09-27. Two clauses. Trusted dropped: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received (receiveByte). Unknown dropped: TestGTSMNoFloorDeliversAnUnknownPacket fails if a low-TTL packet on a no-floor socket is not delivered, and TestGTSMDeliversAnICMPErrorNoSessionClaims fails if icmpInType does not rise for three unclaimed ICMP errors at TTL 1.",
