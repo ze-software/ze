@@ -26,7 +26,7 @@
     {
       "rid": "RFC5883-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bfd/engine/multihop_pair_rfc5883_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",
+      "unit": "internal/component/bfd/engine/rfc5883_multihop_pair_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",
       "unit-sha": "ec1d4b7b08bf26e5",
       "claim-sha": "b12f5f724699c691",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC5883-4.1-1",
       "polarity": "negative",
-      "unit": "internal/component/bfd/engine/multihop_pair_rfc5883_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",
+      "unit": "internal/component/bfd/engine/rfc5883_multihop_pair_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",
       "unit-sha": "ec1d4b7b08bf26e5",
       "claim-sha": "70b7780e33bbe93c",
       "route": "revert",

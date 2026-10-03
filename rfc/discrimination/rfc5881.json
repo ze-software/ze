@@ -180,7 +180,7 @@
     {
       "rid": "RFC5881-4-8",
       "polarity": "positive",
-      "unit": "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip",
+      "unit": "internal/component/bfd/engine/rfc5881_echo_test.go::TestEchoRoundTrip",
       "unit-sha": "de8d776d1e961c79",
       "claim-sha": "a2632ed998968b2f",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC5881-5-1",
       "polarity": "positive",
-      "unit": "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255",
+      "unit": "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255",
       "unit-sha": "d7404fece48ebc3a",
       "claim-sha": "2e8008a18f1f792e",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC5881-5-2",
       "polarity": "positive",
-      "unit": "internal/component/bfd/engine/ttl_test.go::TestTTLGateSingleHop",
+      "unit": "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop",
       "unit-sha": "97921ac1c8e7b524",
       "claim-sha": "2e8350e93bec740a",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC5881-5-2",
       "polarity": "negative",
-      "unit": "internal/component/bfd/engine/ttl_test.go::TestTTLGateSingleHop",
+      "unit": "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop",
       "unit-sha": "97921ac1c8e7b524",
       "claim-sha": "21245b27774ef88d",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC5881-5-3",
       "polarity": "positive",
-      "unit": "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255",
+      "unit": "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255",
       "unit-sha": "d7404fece48ebc3a",
       "claim-sha": "4feeabf2aa104609",
       "route": "revert",

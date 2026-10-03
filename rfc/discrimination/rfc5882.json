@@ -224,7 +224,7 @@
     {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
-      "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey",
+      "unit": "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey",
       "unit-sha": "a3b78ff79be842aa",
       "claim-sha": "65a3ef744ec2f2ad",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
-      "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey",
+      "unit": "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey",
       "unit-sha": "1b62f85f775bec3e",
       "claim-sha": "cd7eb1e0043c382e",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC5882-4.4-1",
       "polarity": "positive",
-      "unit": "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey",
+      "unit": "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey",
       "unit-sha": "ff84028dc5c46e2b",
       "claim-sha": "8a326ef203433f79",
       "route": "revert",

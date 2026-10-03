@@ -115,12 +115,12 @@
       "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a74 \"BFD Echo packets MUST be transmitted in such a way as to ensure that they are received by the remote system. On multiaccess media ... the destination datalink address corresponds to the remote system.\" Over veth pairs in a rootless netns with AF_PACKET capture: + TestRFC5881EchoFrameAddressedToTheRemoteSystem (echo bound p0, frame on p1 with Ethernet dst == remote MAC); - TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt (unbound, /32 via o0 where the remote is not: nothing on o1, frame on p1 with the remote's MAC). {single-polarity} marker removed. Revert records on udp.go::destination (+) and udp.go::pinsToLink (-) observed red; pinsToLink-false overlay reds only the negative (author pin-ov2).",
       "requirement_sha": "00256c77124e1960",
       "tests": {
-        "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip": "396f5d64b0fa756c",
+        "internal/component/bfd/engine/rfc5881_echo_test.go::TestEchoRoundTrip": "396f5d64b0fa756c",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoFrameAddressedToTheRemoteSystem": "e069f87eed30683c",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt": "e069f87eed30683c"
       },
       "units": {
-        "internal/component/bfd/engine/echo_test.go::TestEchoRoundTrip": "c347756c47fff34a",
+        "internal/component/bfd/engine/rfc5881_echo_test.go::TestEchoRoundTrip": "c347756c47fff34a",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoFrameAddressedToTheRemoteSystem": "9adb9476b4ebf321",
         "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt": "05f556a820db02d5"
       },
@@ -132,12 +132,12 @@
       "tests": {
         "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire": "b27d2d5cb5079f05",
         "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "1aa2d39d3b0cd82e",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
+        "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire": "c222fee642adb96a",
         "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "fde61bb234e77c2b",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
+        "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
       },
       "verdict": "enforced"
     },
@@ -147,14 +147,14 @@
       "tests": {
         "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths": "0a4ceb0de8f79c7c",
         "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTLNot255DiscardedOnBothDemuxPaths": "0a4ceb0de8f79c7c",
-        "internal/component/bfd/engine/ttl_test.go::TestTTLGateSingleHop": "909ba7e246b44bbe",
-        "internal/component/bfd/engine/ttl_test.go::TestTTLGateSingleHop#2": "909ba7e246b44bbe"
+        "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop": "909ba7e246b44bbe",
+        "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop#2": "909ba7e246b44bbe"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths": "5b7fe387c28e7a4d",
         "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTLNot255DiscardedOnBothDemuxPaths": "2f4921423ccc8e5d",
-        "internal/component/bfd/engine/ttl_test.go::TestTTLGateSingleHop": "c9952ef6b5d61633",
-        "internal/component/bfd/engine/ttl_test.go::TestTTLGateSingleHop#2": "c9952ef6b5d61633"
+        "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop": "c9952ef6b5d61633",
+        "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop#2": "c9952ef6b5d61633"
       },
       "verdict": "enforced"
     },
@@ -164,12 +164,12 @@
       "tests": {
         "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire": "b27d2d5cb5079f05",
         "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "1aa2d39d3b0cd82e",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
+        "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
       },
       "units": {
         "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire": "2d9ec136aa6767e7",
         "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "fde61bb234e77c2b",
-        "internal/component/bfd/transport/udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
+        "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
       },
       "verdict": "enforced"
     },
