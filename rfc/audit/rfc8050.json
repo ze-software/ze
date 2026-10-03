@@ -29,6 +29,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC8050-x-1": {
+      "note": "Independent MRTJudge 2026-10-02. RFC8050 section 2: Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. TestRFC8050MessageCallbackPreservesEncodingAndFraming proves both directions/types and each isolated classic/MP announcement/withdrawal location selects its proper subtype, ignores unrelated-family negotiation, and preserves exactly the header plus body. Real session send/receive callbacks supply their own encoding context; notifyMessageReceiver passes it to observers. Missing case is simultaneous families with differing modes: updateAddPath ORs them, but the single subtype does not carry the per-family map. Native mixed-distinct fixture demonstrates the resulting offline 1/1 count instead of 2/2; section 3 requires preserving the entire message, so rewriting or splitting capture bytes is not a remedy. EOR and opposite direction asymmetry are not explicitly asserted in this unit either. Both native record polarities are current but disable whole producers, proving reachability only. The static-toggle BGP4MP gap is fixed, yet full signaling/decoding support is not established; no scope exclusion is authorized.",
+      "requirement_sha": "6194d833939a66b9",
+      "tests": {
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "2255fe2f4c3e84e9",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "2255fe2f4c3e84e9"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "201703b544777906",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "201703b544777906"
+      },
+      "verdict": "weak"
+    },
     "RFC8050-x-2": {
       "note": "rejudge 2026-10-02 (c33 judge): {single-polarity: positive} (Figure 1 has no alternative encoding to refuse). TestRFC8050AddPathRIBEntryFollowsFigure1 pins the 32-bit field in network order by literal octets 01 02 03 04 on write and value 0x01020304 on read; four distinct octets and a value above 0xFFFF expose a 16-bit width or a reversed order. Judge break: a 16-bit read of the field turns it red, HEAD TestRIBRecordAddPathRoundTrip (PathID 1 and 2) stays green, which was the earlier gap.",
       "requirement_sha": "9e616d9919bd82c6",
@@ -43,32 +56,42 @@
       "verdict": "enforced"
     },
     "RFC8050-x-3": {
-      "note": "rejudge 2026-10-02 (c33 judge): + TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields drives literal records of subtypes 8, 9, 10, 11 through ReadFrom and asserts every RFC 6396 Section 4.4 field and the entire 45-octet UPDATE (Path Identifier in its NLRI) as the BGP message field, equal to the base subtype's reading of the same octets; - TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout forces an UPDATE with a Path Identifier through the plugin writer and compares the subtype 9 and 11 records octet by octet with the base AS4 layout (length 65 = 20 + 45). Ze writes only the AS4 add-path subtypes (internal/plugins/mrt/dump.go), and BGP4MP_ET shares dispatchBGP4MP (internal/mrt/reader.go dispatch), so both covered. Neither unit parses the NLRI, so the open add-path NLRI parsing defect (RFC8050-x-4) does not reach this row. Residual: HEAD TestBGP4MPMessageRoundTrip (+) and TestBGP4MPStateChangeRoundTrip (-) drive base subtypes only and add nothing here; their claims belong on an RFC 6396 Section 4.4 row, not moved because rfc6396 and internal/mrt/mrt_test.go sit in another author's range.",
+      "note": "Independent MRTJudge 2026-10-02. RFC8050 section 3: The fields of these message types are identical to the equivalent non-additional-path versions specified in Section 4.4 of [RFC6396]. These enhancements continue to encapsulate the entire BGP message in the BGP message field. TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields asserts literal base-layout fields and entire 45-octet UPDATE for all four ADDPATH subtypes. TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout forces Path Identifier-bearing NLRI through actual writer in both directions, comparing every octet after timestamp with literal AS4 base layout plus original entire message. Migrated body-only calls exercise reconstruction of the 19-byte header, not a double header. Supplementary roundtrip/state tests retained; roundtrip fixture itself has no Path Identifier despite its broad prose, so it supplies only byte-preservation evidence. Native records are current; panic reachability is not substituted for these exact assertions. The mixed-family ambiguity finding under x-1/x-4 does not authorize modifying captured bytes and does not undermine this field-preservation proof.",
       "requirement_sha": "e345360cf8b8b739",
       "tests": {
-        "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "a3cf168d6cde55bd",
-        "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "a3cf168d6cde55bd",
-        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields": "69f4bce65648ccd5",
-        "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout": "6bc5c3c5ddb82766"
+        "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "e61180c0b2ad8e39",
+        "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "e61180c0b2ad8e39",
+        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields": "9b52224532bd0e0b",
+        "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout": "3a5e67c1f2d1cfc9"
       },
       "units": {
-        "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "3e89b1b296b18679",
+        "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "962a6b7dbbed1c7f",
         "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "9d3a3ab19ecff5b7",
-        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields": "2c2e4edd9818ed0f",
-        "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout": "f3375d4ba2856588"
+        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields": "2e98c0ec1ff5a295",
+        "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout": "027e8eda1faf7fe5"
       },
       "verdict": "enforced"
     },
     "RFC8050-x-4": {
-      "note": "Forbidden behaviour: deciding whether a record's NLRI carries Path Identifiers from anything but the MRT subtype (session state, a capability, a flag). TestIsAddPathHelpers requires IsAddPathRIBSubtype and IsAddPathBGP4MPSubtype to classify every add-path and base subtype correctly from the subtype alone, both polarities. It tests the classifier only: a decoder (internal/mrt/decode.go DecodeRIBRecord, or the BGP4MP reader) that stopped consulting the classifier and read an add-path flag from elsewhere keeps the unit green. No tagged unit decodes a record whose parse depends on the subtype.",
+      "note": "Independent MRTJudge 2026-10-02. RFC8050 section 2: In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. Substantial old classifier-only hole is closed: TestRFC8050SubtypeControlsEveryNLRILocation drives literal base/ADDPATH records across both MRT types and AS widths, asserting exact classic/MP announcement/withdrawal prefixes and truncated-ID errors; command test asserts show/density 2/2 and filter acceptance. However all coexisting fields in those fixtures have the same mode, while the observer test isolates one location per UPDATE. updateAddPath ORs per-family negotiated modes into one subtype; every parser then applies one AddPath bit to all fields. A valid mixed-mode capture (ordinary classic plus ADDPATH IPv6 MP) is not covered. Independent 131-byte mixed-distinct fixture produced show W=1 A=1 and density 1/1 with malformed warnings instead of 2/2. RFC8050 section 3 preserves the entire message and defines no per-family mode metadata; stateless reconstruction of mixed modes is not generally determined by this subtype. Keep weak until lossless context/ambiguity handling is specified and proved; do not invent Path Identifiers or split captured messages. All five new x-4 native claims are current panic-reachability records, not evidence of this missing case.",
       "requirement_sha": "3dcf23f1c1c7357c",
       "tests": {
-        "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "a3cf168d6cde55bd",
-        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "a3cf168d6cde55bd"
+        "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "48b7dd1cd55d3321",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "2255fe2f4c3e84e9",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "2255fe2f4c3e84e9",
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "e61180c0b2ad8e39",
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "e61180c0b2ad8e39",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation": "16257fc91749ce98",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation#2": "16257fc91749ce98"
       },
       "units": {
+        "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "dee5e23192536ca3",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "201703b544777906",
+        "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "201703b544777906",
         "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "0a755beddd59ee75",
-        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "0a755beddd59ee75"
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "0a755beddd59ee75",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation": "4d6078515642a8a2",
+        "internal/mrt/rfc8050_context_test.go::TestRFC8050SubtypeControlsEveryNLRILocation#2": "4d6078515642a8a2"
       },
       "verdict": "weak"
     }

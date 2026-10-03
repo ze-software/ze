@@ -359,10 +359,15 @@ func TestIterateAttrs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var gotTypes []uint8
 			var gotLens []int
-			iterateAttrs(tt.attrs, func(_, typeCode uint8, value []byte) {
+			err := iterateAttrs(tt.attrs, func(_, typeCode uint8, value []byte) {
 				gotTypes = append(gotTypes, typeCode)
 				gotLens = append(gotLens, len(value))
 			})
+			if tt.name == "truncated attr header stops iteration" {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			assert.Equal(t, tt.wantTypes, gotTypes)
 			assert.Equal(t, tt.wantLens, gotLens)
 		})
@@ -394,7 +399,13 @@ func TestCountAttrs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, countAttrs(tt.attrs))
+			count, err := countAttrs(tt.attrs)
+			assert.Equal(t, tt.want, count)
+			if tt.name == "truncated" {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
@@ -727,7 +738,7 @@ func TestCountUpdateNLRIs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ann, wd, err := countUpdateNLRIs(tt.body)
+			ann, wd, err := countUpdateNLRIs(framedUpdate(tt.body))
 			assert.Equal(t, tt.wantAnnounced, ann, "announced")
 			assert.Equal(t, tt.wantWithdrawn, wd, "withdrawn")
 			if tt.wantErr {
@@ -984,7 +995,7 @@ func TestExtractAndCountRoundTrip(t *testing.T) {
 	require.NotNil(t, body)
 	assert.Equal(t, uint32(65000), peerASN)
 
-	ann, wd, err := countUpdateNLRIs(body)
+	ann, wd, err := countUpdateNLRIs(framedUpdate(body))
 	require.NoError(t, err, "a well-formed record must count cleanly")
 	assert.Equal(t, 3, ann, "expected 3 announced (trailing NLRI)")
 	assert.Equal(t, 1, wd, "expected 1 withdrawn")
@@ -992,5 +1003,7 @@ func TestExtractAndCountRoundTrip(t *testing.T) {
 	// Verify attrs extraction.
 	gotAttrs := extractUpdateAttrs(body)
 	assert.Equal(t, attrs, gotAttrs)
-	assert.Equal(t, 2, countAttrs(gotAttrs))
+	count, err := countAttrs(gotAttrs)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
 }

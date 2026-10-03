@@ -24,7 +24,7 @@ func TestInboundConnectionRoundTrip(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Initially nil
-	assert.Nil(t, peer.takeInboundConnection())
+	assert.Nil(t, peer.takeInboundConnection().conn)
 
 	// Store and retrieve
 	client, server := net.Pipe()
@@ -33,10 +33,10 @@ func TestInboundConnectionRoundTrip(t *testing.T) {
 
 	peer.setInboundConnection(server)
 	got := peer.takeInboundConnection()
-	assert.Equal(t, server, got)
+	assert.Equal(t, server, got.conn)
 
 	// Second take returns nil
-	assert.Nil(t, peer.takeInboundConnection())
+	assert.Nil(t, peer.takeInboundConnection().conn)
 }
 
 // TestInboundConnectionReplacesOld verifies that storing a new inbound
@@ -67,7 +67,7 @@ func TestInboundConnectionReplacesOld(t *testing.T) {
 
 	// Second connection should be the one retrieved
 	got := peer.takeInboundConnection()
-	assert.Equal(t, server2, got)
+	assert.Equal(t, server2, got.conn)
 }
 
 // TestInboundNotifyWakesBackoff verifies that setInboundConnection sends a
@@ -149,7 +149,7 @@ func TestInboundConnectionCleanup(t *testing.T) {
 	_ = server.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
 	_, err := server.Write([]byte{0})
 	assert.Error(t, err, "inbound connection should be closed after cleanup")
-	assert.Nil(t, peer.takeInboundConnection(), "inbound should be nil after cleanup")
+	assert.Nil(t, peer.takeInboundConnection().conn, "inbound should be nil after cleanup")
 }
 
 // TestInboundConnectionSkipsBackoff verifies the full integration: the run()

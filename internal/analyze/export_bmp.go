@@ -90,7 +90,7 @@ func runExportBMP(args []string) int {
 	var count uint64
 	handler := &mrt.Handler{
 		OnMessage: func(h mrt.Header, usec uint32, m *mrt.MessageRecord) error {
-			if len(m.BGPMessage) == 0 {
+			if len(m.BGPMessage.Bytes) == 0 {
 				return nil
 			}
 			if peerFilter != nil && !peerFilter.Equal(net.IP(m.PeerIP)) {
@@ -123,7 +123,7 @@ func runExportBMP(args []string) int {
 
 // buildBMPRouteMonitoring wraps a BGP message in a BMP v3 Route Monitoring frame.
 func buildBMPRouteMonitoring(ts, usec uint32, m *mrt.MessageRecord) []byte {
-	totalLen := BMPCommonHdrLen + BMPPeerHdrLen + len(m.BGPMessage)
+	totalLen := BMPCommonHdrLen + BMPPeerHdrLen + len(m.BGPMessage.Bytes)
 	buf := make([]byte, totalLen)
 
 	buf[0] = 3                                             // BMP version
@@ -148,6 +148,6 @@ func buildBMPRouteMonitoring(ts, usec uint32, m *mrt.MessageRecord) []byte {
 	binary.BigEndian.PutUint32(buf[off+34:off+38], ts)
 	binary.BigEndian.PutUint32(buf[off+38:off+42], usec)
 
-	copy(buf[BMPCommonHdrLen+BMPPeerHdrLen:], m.BGPMessage)
+	copy(buf[BMPCommonHdrLen+BMPPeerHdrLen:], m.BGPMessage.Bytes)
 	return buf
 }

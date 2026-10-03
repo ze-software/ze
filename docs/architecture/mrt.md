@@ -29,6 +29,14 @@ Key encoder functions:
 - `WriteTableDumpV2Header` -- sequence + prefix for AFI-specific subtypes
 - `WriteRIBGenericHeader` -- sequence + AFI/SAFI + NLRI
 
+`WritePeerIndexTable` rejects a non-UTF-8 or overlength view name before writing
+any bytes and returns `(count, error)`. The decoder rejects non-UTF-8 names too.
+The daemon's `writePeerIndexTable` deliberately supplies no view name and emits
+an exact zero View Name Length; it does not invent a configured name.
+<!-- source: internal/mrt/encode.go — WritePeerIndexTable -->
+<!-- source: internal/mrt/decode.go — DecodePeerIndexTable -->
+<!-- source: internal/plugins/mrt/dump.go — writePeerIndexTable -->
+
 ### Decoding (read side)
 
 Used by `internal/analyze` for offline parsing. Allocates freely (offline tool).
@@ -47,9 +55,9 @@ depends on it), so the offline parsers cannot import it.
 
 | Entry point | Decodes |
 |-------------|---------|
-| `ParseBGPMessage` | A complete BGP message including the 19-byte header |
+| `ParseBGPMessage` | Exactly one complete BGP message including the 19-byte header; trailing or missing bytes are errors |
 | `UpdateAttributeBytes` | The raw path-attribute section of an UPDATE body |
-| `ParseAttributes` | A packed path-attribute section into typed attributes |
+| `ParseAttributes` | A packed path-attribute section into typed attributes, with an error for a truncated header, length or value |
 | `ParseASPath` | AS_PATH at an explicitly supplied AS width |
 | `ParsePrefixesAFI` | Packed NLRI for a given address family |
 | `ParseMPReach` / `ParseMPUnreach` | Full RFC 4760 MP_REACH / MP_UNREACH |
@@ -65,6 +73,46 @@ callers derive it with `ASPathIsFourByte(mrtType, subtype)`: TABLE_DUMP is
 2-byte (Section 4.2), TABLE_DUMP_V2 is 4-byte (Section 4.3.4), BGP4MP_MESSAGE is
 2-byte (Section 4.4.2) and BGP4MP_MESSAGE_AS4 is 4-byte (Section 4.4.3).
 <!-- source: internal/mrt/bgp_attribute.go — ASPathIsFourByte -->
+
+**ADD-PATH is negotiated per family and direction.** `MessageRecord.BGPMessage`
+borrows the complete original bytes and carries the subtype hint plus immutable
+context derived from both actual directional OPENs. Each reader invocation owns
+its own bounded session evidence; teardown, a new OPEN epoch and identity reuse
+invalidate it. The recorder's post-handshake Idle-to-Established notification
+does not discard the handshake. Capture starting mid-session, updates-only
+streams and independently opened rotated files cannot invent missing OPENs.
+Ordinary subtypes and single-family ADD-PATH records remain unambiguous without
+OPENs. A multiple-family ADD-PATH UPDATE without both OPENs returns an explicit
+unavailable/ambiguous-context error, even if its bytes happen to decode under
+one mode. No Path Identifier rewriting, message splitting or byte guessing is
+performed. `ParseBGPMessage(record.BGPMessage)` preserves the context;
+`ParsedUpdate.AddPathFor` supplies the mode for each MP attribute. Prefix arrays
+have corresponding Path Identifier arrays when ADD-PATH applies. Callers MUST
+copy borrowed bytes if retaining them beyond their owner's lifetime.
+<!-- source: internal/mrt/decode.go — DecodeBGP4MPMessage -->
+<!-- source: internal/mrt/bgp.go — BGPMessage, ParseBGPMessage -->
+<!-- source: internal/mrt/context.go — SessionContexts, BGPMessage.AddPathFor -->
+
+An empty MP_REACH or MP_UNREACH field still names a family and can cause the
+recorder to select an ADD-PATH subtype. The reader includes that family when
+checking ambiguity, even though the field carries no prefixes. For example,
+ordinary classic IPv4 NLRI alongside an empty IPv6 MP_UNREACH requires both
+OPENs when recorded under an ADD-PATH subtype. A standalone empty EOR remains
+decodable and replayable.
+
+Content filters retain OPENs and session-control records that pass their
+record/peer constraints, so selected mixed-family UPDATEs keep their real
+decoding evidence. Time filters that omit a handshake cannot manufacture it.
+<!-- source: internal/analyze/filter.go — runFilter -->
+
+RFC 8050 NLRI layout, relative to each NLRI entry:
+
+```text
+Offset   ADD-PATH                    Base
+0..3     Path Identifier (MSB first) Prefix Length starts at 0
+4        Prefix Length
+5..      Prefix octets              Prefix octets start at 1
+```
 
 **MP_REACH_NLRI is truncated inside RIB entries.** RFC 6396 Section 4.3.4 keeps
 only the Next Hop Length and Next Hop Address; AFI, SAFI, Reserved and NLRI are
@@ -83,7 +131,8 @@ produces a signal:
 |-------|------------------------------|
 | `ParsePrefixesAFI` | Returns the prefixes decoded *before* the damage **and** an error naming the offset and offending value. The caller can salvage the good entries and still report the record as damaged. |
 | `ParseMPReach` / `ParseMPUnreach` | Propagate that error, wrapped with the AFI/SAFI. |
-| `ParseBGPMessage` | Propagates it; `./le mrt show` renders the record as `[parse error]` so one damaged record is visible without aborting the file. |
+| `ParseAttributes` | Returns complete preceding attributes together with an error for structural damage. UPDATE parsing validates the whole attribute section before resolving family modes, including when both OPENs are available. |
+| `ParseBGPMessage` | Propagates it; `./le mrt show` identifies the damaged record and returns nonzero. Missing mixed-family negotiation context is an explicit error, not a partial successful decode. |
 | `forEachRIBEntry` | Returns the decode error; the subcommands count damaged records and print a `warning: N malformed RIB record(s) skipped` line to stderr. |
 
 An out-of-range prefix length is never emitted as a prefix: `netip`'s zero
@@ -115,7 +164,31 @@ enable/disable state.
 - Per-peer filtering (OpenBGPD)
 - Direction filtering: in/out (OpenBGPD)
 - Extended timestamps: BGP4MP_ET (FRR, OpenBGPD)
-- Add-path aware: auto-selects ADDPATH subtypes (all implementations)
+- Add-path aware: UPDATE subtypes follow negotiated ADD-PATH for the actual
+  AFI/SAFI and direction, not another family's negotiation. The `add-path`
+  setting affects RIB snapshots only; it cannot relabel captured BGP bytes.
+  The raw observer receives complete original BGP messages before receive-side
+  semantic validation and after successful outbound transport acceptance.
+  Synthetic treat-as-withdraw messages stay on the semantic callback and never
+  masquerade as received packets. Sent OPENs and other messages use LOCAL
+  subtypes. The immutable directional `PeerInfo.MessageContextID` selects the
+  subtype without constructing a per-message capability map; MRT copies the
+  complete original header and body once into its pooled record.
+  Local-AS metadata comes from the OPEN built for that connection, including
+  RFC 7705 migration fallback. Both directions and a retained outbound writer
+  keep that epoch's identity when configuration or a replacement session changes.
+<!-- source: internal/component/bgp/reactor/session_wire.go — observeReceivedWire, observedBGPWriter -->
+<!-- source: internal/plugins/mrt/component.go — OnBGPMessage -->
+- Collision resolution transfers the winning socket and its already-read
+  original OPEN into the Peer's bounded inbound slot before tearing down the
+  loser. A Peer-owned reservation prevents a third inbound connection from
+  occupying the replacement session, including after the winner leaves the
+  slot but before its socket is installed. The next normal session epoch
+  accepts that same socket before any outgoing dial and observes the retained
+  OPEN bytes unchanged. Waiting for the old Session's `Done` and then consulting
+  its Peer cannot establish ownership of the replacement epoch.
+<!-- source: internal/component/bgp/reactor/peer_connection.go — resolvePendingCollision, inboundConnection -->
+<!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
 - On-demand CLI dump (BIRD)
 - Buffered writes with configurable flush
 
@@ -138,6 +211,17 @@ New subcommands:
 - `record bmp` -- accept incoming BMP connections, write as MRT BGP4MP
 - `show` -- human-readable record dump (like bgpdump)
 - `routes` -- extract prefix table as JSON (prefix, next-hop, AS path, communities)
+
+Semantic consumers must report unavailable decoding, not silently filter it out
+or present partial route counts as complete. Raw/header-only transformations may
+preserve undecodable messages verbatim. `inject`, `replay` and `serve` do not
+negotiate ADD-PATH: they refuse Path-ID-bearing or ambiguous UPDATEs before
+transmitting them. Ordinary UPDATEs and empty EOR messages remain supported.
+The BGP4MP replay guard requires the declared BGP length to equal the entire
+captured message length and checks every attribute's framing before writing.
+An empty UPDATE followed by another packet in the same record is refused,
+as is an attribute whose declared length exceeds its section; negotiation
+context cannot bypass these checks.
 
 `convert pcap` frames each record through `internal/core/pcap`, the same writer
 the diagnostic captures use. Link type 101 takes the IP family from the version

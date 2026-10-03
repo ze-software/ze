@@ -29,6 +29,39 @@ This is the **implementation reference** for Pool + Wire design in API programs:
 | Pool with `Intern()` / `Get()` | Memory deduplication (RIB mode) |
 | RIB keyed by attribute handle | Efficient route grouping |
 
+### Adj-RIB-Out native inventory
+
+The RIB plugin keeps one sent inventory for every registered NLRI splitter.
+`ribOutKey` uses an allocation-free `netip.Prefix` for plain CIDR families;
+other families use the registered semantic key and retain the exact advertised
+NLRI separately in `ribOutEntry.NativeNLRI`. ADD-PATH presence is retained even
+when its identifier is zero. Withdrawals use the same family identity operation,
+including withdrawal-specific framing. Each destination entry owns its
+`SourcePeer`; there is no second source inventory. Removing one destination
+cannot erase another's origin. `SourceMessageID` records the received generation;
+the sent ADD-PATH identifier is not an ingress identifier. Replay feedback does
+not write ownership or attributes; a new advertisement replaces them.
+
+Replay and refresh retain every attribute from the immutable `pool.RibOut`
+blob through `Route.RawAttrs` and the existing `update hex` command. Native
+NLRIs are replayed from their stored bytes, not converted into CIDR prefixes.
+The sent-route view exposes opaque bytes as `raw-nlri` with `add-path` when
+present; its prefix column is the hex representation rather than an invalid
+IP prefix.
+
+GR/LLGR lifecycle commands reconcile that inventory against the received source
+under `peerMu`, using semantic identity plus received generation. The temporary
+index is discarded after each operation, not maintained as a second lifecycle
+store. Labeled received CIDR keys and sent native keys are normalized for this
+comparison. Community changes intern a replacement immutable blob before
+releasing the entry's old reference. Purges encode their withdrawals before
+releasing the removed references, then dispatch after unlocking. Lifecycle
+feedback is ignored so it cannot delete another source's newer advertisement.
+
+<!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutRouteKey, reconstructRoute -->
+<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- storeSentEntries, removeSentNLRIs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- formatCursorCommands -->
+
 ### Supersedes
 
 | Spec | Status |

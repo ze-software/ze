@@ -160,7 +160,10 @@ func handleServeConn(conn net.Conn, files []string, localAS uint32, routerID net
 		n, ferr := serveFile(conn, f, peerAS, perPeer)
 		sent += n
 		if ferr != nil {
-			break
+			b := textbuf.Get()
+			b.Str("serve: ").Str(ferr.Error()).Byte('\n').StdErr() //nolint:errcheck // error output
+			b.Release()
+			return
 		}
 	}
 
@@ -225,16 +228,19 @@ func serveFile(conn net.Conn, filename string, peerAS uint32, perPeer bool) (uin
 			return nil
 		},
 		OnMessage: func(_ mrt.Header, _ uint32, m *mrt.MessageRecord) error {
-			if len(m.BGPMessage) < 19 {
+			if len(m.BGPMessage.Bytes) < 19 {
 				return nil
 			}
-			if m.BGPMessage[18] != 2 {
+			if m.BGPMessage.Bytes[18] != 2 {
 				return nil
 			}
 			if perPeer && m.PeerAS != peerAS {
 				return nil
 			}
-			updateBody := m.BGPMessage[19:]
+			if err := checkReplayUpdate(m.BGPMessage); err != nil {
+				return err
+			}
+			updateBody := m.BGPMessage.Bytes[19:]
 			if err := bgpWrite(conn, 2, updateBody); err != nil {
 				return err
 			}
@@ -242,6 +248,9 @@ func serveFile(conn net.Conn, filename string, peerAS uint32, perPeer bool) (uin
 			return nil
 		},
 		OnRIB: func(h mrt.Header, r *mrt.RIBRecord) error {
+			if mrt.IsAddPathRIBSubtype(h.Subtype) && len(r.Entries) != 0 {
+				return errReplayAddPath
+			}
 			trailingNLRI := ribSubtypeHasTrailingNLRI(h.Subtype)
 			for i := range r.Entries {
 				entry := &r.Entries[i]

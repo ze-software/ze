@@ -5,9 +5,12 @@
 package bgp
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/rib/store"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -17,9 +20,40 @@ import (
 // Otherwise uses "update text" with per-field attributes.
 // The peer selector is passed separately to updateRoute.
 func FormatAnnounceCommand(route *Route) string {
-	// Text format is used for replay: prefix is stored as text ("192.168.1.0/24"),
-	// not hex wire bytes. The hex command requires hex NLRIs which we don't have.
+	if route.RawAttrs != "" {
+		var b textbuf.Buffer
+		b.Str("update hex attr set ").Str(route.RawAttrs)
+		if nextHop, err := netip.ParseAddr(route.NextHop); err == nil {
+			b.Str(" nhop set ").Str(hex.EncodeToString(nextHop.AsSlice()))
+		}
+		b.Str(" nlri ").Str(route.Family.String())
+		if route.AddPath || route.PathID != 0 {
+			b.Str(" addpath")
+		}
+		b.Str(" add ").Str(RouteNLRIHex(route))
+		return b.String()
+	}
 	return formatAnnounceText(route)
+}
+
+// RouteNLRIHex returns the native wire representation used by update hex.
+// Opaque routes already own it; CIDR routes are encoded only on this cold path.
+func RouteNLRIHex(route *Route) string {
+	if route.RawNLRI != "" {
+		return route.RawNLRI
+	}
+	prefix, err := netip.ParsePrefix(route.Prefix)
+	if err != nil {
+		return ""
+	}
+	var raw [21]byte
+	offset := 0
+	if route.AddPath || route.PathID != 0 {
+		binary.BigEndian.PutUint32(raw[:4], route.PathID)
+		offset = 4
+	}
+	nlri := store.PrefixToNLRIInto(prefix, raw[offset:])
+	return hex.EncodeToString(raw[:offset+len(nlri)])
 }
 
 // formatAnnounceText builds an "update text" command with per-field attributes.
@@ -110,6 +144,14 @@ func formatAnnounceText(route *Route) string {
 // FormatWithdrawCommand builds an "update text" withdrawal command.
 // Withdrawals only need family, prefix, and NLRI modifiers (no attributes).
 func FormatWithdrawCommand(route *Route) string {
+	if route.RawNLRI != "" {
+		var b textbuf.Buffer
+		b.Str("update hex nlri ").Str(route.Family.String())
+		if route.AddPath || route.PathID != 0 {
+			b.Str(" addpath")
+		}
+		return b.Str(" del ").Str(route.RawNLRI).String()
+	}
 	var sb textbuf.Buffer
 	sb.Str("update text nlri ").Str(route.Family.String())
 	writeNLRIModifiers(&sb, route)
@@ -126,7 +168,7 @@ func writeNLRIModifiers(sb *textbuf.Buffer, route *Route) {
 	for _, label := range route.Labels {
 		sb.Str(" label ").Uint32(label)
 	}
-	if route.PathID != 0 {
+	if route.AddPath || route.PathID != 0 {
 		sb.Str(" path-information ").Uint32(route.PathID)
 	}
 }

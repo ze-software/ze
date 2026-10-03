@@ -40,6 +40,9 @@ func testRibOutEntry(route *Route) ribOutEntry {
 		MsgID:      route.MsgID,
 		AttrHandle: handle,
 		StaleLevel: route.StaleLevel,
+		SourcePeer: route.SourcePeer,
+		AddPath:    route.AddPath,
+		NextHop:    route.NextHop,
 	}
 }
 

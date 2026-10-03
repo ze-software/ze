@@ -26,7 +26,7 @@ type RawMessage struct {
 	ParseError      error                     // Non-nil if lazy parsing failed
 	Meta            map[string]any            // Route metadata from ReceivedUpdate (sent events only)
 	SourcePeerStr   string                    // Source peer address for ribOut stale-scoping (sent events only)
-	SourceMessageID uint64                    // Original received AIGP generation on a forwarded sent event
+	SourceMessageID uint64                    // Original received generation on every forwarded sent event
 
 	// ReactorForwarded is true when reactorForwardRS already forwarded this
 	// UPDATE to eligible RS peers. bgp-rs checks this to skip ForwardCached.

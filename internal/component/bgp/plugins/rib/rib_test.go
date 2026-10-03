@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/netip"
-	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
@@ -1034,20 +1033,19 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 
 	r.handleRefresh(event)
 
-	// The two IPv4 routes are re-advertised, the IPv6 one is not.
-	require.Len(t, sent, 2, "the refresh must re-advertise both IPv4 unicast routes and nothing else")
-	var commands strings.Builder
+	// Decode through the production command consumer, independently of its
+	// encoding or the number of commands used to carry the two routes.
+	var routes []refreshRouteIdentity
 	for _, route := range sent {
-		commands.WriteString(route.command)
-		commands.WriteByte('\n')
+		routes = append(routes, consumedRefreshRoutes(t, consumeRefreshCommand(t, route.command))...)
 		replay, marked := route.meta["replay"].(bool)
 		assert.True(t, marked && replay,
 			"every route of a refresh carries meta[\"replay\"], or the peer's Adj-RIB-Out suppresses it: %q", route.command)
 	}
-	assert.Contains(t, commands.String(), "10.0.0.0/24")
-	assert.Contains(t, commands.String(), "10.0.1.0/24")
-	assert.NotContains(t, commands.String(), "2001:db8::/32",
-		"a refresh for ipv4/unicast must not re-advertise another family")
+	assert.ElementsMatch(t, []refreshRouteIdentity{
+		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")},
+		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")},
+	}, routes, "the consumer receives both requested routes and no other family")
 
 	// RFC 7313 Section 4: the re-advertisement is bracketed by the two markers.
 	assert.Equal(t, []string{

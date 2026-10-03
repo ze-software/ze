@@ -1,0 +1,91 @@
+# Test: import policy adds NO_LLGR before the real peer-down/LLGR lifecycle.
+# Both source UPDATEs arrive without communities. Only marked has an import
+# modifier. The observer first proves the policy result in received RIB, then
+# sends a wire marker that releases each peer's TCP close. The stderr fence
+# keeps the daemon alive until the observer verifies both LLGR outcomes.
+# RFC requirement: RFC9494-4.2-5 positive -- import-added NO_LLGR removes the marked source route on LLGR entry after a real TCP loss.
+# RFC requirement: RFC9494-4.2-5 negative -- the otherwise equivalent unmodified source route survives the same LLGR transition with LLGR_STALE.
+
+stdin=marked:terminator=EOF_MARKED
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=graceful-restart:restart-time=1
+option=open:value=llgr:stale-time=60
+option=open:value=router-id:id=192.0.2.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+expect=bgp:conn=1:seq=2:contains=18C63364
+action=close:conn=1:seq=3
+EOF_MARKED
+
+stdin=plain:terminator=EOF_PLAIN
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=open:value=graceful-restart:restart-time=1
+option=open:value=llgr:stale-time=60
+option=open:value=router-id:id=192.0.2.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000340050400000064180A0001
+expect=bgp:conn=1:seq=2:contains=18C63364
+action=close:conn=1:seq=3
+EOF_PLAIN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal gr { use bgp-gr; }
+	internal bgp-rib { use bgp-rib; }
+	internal bgp-filter-modify { use bgp-filter-modify; }
+	external observer {
+		run "le test fixture plugin/llgr-import-no-llgr"
+		encoder json
+	}
+}
+bgp {
+	policy {
+		modify NO-LLGR { set { community-add [ 65535:7 ]; } }
+	}
+	peer marked {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart { restart-time 120; long-lived-stale-time 60; } }
+		}
+		behavior { group-updates disable; }
+		timer { connect-retry 30; }
+		filter { import [ modify:NO-LLGR ]; }
+		attach process gr { receive [ open state eor ]; send [ update ]; }
+		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+		attach process observer { receive [ state ]; send [ update ]; }
+	}
+	peer plain {
+		connection {
+			remote { ip ::1; }
+			local { ip ::1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart { restart-time 120; long-lived-stale-time 60; } }
+		}
+		behavior { group-updates disable; }
+		timer { connect-retry 30; }
+		attach process gr { receive [ open state eor ]; send [ update ]; }
+		attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+		attach process observer { receive [ state ]; send [ update ]; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=marked
+cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=plain
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
+await=stderr:contains=import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE:then=stop
+expect=exit:code=0
+expect=stderr:contains=OK: import-added NO_LLGR removed on LLGR entry; unmarked control retained with LLGR_STALE
+reject=stderr:pattern=panic

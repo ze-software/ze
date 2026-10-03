@@ -122,7 +122,10 @@ func TestPeerIndexTableRoundTrip(t *testing.T) {
 	peers := testPeers()
 
 	buf := make([]byte, 4096)
-	n := mrt.WritePeerIndexTable(buf, 0, collectorID, viewName, peers)
+	n, err := mrt.WritePeerIndexTable(buf, 0, collectorID, viewName, peers)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if n == 0 {
 		t.Fatal("WritePeerIndexTable returned 0")
 	}
@@ -172,7 +175,10 @@ func TestPeerIndexTableEmptyViewName(t *testing.T) {
 	peers := testPeers()
 
 	buf := make([]byte, 4096)
-	n := mrt.WritePeerIndexTable(buf, 0, collectorID, "", peers)
+	n, err := mrt.WritePeerIndexTable(buf, 0, collectorID, "", peers)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if n == 0 {
 		t.Fatal("WritePeerIndexTable returned 0")
 	}
@@ -358,22 +364,17 @@ func testBGP4MPHeader() mrt.BGP4MPHeader {
 	}
 }
 
-// RFC requirement: RFC8050-x-3 positive -- a BGP4MP MESSAGE record copies the encapsulated BGP
-// message verbatim (WriteBGP4MPMessage internal/mrt/encode.go:170, DecodeBGP4MPMessage
-// decode.go:325-328), so a Path Identifier carried in the message's own NLRI is preserved inside
-// the message body and the MRT layer never relocates it into the header.
+// RFC requirement: RFC8050-x-3 positive -- the BGP4MP encoder and decoder preserve
+// the entire literal 45-octet UPDATE, including its NLRI Path Identifier, without
+// moving any message octet into the MRT header.
 func TestBGP4MPMessageRoundTrip(t *testing.T) {
 	hdr := testBGP4MPHeader()
-	bgpMsg := []byte{
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0x00, 0x17, 0x04,
-	}
+	bgpMsg := rfc8050Update
 
 	buf := make([]byte, 4096)
 	n := mrt.WriteBGP4MPMessage(buf, 0, &hdr, true, bgpMsg)
 
-	msg, err := mrt.DecodeBGP4MPMessage(mrt.BGP4MPMessageAS4, buf[:n])
+	msg, err := mrt.DecodeBGP4MPMessage(mrt.BGP4MPMessageAS4AP, buf[:n])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,8 +394,8 @@ func TestBGP4MPMessageRoundTrip(t *testing.T) {
 	if !bytes.Equal(msg.LocalIP, hdr.LocalIP) {
 		t.Errorf("LocalIP = %v, want %v", msg.LocalIP, hdr.LocalIP)
 	}
-	if !bytes.Equal(msg.BGPMessage, bgpMsg) {
-		t.Errorf("BGPMessage = %v, want %v", msg.BGPMessage, bgpMsg)
+	if !bytes.Equal(msg.BGPMessage.Bytes, bgpMsg) {
+		t.Errorf("BGPMessage = %v, want %v", msg.BGPMessage.Bytes, bgpMsg)
 	}
 }
 
@@ -418,7 +419,7 @@ func TestBGP4MPMessage2ByteAS(t *testing.T) {
 	if msg.LocalAS != hdr.LocalAS {
 		t.Errorf("LocalAS = %d, want %d", msg.LocalAS, hdr.LocalAS)
 	}
-	if !bytes.Equal(msg.BGPMessage, bgpMsg) {
+	if !bytes.Equal(msg.BGPMessage.Bytes, bgpMsg) {
 		t.Errorf("BGPMessage mismatch")
 	}
 }

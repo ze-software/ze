@@ -41,7 +41,25 @@ Replay drops from O(N) calls to O(M) calls, where M is the number of distinct
 attribute sets and is far below N. Measured: 1.8ms for 1K groups covering 100K
 routes. The grouped variant decodes each `AttrHandle` once, so the per-route
 reconstruction path is no longer called from replay. Manual resend uses the same
-grouped cursor mode, grouping by `(family, AttrHandle, pathID, StaleLevel)`.
+grouped collection. Groups retain family, attribute handle, path identifier,
+ADD-PATH presence, stale level, source peer and any next hop carried separately by JSON.
+When immutable wire attributes are present, each batch uses the self-contained
+`update hex` rail rather than reducing those attributes to cursor text fields.
+Opaque families keep their native NLRI bytes; CIDR families encode their value
+keys on this cold path. Hex batches do not alter text cursor state.
+
+Config-static advertisements are retained in Adj-RIB-Out with their origin
+flag. A ROUTE-REFRESH includes them, subject to the current outbound policy,
+just like other routes of the requested family (RFC 2918 Section 4).
+Peer-up replay excludes them because the reactor sends the current configured
+routes itself. Replay feedback does not modify the inventory, so it cannot
+resurrect a purged route, overwrite locally updated attributes, or change its
+origin. A later non-replay advertisement replaces the entry. Lifecycle
+withdrawals remove the owned entry before dispatch; their feedback is likewise
+not a second mutation.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- handleSentStructured, storeSentEntries -->
+<!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutEntry -->
 
 An external plugin can use the same protocol for its own batched updates.
 

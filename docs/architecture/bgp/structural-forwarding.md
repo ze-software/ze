@@ -20,6 +20,22 @@ replaced and the ordering constraint that keeps them correct.
 The critical path now touches no `sync.Map`, allocates no string for an NLRI
 key, and issues one cache retain per UPDATE.
 
+Both forwarding rails key body reuse on effective opaque-attribute treatment,
+not on a plugin or peer role. Ordinary RFC 4271 Section 5 treatment
+drops unknown non-transitive attributes and marks unknown transitive attributes
+Partial. A plugin can select preservation for a destination through
+`filterapi.Filter.PreserveOpaqueAttributes`; without a selector, ordinary
+treatment applies. The route-server plugin selects preservation for its clients.
+
+The selector receives the existing peer metadata at forwarding-facts refresh,
+not on each UPDATE, and the resulting boolean lives in the immutable facts
+snapshot. Both rails use one shared cache-key type containing that treatment.
+On a cache miss, the same treatment produces the effective wire passed to the
+shared builder. The builder never decides a peer's policy. Cache hits need no
+attribute scan or copy. There is no second client inventory or per-update plugin lookup.
+The fast rail retains its four stack slots; the general rail's cache lasts one
+forward call and is bounded by its destination count.
+
 ## The ordering constraint
 
 **`extractWireNLRIRecords` MUST run before forwarding.** Cache eviction can free

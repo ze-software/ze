@@ -33,9 +33,11 @@ session layer:
 <!-- source: internal/component/bgp/fsm/timer.go — ResetHoldTimer -->
 
 The alternate path via `acceptWithOpen` + `processOpen` performs the
-same sequence without going through the outer message read loop. It is
-used when inbound collision resolution has already parsed the peer's
-OPEN from a competing socket.
+same sequence without rereading an OPEN that collision resolution already
+consumed. The Peer retains the winning socket with its parsed OPEN and original
+wire bytes before closing the loser. After old-session cleanup, its normal run
+loop creates a fresh session and accepts the retained winner before dialing.
+The raw observer receives the original OPEN bytes on this new epoch.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen fsm.Event(EventBGPOpen) + sendKeepalive + ResetHoldTimer -->
 

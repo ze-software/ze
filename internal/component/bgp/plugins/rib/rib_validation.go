@@ -95,11 +95,13 @@ func (r *RIBManager) reconcileReceivedNLRIs(fam family.Family, data []byte, addP
 
 // replaySourceEligible excludes a previously advertised path when validation
 // has since rejected its source. Locally injected routes have no source peer.
-func (r *RIBManager) replaySourceEligible(fam family.Family, key ribOutKey) bool {
+func replaySourceEligible(fam family.Family, key ribOutKey, source string) bool {
+	if !key.Prefix.IsValid() {
+		return true
+	}
 	if !ribevents.ValidationEnabled() {
 		return true
 	}
-	source := r.ribOutSourcePeer(fam, key)
 	if source == "" {
 		return true
 	}

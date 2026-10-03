@@ -4,6 +4,7 @@ package storage
 
 import (
 	"maps"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
@@ -280,6 +281,21 @@ func (r *PeerRIB) ModifyFamilyAllKeyed(fam family.Family, fn func(nlriBytes []by
 
 	if rib, exists := r.families[fam]; exists {
 		rib.ModifyAllKeyed(fn)
+	}
+}
+
+// RetainFamilies releases all routes in families outside the supplied set.
+// It changes the existing inventory atomically; it does not store another
+// retention set. An empty set removes every family.
+func (r *PeerRIB) RetainFamilies(families []family.Family) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for fam, rib := range r.families {
+		if slices.Contains(families, fam) {
+			continue
+		}
+		rib.Release()
+		delete(r.families, fam)
 	}
 }
 

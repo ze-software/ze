@@ -516,6 +516,51 @@ func TestRegisterValidation(t *testing.T) {
 	}
 }
 
+// The existing registry accepts a destination selector without inventing a
+// no-op ingress or egress filter. No selector means ordinary forwarding,
+// including when metadata describes a route-server client.
+func TestPreserveOpaqueAttributesUsesRegisteredSelector(t *testing.T) {
+	snapshot := Snapshot()
+	t.Cleanup(func() { Restore(snapshot) })
+	ResetForTest()
+	peer := PeerFilterInfo{Name: "transparent", RSClient: true}
+	if PreserveOpaqueAttributesFor(peer) {
+		t.Fatal("plugin absence must leave ordinary attribute treatment")
+	}
+	if err := Register(Filter{
+		Name: "opaque-policy",
+		PreserveOpaqueAttributes: func(dest PeerFilterInfo) bool {
+			return dest.Name == "transparent"
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !PreserveOpaqueAttributesFor(peer) {
+		t.Fatal("registered selector did not select preservation")
+	}
+	peer.RSClient = false
+	if !PreserveOpaqueAttributesFor(peer) {
+		t.Fatal("peer role overrode the plugin's treatment")
+	}
+	peer.Name = "ordinary"
+	if PreserveOpaqueAttributesFor(peer) {
+		t.Fatal("unselected destination received preservation")
+	}
+	if len(IngressOrdered()) != 0 {
+		t.Fatal("selector-only registration added an ingress filter")
+	}
+	if len(EgressOrdered()) != 0 {
+		t.Fatal("selector-only registration added an egress filter")
+	}
+	selected := Snapshot()
+	ResetForTest()
+	Restore(selected)
+	peer.Name = "transparent"
+	if !PreserveOpaqueAttributesFor(peer) {
+		t.Fatal("snapshot restore lost the selector")
+	}
+}
+
 // TestPeerFilterInfoFields verifies that PeerFilterInfo has Name and GroupName fields.
 //
 // VALIDATES: AC-20 -- PeerFilterInfo includes peer identity fields.

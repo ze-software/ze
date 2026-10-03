@@ -17,6 +17,7 @@ import (
 	"sort"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 // commAnalysis holds all community analysis state.
@@ -108,17 +109,21 @@ Examples:
 					if asn == 0 {
 						asn = uint32(peerIndex) + 0x10000
 					}
-					commAnalyzeRoute(attrs, asn, peerIndex, st, *postPolicy)
+					damaged.note(commAnalyzeRoute(attrs, asn, peerIndex, st, *postPolicy))
 				}))
 			},
-			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
+			OnBGP4MP: func(data []byte, subtype uint16, _ uint32, wire mrt.BGPMessage) {
+				if _, _, err := countUpdateNLRIs(wire); err != nil {
+					damaged.note(err)
+					return
+				}
 				body, peerASN := extractBGP4MPUpdate(subtype, data)
 				if body == nil {
 					return
 				}
 				attrs := extractUpdateAttrs(body)
 				if attrs != nil {
-					commAnalyzeRoute(attrs, peerASN, 0xFFFF, st, *postPolicy)
+					damaged.note(commAnalyzeRoute(attrs, peerASN, 0xFFFF, st, *postPolicy))
 				}
 			},
 		}); err != nil {
@@ -137,11 +142,18 @@ Examples:
 		return 1
 	}
 	damaged.report(os.Stderr)
+	if damaged.records > 0 {
+		return 1
+	}
 
 	return 0
 }
 
-func commAnalyzeRoute(attrs []byte, asn uint32, peerIndex uint16, st *commAnalysis, postPolicy bool) {
+func commAnalyzeRoute(attrs []byte, asn uint32, peerIndex uint16, st *commAnalysis, postPolicy bool) error {
+	parsed, err := mrt.ParseAttributes(attrs)
+	if err != nil {
+		return err
+	}
 	st.TotalRoutes++
 
 	as, ok := st.ASNData[asn]
@@ -160,7 +172,8 @@ func commAnalyzeRoute(attrs []byte, asn uint32, peerIndex uint16, st *commAnalys
 		as.Peers = append(as.Peers, peerIndex)
 	}
 
-	iterateAttrs(attrs, func(_, typeCode uint8, value []byte) {
+	for _, attr := range parsed {
+		typeCode, value := attr.Code, attr.Value
 		switch typeCode {
 		case attrLocalPref:
 			if len(value) >= 4 {
@@ -184,7 +197,8 @@ func commAnalyzeRoute(attrs []byte, asn uint32, peerIndex uint16, st *commAnalys
 				as.LargeCommunities[fmt.Sprintf("%d:%d:%d", g, l1, l2)]++
 			}
 		}
-	})
+	}
+	return nil
 }
 
 type commFreq struct {

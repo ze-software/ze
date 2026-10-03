@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"unicode/utf8"
 )
 
 // Exported so a caller can tell the failure kinds apart with errors.Is instead
@@ -17,6 +18,8 @@ import (
 var (
 	// ErrShortData reports input that ends before a field the format requires.
 	ErrShortData = errors.New("mrt: short data")
+	// ErrViewName reports a view name that cannot be represented by RFC 6396.
+	ErrViewName = errors.New("mrt: invalid UTF-8 view name or length")
 	// ErrBadAFI reports an Address Family Identifier this decoder does not handle.
 	ErrBadAFI = errors.New("mrt: unsupported address family")
 )
@@ -56,7 +59,7 @@ type RIBGenericRecord struct {
 // MessageRecord represents a BGP4MP MESSAGE record (RFC 6396 Section 4.4.2).
 type MessageRecord struct {
 	BGP4MPHeader
-	BGPMessage []byte
+	BGPMessage BGPMessage
 }
 
 // StateChangeRecord represents a BGP4MP STATE_CHANGE record (RFC 6396 Section 4.4.1).
@@ -127,6 +130,11 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 	off := 6
 	if off+viewNameLen > len(data) {
 		return nil, fmt.Errorf("peer index table view name: %w", ErrShortData)
+	}
+	// RFC 6396 Section 4.3.1: "The View Name encoding MUST follow the UTF-8
+	// transformation format [RFC3629]."
+	if !utf8.Valid(data[off : off+viewNameLen]) {
+		return nil, ErrViewName
 	}
 	if viewNameLen > 0 {
 		pit.ViewName = string(data[off : off+viewNameLen])
@@ -328,10 +336,14 @@ func DecodeBGP4MPMessage(subtype uint16, data []byte) (*MessageRecord, error) {
 		return nil, fmt.Errorf("bgp4mp message: %w", err)
 	}
 
-	msg := &MessageRecord{BGP4MPHeader: hdr}
-	if off < len(data) {
-		msg.BGPMessage = make([]byte, len(data)-off)
-		copy(msg.BGPMessage, data[off:])
+	// RFC 8050 Section 2: "the MRT subtypes are utilized."
+	// The message borrows data; retaining callers MUST preserve the record buffer.
+	msg := &MessageRecord{
+		BGP4MPHeader: hdr,
+		BGPMessage: BGPMessage{
+			Bytes:   data[off:],
+			AddPath: IsAddPathBGP4MPSubtype(subtype),
+		},
 	}
 	return msg, nil
 }

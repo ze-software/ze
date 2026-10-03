@@ -76,6 +76,8 @@ type peerForwardFacts struct {
 	maxMsgSize  int
 
 	filterInfo filterapi.PeerFilterInfo
+	// preserveOpaqueAttributes is plugin-selected treatment, not a peer role.
+	preserveOpaqueAttributes bool
 
 	secondaryAS uint32
 
@@ -222,8 +224,12 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 			LocalAS:   s.LocalAS,
 			Name:      s.Name,
 			GroupName: s.GroupName,
+			RSClient:  s.RSClient,
 		},
 	}
+
+	// Resolve the generic policy once per snapshot, never once per UPDATE.
+	facts.preserveOpaqueAttributes = filterapi.PreserveOpaqueAttributesFor(facts.filterInfo)
 
 	facts.clusterID = s.effectiveClusterID()
 	binary.BigEndian.PutUint32(facts.clusterIDBytes[:], facts.clusterID)

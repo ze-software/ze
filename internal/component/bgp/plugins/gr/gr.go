@@ -31,6 +31,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -138,6 +139,9 @@ func RunGRPlugin(conn net.Conn) int {
 	}
 
 	gp.wireStateCallbacks()
+	retentionOwner := retention.Publish(gp.state.familyRetained)
+	// Run returns after event delivery stops; only this publication is removed.
+	defer retentionOwner.Close()
 
 	// The same refusal at the two points a configuration arrives, because
 	// only one of them is in front of the operator.
@@ -247,7 +251,7 @@ func (gp *grPlugin) wireStateCallbacks() {
 		gp.dispatchCommand("request bgp rib attach-community", peerAddr, famStr, "ffff0006")
 		// 3. Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2")
+		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2", famStr)
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
 		addr, err := netip.ParseAddr(peerAddr)
@@ -401,6 +405,18 @@ func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bo
 	return foundGR
 }
 
+// retainPeerFamilies supplies the received capability boundary to the RIB.
+// The RIB drops other families before its DOWN event; no parallel route
+// inventory or route-server-specific behavior is needed.
+func (gp *grPlugin) retainPeerFamilies(peerAddr string, cap *grPeerCap) {
+	args := make([]string, 1, 1+len(cap.Families))
+	args[0] = peerAddr
+	for _, entry := range cap.Families {
+		args = append(args, entry.Family.String())
+	}
+	gp.dispatchCommand("request bgp rib retain-routes", args...)
+}
+
 // handleStructuredState processes a structured state event.
 func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionState, reason string) {
 	switch state { //nolint:exhaustive // only up/down are actionable for GR
@@ -426,7 +442,7 @@ func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionStat
 		activated, llgrEntry := gp.state.onSessionDownDeferred(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
-			gp.dispatchCommand("request bgp rib retain-routes", peerAddr)
+			gp.retainPeerFamilies(peerAddr, cap)
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 		// RFC 9494 Section 4.2: "After the session goes down, and before the session
@@ -605,7 +621,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
 			gp.dispatchCommand("request bgp rib purge-stale", peerAddr)
 			// 2. Retain routes — prevents bgp-rib from deleting on state=down
-			gp.dispatchCommand("request bgp rib retain-routes", peerAddr)
+			gp.retainPeerFamilies(peerAddr, cap)
 			// 3. Mark remaining routes as stale for new GR cycle
 			gp.dispatchCommand("request bgp rib mark-stale", peerAddr, strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}

@@ -121,7 +121,7 @@ func TestParseMPReach_Full(t *testing.T) {
 	// 2001:db8::/32 -> 4 significant bytes.
 	nlri := []byte{32, 0x20, 0x01, 0x0d, 0xb8}
 
-	mp, err := mrt.ParseMPReach(fullMPReach(2, 1, nh[:], nlri))
+	mp, err := mrt.ParseMPReach(fullMPReach(2, 1, nh[:], nlri), false)
 	require.NoError(t, err)
 	assert.Equal(t, uint16(2), mp.AFI)
 	assert.Equal(t, uint8(1), mp.SAFI)
@@ -133,7 +133,7 @@ func TestParseMPReach_Full(t *testing.T) {
 func TestParseMPReach_TruncatedHeader(t *testing.T) {
 	// VALIDATES: a full MP_REACH shorter than its fixed header is rejected.
 	// PREVENTS: out-of-range reads on a corrupt attribute.
-	_, err := mrt.ParseMPReach([]byte{0, 2, 1})
+	_, err := mrt.ParseMPReach([]byte{0, 2, 1}, false)
 	require.Error(t, err)
 }
 
@@ -143,7 +143,7 @@ func TestParseMPUnreach(t *testing.T) {
 	// PREVENTS: treating IPv6 withdrawals as unparsed opaque bytes.
 	value := []byte{0, 2, 1, 32, 0x20, 0x01, 0x0d, 0xb8}
 
-	mp, err := mrt.ParseMPUnreach(value)
+	mp, err := mrt.ParseMPUnreach(value, false)
 	require.NoError(t, err)
 	assert.Equal(t, uint16(2), mp.AFI)
 	assert.Equal(t, uint8(1), mp.SAFI)
@@ -154,7 +154,7 @@ func TestParseMPUnreach(t *testing.T) {
 func TestParseMPUnreach_TooShort(t *testing.T) {
 	// VALIDATES: an MP_UNREACH without its 3-byte AFI/SAFI header is rejected.
 	// PREVENTS: silently returning an empty withdrawal set for corrupt input.
-	_, err := mrt.ParseMPUnreach([]byte{0, 2})
+	_, err := mrt.ParseMPUnreach([]byte{0, 2}, false)
 	require.Error(t, err)
 }
 
@@ -299,7 +299,7 @@ func TestParseMPReach_SalvagesPrefixesBeforeDamage(t *testing.T) {
 		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32
 		48, 0x20, 0x01, // /48 claims 6 octets, 2 follow
 	})
-	mp, err := mrt.ParseMPReach(value)
+	mp, err := mrt.ParseMPReach(value, false)
 	require.Error(t, err)
 	require.NotNil(t, mp, "the partial attribute MUST be returned, not discarded")
 	assert.ErrorIs(t, err, mrt.ErrShortData)
@@ -317,7 +317,7 @@ func TestParseMPUnreach_SalvagesPrefixesBeforeDamage(t *testing.T) {
 		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32
 		48, 0x20, 0x01, // truncated
 	}
-	mp, err := mrt.ParseMPUnreach(value)
+	mp, err := mrt.ParseMPUnreach(value, false)
 	require.Error(t, err)
 	require.NotNil(t, mp)
 	assert.ErrorIs(t, err, mrt.ErrShortData)
@@ -329,7 +329,7 @@ func TestParseMPReach_HeaderFailureReturnsNil(t *testing.T) {
 	// nothing was decoded.
 	// PREVENTS: the salvage change handing callers a half-built attribute whose
 	// AFI/SAFI were never read.
-	mp, err := mrt.ParseMPReach([]byte{0, 2})
+	mp, err := mrt.ParseMPReach([]byte{0, 2}, false)
 	require.Error(t, err)
 	assert.Nil(t, mp, "nothing decoded means nothing to salvage")
 }

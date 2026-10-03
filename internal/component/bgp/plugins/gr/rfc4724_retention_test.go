@@ -53,7 +53,7 @@ func newRecordedGRPlugin() (*grPlugin, *dispatchRecorder) {
 }
 
 // TestRFC4724SessionDownRetainsAndMarksRoutesStale drives the plugin's own
-// session-down path and reads the RIB commands it produces.
+// session-down path into the real RIB engine and reads its received routes.
 //
 // RFC 4724 Section 4.2: "When the Receiving Speaker detects termination of the TCP
 // session for a BGP session with a peer that has advertised the Graceful Restart
@@ -61,49 +61,42 @@ func newRecordedGRPlugin() (*grPlugin, *dispatchRecorder) {
 // families that were previously received in the Graceful Restart Capability and
 // MUST mark them as stale routing information."
 //
-// VALIDATES: handleStateEvent's activated branch (gr.go) dispatches
-// "request bgp rib retain-routes <peer>" and then
-// "request bgp rib mark-stale <peer> <restart-time>", which are the two commands
-// that perform the retention and the stale marking the requirement names.
-// PREVENTS: the state machine activating while neither command is sent. Deleting
-// both dispatch lines left the whole gr package green before this test existed:
-// the requirement's only positive asserted that onSessionDown returned true and
-// that the peer was active, neither of which retains or marks anything.
+// VALIDATES: the advertised family allowlist reaches the received inventory
+// before RIB processes DOWN, and each retained route becomes stale.
+// PREVENTS: state-machine activation without retention or stale marking, and
+// peer-wide retention of a negotiated family absent from the GR capability.
 //
 // RFC requirement: RFC4724-4.2-3 positive -- a GR-capable peer whose TCP session
-// terminates has its routes retained and marked stale: the plugin dispatches
-// retain-routes and mark-stale, in that order, carrying the peer's advertised
-// Restart Time.
+// terminates has its advertised families' received routes retained and marked stale.
 func TestRFC4724SessionDownRetainsAndMarksRoutesStale(t *testing.T) {
-	gp, rec := newRecordedGRPlugin()
-	gp.peerCaps[testPeer] = testCap(120, famIPv4, famIPv6)
-
-	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
-
-	require.Equal(t, []string{
-		"request bgp rib purge-stale " + testPeer,
-		"request bgp rib retain-routes " + testPeer,
-		"request bgp rib mark-stale " + testPeer + " 120",
-	}, rec.all(),
-		"a GR-capable peer's TCP failure must retain its routes and mark them stale")
+	for _, both := range []bool{false, true} {
+		t.Run(map[bool]string{false:"ipv4-only", true:"both-families"}[both], func(t *testing.T) {
+			gp, rib := newGRWithRealRIB(t)
+			cap := testCap(120, famIPv4)
+			if both { cap.Families = append(cap.Families, famIPv6) }
+			gp.peerCaps[testPeer] = cap
+			rib.received(testPeer, "18c63364", grReceivedAttrs)
+			rib.command("request bgp rib inject", testPeer, "ipv6/unicast", "2001:db8::/32", "nexthop", "::1")
+			require.Len(t, rib.routes("2001:db8::/32"), 1)
+			gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
+			rib.down(testPeer)
+			rib.requireStale("198.51.100.0/24", 1)
+			if both { rib.requireStale("2001:db8::/32", 1) } else { require.Empty(t, rib.routes("2001:db8::/32")) }
+		})
+	}
 }
 
-// TestRFC4724SessionDownWithoutCapabilityRetainsNothing is the pair that makes the
-// test above discriminate: an implementation that dispatched retain-routes and
-// mark-stale for every session drop would pass the positive and violate the
-// capability condition the same sentence carries.
+// The no-capability control observes normal DOWN deletion in the same real RIB.
 //
 // RFC requirement: RFC4724-4.2-3 negative -- retention is confined to a peer that
-// advertised the Graceful Restart Capability: a peer that advertised none has no
-// routes retained and none marked stale, so no RIB command is dispatched at all.
+// advertised the Graceful Restart Capability; a peer without it loses its routes.
 func TestRFC4724SessionDownWithoutCapabilityRetainsNothing(t *testing.T) {
-	gp, rec := newRecordedGRPlugin()
-	// No entry in gp.peerCaps: this peer's OPEN carried no GR capability.
-
+	gp, rib := newGRWithRealRIB(t)
+	rib.received(testPeer, "18c63364", grReceivedAttrs)
+	require.Len(t, rib.routes("198.51.100.0/24"), 1)
 	gp.handleStateEvent(testPeer, map[string]any{"state": "down", "reason": "tcp-failure"})
-
-	assert.Empty(t, rec.all(),
-		"a peer that never advertised Graceful Restart must have its routes deleted by normal BGP procedures")
+	rib.down(testPeer)
+	require.Empty(t, rib.routes("198.51.100.0/24"))
 }
 
 // TestRFC4724RetentionCoversEveryAdvertisedFamily reads the family set the state

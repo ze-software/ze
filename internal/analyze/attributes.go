@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 // attrNames maps BGP attribute type codes to human-readable names.
@@ -157,17 +158,21 @@ Examples:
 			},
 			OnRIB: func(data []byte, subtype uint16) {
 				damaged.note(forEachRIBEntry(data, subtype, func(peerIndex uint16, attrs []byte) {
-					attrAnalyzeRoute(attrs, peerIndex, st)
+					damaged.note(attrAnalyzeRoute(attrs, peerIndex, st))
 				}))
 			},
-			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
+			OnBGP4MP: func(data []byte, subtype uint16, _ uint32, wire mrt.BGPMessage) {
+				if _, _, err := countUpdateNLRIs(wire); err != nil {
+					damaged.note(err)
+					return
+				}
 				body, _ := extractBGP4MPUpdate(subtype, data)
 				if body == nil {
 					return
 				}
 				attrs := extractUpdateAttrs(body)
 				if attrs != nil {
-					attrAnalyzeRoute(attrs, 0xFFFF, st)
+					damaged.note(attrAnalyzeRoute(attrs, 0xFFFF, st))
 				}
 			},
 		}); err != nil {
@@ -179,11 +184,18 @@ Examples:
 	attrPrintJSON(os.Stdout, st)
 	attrPrintSummary(os.Stderr, st)
 	damaged.report(os.Stderr)
+	if damaged.records > 0 {
+		return 1
+	}
 
 	return 0
 }
 
-func attrAnalyzeRoute(attrs []byte, peerIndex uint16, st *attrAnalysis) {
+func attrAnalyzeRoute(attrs []byte, peerIndex uint16, st *attrAnalysis) error {
+	parsed, err := mrt.ParseAttributes(attrs)
+	if err != nil {
+		return err
+	}
 	st.TotalUpdates++
 
 	peer, ok := st.Peers[peerIndex]
@@ -201,7 +213,8 @@ func attrAnalyzeRoute(attrs []byte, peerIndex uint16, st *attrAnalysis) {
 	hNoComm := fnv.New64a()
 	hMinimal := fnv.New64a()
 
-	iterateAttrs(attrs, func(_, typeCode uint8, value []byte) {
+	for _, attr := range parsed {
+		typeCode, value := attr.Code, attr.Value
 		as, ok := st.Attributes[typeCode]
 		if !ok {
 			name := attrNames[typeCode]
@@ -239,7 +252,7 @@ func attrAnalyzeRoute(attrs []byte, peerIndex uint16, st *attrAnalysis) {
 		}
 
 		attrExtractCommunities(typeCode, value, peer, st)
-	})
+	}
 
 	bh := hAll.Sum64()
 	bhAS := hWithAS.Sum64()
@@ -281,6 +294,7 @@ func attrAnalyzeRoute(attrs []byte, peerIndex uint16, st *attrAnalysis) {
 	st.prevHashNoComm = bhNC
 	st.prevHashMinimal = bhM
 	st.hasPrev = true
+	return nil
 }
 
 func attrExtractCommunities(typeCode uint8, value []byte, peer *attrPeerStats, st *attrAnalysis) {

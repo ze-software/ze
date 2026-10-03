@@ -216,12 +216,6 @@ func TestMigrationOpenLocalASWithoutAPeer(t *testing.T) {
 
 // TestMigrationSessionIsIBGP holds the verdict every AS-scoped decision reads.
 //
-// RFC requirement: RFC7705-4.2-4 positive -- a session whose configured remote AS is the
-// migration AS while the local AS is the other of the pair is INTERNAL, so the eBGP
-// AS_PATH prepend does not run and the RFC 7606 iBGP branch is taken.
-// RFC requirement: RFC7705-4.2-4 negative -- the same pair of AS numbers with no migration
-// AS configured is EXTERNAL. Without this arm the positive arm would pass against code
-// that called every session internal.
 //
 // A remote AS outside the pair has no row here, because it is not a configuration this
 // table can build: Section 4.2 widens "ours" to exactly two ASNs, so setMigrationAS

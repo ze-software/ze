@@ -10,6 +10,7 @@ package rib
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"net"
 	"net/netip"
 
@@ -17,29 +18,79 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// ribOutKey is a value-type map key for ribOut entries: zero-allocation
-// replacement for the string key previously built by outRouteKey.
+// ribOutKey keeps CIDR identities allocation-free and native identities in their
+// registered semantic form. Native excludes the separately stored path identifier.
 type ribOutKey struct {
 	Prefix netip.Prefix
 	PathID uint32
+	Native string
 }
 
 // ribOutEntry is a compact per-peer per-route record for Adj-RIB-Out.
 // Wire attribute bytes live in pool.RibOut (shared across peers).
-//
-//	MsgID      8 B  — replay ordering
-//	AttrHandle 4 B  — shared wire attrs in pool (idx 16)
-//	StaleLevel 1 B  — GR/LLGR freshness (0 = fresh)
-//	_pad       3 B
-//	Total:    16 B  vs 385 B for *Route (96% reduction)
+// NativeNLRI owns the exact advertised bytes, including any ADD-PATH identifier;
+// it is empty for CIDR entries, whose wire representation is derived on replay.
+// SourcePeer is authoritative for this destination, not for other peers carrying
+// the same route key. Replay feedback preserves it; a new advertisement replaces it.
 type ribOutEntry struct {
-	MsgID      uint64
-	AttrHandle attrpool.Handle
-	StaleLevel uint8
+	MsgID        uint64
+	AttrHandle   attrpool.Handle
+	StaleLevel   uint8
+	ConfigStatic bool
+	AddPath      bool
+	NativeNLRI   string
+	NextHop      string
+	SourcePeer   string
+	// SourceMessageID identifies the received generation, independently of the
+	// destination's ADD-PATH identifier and this sent event's MsgID.
+	SourceMessageID uint64
+}
+
+// ribOutRouteKey identifies one framed announcement from the registered splitter.
+// Callers MUST pass the complete native NLRI, including ADD-PATH when addPath is true.
+func ribOutRouteKey(fam family.Family, raw []byte, addPath bool) (ribOutKey, bool) {
+	return ribOutRouteKeyForAction(fam, raw, addPath, false)
+}
+
+// ribOutRouteKeyForAction also accepts withdrawal-only compatibility fields.
+func ribOutRouteKeyForAction(fam family.Family, raw []byte, addPath, withdraw bool) (ribOutKey, bool) {
+	var key ribOutKey
+	if addPath {
+		if len(raw) < 4 {
+			return key, false
+		}
+		key.PathID = binary.BigEndian.Uint32(raw)
+		raw = raw[4:]
+	}
+	if len(raw) == 0 {
+		return key, false
+	}
+	// Labeled unicast is CIDR in received storage, but its advertised labels
+	// belong to the native wire representation retained by Adj-RIB-Out.
+	if storage.IsCIDRFamily(fam) && fam.SAFI != family.SAFIMPLSLabel {
+		var ok bool
+		key.Prefix, ok = nlri.WirePrefixToKey(raw, fam)
+		if !ok {
+			return key, false
+		}
+		key.Prefix = key.Prefix.Masked()
+		return key, key.Prefix.IsValid()
+	}
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	native, err := nlrisplit.GetPrefixKey(fam)(raw, scratch[:], withdraw)
+	if err != nil {
+		return key, false
+	}
+	key.Native = string(native)
+	return key, true
 }
 
 // release decrements the pool reference. Safe to call on zero-value entries.
@@ -49,33 +100,34 @@ func (e ribOutEntry) release() {
 	}
 }
 
-// ribOutSourceRef tracks the originating peer and a reference count for
-// how many destination peers hold the same (family, key) route.
-type ribOutSourceRef struct {
-	peer     string
-	refCount int32
-}
-
 // reconstructRoute rebuilds a full *Route from the compact entry, the pool,
 // and the map keys. Called only on infrequent paths (replay, show, refresh).
-func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey, sourcePeer string) *Route {
+func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey) *Route {
 	route := &Route{
 		MsgID:      entry.MsgID,
 		Family:     fam,
-		Prefix:     key.Prefix.String(),
+		AddPath:    entry.AddPath,
 		PathID:     key.PathID,
 		StaleLevel: entry.StaleLevel,
-		SourcePeer: sourcePeer,
+		SourcePeer: entry.SourcePeer,
+		NextHop:    entry.NextHop,
+	}
+	if key.Prefix.IsValid() {
+		route.Prefix = key.Prefix.String()
+	} else {
+		route.RawNLRI = hex.EncodeToString([]byte(entry.NativeNLRI))
+		route.Prefix = route.RawNLRI
 	}
 
 	wireBytes, err := pool.RibOut.Get(entry.AttrHandle)
 	if err != nil || len(wireBytes) == 0 {
 		return route
 	}
+	route.RawAttrs = hex.EncodeToString(wireBytes)
 
 	iter := attribute.NewAttrIterator(wireBytes)
 	for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
-		switch typeCode { //nolint:exhaustive // only reconstruct fields used by FormatAnnounceCommand
+		switch typeCode { //nolint:exhaustive // display fields; RawAttrs retains every wire attribute for replay
 		case attribute.AttrOrigin:
 			if len(value) >= 1 {
 				o := attribute.Origin(value[0])
@@ -109,6 +161,9 @@ func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey, sourc
 				route.NextHop = nh
 			}
 		}
+	}
+	if entry.NextHop != "" {
+		route.NextHop = entry.NextHop
 	}
 
 	return route
@@ -179,69 +234,8 @@ func parseLargeCommunityWire(value []byte) []attribute.LargeCommunity {
 // extractNextHopFromMPReach extracts next-hop from MP_REACH_NLRI wire value.
 // Wire format: AFI(2) + SAFI(1) + NH-Len(1) + NextHop(N) + Reserved(1) + NLRI...
 func extractNextHopFromMPReach(value []byte) string {
-	if len(value) < 5 {
-		return ""
-	}
-	nhLen := int(value[3])
-	if nhLen == 0 || len(value) < 4+nhLen {
-		return ""
-	}
-	nhBytes := value[4 : 4+nhLen]
-	switch nhLen {
-	case 4:
-		return net.IP(nhBytes).String()
-	case 16:
-		return net.IP(nhBytes).String()
-	case 32:
-		return net.IP(nhBytes[:16]).String()
-	default:
-		return net.IP(nhBytes).String()
-	}
-}
-
-// setRibOutSource records the originating peer for a route key.
-// isNew indicates the entry is new for this destination peer (not a re-announcement).
-func (r *RIBManager) setRibOutSource(fam family.Family, key ribOutKey, sourcePeer string, isNew bool) {
-	if sourcePeer == "" {
-		return
-	}
-	if r.ribOutSource[fam] == nil {
-		r.ribOutSource[fam] = make(map[ribOutKey]ribOutSourceRef)
-	}
-	ref := r.ribOutSource[fam][key]
-	ref.peer = sourcePeer
-	if isNew {
-		ref.refCount++
-	}
-	r.ribOutSource[fam][key] = ref
-}
-
-// releaseRibOutSource decrements the reference count for a source entry.
-// Deletes the entry when no destination peer holds the route.
-func (r *RIBManager) releaseRibOutSource(fam family.Family, key ribOutKey) {
-	m := r.ribOutSource[fam]
-	if m == nil {
-		return
-	}
-	ref, ok := m[key]
-	if !ok {
-		return
-	}
-	ref.refCount--
-	if ref.refCount <= 0 {
-		delete(m, key)
-		if len(m) == 0 {
-			delete(r.ribOutSource, fam)
-		}
-	} else {
-		m[key] = ref
-	}
-}
-
-// ribOutSourcePeer returns the source peer for a route key, or "".
-func (r *RIBManager) ribOutSourcePeer(fam family.Family, key ribOutKey) string {
-	if m := r.ribOutSource[fam]; m != nil {
-		return m[key].peer
+	if nextHop := wireu.MPReachWire(value).NextHop(); nextHop.IsValid() {
+		return nextHop.String()
 	}
 	return ""
 }
@@ -254,11 +248,10 @@ func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family)
 	}
 	routes := make([]*Route, 0, len(familyRoutes))
 	for key, entry := range familyRoutes {
-		if !r.replaySourceEligible(fam, key) {
+		if !replaySourceEligible(fam, key, entry.SourcePeer) {
 			continue
 		}
-		src := r.ribOutSourcePeer(fam, key)
-		routes = append(routes, reconstructRoute(entry, fam, key, src))
+		routes = append(routes, reconstructRoute(entry, fam, key))
 	}
 	return routes
 }

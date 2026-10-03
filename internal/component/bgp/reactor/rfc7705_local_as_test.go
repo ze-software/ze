@@ -377,14 +377,6 @@ func TestLocalASReplaceASSendsOnlyTheLocalAS(t *testing.T) {
 //   - the peer's own outbound path, which the option does not govern and which
 //     therefore keeps the base two-ASN form.
 //
-// RFC requirement: RFC7705-3.3-2 positive -- the source peer carries "No Prepend
-// Inbound", and the AS_PATH the iBGP neighbor receives for that peer's route
-// holds the source AS alone: the "Local AS" value 65010 is absent from it.
-// RFC requirement: RFC7705-3.3-2 negative -- in the same forward run, a
-// destination that carries the option itself still receives the base form
-// 65010 65000 65002, so the "Local AS" value IS appended on the outbound rail
-// the option does not govern. Without this arm the positive arm would pass
-// against code that never appended a "Local AS" value to anything.
 // RFC requirement: RFC7705-3.3-3 positive -- the eBGP neighbor peering with the
 // globally configured AS number receives 65000 65002, so that AS number is
 // appended as normal for a route learned from the no-prepend peer.

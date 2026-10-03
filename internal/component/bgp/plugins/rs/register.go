@@ -24,6 +24,14 @@ func init() {
 	// once at construction; it never imports this package.
 	filterapi.EnableRSForwarding()
 
+	// RFC 7947 Section 2.2: the plugin selects opaque attribute preservation.
+	if err := filterapi.Register(filterapi.Filter{
+		Name:                     "bgp-rs",
+		PreserveOpaqueAttributes: preserveOpaqueAttributes,
+	}); err != nil {
+		panic(fmt.Errorf("BUG: route-server forwarding policy registration: %w", err))
+	}
+
 	reg := registry.Registration{
 		Name:         "bgp-rs",
 		Description:  "Route Server",
@@ -80,4 +88,13 @@ func init() {
 		fmt.Fprintf(os.Stderr, "rs: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// preserveOpaqueAttributes owns the route-server exception to ordinary forwarding.
+// RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP attributes,
+// whether transitive or non-transitive, SHOULD NOT be updated by the route server
+// (unless enforced by local IXP operator configuration) and SHOULD be passed on
+// to other route server clients."
+func preserveOpaqueAttributes(peer filterapi.PeerFilterInfo) bool {
+	return peer.RSClient
 }

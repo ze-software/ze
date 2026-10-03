@@ -47,9 +47,10 @@ type PeerLifecycleCallback interface {
 	OnPeerClosed(peer any, reason string)
 }
 
-// MessageCallback receives raw BGP messages without importing bgp/reactor.
-// peer is *plugin.PeerInfo, msgType is msgtype.MessageType.
-// sent: false = received, true = sent.
+// MessageCallback receives complete original BGP messages without importing bgp/reactor.
+// peer is *plugin.PeerInfo, msgType is msgtype.MessageType; rawBytes includes
+// the original header. Receivers MUST NOT retain bytes or reenter session writes.
+// sent: false = received, true = accepted by the transport for sending.
 type MessageCallback interface {
 	OnBGPMessage(peer any, msgType uint8, sent bool, rawBytes []byte)
 }

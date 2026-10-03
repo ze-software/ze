@@ -128,7 +128,20 @@ reactor's ordinary reflection rules and egress policy.
 
 ### Zero-Copy Forwarding
 
-When two peers negotiate identical capabilities (same ADD-PATH mode, same ASN format, same extended message support), they share the same encoding context. Routes between peers with matching contexts are forwarded as raw wire bytes without re-encoding -- no parse, no rebuild, no allocation.
+When two peers negotiate identical capabilities (same ADD-PATH mode, same ASN format, same extended message support), they share the same encoding context. If no destination-specific rewrite is needed, their routes are forwarded as raw wire bytes without decoding attribute values, rebuilding the UPDATE, or allocating a new payload.
+
+For a session configured as a route-server client, received optional attributes
+are retained for transparent redistribution, including unknown transitive and
+unknown non-transitive attributes. The route server does not add a Partial bit
+to an unknown transitive attribute on client redistribution. Ordinary sessions
+still mark unknown transitive attributes Partial and discard unknown
+non-transitive attributes. Forwarding from a route-server client to an ordinary
+peer applies those ordinary rules to a separate outgoing copy; it never changes
+the bytes shared with other route-server clients. Explicit operator policy may
+modify route-server attributes; malformed attributes still follow their
+error-handling rules.
+<!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- ordinaryPeerWire, buildFwdBody -->
 
 ### Forwarding and Congestion
 

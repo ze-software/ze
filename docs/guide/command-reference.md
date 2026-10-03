@@ -37,6 +37,19 @@ error rather than reading empty. A file literally named `-` is addressed as
 on-disk revision history that a pipe does not have.
 <!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
 
+MRT analysis (`le mrt show`, `density`, and content filters) derives mixed-family
+ADD-PATH decoding from both actual directional OPEN messages in the same input.
+Missing or ambiguous negotiation is an explicit decoding error, not a successful
+partial count or filter nonmatch. Input files never inherit another file's
+session context. Replay, inject and serve do not negotiate ADD-PATH; they refuse
+Path-Identifier-bearing or ambiguous UPDATEs before writing them. Empty EOR
+messages remain safe to replay even under an ADD-PATH MRT subtype.
+An empty MP family still counts when deciding whether a mixed UPDATE needs
+both OPENs. BGP4MP replay also refuses trailing bytes beyond the declared BGP
+length and structurally truncated attributes, even with complete OPEN context.
+<!-- source: internal/mrt/context.go — SessionContexts, BGPMessage.updateContext -->
+<!-- source: internal/analyze/replay_context.go — checkReplayUpdate -->
+
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,

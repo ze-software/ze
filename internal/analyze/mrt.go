@@ -81,7 +81,7 @@ type mrtPeerInfo struct {
 type mrtHandler struct {
 	OnPeerIndex func(data []byte)
 	OnRIB       func(data []byte, subtype uint16)
-	OnBGP4MP    func(data []byte, subtype uint16, ts uint32)
+	OnBGP4MP    func(data []byte, subtype uint16, ts uint32, wire mrt.BGPMessage)
 }
 
 // processMRTFile opens filename (or stdin when "-"), reads all MRT records, and
@@ -127,6 +127,7 @@ func processMRTFile(filename string, h mrtHandler) error {
 // readMRTRecords reads all MRT records from a reader and dispatches to handler.
 func readMRTRecords(r io.Reader, h mrtHandler) error {
 	header := make([]byte, 12)
+	var contexts mrt.SessionContexts
 	for {
 		_, err := io.ReadFull(r, header)
 		if err == io.EOF {
@@ -176,15 +177,36 @@ func readMRTRecords(r io.Reader, h mrtHandler) error {
 				}
 			}
 		case mrtBGP4MP, mrtBGP4MPET:
-			if h.OnBGP4MP != nil {
-				offset := 0
-				if mrtType == mrtBGP4MPET {
-					if len(data) < 4 {
-						continue
-					}
-					offset = 4 // skip microseconds
+			offset := 0
+			if mrtType == mrtBGP4MPET {
+				if len(data) < 4 {
+					return mrt.ErrShortData
 				}
-				h.OnBGP4MP(data[offset:], subtype, ts)
+				offset = 4
+			}
+			payload := data[offset:]
+			if subtype == mrt.BGP4MPStateChange || subtype == mrt.BGP4MPStateChangeAS4 {
+				state, err := mrt.DecodeBGP4MPStateChange(subtype, payload)
+				if err != nil {
+					return err
+				}
+				if err := contexts.ObserveState(state); err != nil {
+					return err
+				}
+				continue
+			}
+			if subtype == mrt.BGP4MPEntry || subtype == mrt.BGP4MPSnapshot {
+				continue
+			}
+			record, err := mrt.DecodeBGP4MPMessage(subtype, payload)
+			if err != nil {
+				return err
+			}
+			if err := contexts.ObserveMessage(subtype, record); err != nil {
+				return err
+			}
+			if h.OnBGP4MP != nil {
+				h.OnBGP4MP(payload, subtype, ts, record.BGPMessage)
 			}
 		}
 	}
@@ -239,9 +261,9 @@ func bgp4mpFourByteAS(subtype uint16) bool {
 func extractBGP4MPUpdate(subtype uint16, data []byte) (body []byte, peerASN uint32) {
 	var asSize int
 	switch subtype {
-	case subtypeBGP4MPMessage, subtypeBGP4MPMessageLocal:
+	case subtypeBGP4MPMessage, subtypeBGP4MPMessageLocal, mrt.BGP4MPMessageAP, mrt.BGP4MPMessageLocalAP:
 		asSize = 2
-	case subtypeBGP4MPMessageAS4, subtypeBGP4MPMessageAS4Local:
+	case subtypeBGP4MPMessageAS4, subtypeBGP4MPMessageAS4Local, mrt.BGP4MPMessageAS4AP, mrt.BGP4MPMessageAS4LocalAP:
 		asSize = 4
 	default:
 		return nil, 0
@@ -309,15 +331,21 @@ func extractUpdateAttrs(update []byte) []byte {
 //
 // Attribute decoding itself lives in internal/mrt (mrt.ParseAttributes); this
 // adapter only preserves the callback shape the analyze subcommands use.
-func iterateAttrs(attrs []byte, fn func(flags, typeCode uint8, value []byte)) {
-	for _, a := range mrt.ParseAttributes(attrs) {
+func iterateAttrs(attrs []byte, fn func(flags, typeCode uint8, value []byte)) error {
+	parsed, err := mrt.ParseAttributes(attrs)
+	if err != nil {
+		return err
+	}
+	for _, a := range parsed {
 		fn(a.Flags, a.Code, a.Value)
 	}
+	return nil
 }
 
-// countAttrs counts the number of attributes in a packed attribute section.
-func countAttrs(attrs []byte) int {
-	return len(mrt.ParseAttributes(attrs))
+// countAttrs counts attributes and reports an incomplete packed section.
+func countAttrs(attrs []byte) (int, error) {
+	parsed, err := mrt.ParseAttributes(attrs)
+	return len(parsed), err
 }
 
 // parsePeerIndexTable parses a TABLE_DUMP_V2 PEER_INDEX_TABLE record.
@@ -447,11 +475,15 @@ func forEachRIBEntry(data []byte, subtype uint16, fn func(peerIndex uint16, attr
 // NLRI counting. The zero value is ready to use.
 type malformedCounter struct {
 	records int
+	cause error
 }
 
 func (m *malformedCounter) note(err error) {
 	if err != nil {
 		m.records++
+		if m.cause == nil {
+			m.cause = err
+		}
 	}
 }
 
@@ -464,6 +496,7 @@ func (m *malformedCounter) report(w io.Writer) {
 	var tb textbuf.Buffer
 	tb.Str("warning: ").Int(int64(m.records)).Str(" malformed MRT record(s) skipped or partially decoded; results are incomplete\n")
 	wf(w, "%s", tb.Slice())
+	wf(w, "first decoding error: %v\n", m.cause)
 }
 
 // getRIBPrefix extracts the prefix bytes and length from a RIB record.

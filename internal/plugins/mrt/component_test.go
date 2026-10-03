@@ -82,12 +82,9 @@ func TestShouldRecordDirectionAndPeerCombined(t *testing.T) {
 
 func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
 	// RFC requirement: RFC6396-4.4.2-2 positive -- a BGP4MP_MESSAGE record encapsulates
-	// exactly one BGP message [SHALL]. OnBGPMessage builds a single record per call with
-	// one WriteBGP4MPMessage and writes it once (internal/plugins/mrt/component.go:99-143),
-	// and a BGP4MP MESSAGE record's body is exactly that one encapsulated message
-	// (WriteBGP4MPMessage, internal/mrt/encode.go:167-173). This drives one OnBGPMessage
-	// call and asserts the dump holds exactly one BGP4MP MESSAGE record whose body equals
-	// the single input message byte-for-byte (no second message appended).
+	// exactly one complete original BGP message [SHALL]. Three consecutive calls
+	// (KEEPALIVE, differently sized UPDATE, KEEPALIVE) become exactly three
+	// records with byte-identical payloads and exact independent length boundaries.
 	c := New(Config{}, nil)
 	path := filepath.Join(t.TempDir(), "all.mrt")
 	c.allMsgs = newAsyncWriter(mrtfmt.NewWriter(path), c.logger)
@@ -104,7 +101,10 @@ func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0x00, 0x13, 0x04,
 	}
-	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, bgpMsg)
+	update := append(bytes.Clone(bgpMsg[:16]), 0, 27, 2, 0, 0, 0, 0, 24, 10, 0, 0)
+	c.OnBGPMessage(peer, msgtype.TypeKEEPALIVE, false, bgpMsg)
+	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, update)
+	c.OnBGPMessage(peer, msgtype.TypeKEEPALIVE, false, bgpMsg)
 	if err := c.allMsgs.Close(); err != nil {
 		t.Fatalf("close all writer: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
 	var messages [][]byte
 	h := &mrtfmt.Handler{
 		OnMessage: func(_ mrtfmt.Header, _ uint32, m *mrtfmt.MessageRecord) error {
-			messages = append(messages, bytes.Clone(m.BGPMessage))
+			messages = append(messages, bytes.Clone(m.BGPMessage.Bytes))
 			return nil
 		},
 	}
@@ -120,12 +120,13 @@ func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
 		t.Fatalf("read back dump: %v", err)
 	}
 
-	if len(messages) != 1 {
-		t.Fatalf("BGP4MP MESSAGE record count = %d, want exactly 1", len(messages))
+	if len(messages) != 3 {
+		t.Fatalf("BGP4MP MESSAGE record count = %d, want exactly 3", len(messages))
 	}
-	if !bytes.Equal(messages[0], bgpMsg) {
-		t.Errorf("encapsulated message = % x, want % x (record must carry exactly the one message)",
-			messages[0], bgpMsg)
+	for i, want := range [][]byte{bgpMsg, update, bgpMsg} {
+		if !bytes.Equal(messages[i], want) {
+			t.Errorf("record %d = % x, want exactly % x", i, messages[i], want)
+		}
 	}
 }
 

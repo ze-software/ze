@@ -94,6 +94,15 @@ func newGRStateManager(onExpired func(peerAddr string)) *grStateManager {
 	}
 }
 
+// familyRetained answers the forwarding owner's query using the authoritative
+// GR/LLGR family set. Safe for concurrent use; callers MUST NOT hold m.mu.
+func (m *grStateManager) familyRetained(peerAddr string, fam family.Family) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state := m.peers[peerAddr]
+	return state != nil && state.staleFamilies[fam]
+}
+
 // peerActive returns true if the peer is in GR or LLGR.
 func (m *grStateManager) peerActive(peerAddr string) bool {
 	m.mu.Lock()

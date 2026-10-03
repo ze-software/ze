@@ -203,6 +203,7 @@ func (b *readerCloser) Close() error               { return b.cls.Close() }
 
 func readRecords(r io.Reader, handler *Handler) error {
 	var hdrBuf [CommonHeaderLen]byte
+	var contexts SessionContexts
 	// Record ordinal, 1-based, counting every record read from this stream.
 	// It is the only handle a user has on WHICH record failed: a decode error
 	// carries an offset inside the record's own fields, which on a multi-GB
@@ -248,7 +249,7 @@ func readRecords(r io.Reader, handler *Handler) error {
 			}
 		}
 
-		if err := dispatch(h, microsecond, msgData, handler); err != nil {
+		if err := dispatch(h, microsecond, msgData, handler, &contexts); err != nil {
 			return fmt.Errorf("mrt: record %d (type %d subtype %d, timestamp %d): %w",
 				ordinal, h.Type, h.Subtype, h.Timestamp, err)
 		}
@@ -259,12 +260,12 @@ func isETType(typ uint16) bool {
 	return typ == TypeBGP4MPET || typ == TypeISISET || typ == TypeOSPFv3ET
 }
 
-func dispatch(h Header, usec uint32, data []byte, handler *Handler) error {
+func dispatch(h Header, usec uint32, data []byte, handler *Handler, contexts *SessionContexts) error {
 	switch h.Type {
 	case TypeTableDumpV2:
 		return dispatchTDV2(h, data, handler)
 	case TypeBGP4MP, TypeBGP4MPET:
-		return dispatchBGP4MP(h, usec, data, handler)
+		return dispatchBGP4MP(h, usec, data, handler, contexts)
 	case TypeTableDump:
 		return dispatchTD(h, data, handler)
 	}
@@ -319,14 +320,17 @@ func dispatchTDV2(h Header, data []byte, handler *Handler) error {
 	return nil
 }
 
-func dispatchBGP4MP(h Header, usec uint32, data []byte, handler *Handler) error {
+func dispatchBGP4MP(h Header, usec uint32, data []byte, handler *Handler, contexts *SessionContexts) error {
 	if isStateChangeSubtype(h.Subtype) {
-		if handler.OnStateChange == nil {
-			return nil
-		}
 		sc, err := DecodeBGP4MPStateChange(h.Subtype, data)
 		if err != nil {
 			return err
+		}
+		if err := contexts.ObserveState(sc); err != nil {
+			return err
+		}
+		if handler.OnStateChange == nil {
+			return nil
 		}
 		return handler.OnStateChange(h, usec, sc)
 	}
@@ -341,6 +345,9 @@ func dispatchBGP4MP(h Header, usec uint32, data []byte, handler *Handler) error 
 		}
 		msg, err := DecodeBGP4MPMessage(h.Subtype, data)
 		if err != nil {
+			return err
+		}
+		if err := contexts.ObserveMessage(h.Subtype, msg); err != nil {
 			return err
 		}
 		return handler.OnMessage(h, usec, msg)

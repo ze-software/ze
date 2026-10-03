@@ -74,7 +74,7 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 			routesLogger().Warn("static route not sent", "peer", addr, "prefix", route.Prefix, "error", buildErr)
 			continue
 		}
-		err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
+		err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath, false)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("send error", "peer", addr, "error", err)
@@ -144,7 +144,7 @@ func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, m
 				routesLogger().Warn("static route not sent", "peer", addr, "prefix", grouped[0].Prefix, "error", buildErr)
 				continue
 			}
-			err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
+			err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath, false)
 			message.PutUpdateBuilder(ub)
 			if err != nil {
 				routesLogger().Debug("send error", "peer", addr, "error", err)
@@ -319,7 +319,7 @@ func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxM
 				"peer", p.addrString, "prefix", route.Prefix)
 			continue
 		}
-		if err := session.sendBodyWithSplit(context.Background(), withdrawn, maxMsgSize, addPath); err != nil {
+		if err := session.sendBodyWithSplit(context.Background(), withdrawn, maxMsgSize, addPath, false); err != nil {
 			routesLogger().Debug("withdraw send error", "peer", p.addrString, "prefix", route.Prefix, "error", err)
 			return
 		}

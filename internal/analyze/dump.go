@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 func runMRTDump(args []string) int {
@@ -51,7 +53,7 @@ Examples:
 					fmt.Println(hex.EncodeToString(update))
 				}))
 			},
-			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
+			OnBGP4MP: func(data []byte, subtype uint16, _ uint32, _ mrt.BGPMessage) {
 				body, _ := extractBGP4MPUpdate(subtype, data)
 				if body != nil {
 					fmt.Println(hex.EncodeToString(body))

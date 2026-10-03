@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -125,7 +126,7 @@ drainLoop2:
 
 // acceptWithOpen accepts a connection and processes a pre-received OPEN.
 // RFC 4271 §6.8: Used for collision resolution when we've already read the peer's OPEN.
-func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
+func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open, wire []byte) error {
 	s.mu.Lock()
 	if s.conn != nil {
 		s.mu.Unlock()
@@ -137,6 +138,7 @@ func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
 	if err := s.connectionEstablished(conn); err != nil {
 		return err
 	}
+	s.observeReceivedWire(wire)
 
 	// Process the pre-received OPEN
 	return s.processOpen(peerOpen)
@@ -386,8 +388,8 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	// The refusal does NOT close conn, because this function does not own it on
 	// two of those three rails. Accept's caller is acceptOrReject, which buffers
 	// the connection on ErrSessionTearingDown for a passive peer and offers it to
-	// the next cycle (reactor_connection.go); acceptWithOpen's caller is
-	// acceptPendingConnection, which closes it itself. Closing here left both
+	// the next cycle (reactor_connection.go); acceptWithOpen's caller is the
+	// Peer run loop, which closes refused sockets itself. Closing here left both
 	// holding a dead socket -- the buffered one costs the peer a whole backoff
 	// when the next cycle accepts it. Connect is the one rail that owns what it
 	// hands in, and it closes its own dial on this error (see Connect above).
@@ -402,7 +404,8 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	readBufSize := max(env.GetInt("ze.buf.read.size", 65536), 4096)
 	writeBufSize := max(env.GetInt("ze.buf.write.size", 16384), 4096)
 	s.bufReader = bufio.NewReaderSize(conn, readBufSize)
-	s.bufWriter = bufio.NewWriterSize(conn, writeBufSize)
+	s.wireWriter = &observedBGPWriter{writer: conn, session: s, transport: s.transport.Load()}
+	s.bufWriter = bufio.NewWriterSize(s.wireWriter, writeBufSize)
 	s.writeMu.Unlock()
 	s.mu.Unlock()
 
@@ -609,12 +612,15 @@ func (s *Session) setCloseReason(err error) {
 	s.closeReason.CompareAndSwap(nil, &err)
 }
 
-// sessionTransport keeps only socket identity, never configured listener or
-// dial-target defaults. It is published once per connection before any message.
+// sessionTransport keeps the connection's socket identity and actual local OPEN
+// identity, never mutable configuration or the identity of a replacement epoch.
 type sessionTransport struct {
 	local                 netip.Addr
 	localString           string
 	localPort, remotePort uint16
+	// sendOpen MUST publish the built OPEN's ASN before writing its first byte.
+	// Observers MUST load this once-set value instead of configured LocalAS.
+	localAS atomic.Uint32
 }
 
 // connectedLocalAddress answers the local endpoint of session's TCP connection,

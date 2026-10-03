@@ -119,8 +119,11 @@ func runReplay(args []string) int {
 
 	handler := &mrt.Handler{
 		OnMessage: func(h mrt.Header, _ uint32, m *mrt.MessageRecord) error {
-			if len(m.BGPMessage) < 19 || m.BGPMessage[18] != 2 {
+			if len(m.BGPMessage.Bytes) < 19 || m.BGPMessage.Bytes[18] != 2 {
 				return nil
+			}
+			if err := checkReplayUpdate(m.BGPMessage); err != nil {
+				return err
 			}
 
 			if opts.speed > 0 && prevTS > 0 && h.Timestamp > prevTS {
@@ -132,7 +135,7 @@ func runReplay(args []string) int {
 			}
 			prevTS = h.Timestamp
 
-			if _, err := conn.Write(m.BGPMessage); err != nil {
+			if _, err := conn.Write(m.BGPMessage.Bytes); err != nil {
 				return err
 			}
 			sent++

@@ -21,10 +21,66 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	updatecmd "github.com/ze-software/ze/internal/component/bgp/plugins/cmd/update"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// consumeRefreshCommand uses the production command consumers, not a second
+// interpretation of text/hex wording. Socket delivery is separately exercised
+// by plugin-refresh.ci and refresh-config-static.ci.
+func consumeRefreshCommand(t *testing.T, command string) []bgptypes.NLRIGroup {
+	t.Helper()
+	args := strings.Fields(command)
+	require.GreaterOrEqual(t, len(args), 3)
+	require.Equal(t, "update", args[0])
+	var result *bgptypes.UpdateTextResult
+	var err error
+	switch args[1] {
+	case "hex":
+		result, err = updatecmd.ParseUpdateWire(args[2:], plugin.WireEncodingHex)
+	case "b64":
+		result, err = updatecmd.ParseUpdateWire(args[2:], plugin.WireEncodingB64)
+	case "text":
+		result, err = updatecmd.ParseUpdateText(args[2:])
+	default:
+		t.Fatalf("unsupported refresh command encoding %q", args[1])
+	}
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Empty(t, result.EORFamilies, "refresh routes must not contain an End-of-RIB")
+	require.NotEmpty(t, result.Groups)
+	for _, group := range result.Groups {
+		require.Empty(t, group.Withdraw, "refresh must advertise the retained route")
+		require.NotEmpty(t, group.Announce)
+		require.NotNil(t, group.Wire)
+	}
+	return result.Groups
+}
+
+type refreshRouteIdentity struct {
+	family family.Family
+	prefix netip.Prefix
+}
+
+func consumedRefreshRoutes(t *testing.T, groups []bgptypes.NLRIGroup) []refreshRouteIdentity {
+	t.Helper()
+	var routes []refreshRouteIdentity
+	for _, group := range groups {
+		for _, route := range group.Announce {
+			require.Equal(t, group.Family, route.Family())
+			payload := make([]byte, route.Len())
+			require.Equal(t, len(payload), route.WriteTo(payload, 0))
+			prefix, ok := nlri.WirePrefixToKey(payload, group.Family)
+			require.True(t, ok, "the consumer must receive a valid IP route")
+			routes = append(routes, refreshRouteIdentity{family: group.Family, prefix: prefix.Masked()})
+		}
+	}
+	return routes
+}
 
 // rfc7313SequencedRIB returns rfc7313ReadyRIB's manager, holding two IPv4 unicast routes
 // and one IPv6 unicast route in the peer's Adj-RIB-Out, with markers and routes captured
@@ -50,19 +106,23 @@ func rfc7313SequencedRIB(t *testing.T) (*RIBManager, *[]string) {
 // and nothing else, then the EoRR last.
 func requireBracketedReadvertisement(t *testing.T, sequence []string) {
 	t.Helper()
-	require.Len(t, sequence, 4, "BoRR, the two IPv4 unicast routes of the Adj-RIB-Out, EoRR: %q", sequence)
+	require.GreaterOrEqual(t, len(sequence), 3, "BoRR, routes, EoRR: %q", sequence)
 
 	borr := "marker request peer " + rfc7313RefreshPeer + " borr " + family.IPv4Unicast.String()
 	eorr := "marker request peer " + rfc7313RefreshPeer + " eorr " + family.IPv4Unicast.String()
 	require.Equal(t, borr, sequence[0], "the BoRR must precede the first re-advertised route")
-	require.Equal(t, eorr, sequence[3], "the EoRR must follow the last re-advertised route")
+	require.Equal(t, eorr, sequence[len(sequence)-1], "the EoRR must follow the last re-advertised route")
 
-	routes := strings.Join(sequence[1:3], "\n")
-	require.True(t, strings.HasPrefix(sequence[1], "route "), "a route sits between the markers: %q", sequence[1])
-	require.True(t, strings.HasPrefix(sequence[2], "route "), "a route sits between the markers: %q", sequence[2])
-	require.Contains(t, routes, "10.0.0.0/24", "the entire Adj-RIB-Out of the family is re-advertised")
-	require.Contains(t, routes, "10.0.1.0/24", "the entire Adj-RIB-Out of the family is re-advertised")
-	require.NotContains(t, routes, "2001:db8::/32", "another family's routes are not part of this refresh")
+	var routes []refreshRouteIdentity
+	for _, item := range sequence[1:len(sequence)-1] {
+		command, ok := strings.CutPrefix(item, "route ")
+		require.True(t, ok, "only route delivery belongs between the markers: %q", item)
+		routes = append(routes, consumedRefreshRoutes(t, consumeRefreshCommand(t, command))...)
+	}
+	require.ElementsMatch(t, []refreshRouteIdentity{
+		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")},
+		{family: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")},
+	}, routes, "the consumer receives the entire requested Adj-RIB-Out, and no other family")
 }
 
 // TestRFC7313BoRRRoutesEoRRInOneSequence drives both refresh producers and reads one

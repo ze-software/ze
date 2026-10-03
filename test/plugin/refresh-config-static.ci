@@ -1,0 +1,81 @@
+# Test: ROUTE-REFRESH includes a route originated from peer configuration.
+#   "Otherwise, the BGP speaker shall re-advertise to that peer the
+#    Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its
+#    outbound route filtering policy."
+#
+# A route from the peer's own config (`update` block) is advertised to the
+# peer, so it is in that peer's Adj-RIB-Out. A ROUTE-REFRESH for ipv4/unicast
+# must re-advertise it between BoRR and EoRR.
+#
+# RFC requirement: RFC2918-4-3 positive -- a config-static IPv4 route is re-advertised between BoRR and EoRR for the requested family.
+# MUTATION: halting handleSentStructured removes the sent route from refresh.
+
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Step 1: the config route, then End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Step 2: ROUTE-REFRESH for AFI 1, subtype 0, SAFI 1.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+
+# Step 3: BoRR, the config route again, EoRR.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010101
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010201
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				route-refresh
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.0.1
+				local-preference 100
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update refresh ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

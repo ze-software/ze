@@ -304,12 +304,6 @@ type RIBManager struct {
 	// Wire attribute bytes are deduplicated in pool.RibOut (idx 16).
 	ribOut map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry // peerAddr -> family -> ribOutKey -> entry
 
-	// ribOutSource tracks the originating peer per (family, routeKey).
-	// One entry per unique route (not per destination peer), used for
-	// GR stale propagation (RFC 9494). Refcounted: cleaned up when the
-	// last destination peer withdraws the route.
-	ribOutSource map[family.Family]map[ribOutKey]ribOutSourceRef
-
 	// peerUp tracks which peers are currently up
 	peerUp map[netip.Addr]bool
 
@@ -616,7 +610,6 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		},
 		bgpPeers:         make(map[netip.Addr]*storage.PeerRIB),
 		ribOut:           make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
-		ribOutSource:     make(map[family.Family]map[ribOutKey]ribOutSourceRef),
 		peerUp:           make(map[netip.Addr]bool),
 		peerMeta:         make(map[netip.Addr]*peerMetadata),
 		retainedPeers:    make(map[netip.Addr]bool),
@@ -866,6 +859,12 @@ func (r *RIBManager) dispatch(event *Event) {
 // handleSent processes sent UPDATE events.
 // Stores routes in ribOut for replay on reconnect.
 func (r *RIBManager) handleSent(event *Event) {
+	if _, replay := event.RouteMeta["replay"]; replay {
+		return
+	}
+	if _, lifecycle := event.RouteMeta["rib-lifecycle"]; lifecycle {
+		return
+	}
 	msgID := event.GetMsgID()
 	logger().Debug("handleSent", "peer", event.GetPeerAddress(), "msgID", msgID, "familyOps", len(event.FamilyOps))
 
@@ -879,11 +878,7 @@ func (r *RIBManager) handleSent(event *Event) {
 		return
 	}
 
-	if len(event.FamilyOps) == 0 {
-		logger().Debug("handleSent: no family ops, skipping")
-		return
-	}
-
+	// Full events carry native bytes even when the family has no text projection.
 	// Intern wire bytes BEFORE acquiring peerMu to maintain lock ordering
 	// (pool.RibOut.mu must not be acquired under peerMu).
 	rawHex := event.GetRawAttributesHex()
@@ -904,6 +899,9 @@ func (r *RIBManager) handleSent(event *Event) {
 	if event.RouteMeta != nil {
 		sourcePeer, _ = event.RouteMeta["source-peer"].(string)
 	}
+	sourceMessageID, _ := event.RouteMeta["source-message-id"].(float64)
+	_, configStatic := event.RouteMeta["config-static"]
+	_, replay := event.RouteMeta["replay"]
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
@@ -911,11 +909,25 @@ func (r *RIBManager) handleSent(event *Event) {
 	if r.ribOut[peerAddr] == nil {
 		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
+	for _, fam := range event.RawWithdrawnFamilies() {
+		r.removeSentNLRIs(peerAddr, fam, event.GetRawWithdrawnBytes(fam), event.AddPath[fam])
+	}
+	for _, fam := range event.RawNLRIFamilies() {
+		r.storeSentEntries(peerAddr, fam, event.GetRawNLRIBytes(fam), event.AddPath[fam],
+			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: uint64(sourceMessageID),
+				NextHop: sentFamilyNextHop(event, fam)}, sourcePeer, replay)
+	}
 
 	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
 			switch op.Action { //nolint:exhaustive // only Add/Del relevant for rib-out
 			case routeaction.Add:
+				if len(event.GetRawNLRIBytes(fam)) > 0 {
+					continue
+				}
+				if r.ribOut[peerAddr] == nil {
+					r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
+				}
 				if r.ribOut[peerAddr][fam] == nil {
 					r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 				}
@@ -930,21 +942,29 @@ func (r *RIBManager) handleSent(event *Event) {
 						logger().Warn("sent: invalid prefix", "peer", peerAddr, "prefix", prefix)
 						continue
 					}
-					key := ribOutKey{Prefix: pfx, PathID: pathID}
-					_, existed := r.ribOut[peerAddr][fam][key]
+					key := ribOutKey{Prefix: pfx.Masked(), PathID: pathID}
+					old, existed := r.ribOut[peerAddr][fam][key]
+					stored := ribOutEntry{
+						MsgID:        msgID,
+						AttrHandle:   attrHandle,
+						ConfigStatic: configStatic,
+						AddPath:      event.AddPath[fam] || pathID != 0 || sentNLRIHasPathID(nlriVal),
+						NextHop:      op.NextHop,
+						SourcePeer:   sourcePeer,
+						SourceMessageID: uint64(sourceMessageID),
+					}
 					if existed {
-						r.ribOut[peerAddr][fam][key].release()
+						old.release()
 					}
 					if attrHandle.IsValid() {
 						_ = pool.RibOut.AddRef(attrHandle)
 					}
-					r.ribOut[peerAddr][fam][key] = ribOutEntry{
-						MsgID:      msgID,
-						AttrHandle: attrHandle,
-					}
-					r.setRibOutSource(fam, key, sourcePeer, !existed)
+					r.ribOut[peerAddr][fam][key] = stored
 				}
 			case routeaction.Del:
+				if len(event.GetRawWithdrawnBytes(fam)) > 0 {
+					continue
+				}
 				familyRoutes := r.ribOut[peerAddr][fam]
 				if familyRoutes == nil {
 					continue
@@ -958,12 +978,11 @@ func (r *RIBManager) handleSent(event *Event) {
 					if err != nil {
 						continue
 					}
-					key := ribOutKey{Prefix: pfx, PathID: pathID}
+					key := ribOutKey{Prefix: pfx.Masked(), PathID: pathID}
 					if old, exists := familyRoutes[key]; exists {
 						old.release()
 						delete(familyRoutes, key)
 					}
-					r.releaseRibOutSource(fam, key)
 				}
 				if len(familyRoutes) == 0 {
 					delete(r.ribOut[peerAddr], fam)
@@ -977,6 +996,26 @@ func (r *RIBManager) handleSent(event *Event) {
 	if attrHandle.IsValid() {
 		_ = pool.RibOut.Release(attrHandle)
 	}
+}
+
+// sentNLRIHasPathID preserves an explicitly encoded identifier zero.
+func sentNLRIHasPathID(value any) bool {
+	fields, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	_, present := fields["path-id"]
+	return present
+}
+
+// sentFamilyNextHop restores the MP next hop omitted from raw.attributes by JSON.
+func sentFamilyNextHop(event *Event, fam family.Family) string {
+	for _, op := range event.FamilyOps[fam] {
+		if op.Action == routeaction.Add {
+			return op.NextHop
+		}
+	}
+	return ""
 }
 
 // handleReceived processes received UPDATE events from peers.
@@ -1386,6 +1425,9 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: "request bgp rib release-routes"},
 		{Name: "request bgp rib mark-stale"},
 		{Name: "request bgp rib purge-stale"},
+		// LLGR uses these through the engine dispatcher, not private handlers.
+		{Name: "request bgp rib attach-community"},
+		{Name: "request bgp rib delete-with-community"},
 		// Best-path selection (RFC 4271 §9.1.2)
 		{Name: "show bgp rib best"},
 		{Name: "show bgp rib best status"},

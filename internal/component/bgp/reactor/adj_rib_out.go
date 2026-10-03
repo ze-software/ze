@@ -466,7 +466,7 @@ func (a *reactorAPIAdapter) announcePartialToPeers(ctx context.Context, targets 
 			lastErr = buildErr
 			continue
 		}
-		if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, u.facts.addPath); err != nil {
+		if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, u.facts.addPath, unit.Replay); err != nil {
 			lastErr = err
 			continue
 		}

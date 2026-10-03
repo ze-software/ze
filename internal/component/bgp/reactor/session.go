@@ -326,9 +326,13 @@ type Session struct {
 	// Only the first reason wins (CompareAndSwap from nil).
 	closeReason atomic.Pointer[error]
 
-	// onMessageReceived is called when any BGP message is received.
-	// Set by Peer to forward raw bytes to reactor.
+	// onMessageReceived delivers semantically validated messages, including
+	// synthetic withdrawals. It is not a wire-observation boundary.
 	onMessageReceived MessageCallback
+
+	// onWireMessage borrows original complete packets synchronously. The callback
+	// MUST NOT retain bytes or reenter writes; it is independent of semantic delivery.
+	onWireMessage func([]byte, bgpctx.ContextID, bool, *sessionTransport)
 
 	// egressRouteFilter, when non-nil, runs the peer's export filter chain on an
 	// outbound route UPDATE body just before it is written (writeUpdate /
@@ -383,6 +387,10 @@ type Session struct {
 	// Set by Peer after capability negotiation for AttrsWire creation in callbacks.
 	sendCtxID bgpctx.ContextID
 
+	// wireWriter is the observer of this connection's accepted outbound bytes.
+	// Its context is atomic: transport writes cannot acquire mu under writeMu.
+	wireWriter *observedBGPWriter
+
 	// sentMeta holds route metadata for the current forward pool write operation.
 	// Lifecycle: set per-item by fwdBatchHandler, read by writeRawUpdateBody/writeUpdate
 	// within the same writeMu critical section, cleared to nil by defer on all exit paths.
@@ -393,7 +401,7 @@ type Session struct {
 	// forward pool write. Set alongside sentMeta by fwdBatchHandler. Used by
 	// sent event callbacks for ribOut stale-scoping without map allocation.
 	sentSourcePeerStr string
-	// Original received generation for AIGP forwarded advertisements. Guarded
+	// Original received generation for forwarded advertisements. Guarded
 	// by writeMu with sentSourcePeerStr; zero for non-forwarded messages.
 	sentSourceMessageID uint64
 	// Forward authority and pending actual writes, all guarded by writeMu.
@@ -774,6 +782,9 @@ func (s *Session) setSendCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sendCtxID = ctxID
+	if s.wireWriter != nil {
+		s.wireWriter.context.Store(uint32(ctxID))
+	}
 }
 
 // SetMessageCallback installs the per-message delivery callback. Peer assigns

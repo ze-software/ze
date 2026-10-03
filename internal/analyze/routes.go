@@ -88,7 +88,10 @@ func runRoutes(args []string) int {
 					return nil
 				}
 				count++
-				attrs := mrt.ParseAttributes(e.Attributes)
+				attrs, err := mrt.ParseAttributes(e.Attributes)
+				if err != nil {
+					return err
+				}
 				rec, recErr := buildRouteRecord(pfx, attrs, peerIndex, e.PeerIndex, fourByteAS)
 				damaged.note(recErr)
 				_ = enc.Encode(rec)

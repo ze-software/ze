@@ -103,7 +103,9 @@ func TestMatchMessageContent_NonUpdate(t *testing.T) {
 	bgpMsg[17] = 19
 	bgpMsg[18] = 4
 
-	m := &mrt.MessageRecord{BGPMessage: bgpMsg}
+	m := &mrt.MessageRecord{BGPMessage: mrt.BGPMessage{Bytes: bgpMsg}}
 	opts := &filterOpts{asPathRe: regexp.MustCompile(`.*`)}
-	assert.False(t, matchMessageContent(m, true, opts))
+	match, err := matchMessageContent(m, true, opts)
+	assert.NoError(t, err)
+	assert.False(t, match)
 }

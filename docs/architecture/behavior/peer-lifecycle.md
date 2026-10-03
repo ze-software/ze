@@ -60,11 +60,10 @@ The peer state transitions are driven from `peer_run.go`:
 | `Peer.Teardown(subcode, msg)` | Send Cease NOTIFICATION to the current session. If `sendInitialRoutes` is in flight, queues the teardown via `opQueue` so routes and EoR are flushed first. Returns `ErrOpQueueFull` if the queue is saturated. |
 | `Peer.acceptConnection(conn)` | Hand an incoming TCP connection to the current session via `session.Accept`. Used by the reactor's inbound dispatch for passive peers that already have a live session. |
 | `Peer.setInboundConnection(conn)` | Store an inbound connection while the peer has no session. Wakes the run loop via a buffered `inboundNotify` channel so backoff can be cut short. |
-| `Peer.acceptConnectionWithOpen(conn, open)` | Accept with a pre-parsed OPEN (used after collision resolution). |
-| `Peer.setPendingConnection(conn)` / `resolvePendingCollision(open)` / `clearPendingConnection()` | Collision resolution per RFC 4271 §6.8. See section below. |
+| `Peer.setPendingConnection(conn)` / `resolvePendingCollision(open, wire)` / `clearPendingConnection()` | Collision resolution per RFC 4271 §6.8; a winner transfers to the next session's inbound slot. See below. |
 
 <!-- source: internal/component/bgp/reactor/peer.go — Start, StartWithContext, Stop, Teardown -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnection, setInboundConnection, takeInboundConnection, acceptConnectionWithOpen, setPendingConnection, resolvePendingCollision, clearPendingConnection, hasPendingConnection -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnection, setInboundConnection, takeInboundConnection, setPendingConnection, resolvePendingCollision, clearPendingConnection, hasPendingConnection -->
 
 ## The run loop
 
@@ -169,11 +168,13 @@ down. Step-by-step:
    peer with BFD but no `strict` keeps the old lifetime: opened by the
    state-change callback on Established, released on the way out of it.
 6. **Start the FSM:** `session.Start()` fires `EventManualStart`.
-7. **Dial if active:** `session.Connect(p.ctx)` which is blocking.
-   Dial failure returns immediately with the dial error.
-8. **Take buffered inbound connection if passive:**
-   `takeInboundConnection()` returns any connection that arrived while
-   the session was nil; `session.Accept(conn)` wires it in.
+7. **Take a buffered inbound connection if passive is enabled.**
+   `takeInboundConnection()` transfers the socket and any already-received
+   OPEN to this session. Ordinary arrivals use `session.Accept(conn)`;
+   collision winners use `session.acceptWithOpen(conn, open, wire)`.
+8. **Dial if active and still unconnected:** `session.Connect(p.ctx)` is
+   blocking. A buffered winner is accepted before this step, including in
+   `both` mode, so it cannot be replaced by an unnecessary outgoing dial.
 9. **Register the FSM state-change callback** via `session.fsm.SetCallback`.
 10. **Create the per-peer delivery channel** and launch the delivery
     goroutine (see "Delivery channel" section below).
@@ -313,8 +314,8 @@ by the reactor's accept loop. Two race conditions need handling:
    calls `setInboundConnection(conn)`, which stores the connection and
    signals `inboundNotify`. The run loop's select wakes early, resets
    `delay`, and starts a fresh attempt. The new `runOnce` calls
-   `takeInboundConnection()` at step 8 (after `Start` and optional
-   `Connect`) and passes the stored connection to `session.Accept`.
+   `takeInboundConnection()` before any outgoing dial and passes the stored
+   connection to `session.Accept`.
 2. **Stale buffered connection.** If `Accept` fails (for example, the
    peer has already torn down the half-open connection while it sat in
    the buffer), `runOnce` closes the stale connection quietly and
@@ -329,7 +330,7 @@ When both peers initiate simultaneously, the system may have a live
 session and a second incoming connection for the same peer. The
 reactor stashes the second connection as a "pending" connection on the
 peer via `setPendingConnection(conn)`. After the pending side sends its
-OPEN, the reactor calls `resolvePendingCollision(pendingOpen)`.
+OPEN, the reactor calls `resolvePendingCollision(pendingOpen, originalWire)`.
 
 This also applies in Established: the new connection is retained until the
 complete OPEN arrives, then receives Cease / Connection Collision. The existing
@@ -343,23 +344,41 @@ which waits for OPEN before comparing identifiers.
 1. Reads `session.detectCollision(pendingOpen.BGPIdentifier)` to decide
    who wins. Higher BGP router-id wins per RFC 4271 §6.8.
 2. If the remote wins (pending connection is accepted):
-   - Stores the pending OPEN so it can be replayed.
-   - Launches a goroutine that sends a Cease/ConnectionCollision
-     NOTIFICATION on the existing session and tears it down.
-   - Returns `(true, pendingConn, pendingOpen, session.Done())` so the
-     caller waits on the existing session's done channel before
-     accepting the pending one.
+   - Transfers the socket, parsed OPEN and complete original OPEN bytes into
+     the Peer's single inbound slot under its lock. The reactor relinquishes
+     that buffer; it does not copy or reconstruct the message.
+   - Signals `inboundNotify`, then launches the losing connection's Cease /
+     Connection Collision teardown. Publication happens before teardown can
+     release the old run loop.
+   - Returns ownership to the Peer loop, not to a waiter looking up
+     `p.session` after `Session.Done`. That pointer may still identify the
+     finished session or may already be nil.
 3. If the local side wins:
    - Rejects the pending connection.
    - Keeps the existing session running.
 
-The caller (reactor) then calls `acceptConnectionWithOpen(conn, open)`
-which drives the new session through the `acceptWithOpen` path
-(`connectionEstablished` + `processOpen` in one synchronous sequence,
-as documented in the Active and OpenConfirm FSM runbooks).
+The Peer loop completes old-session cleanup, wakes from backoff through the
+existing inbound signal and creates a fresh session. It consumes the retained
+winner with `acceptWithOpen` (`connectionEstablished` + `processOpen`) before
+any outgoing dial. The same winning socket therefore completes OPEN and
+KEEPALIVE exchange; the MRT raw observer sees the actual original OPEN, not
+an encoding of configured or negotiated capabilities.
 
-<!-- source: internal/component/bgp/reactor/peer_connection.go — setPendingConnection, resolvePendingCollision, clearPendingConnection, hasPendingConnection -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnectionWithOpen -->
+The inbound slot holds at most one socket and one OPEN buffer of at most 4096
+octets. A separate `collisionHandoff` reservation, guarded by the same Peer
+mutex, covers the whole interval from winner selection through
+`acceptWithOpen` completion. It reserves the newly published session even
+before its FSM starts. Direct ordinary acceptance, buffering and pending
+collision acceptance all respect it.
+
+Taking the slot clears its three fields together but does not release that
+reservation: otherwise a third connection could occupy the fresh session
+before the selected winner installs its socket. The accepting run loop
+releases the reservation after `acceptWithOpen` returns. Peer shutdown clears
+both the slot and reservation, closes a retained socket and releases its OPEN.
+
+<!-- source: internal/component/bgp/reactor/peer_connection.go — inboundConnection, setPendingConnection, resolvePendingCollision, storeInboundLocked, takeInboundConnection -->
+<!-- source: internal/component/bgp/reactor/peer_run.go — runOnce, cleanup -->
 
 ## Delivery channel (per-peer async message delivery)
 
@@ -394,10 +413,10 @@ Steps:
 
 1. Clear negotiated capabilities and encoding contexts.
 2. Clear stats via `ClearStats()`.
-3. Close the current session if one exists (`session.Close()` which
-   sends Cease/AdminShutdown NOTIFICATION).
-4. Close any stored inbound connection quietly.
-5. Null out `cancel` and `inboundConn`.
+3. The session's own run loop and `runOnce` cleanup have already completed;
+   `p.session` is nil here.
+4. Close any stored inbound socket quietly and release its retained OPEN.
+5. Clear `cancel` and the inbound slot.
 6. `setState(PeerStateStopped)`.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — cleanup -->
@@ -454,11 +473,11 @@ always either reconnects or is stopped via context cancellation.
 | FSM state-change callback | `internal/component/bgp/reactor/peer_run.go` | `SetCallback` closure inside `runOnce` |
 | Cleanup on peer stop | `internal/component/bgp/reactor/peer_run.go` | `cleanup` |
 | Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `setInboundConnection`, `takeInboundConnection` |
-| RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `acceptConnectionWithOpen` |
+| RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `storeInboundLocked` |
 
 <!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, PeerState, Start, Stop, Teardown, setReconnectDelay, DefaultReconnectMin, DefaultReconnectMax -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, safeRunOnce, runOnce, cleanup -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection, setPendingConnection, resolvePendingCollision, acceptConnectionWithOpen -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection, setPendingConnection, resolvePendingCollision, storeInboundLocked -->
 
 ## Tests exercising this layer
 
@@ -472,3 +491,12 @@ always either reconnects or is stopped via context cancellation.
 - `internal/component/bgp/reactor/session_test.go` — end-to-end session
   tests that exercise peer + session + FSM together.
   <!-- source: internal/component/bgp/reactor/session_test.go -->
+- `internal/component/bgp/reactor/mrt_collision_epoch_test.go` — two real TCP
+  connections drive the live Peer collision lifecycle; the winning socket
+  establishes and its unchanged directional OPENs decode mixed-family MRT
+  UPDATEs with exact prefixes and Path Identifiers.
+  <!-- source: internal/component/bgp/reactor/mrt_collision_epoch_test.go — TestMRTWinningCollisionPreservesOPEN -->
+- `TestMRTCollisionWinnerReservation` in the same file pauses the actual
+  replacement epoch at publication and after taking the winner. A third TCP
+  connection must be refused before OPEN; releasing the barrier then completes
+  the original winning connection and all exact MRT byte/prefix/ID assertions.

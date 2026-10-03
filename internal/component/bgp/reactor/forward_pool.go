@@ -62,7 +62,7 @@ type fwdItem struct {
 	overflowBuf        BufHandle         // Overflow MixedBufMux handle holding this item's copied bodies (ownOverflowBodies); nil Buf = not from overflow
 	meta               map[string]any    // Route metadata from ReceivedUpdate; set on sent events
 	sourcePeerStr      string            // Source peer address string for ribOut stale-scoping
-	sourceMessageID    uint64            // Original received AIGP generation, not a replay cache ID
+	sourceMessageID    uint64            // Original received generation for ownership and AIGP, not a replay cache ID
 	receivedPeer       *Peer
 	receivedGeneration uint64
 	aigpOrigin         sendOrigin

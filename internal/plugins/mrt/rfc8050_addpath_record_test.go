@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/family"
 	mrtfmt "github.com/ze-software/ze/internal/mrt"
 )
 
@@ -51,7 +53,11 @@ func TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout(t *testing.T) {
 		0xc0, 0x00, 0x02, 0x02,
 	}
 
-	c := New(Config{AddPath: true}, nil)
+	c := New(Config{}, nil)
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(t.TempDir(), "all.mrt")
 	c.allMsgs = newAsyncWriter(mrtfmt.NewWriter(path), c.logger)
 	peer := &plugin.PeerInfo{
@@ -59,6 +65,7 @@ func TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout(t *testing.T) {
 		LocalAddress: netip.MustParseAddr("192.0.2.2"),
 		PeerAS:       65001,
 		LocalAS:      65000,
+		MessageContextID: ctxID,
 	}
 	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, update)
 	c.OnBGPMessage(peer, msgtype.TypeUPDATE, true, update)

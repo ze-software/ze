@@ -5,6 +5,7 @@
 package analyze
 
 import (
+	"encoding/binary"
 	"net"
 	"os"
 	"time"
@@ -74,7 +75,10 @@ func runShow(args []string) int {
 			os.Stdout.WriteString("RIB " + pfx + " (" + textbuf.StringUint(uint64(len(r.Entries))) + " entries)\n") //nolint:errcheck // output
 			for _, e := range r.Entries {
 				peerName := peerLabel(peerIndex, e.PeerIndex)
-				attrs := mrt.ParseAttributes(e.Attributes)
+				attrs, err := mrt.ParseAttributes(e.Attributes)
+				if err != nil {
+					return err
+				}
 				// RIB entries carry the abbreviated MP_REACH_NLRI
 				// (RFC 6396 Section 4.3.4), not the full form.
 				nh := mrt.ExtractNextHopRIB(attrs)
@@ -107,10 +111,14 @@ func runShow(args []string) int {
 				tb.Str(ts.UTC().Format("15:04:05")).Byte(' ').Str(peer).
 					Str(" [unparseable: ").Str(damageTag(parseErr)).Str("] ").Err(parseErr).Byte('\n')
 				tb.StdOut() //nolint:errcheck // output
-				return nil  //nolint:nilerr // skip unparseable records, continue iteration
+				return parseErr
 			}
 			showParsedMessage(ts, peer, m.PeerAS, parsed, mrt.ASPathIsFourByte(h.Type, h.Subtype))
-			return nil
+			if parseErr != nil {
+				return parseErr
+			}
+			_, _, err := countUpdateNLRIs(m.BGPMessage)
+			return err
 		},
 		OnStateChange: func(h mrt.Header, usec uint32, s *mrt.StateChangeRecord) error {
 			if limit > 0 && count >= limit {
@@ -147,8 +155,8 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 		// The UPDATE's own withdrawn/NLRI fields are IPv4 only; every other
 		// family travels in MP_UNREACH/MP_REACH, so both must be counted or an
 		// IPv6 UPDATE renders with no prefix counts at all.
-		mpW, wOK := mpUnreachCount(u.Attributes)
-		mpA, aOK := mpReachCount(u.Attributes)
+		mpW, wOK := mpUnreachCount(u.Attributes, updateAttributeAddPath(u, mrt.AttrMPUnreachNLRI))
+		mpA, aOK := mpReachCount(u.Attributes, updateAttributeAddPath(u, mrt.AttrMPReachNLRI))
 		withdrawn := len(u.WithdrawnPrefixes) + mpW
 		announced := len(u.AnnouncedPrefixes) + mpA
 		// A partial count is printed with a trailing '+' so it can never be read
@@ -190,6 +198,17 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 	}
 }
 
+func updateAttributeAddPath(update *mrt.ParsedUpdate, code uint8) bool {
+	attr := mrt.FindAttribute(update.Attributes, code)
+	if attr == nil {
+		return false
+	}
+	if len(attr.Value) < 3 {
+		return false
+	}
+	return update.AddPathFor(binary.BigEndian.Uint16(attr.Value[:2]), attr.Value[2])
+}
+
 // mpReachCount returns the number of prefixes announced via MP_REACH_NLRI
 // (RFC 4760 Section 3) and whether that count is COMPLETE.
 //
@@ -201,12 +220,12 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 // indistinguishable from an UPDATE that announced nothing
 // (ai/rules/evidence.md: a guard that neither denies nor speaks does
 // not exist). ok=false is what the caller renders the damage marker from.
-func mpReachCount(attrs []mrt.PathAttribute) (count int, ok bool) {
+func mpReachCount(attrs []mrt.PathAttribute, addPath bool) (count int, ok bool) {
 	a := mrt.FindAttribute(attrs, mrt.AttrMPReachNLRI)
 	if a == nil {
 		return 0, true
 	}
-	mp, err := mrt.ParseMPReach(a.Value)
+	mp, err := mrt.ParseMPReach(a.Value, addPath)
 	if mp != nil {
 		count = len(mp.Prefixes)
 	}
@@ -216,12 +235,12 @@ func mpReachCount(attrs []mrt.PathAttribute) (count int, ok bool) {
 // mpUnreachCount returns the number of prefixes withdrawn via MP_UNREACH_NLRI
 // (RFC 4760 Section 4) and whether that count is complete. Same contract as
 // mpReachCount.
-func mpUnreachCount(attrs []mrt.PathAttribute) (count int, ok bool) {
+func mpUnreachCount(attrs []mrt.PathAttribute, addPath bool) (count int, ok bool) {
 	a := mrt.FindAttribute(attrs, mrt.AttrMPUnreachNLRI)
 	if a == nil {
 		return 0, true
 	}
-	mp, err := mrt.ParseMPUnreach(a.Value)
+	mp, err := mrt.ParseMPUnreach(a.Value, addPath)
 	if mp != nil {
 		count = len(mp.Prefixes)
 	}

@@ -401,8 +401,8 @@ func TestPeerOpQueueOrdering(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	require.NoError(t, peer.QueueAnnounce(route1, false))
-	require.NoError(t, peer.QueueAnnounce(route2, false))
+	require.NoError(t, peer.QueueAnnounce(route1, false, false))
+	require.NoError(t, peer.QueueAnnounce(route2, false, false))
 
 	// Verify queue order
 	peer.mu.RLock()
@@ -442,7 +442,7 @@ func TestPeerShouldQueue(t *testing.T) {
 
 	// Queue has items → should queue (preserves insertion order)
 	route := testRoute("10.0.0.0/8")
-	require.NoError(t, peer.QueueAnnounce(route, false))
+	require.NoError(t, peer.QueueAnnounce(route, false, false))
 	require.True(t, peer.shouldQueue(), "should queue when opQueue non-empty")
 
 	// Clear queue, still established → should not queue
@@ -500,9 +500,9 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	require.NoError(t, peer.QueueAnnounce(route1, false))
+	require.NoError(t, peer.QueueAnnounce(route1, false, false))
 	require.NoError(t, peer.Teardown(4, ""))
-	require.NoError(t, peer.QueueAnnounce(route2, false))
+	require.NoError(t, peer.QueueAnnounce(route2, false, false))
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 3, "queue should have 3 items")
@@ -558,7 +558,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	// Fill queue to capacity with valid routes
 	route := testRoute("10.0.0.0/8")
 	for range DefaultOpQueueSize {
-		require.NoError(t, peer.QueueAnnounce(route, false))
+		require.NoError(t, peer.QueueAnnounce(route, false, false))
 	}
 
 	peer.mu.RLock()
@@ -566,7 +566,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	peer.mu.RUnlock()
 
 	// Past the cap the route is DROPPED, not delayed, and the caller is told.
-	require.ErrorIs(t, peer.QueueAnnounce(route, false), ErrOpQueueFull)
+	require.ErrorIs(t, peer.QueueAnnounce(route, false, false), ErrOpQueueFull)
 	require.ErrorIs(t, peer.Teardown(4, ""), ErrOpQueueFull)
 
 	peer.mu.RLock()

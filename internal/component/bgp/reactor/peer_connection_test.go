@@ -65,11 +65,11 @@ func TestPeerInboundConnection_SetAndTake(t *testing.T) {
 	peer.setInboundConnection(client)
 
 	taken := peer.takeInboundConnection()
-	assert.Equal(t, client, taken)
+	assert.Equal(t, client, taken.conn)
 
 	// Second take returns nil.
 	taken2 := peer.takeInboundConnection()
-	assert.Nil(t, taken2)
+	assert.Nil(t, taken2.conn)
 }
 
 // TestPeerInboundConnection_ReplaceClosesOld verifies replacement closes previous connection.
@@ -92,18 +92,16 @@ func TestPeerInboundConnection_ReplaceClosesOld(t *testing.T) {
 
 	// New connection should be takeable.
 	taken := peer.takeInboundConnection()
-	assert.Equal(t, newConn, taken)
+	assert.Equal(t, newConn, taken.conn)
 }
 
 // TestPeerResolvePendingCollision_NoPending verifies no-op when no pending connection.
 func TestPeerResolvePendingCollision_NoPending(t *testing.T) {
 	peer := newTestPeer()
 
-	accept, conn, open, wait := peer.resolvePendingCollision(nil)
+	accept, conn := peer.resolvePendingCollision(nil, nil)
 	assert.False(t, accept)
 	assert.Nil(t, conn)
-	assert.Nil(t, open)
-	assert.Nil(t, wait)
 }
 
 // TestPeerResolvePendingCollision_NoSession verifies rejection when session is nil.
@@ -118,15 +116,9 @@ func TestPeerResolvePendingCollision_NoSession(t *testing.T) {
 	peer.pendingConn = client
 	peer.mu.Unlock()
 
-	accept, conn, _, _ := peer.resolvePendingCollision(nil)
+	accept, conn := peer.resolvePendingCollision(nil, nil)
 	assert.False(t, accept)
 	assert.Equal(t, client, conn, "should return the pending connection for caller to handle")
 	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
 }
 
-// TestPeerAcceptConnectionWithOpen_NoSession verifies error when no session.
-func TestPeerAcceptConnectionWithOpen_NoSession(t *testing.T) {
-	peer := newTestPeer()
-	err := peer.acceptConnectionWithOpen(nil, nil)
-	require.ErrorIs(t, err, ErrNotConnected)
-}

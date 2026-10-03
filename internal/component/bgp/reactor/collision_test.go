@@ -450,7 +450,7 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 	}
 
 	// Resolve collision
-	acceptPending, conn, _, _ := peer.resolvePendingCollision(pendingOpen)
+	acceptPending, conn := peer.resolvePendingCollision(pendingOpen, message.PackTo(pendingOpen, nil))
 
 	assert.False(t, acceptPending, "local wins: should reject pending")
 	assert.NotNil(t, conn, "should return connection for cleanup")
@@ -517,13 +517,16 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 		_, _ = client.Read(buf)
 	}()
 
-	// Resolve collision
-	acceptPending, conn, open, waitSession := peer.resolvePendingCollision(pendingOpen)
+	// The winner and its original OPEN transfer to the next Peer epoch.
+	wire := message.PackTo(pendingOpen, nil)
+	acceptPending, rejected := peer.resolvePendingCollision(pendingOpen, wire)
 
 	assert.True(t, acceptPending, "remote wins: should accept pending")
-	assert.NotNil(t, conn, "should return pending connection")
-	assert.Equal(t, pendingOpen, open, "should return pending OPEN")
-	assert.NotNil(t, waitSession, "should return wait channel")
+	assert.Nil(t, rejected, "accepted socket is owned by the Peer")
+	inbound := peer.takeInboundConnection()
+	assert.Equal(t, pendingServer, inbound.conn, "same winning connection")
+	assert.Same(t, pendingOpen, inbound.open, "original parsed OPEN retained")
+	assert.Equal(t, wire, inbound.wire, "original complete OPEN retained")
 	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
 }
 

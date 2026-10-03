@@ -19,10 +19,12 @@ func TestBuildBMPRouteMonitoring_IPv4(t *testing.T) {
 	bgpMsg[18] = 4
 
 	m := &mrt.MessageRecord{
-		PeerAS:     65001,
-		AFI:        mrt.AFIIPv4,
-		PeerIP:     []byte{10, 0, 0, 1},
-		BGPMessage: bgpMsg,
+		BGP4MPHeader: mrt.BGP4MPHeader{
+			PeerAS: 65001,
+			AFI:    mrt.AFIIPv4,
+			PeerIP: []byte{10, 0, 0, 1},
+		},
+		BGPMessage: mrt.BGPMessage{Bytes: bgpMsg},
 	}
 
 	buf := buildBMPRouteMonitoring(1700000000, 500, m)
@@ -63,10 +65,12 @@ func TestBuildBMPRouteMonitoring_IPv6(t *testing.T) {
 	peerIP[1] = 0x01
 
 	m := &mrt.MessageRecord{
-		PeerAS:     65002,
-		AFI:        mrt.AFIIPv6,
-		PeerIP:     peerIP,
-		BGPMessage: bgpMsg,
+		BGP4MPHeader: mrt.BGP4MPHeader{
+			PeerAS: 65002,
+			AFI:    mrt.AFIIPv6,
+			PeerIP: peerIP,
+		},
+		BGPMessage: mrt.BGPMessage{Bytes: bgpMsg},
 	}
 
 	buf := buildBMPRouteMonitoring(1700000001, 0, m)

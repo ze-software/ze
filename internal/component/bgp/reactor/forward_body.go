@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
+	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
 )
@@ -37,16 +38,98 @@ type fwdBodyResult struct {
 	supersedeKey uint64
 }
 
+// fwdBodyCacheKey identifies output by framing and effective attribute treatment.
+// Both rails MUST use the same treatment for this key and forwardWire.
+type fwdBodyCacheKey struct {
+	destCtxID      bgpctx.ContextID
+	wire           *wireu.WireUpdate
+	extended       bool
+	preserveOpaque bool
+}
+
 // fwdParseCache caches a parsed UPDATE across peers to avoid redundant parsing.
 // Shared across the per-peer loop in both ForwardUpdate and reactorForwardRS.
 type fwdParseCache struct {
-	update *message.Update
-	wire   *wireu.WireUpdate
+	update          *message.Update
+	wire            *wireu.WireUpdate
+	sanitizedSource *wireu.WireUpdate
+	sanitizedWire   *wireu.WireUpdate
+}
+
+// forwardWire applies the effective destination treatment on a body-cache miss.
+// The input MUST remain immutable: other destinations may preserve its attributes.
+// Already-normalized updates retain their bytes; a changed update is compacted
+// into one owned allocation cached for the current source wire.
+//
+// RFC 4271 Section 5: "Unrecognized non-transitive optional attributes MUST be
+// quietly ignored and not passed along to other BGP peers."
+// RFC 4271 Section 5: "If a path with an unrecognized transitive optional attribute
+// is accepted and passed to other BGP peers, then the unrecognized transitive
+// optional attribute of that path MUST be passed, along with the path, to other
+// BGP peers with the Partial bit in the Attribute Flags octet set to 1."
+//
+// RFC 4271 Section 4.3 attribute header (octet offsets):
+//
+//	0: flags | 1: code | 2: length (1 octet, or 2 with Extended Length) | value.
+//
+// Only flags and section length change; opaque values retain their received bytes.
+func (cache *fwdParseCache) forwardWire(base *wireu.WireUpdate, preserveOpaque bool) (*wireu.WireUpdate, error) {
+	if preserveOpaque {
+		return base, nil
+	}
+	if cache.sanitizedSource == base {
+		return cache.sanitizedWire, nil
+	}
+	payload := base.Payload()
+	sections, err := wire.ParseUpdateSections(payload)
+	if err != nil {
+		return nil, err
+	}
+	attrs := sections.Attrs(payload)
+	attrStart := 4 + sections.WithdrawnLen()
+	iter := attribute.NewAttrIterator(attrs)
+	var out []byte
+	written := 0
+	for iter.Remaining() != 0 {
+		start := iter.Offset()
+		code, flags, _, ok := iter.Next()
+		if !ok {
+			return nil, fmt.Errorf("malformed attributes at forwarding boundary")
+		}
+		unknown := flags&attribute.FlagOptional != 0 && !code.Recognized()
+		drop := unknown && flags&attribute.FlagTransitive == 0
+		stamp := unknown && flags&attribute.FlagTransitive != 0 && flags&attribute.FlagPartial == 0
+		if out == nil && (drop || stamp) {
+			out = make([]byte, len(payload))
+			written = copy(out, payload[:attrStart+start])
+		}
+		if out == nil || drop {
+			continue
+		}
+		n := copy(out[written:], attrs[start:iter.Offset()])
+		if stamp {
+			out[written] |= byte(attribute.FlagPartial)
+		}
+		written += n
+	}
+	normalized := base
+	if out != nil {
+		attrLen := written - attrStart
+		// The compacted section cannot exceed the input's uint16 wire length.
+		binary.BigEndian.PutUint16(out[attrStart-2:], uint16(attrLen)) //nolint:gosec // G115: bounded by parsed input
+		written += copy(out[written:], sections.NLRI(payload))
+		normalized = wireu.NewWireUpdate(out[:written], base.SourceCtxID())
+		normalized.SetSourceID(base.SourceID())
+	}
+	cache.sanitizedSource, cache.sanitizedWire = base, normalized
+	return normalized, nil
 }
 
 // buildFwdBody builds the rawBodies/updates for a single destination peer.
 // Handles wire-level splitting (RFC 8654), zero-copy forwarding, and re-encode.
 // Returns ok=false if the peer should be skipped (parse/split error).
+// The caller MUST pass forwardWire's effective wire here and key any cached
+// result by that same treatment, so a cache hit and a fresh build agree.
 func buildFwdBody(
 	peerWire *wireu.WireUpdate,
 	maxMsgSize int,

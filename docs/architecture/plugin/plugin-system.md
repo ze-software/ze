@@ -85,6 +85,17 @@ importing its package:
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration -->
 
+BGP forwarding policy uses the BGP-owned `filterapi.Filter` registration, not
+the generic plugin registry. Its optional `PreserveOpaqueAttributes` selector
+runs when a destination's forwarding facts are built. It receives
+`PeerFilterInfo`, including the configured `RSClient` fact, and requests
+preservation of unknown optional attributes for that destination. Any selector
+requesting preservation enables it; otherwise the core applies ordinary
+RFC 4271 Section 5 treatment. Selectors MUST be pure and safe for concurrent
+calls, and registration MUST finish before peers start. The route-server plugin
+owns the selection for its clients; the body builder and caches consume only
+the resulting treatment. Removing that plugin leaves ordinary treatment.
+
 ## The setup record: a plugin's second declaration
 
 `registry.Register` says what a plugin IS. `registry.RecordSetup(name, outcome,

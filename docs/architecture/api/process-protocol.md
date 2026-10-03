@@ -19,6 +19,22 @@ The protocol is the same for all invocation modes (internal goroutine, external 
 Internal plugins get a performance optimization via `DirectBridge` after startup.
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 
+The in-process raw BGP observer receives the complete original header and body,
+message type and direction, separately from semantic route callbacks. Receive
+observation precedes message-body validation and coalescing; send observation follows accepted
+transport bytes, not buffer staging. Synthetic withdrawals are not wire packets.
+Its `PeerInfo.MessageContextID` identifies the immutable directional encoding
+context; observers MUST use it rather than configured capabilities, MUST NOT
+retain borrowed bytes, and MUST NOT reenter session writes. MRT copies that
+complete message without reconstructing it and marks sent records LOCAL.
+The observer's LocalAS is the ASN of the OPEN built for that connection.
+RFC 7705 migration fallback can make it differ from configured LocalAS, so
+`sendOpen` publishes the built OPEN identity before its first byte is written.
+The connection retains that value for both directions and for an old writer
+flushed after replacement; dispatch does not consult the current migration flag.
+<!-- source: internal/component/plugin/types_bgp.go — PeerInfo -->
+<!-- source: internal/component/bgp/reactor/session_wire.go — observeReceivedWire, notifyWireMessage -->
+
 ---
 
 ## Wire Format

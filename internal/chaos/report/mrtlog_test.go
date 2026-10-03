@@ -246,8 +246,8 @@ func TestMRTLogMessage(t *testing.T) {
 	}
 
 	// Verify the BGP message bytes are preserved exactly
-	if !bytes.Equal(r.msg.BGPMessage, bgpMsg) {
-		t.Fatalf("BGPMessage mismatch: got %d bytes, want %d bytes", len(r.msg.BGPMessage), len(bgpMsg))
+	if !bytes.Equal(r.msg.BGPMessage.Bytes, bgpMsg) {
+		t.Fatalf("BGPMessage mismatch: got %d bytes, want %d bytes", len(r.msg.BGPMessage.Bytes), len(bgpMsg))
 	}
 }
 
@@ -403,7 +403,7 @@ func TestMRTLogLargeMessage(t *testing.T) {
 	var got []byte
 	handler := &mrt.Handler{
 		OnMessage: func(_ mrt.Header, _ uint32, msg *mrt.MessageRecord) error {
-			got = msg.BGPMessage
+			got = bytes.Clone(msg.BGPMessage.Bytes)
 			return nil
 		},
 	}

@@ -53,6 +53,7 @@ type PeerFilterInfo struct {
 	AllowOwnAS   uint8      // Loop detection: number of own-AS occurrences to tolerate (0 = reject on first)
 	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
 	LoopDisabled bool       // Loop detection deactivated for this peer (FilterRef.Inactive)
+	RSClient     bool       // Configured route-server client; policy belongs to the plugin.
 }
 
 // FilterRef is one entry in a peer's import/export filter chain: the canonical
@@ -560,9 +561,9 @@ func (a *ModAccumulator) GroupedOps() []AttrOp {
 	return a.ops
 }
 
-// Filter describes one plugin's contribution to the BGP route filter
-// pipeline: an optional ingress filter, an optional egress filter, and the
-// (stage, priority) pair ordering both within their chains. Name is the
+// Filter describes one plugin's contribution to the BGP route filter pipeline:
+// optional ingress/egress filters, a destination opaque-attribute selector, and
+// the (stage, priority) pair ordering the ingress/egress chains. Name is the
 // registering plugin's name and breaks ordering ties.
 type Filter struct {
 	Name     string
@@ -580,13 +581,20 @@ type Filter struct {
 	// readvertise does not re-apply OTC/community/policy that already ran at the
 	// original announce. Requires Egress != nil.
 	Readvertise bool
+	// PreserveOpaqueAttributes selects transparent forwarding of unknown optional
+	// attributes for a destination. Nil or false leaves ordinary RFC 4271
+	// Section 5 treatment in force unless another selector requests preservation.
+	// The reactor resolves this at forwarding-facts refresh, not per UPDATE.
+	// The callback MUST be pure and safe for concurrent calls; Register MUST
+	// finish before peers start. It MUST NOT retain a second peer inventory.
+	PreserveOpaqueAttributes func(PeerFilterInfo) bool
 }
 
 var (
 	// ErrEmptyFilterName is returned when registering a filter with an empty name.
 	ErrEmptyFilterName = errors.New("filterapi: filter name is empty")
-	// ErrNoFilterFunc is returned when a filter has neither ingress nor egress func.
-	ErrNoFilterFunc = errors.New("filterapi: filter declares neither ingress nor egress function")
+	// ErrNoFilterFunc is returned when a filter declares no pipeline contribution.
+	ErrNoFilterFunc = errors.New("filterapi: filter declares no pipeline contribution")
 	// ErrDuplicateFilterName is returned when a filter name is already registered.
 	ErrDuplicateFilterName = errors.New("filterapi: duplicate filter name")
 )
@@ -630,13 +638,13 @@ func RSForwardingEnabled() bool {
 }
 
 // Register adds a plugin's filter pipeline contribution.
-// Must be called from init() functions only.
+// MUST be called from init() functions only, before peers start.
 // Returns an error on empty name, missing functions, or duplicate name.
 func Register(f Filter) error {
 	if f.Name == "" {
 		return ErrEmptyFilterName
 	}
-	if f.Ingress == nil && f.Egress == nil {
+	if f.Ingress == nil && f.Egress == nil && f.PreserveOpaqueAttributes == nil {
 		return fmt.Errorf("%w: %q", ErrNoFilterFunc, f.Name)
 	}
 
@@ -647,6 +655,22 @@ func Register(f Filter) error {
 	}
 	filters[f.Name] = f
 	return nil
+}
+
+// PreserveOpaqueAttributesFor resolves destination treatment from registered
+// selectors. With no requesting plugin, ordinary RFC 4271 Section 5 forwarding
+// applies. The caller MUST resolve this at peer-facts refresh and keep the result
+// in that snapshot, never call into the registry per UPDATE.
+// Safe for concurrent use; selector registration MUST finish before peers start.
+func PreserveOpaqueAttributesFor(peer PeerFilterInfo) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, f := range filters {
+		if f.PreserveOpaqueAttributes != nil && f.PreserveOpaqueAttributes(peer) {
+			return true
+		}
+	}
+	return false
 }
 
 // sortedFilters returns the filters selected by hasFunc, sorted by stage,

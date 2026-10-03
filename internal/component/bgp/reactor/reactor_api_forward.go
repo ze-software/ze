@@ -533,11 +533,6 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
 
-	type fwdBodyCacheKey struct {
-		destCtxID bgpctx.ContextID
-		wire      *wireu.WireUpdate
-		extended  bool
-	}
 	type fwdBodyCacheEntry struct {
 		rawBodies    [][]byte
 		updates      []*message.Update
@@ -624,10 +619,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	srcAIGP := payloadAIGP(sourceWire.Payload())
 	srcAIGPNextHop := srcNextHop
 	metricRevision := aigpRevision()
-	var srcAIGPLinkMetric, srcAIGPMessageID uint64
+	var srcAIGPLinkMetric uint64
+	sourceMessageID := update.sourceMessageID()
 	if len(srcAIGP) != 0 {
 		srcAIGPLinkMetric = a.r.sourceAIGPLinkMetric(update.SourcePeerIP)
-		srcAIGPMessageID = update.sourceMessageID()
 		srcAIGPNextHop = aigpNextHop(sourceWire.Payload())
 	}
 
@@ -1184,7 +1179,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			}
 		}
 
-		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: srcAIGPMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 		item.aigpOrigin = announceOrigin(srcInfo.sender)
 		item.aigpRevision = metricRevision
@@ -1195,7 +1190,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 
 		destCtxID := facts.sendCtxID
 		if groupsEnabled {
-			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
+			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
 			if cached, ok := fwdBodyCache[cacheKey]; ok {
 				item.rawBodies = cached.rawBodies
 				item.updates = cached.updates
@@ -1205,13 +1200,17 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		}
 
 		{
-			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
+			// RFC 4271 Section 5: the cache key and builder MUST use one treatment.
+			effectiveWire, attrErr := parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes)
+			if attrErr != nil {
+				fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
+				a.r.fwdPool.releaseItem(&item)
+				continue
+			}
+			body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
-				// The rebuild above can have put this destination's Outgoing Peer
-				// Pool buffer on the item, and this is the ONE exit between that
-				// acquire and the forward pool that returns it. Dropping the item
-				// here loses the buffer for the life of the session, one per
-				// failing UPDATE, out of the 64 the destination has.
+				// A failed build MUST release any outgoing-pool buffer acquired by
+				// the rebuild, just as a failed attribute treatment above does.
 				a.r.fwdPool.releaseItem(&item)
 				continue
 			}
@@ -1225,7 +1224,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			item.supersedeKey = body.supersedeKey
 
 			if groupsEnabled {
-				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
+				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
 				fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
 					rawBodies:    body.rawBodies,
 					updates:      body.updates,

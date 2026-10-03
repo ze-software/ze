@@ -92,10 +92,14 @@ Examples:
 				// TABLE_DUMP_V2 is 4-byte AS throughout (RFC 6396 Section 4.3.4).
 				fourByteAS := mrt.ASPathIsFourByte(mrt.TypeTableDumpV2, subtype)
 				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
-					aspathAnalyzeRoute(attrs, fourByteAS, st)
+					damaged.note(aspathAnalyzeRoute(attrs, fourByteAS, st))
 				}))
 			},
-			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
+			OnBGP4MP: func(data []byte, subtype uint16, _ uint32, wire mrt.BGPMessage) {
+				if _, _, err := countUpdateNLRIs(wire); err != nil {
+					damaged.note(err)
+					return
+				}
 				body, _ := extractBGP4MPUpdate(subtype, data)
 				if body == nil {
 					return
@@ -105,7 +109,7 @@ Examples:
 					// Subtypes 1 and 6 are 2-byte AS; only the _AS4 subtypes
 					// are 4-byte. Reading a 2-byte path as 4-byte silently
 					// fabricates ASNs (RFC 6396 Section 4.4.2 vs 4.4.3).
-					aspathAnalyzeRoute(attrs, bgp4mpFourByteAS(subtype), st)
+					damaged.note(aspathAnalyzeRoute(attrs, bgp4mpFourByteAS(subtype), st))
 				}
 			},
 		}); err != nil {
@@ -117,6 +121,9 @@ Examples:
 	aspathPrintJSON(os.Stdout, st)
 	aspathPrintSummary(os.Stderr, st)
 	damaged.report(os.Stderr)
+	if damaged.records > 0 {
+		return 1
+	}
 
 	return 0
 }
@@ -129,8 +136,8 @@ Examples:
 // can occupy the same number of octets. AS4_PATH is the one exception -- RFC
 // 6793 Section 4 encodes it with four-octet AS numbers whatever the record's
 // own width -- so it is parsed as 4-byte unconditionally.
-func aspathAnalyzeRoute(attrs []byte, fourByteAS bool, st *aspathAnalysis) {
-	iterateAttrs(attrs, func(_, typeCode uint8, value []byte) {
+func aspathAnalyzeRoute(attrs []byte, fourByteAS bool, st *aspathAnalysis) error {
+	return iterateAttrs(attrs, func(_, typeCode uint8, value []byte) {
 		if typeCode != attrASPath && typeCode != attrAS4Path {
 			return
 		}

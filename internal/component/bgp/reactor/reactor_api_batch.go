@@ -249,7 +249,7 @@ func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []
 				partial = append(partial, target)
 				continue
 			}
-			if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath); err != nil {
+			if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, unit.Replay); err != nil {
 				lastErr = err
 				continue
 			}
@@ -419,7 +419,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 					return err
 				}
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-				if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf()); err != nil {
+				if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf(), batch.Replay); err != nil {
 					lastErr = err
 					queued = false
 					break
@@ -2115,19 +2115,19 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 			// rail's own cause (already logged); nothing was sent.
 			return false, errWithdrawTooLarge
 		}
-		err := target.session.sendUpdateWithSplit(ctx, wd, maxMsgSize, facts.addPath)
+		err := target.session.sendUpdateWithSplit(ctx, wd, maxMsgSize, facts.addPath, batch.Replay)
 		return err == nil, err
 	case staleModify:
 		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
 		if modified == nil {
-			err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath)
+			err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, batch.Replay)
 			return err == nil, err
 		}
-		err := target.session.sendBodyWithSplit(ctx, modified, maxMsgSize, facts.addPath)
+		err := target.session.sendBodyWithSplit(ctx, modified, maxMsgSize, facts.addPath, batch.Replay)
 		return err == nil, err
 	default: // staleKeep
 		// LLGR-capable peer: send the stale route unchanged.
-		err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath)
+		err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath, batch.Replay)
 		return err == nil, err
 	}
 }

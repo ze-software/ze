@@ -159,6 +159,11 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 	s.writeBuf.Reset()
 	n := msg.WriteTo(s.writeBuf.Buffer(), 0, nil)
 
+	if msg.Type() == msgtype.TypeUPDATE && n >= message.HeaderLen {
+		// RFC 8669 Section 3.1; this is the private encoded buffer.
+		clearTransmittedLabelIndex(s.writeBuf.Buffer()[message.HeaderLen:n])
+	}
+
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		s.commitAIGPWrites(false)
 		if s.prefixMetrics != nil {
@@ -453,6 +458,9 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		return s.writeRawUpdateBody(body)
 	}
 
+	// RFC 8669 Section 3.1; without an override body is our private buffer.
+	clearTransmittedLabelIndex(body)
+
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
@@ -531,6 +539,9 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	buf[17] = byte(totalLen)
 	buf[18] = byte(msgtype.TypeUPDATE)
 	copy(buf[message.HeaderLen:], body)
+	// RFC 8669 Section 3.1; normalize the owned copy, never the shared source.
+	body = buf[message.HeaderLen:totalLen]
+	clearTransmittedLabelIndex(body)
 
 	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
 		if s.prefixMetrics != nil {
@@ -634,12 +645,12 @@ func (s *Session) flushFwdDirty() {
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
 // Concurrent calls are serialized by writeMu.
 func (s *Session) SendUpdate(update *message.Update) error {
-	return s.sendUpdateCounted(context.Background(), update, nil)
+	return s.sendUpdateCounted(context.Background(), update, nil, false)
 }
 
 // sendUpdateCounted captures this write's admission result while writeMu is
 // held. Named commits must not count paths withheld by the session as sent.
-func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *pathsLimitSendCounts) error {
+func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *pathsLimitSendCounts, replay bool) error {
 	if err := s.writeMu.LockContext(ctx); err != nil {
 		return err
 	}
@@ -667,6 +678,13 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	// A refresh re-advertises an existing Adj-RIB-Out entry. Preserve its
+	// origin when the sent event returns to the RIB plugin; it is not a new
+	// plugin-owned replacement of a config-static route.
+	if replay {
+		s.sentMeta = map[string]any{"replay": true}
+		defer func() { s.sentMeta = nil }()
 	}
 	before := s.pathsLimitTotals
 
@@ -860,6 +878,9 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		s.resetSendHoldTimer()
 		return nil
 	}
+
+	// RFC 8669 Section 3.1; policy overrides returned through the raw writer.
+	clearTransmittedLabelIndex(body)
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		return err

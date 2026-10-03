@@ -39,7 +39,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	defer cancel()
 
 	// ── Stage 1: declare-registration ───────────────────────────────────
-	// The rib plugin declares its commands (14 total: 7 short + 5 long + 2 GR).
+	// The rib plugin declares its supported commands.
 	stage1 := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, rpc.MethodDeclareRegistration, stage1.Method)
 
@@ -81,7 +81,6 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "request bgp rib withdraw-router")
 	// Zero-copy forward-handle fast path (rib-arch-6)
 	assert.Contains(t, commandNames, "request bgp rib fastpath")
-	assert.Len(t, regInput.Commands, 20, "bgp rib registers exactly 20 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 

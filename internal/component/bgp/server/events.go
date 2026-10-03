@@ -494,20 +494,27 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 		return
 	}
 
-	// Collect process names for tier computation.
-	names := make([]string, len(procs))
-	external := make(map[string]bool, len(procs))
-	for i, p := range procs {
-		names[i] = p.Name()
-		// A process started from an `external` block takes its edges from the
-		// program it runs, not from a compiled-in registration that happens to
-		// share its name.
-		if p.Config().RunsExternalProgram() {
-			external[p.Name()] = true
+	// Dependencies name implementations, not the operator's process aliases.
+	// Resolve each internal process once, and deduplicate implementations so
+	// two aliases do not make TopologicalTiers count the same node twice.
+	// External programs borrow no edges from a same-named registration.
+	names := make([]string, 0, len(procs))
+	identity := make(map[*process.Process]string, len(procs))
+	tierOf := make(map[string]int, len(procs))
+	for _, p := range procs {
+		cfg := p.Config()
+		if cfg.RunsExternalProgram() {
+			continue
+		}
+		name := plugin.RegistryName(cfg)
+		identity[p] = name
+		if _, exists := tierOf[name]; !exists {
+			names = append(names, name)
+			tierOf[name] = 0
 		}
 	}
 
-	tiers, err := registry.TopologicalTiers(names, external)
+	tiers, err := registry.TopologicalTiers(names, nil)
 	if err != nil {
 		// Fallback: sort by name for deterministic ordering.
 		sort.Slice(procs, func(i, j int) bool {
@@ -516,8 +523,7 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 		return
 	}
 
-	// Build name → tier index map.
-	tierOf := make(map[string]int, len(names))
+	// Map implementation identity to tier; external programs stay at tier 0.
 	for tierIdx, tier := range tiers {
 		for _, name := range tier {
 			tierOf[name] = tierIdx
@@ -526,7 +532,7 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 
 	// Sort: higher tier first (reverse topological order).
 	sort.Slice(procs, func(i, j int) bool {
-		ti, tj := tierOf[procs[i].Name()], tierOf[procs[j].Name()]
+		ti, tj := tierOf[identity[procs[i]]], tierOf[identity[procs[j]]]
 		if ti != tj {
 			return ti > tj // Higher tier first
 		}

@@ -151,6 +151,7 @@ type peerOp struct {
 	Type        PeerOpType
 	Route       *rib.Route // For PeerOpAnnounce
 	NextHopSelf bool       // Resolve against the session that drains this announcement.
+	Replay      bool       // Preserve the sent entry's origin when a refresh is queued.
 	NLRI        nlri.NLRI  // For PeerOpWithdraw
 	Subcode     uint8      // For PeerOpTeardown
 	Message     string     // For PeerOpTeardown: RFC 8203 shutdown communication
@@ -399,8 +400,8 @@ type Peer struct {
 
 	// sendingConfigStatic is true while sendInitialRoutes sends config-originated
 	// static routes. notifyMessageReceiver tags sent events with config-static meta
-	// so the RIB plugin skips ribOut storage (these routes are re-sent from config
-	// on every reconnection, storing them would cause duplicates).
+	// so the RIB retains them for refresh but skips peer-up replay: the current
+	// configuration sends them on every reconnection.
 	sendingConfigStatic atomic.Bool
 
 	// initialSyncEOR records, per family, that THIS session's initial sync has
@@ -528,14 +529,15 @@ type Peer struct {
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
 	// we queue it here and wait for its OPEN to resolve the collision.
-	pendingConn net.Conn      // Pending incoming connection
-	pendingOpen *message.Open // OPEN received on pending connection
+	pendingConn net.Conn // Pending incoming connection.
 
-	// Inbound connection buffering for passive peers:
-	// When a connection arrives while the session is nil (between runOnce iterations),
-	// store it here so the next runOnce() can accept it immediately.
-	inboundConn   net.Conn
+	// One connection waits for the next runOnce epoch. A collision winner
+	// retains its already-read OPEN and original wire bytes with the socket.
+	inbound       inboundConnection
 	inboundNotify chan struct{}
+	// Guarded by mu. The selected winner reserves the replacement session
+	// from selection through installation, including after the slot is taken.
+	collisionHandoff bool
 
 	// bfd is the per-peer BFD client state. Zero value means no BFD
 	// session is currently open; startBFDClient populates it after
@@ -2206,7 +2208,7 @@ func handshakeInFlight(session *Session) bool {
 // NEVER, because the queue is the only path while the gate is closed, and a
 // caller that cannot tell a queued route from a dropped one reports success for
 // a RIB the peer will never receive (ai/rules/principles.md).
-func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf bool) error {
+func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf, replay bool) error {
 	p.mu.Lock()
 	if len(p.opQueue) >= p.opQueueMax {
 		size := len(p.opQueue)
@@ -2215,7 +2217,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf bool) error {
 		p.raiseOpQueueFull(size)
 		return ErrOpQueueFull
 	}
-	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopSelf: nextHopSelf})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopSelf: nextHopSelf, Replay: replay})
 	p.mu.Unlock()
 	return nil
 }

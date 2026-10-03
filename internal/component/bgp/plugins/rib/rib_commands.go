@@ -76,7 +76,9 @@ func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 	}
 
 	delete(r.grState, peerAddr)
+	writes := r.reconcileSentSourceLocked(peerAddr, family.Family{}, nil)
 	r.peerMu.Unlock()
+	r.dispatchSentLifecycle(writes)
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)
@@ -165,12 +167,20 @@ func doRegisterBuiltinCommands() {
 				}
 				return statusDone, r.outboundResend(args[0], family), nil
 			}},
-		{[]string{"request bgp rib retain-routes"}, "Mark peer RIB for retention",
+		{[]string{"request bgp rib retain-routes"}, "Retain peer routes, optionally only the supplied families: <selector> [family ...]",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) == 0 {
 					return statusError, "", errBgpRibRetainRoutesRequiresA
 				}
-				return statusDone, r.retainRoutes(args[0]), nil
+				var families []family.Family
+				for _, name := range args[1:] {
+					fam, ok := parseFamily(name)
+					if !ok {
+						return statusError, "", fmt.Errorf("retain-routes: unknown family %q", name)
+					}
+					families = append(families, fam)
+				}
+				return statusDone, r.retainRoutes(args[0], families), nil
 			}},
 		{[]string{"request bgp rib release-routes"}, "Release retained peer RIB",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -801,20 +811,30 @@ func (r *RIBManager) status(famFilter string) any {
 
 // retainRoutes marks a peer's Adj-RIB-In for retention during GR.
 // RFC 4724: Receiving speaker retains routes from restarting peer.
-// Called by bgp-gr plugin via DispatchCommandArgs("request bgp rib retain-routes", []string{peer}).
-func (r *RIBManager) retainRoutes(selectorStr string) any {
+// An empty families argument preserves the operator's peer-wide retention.
+// A supplied allowlist prunes other families now, without storing another set.
+func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family) any {
 	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
 
 	retained := 0
+	var affected []netip.Addr
+	var writes []sentLifecycleWrite
 	for peer := range r.bgpPeers {
 		if !sel.Matches(peer) {
 			continue
 		}
 		r.retainedPeers[peer] = true
+		if len(families) != 0 {
+			r.bgpPeers[peer].RetainFamilies(families)
+			writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
+			affected = append(affected, peer)
+		}
 		retained++
 	}
+	r.peerMu.Unlock()
+	r.dispatchSentLifecycle(writes)
+	r.reconcileBestPathBulk(affected)
 
 	return map[string]any{"retained-peers": retained}
 }
@@ -828,6 +848,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 
 	released := 0
 	var purgedPeers []netip.Addr
+	var writes []sentLifecycleWrite
 	for peer := range r.retainedPeers {
 		if !sel.Matches(peer) {
 			continue
@@ -843,19 +864,21 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 			state.expiryTimer.Stop()
 		}
 		delete(r.grState, peer)
+		writes = append(writes, r.reconcileSentSourceLocked(peer, family.Family{}, nil)...)
 		released++
 	}
 	r.peerMu.Unlock()
+	r.dispatchSentLifecycle(writes)
 
 	r.reconcileBestPathBulk(purgedPeers)
 
 	return map[string]any{"released-peers": released}
 }
 
-// markStaleCommand handles "request bgp rib mark-stale <peer> <restart-time>".
-// Marks all routes for the peer as stale and stores GR metadata.
+// markStaleCommand handles "request bgp rib mark-stale <peer> <restart-time> [level [family]]".
+// Marks peer routes as stale and stores GR metadata. Omitting family preserves
+// the peer-wide operator command; GR's LLGR transition supplies its own family.
 // RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
-// Args: [0]=peer address, [1]=restart time in seconds, [2]=optional stale level (default 1).
 func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	if len(args) < 2 {
 		return statusError, "", errMarkStaleRequiresPeerRestartTime
@@ -883,6 +906,14 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 		}
 		staleLevel = uint8(lvl)
 	}
+	var selected family.Family
+	if len(args) >= 4 {
+		fam, ok := parseFamily(args[3])
+		if !ok {
+			return statusError, "", fmt.Errorf("mark-stale: unknown family %q", args[3])
+		}
+		selected = fam
+	}
 
 	defer r.reconcileFlowSpecs()
 	r.peerMu.Lock()
@@ -891,29 +922,35 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	marked := 0
 	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB != nil {
-		peerRIB.MarkAllStale(staleLevel)
-		marked = peerRIB.StaleCount()
+		if selected == (family.Family{}) {
+			peerRIB.MarkAllStale(staleLevel)
+			marked = peerRIB.StaleCount()
+		} else {
+			peerRIB.ModifyFamilyAll(selected, func(entry *storage.RouteEntry) {
+				entry.StaleLevel = staleLevel
+				marked++
+			})
+		}
 	}
 
 	// RFC 9494: Propagate stale level to ribOut routes sourced from the restarting peer.
 	// Only routes originally received from peerAddr are marked; routes from other
 	// peers are left fresh. During LLGR readvertisement, sendRoutes carries
 	// meta["stale"] through ForwardUpdate to egress filters.
-	// ribOutSourceRef.peer is the engine's canonical source-peer string;
-	// compare against the canonical form of the command argument (cold path).
+	// SourcePeer belongs to each destination's advertisement, so two destinations
+	// may retain the same native key from different source peers independently.
 	peerStr := peerAddr.String()
-	for fam, keys := range r.ribOutSource {
-		for key, src := range keys {
-			if src.peer != peerStr {
+	for _, peerFamilies := range r.ribOut {
+		for fam, familyRoutes := range peerFamilies {
+			if selected != (family.Family{}) && fam != selected {
 				continue
 			}
-			for _, peerFamilies := range r.ribOut {
-				if familyRoutes, ok := peerFamilies[fam]; ok {
-					if entry, exists := familyRoutes[key]; exists {
-						entry.StaleLevel = staleLevel
-						familyRoutes[key] = entry
-					}
+			for key, entry := range familyRoutes {
+				if entry.SourcePeer != peerStr {
+					continue
 				}
+				entry.StaleLevel = staleLevel
+				familyRoutes[key] = entry
 			}
 		}
 	}
@@ -1023,7 +1060,9 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		}
 		delete(r.grState, peerAddr)
 	}
+	writes := r.reconcileSentSourceLocked(peerAddr, filtered, nil)
 	r.peerMu.Unlock()
+	r.dispatchSentLifecycle(writes)
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)

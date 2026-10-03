@@ -85,6 +85,15 @@ API controls BGP cache lifetime in engine:
 | `bgp cache list` | List cached msg-ids |
 | `send bgp <sel> cached <id>` | Forward cached UPDATE to peers |
 
+Cached forwarding and direct forwarding use the same destination attribute
+treatment. The default is RFC 4271 Section 5: discard unknown non-transitive
+optional attributes and pass unknown transitive optional attributes with
+Partial set. A BGP plugin can select opaque preservation through
+`filterapi.Filter.PreserveOpaqueAttributes`, evaluated at peer-facts refresh.
+The route-server plugin requests it for configured clients, implementing
+RFC 7947 Section 2.2 without making the cache depend on a route-server role.
+This selection does not change the plugin's ownership of cache lifetime.
+
 ### Graceful Restart Flow
 
 ```

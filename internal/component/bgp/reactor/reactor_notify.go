@@ -345,37 +345,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		peerInfo = plugin.PeerInfo{Address: peerAddr, AddressStr: peerAddr.String()}
 	}
 
-	if r.capture != nil {
-		var errCode, errSub uint8
-		if msgType == msgtype.TypeNOTIFICATION && len(rawBytes) >= 2 {
-			errCode = rawBytes[0]
-			errSub = rawBytes[1]
-		}
-		r.capture.Append(direction == rpc.DirectionSent, peerAddr, msgType, len(rawBytes), errCode, errSub)
-	}
-	if rc := r.rawCapture.Load(); rc != nil {
-		var dir uint8
-		if direction == rpc.DirectionSent {
-			dir = 1
-		}
-		// peerInfo above already holds both ends of the session, read under
-		// the RLock this branch is inside, so the pcap export gets the
-		// addresses it frames each message between with no further locking.
-		// LocalAddress stays invalid for a message from an address no peer
-		// matches, and the export names that case rather than inventing a host.
-		rc.Append(dir, peerAddr, peerInfo.LocalAddress, msgType, rawBytes)
-	}
-
-	r.observersMu.RLock()
-	msgObs := r.msgObservers
-	r.observersMu.RUnlock()
-
 	r.mu.RUnlock()
-
-	isSent := direction == rpc.DirectionSent
-	for _, obs := range msgObs {
-		obs.OnBGPMessage(&peerInfo, msgType, isSent, rawBytes)
-	}
 
 	if receiver == nil {
 		return false
@@ -417,7 +387,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		bytes := make([]byte, len(rawBytes))
 		copy(bytes, rawBytes)
 
-		// Tag config-static routes so the RIB plugin skips ribOut storage.
+		// Tag config-static routes so the RIB skips only their peer-up replay.
 		// The sendingConfigStatic flag is set by sendInitialRoutes during
 		// static route sending and cleared before opQueue drain.
 		sentMeta := meta

@@ -230,11 +230,6 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 	// Group-aware body cache: stack-allocated slots avoid per-UPDATE map allocation.
 	// Typical RS deployments have 1-2 unique body cache keys (shared encoding context).
-	type fwdBodyCacheKey struct {
-		destCtxID bgpctx.ContextID
-		wire      *wireu.WireUpdate
-		extended  bool
-	}
 	type fwdBodyCacheSlot struct {
 		key        fwdBodyCacheKey
 		rawBodies  [][]byte
@@ -267,10 +262,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		rsLocalAS = sourcePeer.Settings().GlobalLocalAS
 	}
 	srcAIGP := payloadAIGP(update.WireUpdate.Payload())
-	var srcAIGPLinkMetric, srcAIGPMessageID uint64
+	var srcAIGPLinkMetric uint64
+	sourceMessageID := update.sourceMessageID()
 	if len(srcAIGP) != 0 {
 		srcAIGPLinkMetric = r.sourceAIGPLinkMetric(sourcePeerAddr)
-		srcAIGPMessageID = update.sourceMessageID()
 	}
 
 	// RFC 4456 Section 8: ORIGINATOR_ID bytes are per-UPDATE constant.
@@ -716,7 +711,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 		}
 
-		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: srcAIGPMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 
 		extendedMessage := facts.extendedMsg
@@ -724,7 +719,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		destCtxID := facts.sendCtxID
 		if groupsEnabled {
-			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
+			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
 			for j := range bodySlotCount {
 				if bodySlots[j].key != cacheKey {
 					continue
@@ -737,11 +732,17 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		{
-			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
+			// RFC 4271 Section 5: the cache key and builder MUST use one treatment.
+			effectiveWire, attrErr := parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes)
+			if attrErr != nil {
+				fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
+				r.fwdPool.releaseItem(&item)
+				continue
+			}
+			body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
 			if !ok {
-				// Same obligation as the general rail (reactor_api_forward.go):
-				// this is the one exit between the rebuild that took the client's
-				// Outgoing Peer Pool buffer and the forward pool that returns it.
+				// A failed build MUST release any outgoing-pool buffer acquired by
+				// the rebuild, just as a failed attribute treatment above does.
 				r.fwdPool.releaseItem(&item)
 				continue
 			}
@@ -756,7 +757,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 			if groupsEnabled && bodySlotCount < len(bodySlots) {
 				bodySlots[bodySlotCount] = fwdBodyCacheSlot{
-					key:        fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage},
+					key:        fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes},
 					rawBodies:  body.rawBodies,
 					updates:    body.updates,
 					supersedeK: body.supersedeKey,

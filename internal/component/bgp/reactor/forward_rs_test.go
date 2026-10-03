@@ -154,9 +154,6 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 
 // TestReactorForwardRSBasic verifies the fast path forwards to all peers
 // except the source, using the same egress pipeline.
-// RFC requirement: RFC7947-x-4 negative -- with no per-client export policy configured, each
-// RS client is redistributed to without policy interception: all destination peers (that are
-// not the source) receive the route on the fast path and none are skipped.
 func TestReactorForwardRSBasic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -241,12 +238,6 @@ func TestReactorForwardRSBasic(t *testing.T) {
 
 // TestReactorForwardRSFallback verifies peers with ExportFilters are skipped
 // and returned in the FastPathSkipped list.
-//
-// RFC requirement: RFC7947-x-4 positive -- per-client export policy is applied on each
-// redistribution: a destination RS client that carries an export filter chain is not
-// blind-forwarded by the policy-agnostic fast path but is separated into the skipped list so
-// its per-client export policy governs the redistribution on the plugin path (forwardUpdateCore
-// -> runEgressPolicyChain). A client without filters is forwarded directly.
 func TestReactorForwardRSFallback(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -323,10 +314,6 @@ func TestReactorForwardRSFallback(t *testing.T) {
 // confined to RS clients: a plain (non-RS-client) EBGP destination DOES get the local AS
 // prepended (the forwarded body grows), so the no-prepend behavior is specific to RS clients,
 // not a blanket disable of AS-path prepending.
-// RFC requirement: RFC7947-2.2-1 negative -- the general attribute transparency of RFC 7947
-// Section 2.2 is CONFINED to RS clients in the same way. This forward rail DOES update a
-// well-known attribute (AS_PATH) toward a plain eBGP destination, so the byte-identity the
-// positive asserts is a decision about the destination and not a rail that cannot rewrite.
 func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -452,10 +439,6 @@ func rsTransparencyBody() []byte {
 // RFC 7947 Section 2.2.3 states this as a recommendation. Ze's automatic RFC 4271
 // Section 5.1.4 strip never fires toward an RS client. An operator's own `del { med; }`
 // policy still removes the metric upstream. The forwarded MED is carried across unchanged.
-// RFC requirement: RFC7947-2.2-1 positive -- attribute transparency in the general form
-// RFC 7947 Section 2.2 states it, rather than per attribute. The forwarded body is
-// byte-identical to the received body, so every well-known attribute the fixture carries
-// (ORIGIN, AS_PATH, NEXT_HOP, MULTI_EXIT_DISC) reaches the RS client unchanged.
 func TestReactorForwardRSTransparent(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)

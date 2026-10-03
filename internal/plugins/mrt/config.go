@@ -16,7 +16,7 @@ type Config struct {
 	RoutesInterval time.Duration // dump interval for TABLE_DUMP_V2
 
 	ExtendedTimestamp bool // use BGP4MP_ET (type 17) instead of BGP4MP (type 16)
-	AddPath           bool // force add-path subtypes even when not negotiated
+	AddPath           bool // use add-path subtypes for RIB snapshots
 
 	PeerFilter []string // if non-empty, only dump these peer addresses
 	Direction  string   // "received", "sent", or "" for both

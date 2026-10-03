@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"time"
 
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -225,6 +226,11 @@ type PeerInfo struct {
 	NegotiatedRouteRefresh bool
 	NegotiatedEnhancedRR   bool
 	NegotiatedAddPath      map[string]string // family -> "send"/"receive"/"both"
+
+	// MessageContextID is the immutable encoding context of the current raw
+	// message, populated for in-process observers. Observers MUST use it for
+	// direction-specific NLRI encoding, rather than the display capability map.
+	MessageContextID bgpctx.ContextID
 
 	// PATHS-LIMIT counts paths per prefix, keyed by negotiated family.
 	// Send is the peer's nonzero maximum enforced on our outbound updates.

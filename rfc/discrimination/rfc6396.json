@@ -2,6 +2,83 @@
   "rfc": "rfc6396",
   "records": [
     {
+      "rid": "RFC6396-1-1",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields",
+      "unit-sha": "d36251c006bdae33",
+      "claim-sha": "98bd89277d931f4c",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::WriteExtendedHeader",
+      "producer-sha": "f7447a48de3e1a9e",
+      "break": "body of WriteExtendedHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-1-1",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder",
+      "unit-sha": "956e31542fcc1184",
+      "claim-sha": "7734a8f90e0e021b",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::WritePeerIndexTable",
+      "producer-sha": "91bff780ac77a3bc",
+      "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.1-1",
+      "polarity": "positive",
+      "unit": "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName",
+      "unit-sha": "240618c8f77bd66e",
+      "claim-sha": "4208262012a9fd3c",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::WritePeerIndexTable",
+      "producer-sha": "91bff780ac77a3bc",
+      "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName",
+      "unit-sha": "240618c8f77bd66e",
+      "claim-sha": "a6efbcbb861aee0c",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::WritePeerIndexTable",
+      "producer-sha": "91bff780ac77a3bc",
+      "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8",
+      "unit-sha": "28a303605c3ad61c",
+      "claim-sha": "bca4b3f6c40739c1",
+      "route": "revert",
+      "producer": "internal/mrt/encode.go::WritePeerIndexTable",
+      "producer-sha": "91bff780ac77a3bc",
+      "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.1-2",
+      "polarity": "negative",
+      "unit": "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8",
+      "unit-sha": "28a303605c3ad61c",
+      "claim-sha": "a5e11c6ce192a4e0",
+      "route": "revert",
+      "producer": "internal/mrt/decode.go::DecodePeerIndexTable",
+      "producer-sha": "f04e3147c3ce9208",
+      "break": "body of DecodePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.3.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName",
+      "unit-sha": "265cc226a6047611",
+      "claim-sha": "c1a37ea51da11e29",
+      "route": "revert",
+      "producer": "internal/plugins/mrt/dump.go::writePeerIndexTable",
+      "producer-sha": "2ee4fb892822ee5f",
+      "break": "body of writePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC6396-4.3.4-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged",
@@ -33,6 +110,39 @@
       "producer": "internal/plugins/mrt/dump.go::writeTableDumpV2",
       "producer-sha": "c36d65611ec8ad5d",
       "break": "body of writeTableDumpV2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8050_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis",
+      "unit-sha": "ae3c0f287bf02317",
+      "claim-sha": "8448f0768b0de878",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_wire.go::observeReceivedWire",
+      "producer-sha": "d4c65db515532f20",
+      "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc8050_wire_capture_test.go::TestRFC6396WireMessagesNeverCoalesce",
+      "unit-sha": "3a0a6cdaebddad3d",
+      "claim-sha": "6127f06edbe4fe0a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_wire.go::observeReceivedWire",
+      "producer-sha": "d4c65db515532f20",
+      "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6396-4.4.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord",
+      "unit-sha": "7a6dab6363135cc3",
+      "claim-sha": "ec4b917e6114a7fc",
+      "route": "revert",
+      "producer": "internal/plugins/mrt/component.go::OnBGPMessage",
+      "producer-sha": "d97d12e7faf7fe86",
+      "break": "body of OnBGPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

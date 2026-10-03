@@ -61,13 +61,11 @@ module ze-mrt-conf {
             type boolean;
             default false;
             description
-                "The default is false. When the leaf is true, Ze writes the ADD-PATH subtypes
-                 of RFC 8050. A BGP4MP record then carries subtype 9, and a
-                 TABLE_DUMP_V2 dump carries the ADD-PATH RIB subtypes. Ze writes the ADD-PATH subtype whether or not the
-                 session negotiated ADD-PATH, so the record declares a path identifier
-                 that the message can lack.";
-            ze:help "Force add-path subtypes even when not negotiated
-                     with the peer.";
+                "The default is false. When true, TABLE_DUMP_V2 snapshots use
+                 the ADD-PATH RIB subtypes of RFC 8050. BGP4MP and BGP4MP_ET
+                 message subtypes always follow the direction-specific negotiated
+                 ADD-PATH state of the UPDATE family, independently of this leaf.";
+            ze:help "Use ADD-PATH subtypes for RIB snapshots.";
         }
 
         leaf-list peer-filter {

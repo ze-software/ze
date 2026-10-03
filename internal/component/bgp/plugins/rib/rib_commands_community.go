@@ -20,7 +20,7 @@ var (
 	errBgpRibReleaseRoutesRequiresA               = errors.New("request bgp rib release-routes requires a selector (* for all peers)")
 	errUsageRibInjectPeerFamilyPrefix             = errors.New("usage: request bgp rib inject <peer> <family> <prefix> [origin <val>] [nhop|nexthop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
 	errUsageRibWithdrawPeerFamilyPrefix           = errors.New("usage: request bgp rib withdraw <peer> <family> <prefix>")
-	errMarkStaleRequiresPeerRestartTime           = errors.New("mark-stale requires <peer> <restart-time> [level]")
+	errMarkStaleRequiresPeerRestartTime           = errors.New("mark-stale requires <peer> <restart-time> [level [family]]")
 	errStaleLevelMustBe00                         = errors.New("stale level must be > 0 (0 means fresh)")
 	errPurgeStaleRequiresPeer                     = errors.New("purge-stale requires <peer>")
 	errAttachCommunityRequiresPeerFamilyCommunity = errors.New("attach-community requires <peer> <family> <community-hex>")
@@ -105,8 +105,10 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, any, error) 
 			affected = append(affected, affectedNLRI{nlri: cp, addPath: ap})
 		}
 	})
+	writes := r.reconcileSentSourceLocked(peerAddr, fam, commBytes)
 
 	r.peerMu.Unlock()
+	r.dispatchSentLifecycle(writes)
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(fam, a.nlri, a.addPath, nil)
@@ -181,8 +183,10 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, err
 			deleted++
 		}
 	}
+	writes := r.reconcileSentSourceLocked(peerAddr, fam, nil)
 
 	r.peerMu.Unlock()
+	r.dispatchSentLifecycle(writes)
 
 	for _, nlriBytes := range toDelete {
 		change, ok := r.checkBestPathChange(fam, nlriBytes, ap, nil)
@@ -257,5 +261,8 @@ func (r *RIBManager) attachCommunity(entry *storage.RouteEntry, comm []byte) boo
 	newBundleHandle := storage.Bundles.Intern(newBundle)
 	storage.Bundles.Release(entry.Bundle)
 	entry.Bundle = newBundleHandle
+	// Zero disables the original-wire fast path: this owned bundle no longer
+	// describes those bytes, so a fresh identical UPDATE MUST replace it.
+	entry.AttrFingerprint = 0
 	return true
 }

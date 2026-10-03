@@ -139,6 +139,11 @@ func (s *Session) sendOpen(conn net.Conn) error {
 
 	s.mu.Lock()
 	s.localOpen = open
+	if transport := s.transport.Load(); transport != nil {
+		// The OPEN builder resolved migration fallback for this connection.
+		// Publish that actual identity before the raw writer observes the OPEN.
+		transport.localAS.Store(open.ASN4)
+	}
 	s.mu.Unlock()
 
 	err = s.writeMessage(conn, open)

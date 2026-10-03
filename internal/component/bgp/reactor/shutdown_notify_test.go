@@ -1170,7 +1170,7 @@ func sealedSessionOnPort(t *testing.T, port int) *Session {
 // keeps it. acceptOrReject buffers it on ErrSessionTearingDown for a passive
 // peer and offers it to the next runOnce cycle (reactor_connection.go); with the
 // close in place that cycle accepted a dead socket and paid a backoff.
-// acceptPendingConnection closed it a second time.
+// The pre-read OPEN rail likewise leaves refusal cleanup to its Peer caller.
 //
 // acceptWithOpen is the row that drives the changed branch, and it does so
 // deterministically: it has no entry check of its own, so a sealed session
@@ -1187,7 +1187,7 @@ func TestSealedSessionRefusesAnAcceptWithoutClosingTheCallersConn(t *testing.T) 
 			return s.Accept(conn)
 		}},
 		{"accept with open", func(s *Session, conn net.Conn) error {
-			return s.acceptWithOpen(conn, &message.Open{})
+			return s.acceptWithOpen(conn, &message.Open{}, nil)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -52,7 +52,7 @@ func runConvertPcap(args []string) int {
 	framer := pcap.NewFramer()
 	handler := &mrt.Handler{
 		OnMessage: func(h mrt.Header, usec uint32, m *mrt.MessageRecord) error {
-			if len(m.BGPMessage) == 0 {
+			if len(m.BGPMessage.Bytes) == 0 {
 				return nil
 			}
 			// A BGP4MP record runs from the peer to the collector, so the peer
@@ -64,7 +64,7 @@ func runConvertPcap(args []string) int {
 				return nil
 			}
 			ts := time.Unix(int64(h.Timestamp), int64(usec)*1000)
-			if err := framer.WriteMessage(out, ts, flow, m.BGPMessage, len(m.BGPMessage)); err != nil {
+			if err := framer.WriteMessage(out, ts, flow, m.BGPMessage.Bytes, len(m.BGPMessage.Bytes)); err != nil {
 				return err
 			}
 			count++

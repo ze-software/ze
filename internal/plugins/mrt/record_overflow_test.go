@@ -40,7 +40,11 @@ func TestOnBGPMessageMaxSizeExtendedMessageNoOverflow(t *testing.T) {
 		PeerAS:       65001,
 		LocalAS:      65002,
 	}
-	raw := make([]byte, 65535) // maximum BGP message length (16-bit length field)
+	raw := make([]byte, 65535) // Complete maximum-length BGP message.
+	for i := range 16 {
+		raw[i] = 255
+	}
+	raw[16], raw[17], raw[18] = 255, 255, 2
 
 	c.OnBGPMessage(peer, msgtype.TypeUPDATE, false, raw)
 }

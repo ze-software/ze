@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -33,12 +34,15 @@ type groupKey struct {
 	AttrHandle attrpool.Handle
 	PathID     uint32
 	StaleLevel uint8
+	AddPath    bool
+	NextHop    string
+	SourcePeer string
 }
 
 // collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
 // Each distinct AttrHandle is decoded once. Returns groups ready for replay.
 func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr netip.Addr) []replayGroup {
-	return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{})
+	return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{}, false)
 }
 
 // collectPeerUpReplay returns the Adj-RIB-Out groups to re-advertise to a peer
@@ -63,7 +67,7 @@ func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr netip.Addr) []replayGro
 // Caller must hold peerMu.
 func (r *RIBManager) collectPeerUpReplay(peerAddr netip.Addr, seenBefore bool) []replayGroup {
 	if seenBefore {
-		return r.collectGroupedRibOutRoutes(peerAddr)
+		return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{}, true)
 	}
 	// Say it rather than decline silently (ai/rules/evidence.md): a
 	// non-empty Adj-RIB-Out here means the reordering actually happened and a
@@ -78,11 +82,12 @@ func (r *RIBManager) collectPeerUpReplay(peerAddr netip.Addr, seenBefore bool) [
 // collectGroupedRibOutRoutesForFamily is like collectGroupedRibOutRoutes but
 // restricted to a single address family.
 func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fam family.Family) []replayGroup {
-	return r.collectGroupedRibOutRoutesFiltered(peerAddr, fam)
+	return r.collectGroupedRibOutRoutesFiltered(peerAddr, fam, false)
 }
 
 // collectGroupedRibOutRoutesFiltered groups ribOut entries for replay.
 // When filterFam is zero-value, all families are included.
+// Peer-up replay omits config-static entries: sendInitialRoutes owns them.
 //
 // CONTRACT: returns nil when there is nothing to replay, which is the normal
 // state of a fresh peer. Callers MUST NOT read nil-ness as "this peer did not
@@ -90,7 +95,7 @@ func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fa
 // still requires replayRoutesWithCursor to run, because that is what emits the
 // "plugin session ready" signal the reactor waits on. Test the emptiness you
 // mean (len(groups) == 0), never the nil-ness of the return.
-func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, filterFam family.Family) []replayGroup {
+func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, filterFam family.Family, peerUp bool) []replayGroup {
 	peerFamilies := r.ribOut[peerAddr]
 	if peerFamilies == nil {
 		return nil
@@ -101,7 +106,6 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 		firstKey ribOutKey
 		prefixes []string
 		minMsgID uint64
-		srcPeer  string
 	}
 
 	groups := make(map[groupKey]*pendingGroup)
@@ -112,7 +116,10 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			continue
 		}
 		for key, entry := range familyRoutes {
-			if !r.replaySourceEligible(fam, key) {
+			if peerUp && entry.ConfigStatic {
+				continue
+			}
+			if !replaySourceEligible(fam, key, entry.SourcePeer) {
 				continue
 			}
 			gk := groupKey{
@@ -120,19 +127,24 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 				AttrHandle: entry.AttrHandle,
 				PathID:     key.PathID,
 				StaleLevel: entry.StaleLevel,
+				AddPath:    entry.AddPath,
+				NextHop:    entry.NextHop,
+				SourcePeer: entry.SourcePeer,
 			}
 			pg, ok := groups[gk]
 			if !ok {
-				src := r.ribOutSourcePeer(fam, key)
 				pg = &pendingGroup{
 					key:      gk,
 					firstKey: key,
 					minMsgID: entry.MsgID,
-					srcPeer:  src,
 				}
 				groups[gk] = pg
 			}
-			pg.prefixes = append(pg.prefixes, key.Prefix.String())
+			if key.Prefix.IsValid() {
+				pg.prefixes = append(pg.prefixes, key.Prefix.String())
+			} else {
+				pg.prefixes = append(pg.prefixes, hex.EncodeToString([]byte(entry.NativeNLRI)))
+			}
 			if entry.MsgID < pg.minMsgID {
 				pg.minMsgID = entry.MsgID
 			}
@@ -149,16 +161,24 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 	for _, pg := range groups {
 		route, ok := decoded[pg.key.AttrHandle]
 		if !ok {
-			route = reconstructRoute(ribOutEntry{
-				MsgID:      pg.minMsgID,
-				AttrHandle: pg.key.AttrHandle,
-			}, pg.key.Family, pg.firstKey, pg.srcPeer)
+			route = reconstructRoute(ribOutEntry{AttrHandle: pg.key.AttrHandle},
+				pg.key.Family, pg.firstKey)
 			decoded[pg.key.AttrHandle] = route
 		}
 
 		routeCopy := *route
 		routeCopy.Family = pg.key.Family
 		routeCopy.PathID = pg.key.PathID
+		routeCopy.AddPath = pg.key.AddPath
+		routeCopy.SourcePeer = pg.key.SourcePeer
+		if pg.key.NextHop != "" {
+			routeCopy.NextHop = pg.key.NextHop
+		}
+		routeCopy.Prefix = pg.prefixes[0]
+		routeCopy.RawNLRI = ""
+		if !pg.firstKey.Prefix.IsValid() {
+			routeCopy.RawNLRI = pg.prefixes[0]
+		}
 		routeCopy.MsgID = pg.minMsgID
 		routeCopy.StaleLevel = pg.key.StaleLevel
 
@@ -310,10 +330,16 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	for i := range groups {
 		g := &groups[i]
 		cmds := formatCursorCommands(g, prev)
-		for _, cmd := range cmds {
-			r.updateRoute(peerAddr, cmd)
+		meta := map[string]any{"replay": true}
+		if g.StaleLevel > 0 {
+			meta["stale"] = g.StaleLevel
 		}
-		prev = g.Route
+		for _, cmd := range cmds {
+			r.updateRouteWithMeta(peerAddr, cmd, meta)
+		}
+		if g.Route.RawAttrs == "" {
+			prev = g.Route
+		}
 	}
 
 	r.updateRoute(peerAddr, "update cursor done")
@@ -321,8 +347,8 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 }
 
 // resendRoutesWithCursor replays routes using cursor mode for manual resend.
-// Unlike replayRoutesWithCursor, it does not send "plugin session ready" and
-// carries stale metadata (RFC 9494) through updateRouteWithMeta for stale groups.
+// Unlike replayRoutesWithCursor, it does not send "plugin session ready".
+// Both replay paths carry stale metadata through updateRouteWithMeta.
 //
 // Every command carries meta["replay"], and it is what keeps this rail reaching
 // the wire. The session is UP, so the destination peer's Adj-RIB-Out holds every
@@ -331,8 +357,8 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 // RFC 2918 Section 3 refresh behind it reach, and answering a request to re-send
 // with silence is the failure the marker exists to prevent.
 //
-// replayRoutesWithCursor needs no such marker: it runs on a peer that has just
-// come up, and a session teardown empties the Adj-RIB-Out.
+// Peer-up replay also carries the marker so its sent-event feedback preserves
+// the stored source peer and stale level instead of claiming a new local route.
 func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGroup) int {
 	if len(groups) == 0 {
 		return 0
@@ -357,7 +383,9 @@ func (r *RIBManager) resendRoutesWithCursor(peerAddr string, groups []replayGrou
 			r.updateRouteWithMeta(peerAddr, cmd, meta)
 		}
 		total += len(g.Prefixes)
-		prev = g.Route
+		if g.Route.RawAttrs == "" {
+			prev = g.Route
+		}
 	}
 
 	r.updateRoute(peerAddr, "update cursor done")
@@ -368,6 +396,9 @@ const maxNLRIBytesPerCommand = 4000
 
 // formatCursorCommands builds one or more cursor commands for a replay group.
 func formatCursorCommands(g *replayGroup, prev *Route) []string {
+	if g.Route.RawAttrs != "" {
+		return formatRawGroupCommands(g)
+	}
 	var b textbuf.Buffer
 	b.Str("update cursor ")
 
@@ -379,7 +410,7 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 
 	var tb textbuf.Buffer
 	tb.Str("nlri ").Str(g.Family.String())
-	if g.PathID != 0 {
+	if g.Route.AddPath || g.PathID != 0 {
 		tb.Str(" path-information ").Uint32(g.PathID)
 	}
 	tb.Str(" add")
@@ -425,6 +456,38 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 
 	if count > 0 {
 		commands = append(commands, cmdBuf.String())
+	}
+	return commands
+}
+
+// formatRawGroupCommands batches native NLRIs without interpreting attributes.
+// Each command is self-contained and does not change the text cursor.
+func formatRawGroupCommands(g *replayGroup) []string {
+	var commands []string
+	var b textbuf.Buffer
+	size := 0
+	route := *g.Route
+	for _, prefix := range g.Prefixes {
+		route.Prefix = prefix
+		if g.Route.RawNLRI != "" {
+			route.RawNLRI = prefix
+		}
+		raw := bgp.RouteNLRIHex(&route)
+		if size > 0 && size+1+len(raw) > maxNLRIBytesPerCommand {
+			commands = append(commands, b.String())
+			size = 0
+		}
+		if size == 0 {
+			command := formatRouteCommand(&route)
+			b.Reset().Str(command)
+			size = len(command)
+		} else {
+			b.Byte(' ').Str(raw)
+			size += 1 + len(raw)
+		}
+	}
+	if size > 0 {
+		commands = append(commands, b.String())
 	}
 	return commands
 }

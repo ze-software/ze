@@ -85,7 +85,7 @@ func TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned(t *testing.T) {
 // type and length, overrun the attribute, and session-reset the peer. Every existing tagged
 // test drives addPath=false, so nothing held the composed path down.
 //
-// RFC requirement: RFC7911-5-3 positive -- a typed-family UPDATE whose NLRIs carry 4-octet Path Identifiers is carved on those boundaries, so the implemented route survives with its identifier intact and the session is not reset.
+// RFC requirement: RFC7911-5-5 positive -- a typed-family UPDATE whose NLRIs carry 4-octet Path Identifiers is carved on those boundaries, so the implemented route survives with its identifier intact and the session is not reset.
 // RFC requirement: RFC7606-5.4-1 positive -- the Section 5.4 discard reads the route type past the RFC 7911 Path Identifier rather than at a fixed offset.
 func TestRFC7606Section54ReadsTypedNLRIUnderAddPath(t *testing.T) {
 	registerEVPNRecognizer(t)

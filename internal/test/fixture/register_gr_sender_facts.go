@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — the compiled observer API
-// Overview: plugin_fixture_gr_sender_facts.go — the three scenarios registered here
+// Overview: plugin_fixture_gr_sender_facts.go -- conventional GR sender facts.
 //
 // The registration half of the graceful-restart sender-fact observers. It is a
 // file of its own because the registration is the whole of its content, which is
@@ -10,5 +10,8 @@ package fixture
 func init() {
 	Register("plugin/gr-peer-restart-time-drives-timer", grSenderFactsDriver(grPeerRestartTimeDrivesTimer))
 	Register("plugin/gr-peer-families-drive-mark-stale", grSenderFactsDriver(grPeerFamiliesDriveMarkStale))
-	Register("plugin/llgr-peer-stale-time-drives-timer", grSenderFactsDriver(llgrPeerStaleTimeDrivesTimer))
+	Register("plugin/llgr-transition", llgrLifecycle("transition"))
+	Register("plugin/llgr-rib-stale", llgrLifecycle("eor"))
+	Register("plugin/llgr-readvertise", llgrLifecycle("wire"))
+	Register("plugin/llgr-peer-stale-time-drives-timer", llgrLifecycle("timer"))
 }

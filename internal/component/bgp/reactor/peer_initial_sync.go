@@ -112,8 +112,8 @@ func (p *Peer) sendInitialRoutes() {
 		p.sendDefaultOriginateRoutes(nc)
 	}
 
-	// Clear config-static marker before opQueue drain so plugin-injected routes
-	// (from RIB replay, Python plugins, etc.) are stored in ribOut normally.
+	// Clear the config-static marker before opQueue drain so plugin-injected
+	// routes remain eligible for the RIB's peer-up replay.
 	p.sendingConfigStatic.Store(false)
 
 	// Hold the End-of-RIB until every plugin that registers this peer on the
@@ -184,7 +184,7 @@ func (p *Peer) sendInitialRoutes() {
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
-			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
+			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", sendErr)
@@ -495,7 +495,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
-			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
+			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)

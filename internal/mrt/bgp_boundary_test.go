@@ -30,7 +30,7 @@ func rawBGPMessage(declaredLen uint16, msgType byte, bufLen int) []byte {
 // asserting the parser's core invariant: a nil error implies a non-nil message.
 func parseNoPanic(t *testing.T, data []byte) {
 	t.Helper()
-	parsed, err := mrt.ParseBGPMessage(data)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: data})
 	if err == nil && parsed == nil {
 		t.Fatalf("ParseBGPMessage returned nil message and nil error for %x", data)
 	}
@@ -58,7 +58,7 @@ func TestParseBGPMessage_LengthBoundaries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := rawBGPMessage(tt.declared, 4, tt.bufLen) // KEEPALIVE
-			parsed, err := mrt.ParseBGPMessage(msg)
+			parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 			if tt.wantError {
 				require.Error(t, err)
 				return
@@ -107,7 +107,7 @@ func TestParseBGPMessage_UpdateTruncatedLengthFields(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := mrt.ParseBGPMessage(buildBGPMessage(2, tt.body))
+			_, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: buildBGPMessage(2, tt.body)})
 			require.Error(t, err)
 		})
 	}
@@ -118,7 +118,7 @@ func TestParseBGPMessage_ZeroLengthAttributeSet(t *testing.T) {
 	// set parses to an empty-but-present ParsedUpdate.
 	// PREVENTS: treating a legal end-of-RIB style UPDATE as malformed.
 	body := []byte{0, 0, 0, 0}
-	parsed, err := mrt.ParseBGPMessage(buildBGPMessage(2, body))
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: buildBGPMessage(2, body)})
 	require.NoError(t, err)
 	require.NotNil(t, parsed.Update)
 	assert.Empty(t, parsed.Update.WithdrawnPrefixes)
@@ -190,7 +190,8 @@ func TestParseAttributes_ExtendedLength(t *testing.T) {
 	binary.BigEndian.PutUint16(data[2:], uint16(len(value)))
 	copy(data[4:], value)
 
-	attrs := mrt.ParseAttributes(data)
+	attrs, err := mrt.ParseAttributes(data)
+	require.NoError(t, err)
 	require.Len(t, attrs, 1)
 	assert.Len(t, attrs[0].Value, 300)
 }
@@ -206,7 +207,13 @@ func TestParseAttributes_TruncatedNeverPanics(t *testing.T) {
 	for n := range data {
 		assert.NotPanics(t, func() {
 			// Every decoded attribute must lie wholly inside the input.
-			for _, a := range mrt.ParseAttributes(data[:n]) {
+			attrs, err := mrt.ParseAttributes(data[:n])
+			if n == 0 || n == 4 || n == 11 {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+			for _, a := range attrs {
 				assert.LessOrEqual(t, len(a.Value), n)
 			}
 		}, "truncating to %d bytes must not panic", n)
@@ -224,7 +231,7 @@ func FuzzParseBGPMessage(f *testing.F) {
 	f.Add([]byte{})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		parsed, err := mrt.ParseBGPMessage(data)
+		parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: data})
 		if err == nil && parsed == nil {
 			t.Fatalf("nil message with nil error for %x", data)
 		}
@@ -239,14 +246,18 @@ func FuzzParseAttributes(f *testing.F) {
 	f.Add([]byte{})
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		for _, a := range mrt.ParseAttributes(data) {
+		attrs, err := mrt.ParseAttributes(data)
+		if err != nil {
+			require.ErrorIs(t, err, mrt.ErrShortData)
+		}
+		for _, a := range attrs {
 			if len(a.Value) > len(data) {
 				t.Fatalf("attribute value %d longer than input %d", len(a.Value), len(data))
 			}
-			if mp, err := mrt.ParseMPReach(a.Value); err == nil && mp == nil {
+			if mp, err := mrt.ParseMPReach(a.Value, false); err == nil && mp == nil {
 				t.Fatal("ParseMPReach: nil result with nil error")
 			}
-			if mp, err := mrt.ParseMPUnreach(a.Value); err == nil && mp == nil {
+			if mp, err := mrt.ParseMPUnreach(a.Value, false); err == nil && mp == nil {
 				t.Fatal("ParseMPUnreach: nil result with nil error")
 			}
 			if addr, err := mrt.ParseMPReachRIBEntry(a.Value); err == nil && !addr.IsValid() {

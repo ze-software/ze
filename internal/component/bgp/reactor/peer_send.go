@@ -195,12 +195,12 @@ func (p *Peer) sendQueuedRefreshMarker(marker []byte, session *Session) error {
 // it, so the nil is turned into errBuildRejected here, at the single choke point
 // every send passes through, rather than repeated at each builder's call site.
 func (p *Peer) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath bool) error {
-	return p.currentSession().sendUpdateWithSplit(ctx, update, maxSize, addPath)
+	return p.currentSession().sendUpdateWithSplit(ctx, update, maxSize, addPath, false)
 }
 
 // sendUpdateWithSplit keeps every chunk on the session used to resolve and
 // encode it, even if the peer installs a replacement connection meanwhile.
-func (session *Session) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath bool) error {
+func (session *Session) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath, replay bool) error {
 	if update == nil {
 		return errBuildRejected
 	}
@@ -210,7 +210,7 @@ func (session *Session) sendUpdateWithSplit(ctx context.Context, update *message
 	s := message.GetSplitter()
 	defer message.PutSplitter(s)
 	if err := s.Split(update, maxSize, addPath, func(chunk *message.Update) error {
-		return session.sendUpdateCounted(ctx, chunk, nil)
+		return session.sendUpdateCounted(ctx, chunk, nil, replay)
 	}); err != nil {
 		return fmt.Errorf("splitting update: %w", err)
 	}
@@ -240,7 +240,7 @@ func isRouteScopedSendError(err error) bool {
 // path, which applies attribute modifications on the flat body (buildModifiedPayload)
 // and then needs the same size-aware split send as the batch announce rail. The
 // section slices are copied because the caller's flat body is pooled/transient.
-func (session *Session) sendBodyWithSplit(ctx context.Context, body []byte, maxSize int, addPath bool) error {
+func (session *Session) sendBodyWithSplit(ctx context.Context, body []byte, maxSize int, addPath, replay bool) error {
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		return fmt.Errorf("parse modified update body: %w", err)
@@ -250,7 +250,7 @@ func (session *Session) sendBodyWithSplit(ctx context.Context, body []byte, maxS
 		PathAttributes:  append([]byte(nil), sec.Attrs(body)...),
 		NLRI:            append([]byte(nil), sec.NLRI(body)...),
 	}
-	return session.sendUpdateWithSplit(ctx, u, maxSize, addPath)
+	return session.sendUpdateWithSplit(ctx, u, maxSize, addPath, replay)
 }
 
 // pauseReading pauses reading from this peer's session.

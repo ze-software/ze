@@ -274,6 +274,12 @@ reports the damage instead of printing a short result as fact.
 Damage never discards what already decoded. A record with 500 good prefixes and
 one truncated prefix reports the 500 and counts one damaged record.
 
+BGP message parsing requires exactly one complete frame. Trailing bytes beyond
+the declared BGP length and truncated attribute headers, lengths or values
+produce errors even when the file contains both directional OPENs. Semantic
+commands report these errors, and BGP4MP inject, replay and serve refuse the
+damaged UPDATE before writing it to the peer.
+
 <!-- source: internal/analyze/mrt.go -- malformedCounter, damageTag -->
 <!-- source: internal/mrt/reader.go -- readRecords -->
 <!-- source: internal/analyze/show.go -- mpReachCount, mpUnreachCount -->
@@ -289,13 +295,22 @@ be inferred from the payload bytes:
   2-byte and a 4-byte AS_PATH can occupy the same number of octets, so a wrong
   width yields fictitious ASNs rather than an error. Every subcommand derives the
   width from the record it is reading.
-- **Add-path dumps are decoded.** The RFC 8050 TABLE_DUMP_V2 RIB subtypes 8 to 12
-  and the add-path BGP4MP subtypes 8 to 11 carry a Path Identifier before each
-  prefix. They are dispatched like the non-add-path subtypes, so an add-path dump
-  yields its routes.
+- **BGP4MP Add-path modes come from both captured OPENs.** Negotiation is per
+  family and direction. Ordinary subtypes and unambiguous single-family
+  ADD-PATH messages can also be decoded without OPENs, but mixed-family
+  ADD-PATH messages cannot. An empty MP field still counts as family evidence
+  because it can select the recorder's subtype. Missing context produces an
+  error instead of guessed prefixes or Path Identifiers. TABLE_DUMP_V2 subtypes
+  8 to 11 carry explicit identifiers in each RIB entry; subtype 12 carries
+  them in its raw NLRI.
 
 <!-- source: internal/mrt/bgp_attribute.go -- ASPathIsFourByte -->
 <!-- source: internal/mrt/types.go -- IsAddPathRIBSubtype, IsAddPathBGP4MPSubtype -->
+
+Inject, replay and serve do not negotiate ADD-PATH. They refuse Path-ID-bearing
+or ambiguous UPDATEs; ordinary UPDATEs and standalone empty EOR messages remain
+supported. An updates-only capture or a rotated file opened without its OPEN
+exchange cannot recover missing negotiation from another file.
 
 ## MRT File Formats
 

@@ -215,15 +215,39 @@ func runFilter(args []string) int {
 				pendingData = nil
 				return nil
 			}
-			if opts.prefix != "" {
+			control := len(m.BGPMessage.Bytes) >= 19 && m.BGPMessage.Bytes[18] != 2
+			if opts.prefix != "" && !control {
+				if _, _, err := countUpdateNLRIs(m.BGPMessage); err != nil {
+					return err
+				}
 				pendingData = nil
 				return nil
 			}
-			if opts.asPathRe != nil || opts.communityRe != nil {
-				if !matchMessageContent(m, mrt.ASPathIsFourByte(h.Type, h.Subtype), opts) {
+			// Keep actual OPENs and teardown evidence with selected UPDATEs.
+			// Without them a mixed-family output would lose its decoding context.
+			if !control && (opts.asPathRe != nil || opts.communityRe != nil) {
+				match, err := matchMessageContent(m, mrt.ASPathIsFourByte(h.Type, h.Subtype), opts)
+				if err != nil {
+					return err
+				}
+				if !match {
 					pendingData = nil
 					return nil
 				}
+			}
+			err := writeRawRecord(pendingHeader, pendingData)
+			pendingData = nil
+			return err
+		},
+		OnStateChange: func(_ mrt.Header, _ uint32, record *mrt.StateChangeRecord) error {
+			if pendingData == nil {
+				return nil
+			}
+			if opts.peerIP != nil && !opts.peerIP.Equal(net.IP(record.PeerIP)) {
+				return nil
+			}
+			if opts.peerASN != 0 && record.PeerAS != opts.peerASN {
+				return nil
 			}
 			err := writeRawRecord(pendingHeader, pendingData)
 			pendingData = nil
@@ -241,7 +265,11 @@ func runFilter(args []string) int {
 				}
 			}
 			if opts.asPathRe != nil || opts.communityRe != nil {
-				if !matchRIBContent(r, opts) {
+				match, err := matchRIBContent(r, opts)
+				if err != nil {
+					return err
+				}
+				if !match {
 					pendingData = nil
 					return nil
 				}
@@ -267,7 +295,11 @@ func runFilter(args []string) int {
 				// Hardcoding 4-byte here made ParseASPath overrun every record,
 				// matchASPath return false for all of them, and the run report
 				// "filtered 0/N records" with exit 0: silent total data loss.
-				if !matchAttrsContent(t.Attributes, mrt.ASPathIsFourByte(h.Type, h.Subtype), opts) {
+				match, err := matchAttrsContent(t.Attributes, mrt.ASPathIsFourByte(h.Type, h.Subtype), opts)
+				if err != nil {
+					return err
+				}
+				if !match {
 					pendingData = nil
 					return nil
 				}

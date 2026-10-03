@@ -362,7 +362,7 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 		s.r.peerMu.RLock()
 		for fam, familyRoutes := range s.r.ribOut[peer] {
 			for key, entry := range familyRoutes {
-				rt := reconstructRoute(entry, fam, key, s.r.ribOutSourcePeer(fam, key))
+				rt := reconstructRoute(entry, fam, key)
 				s.items = append(s.items, RouteItem{
 					Peer:      peerStr,
 					Family:    fam,
@@ -1169,8 +1169,14 @@ func serializeRouteItem(item RouteItem) map[string]any {
 		if item.OutRoute.NextHop != "" {
 			routeMap["next-hop"] = item.OutRoute.NextHop
 		}
-		if item.OutRoute.PathID != 0 {
+		if item.OutRoute.AddPath || item.OutRoute.PathID != 0 {
 			routeMap["path-id"] = item.OutRoute.PathID
+		}
+		if item.OutRoute.AddPath {
+			routeMap["add-path"] = true
+		}
+		if item.OutRoute.RawNLRI != "" {
+			routeMap["raw-nlri"] = item.OutRoute.RawNLRI
 		}
 		enrichRouteMapFromRoute(routeMap, item.OutRoute)
 	}

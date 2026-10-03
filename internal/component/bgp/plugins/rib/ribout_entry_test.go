@@ -46,7 +46,7 @@ func TestPackEventAttrs_AllFields(t *testing.T) {
 	defer func() { _ = pool.RibOut.Release(handle) }()
 
 	entry := ribOutEntry{MsgID: 1, AttrHandle: handle}
-	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}, "")
+	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")})
 
 	assert.Equal(t, "10.0.0.1", route.NextHop, "NextHop must survive round-trip")
 	assert.NotNil(t, route.Origin, "Origin must survive round-trip")
@@ -81,7 +81,7 @@ func TestPackEventAttrs_ASPathOver255(t *testing.T) {
 	defer func() { _ = pool.RibOut.Release(handle) }()
 
 	entry := ribOutEntry{MsgID: 1, AttrHandle: handle}
-	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}, "")
+	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")})
 
 	assert.Len(t, route.ASPath, 300, "all 300 ASNs must survive multi-segment encoding")
 	for i, asn := range route.ASPath {
@@ -107,48 +107,51 @@ func TestParseOutRouteKey(t *testing.T) {
 	}
 }
 
-func TestRibOutSourceRefCount(t *testing.T) {
+// TestRibOutSourceOwnership keeps one destination's withdrawal from releasing
+// another destination's source, including when their selected origins differ.
+func TestRibOutSourceOwnership(t *testing.T) {
 	r := newTestRIBManager(t)
-
 	fam := family.IPv4Unicast
 	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
-
-	r.setRibOutSource(fam, key, "src-peer", true)
-	assert.Equal(t, "src-peer", r.ribOutSourcePeer(fam, key))
-
-	r.setRibOutSource(fam, key, "src-peer", true)
-	r.setRibOutSource(fam, key, "src-peer", true)
-	// refCount is now 3
-
-	r.releaseRibOutSource(fam, key)
-	assert.Equal(t, "src-peer", r.ribOutSourcePeer(fam, key), "source should survive 2 remaining refs")
-
-	r.releaseRibOutSource(fam, key)
-	assert.Equal(t, "src-peer", r.ribOutSourcePeer(fam, key), "source should survive 1 remaining ref")
-
-	r.releaseRibOutSource(fam, key)
-	assert.Equal(t, "", r.ribOutSourcePeer(fam, key), "source should be gone at refCount 0")
+	raw := []byte{24, 10, 0, 0}
+	first := netip.MustParseAddr("192.0.2.1")
+	second := netip.MustParseAddr("192.0.2.2")
+	r.storeSentEntries(first, fam, raw, false, ribOutEntry{}, "192.0.2.10", false)
+	r.storeSentEntries(second, fam, raw, false, ribOutEntry{}, "192.0.2.11", false)
+	assert.Equal(t, "192.0.2.10", r.ribOut[first][fam][key].SourcePeer)
+	assert.Equal(t, "192.0.2.11", r.ribOut[second][fam][key].SourcePeer)
+	_, _, err := r.markStaleCommand([]string{"192.0.2.10", "0", "2"})
+	require.NoError(t, err)
+	assert.Equal(t, uint8(2), r.ribOut[first][fam][key].StaleLevel)
+	assert.Zero(t, r.ribOut[second][fam][key].StaleLevel, "a different destination's origin must stay fresh")
+	r.removeSentNLRIs(first, fam, raw, false)
+	r.removeSentNLRIs(first, fam, raw, false)
+	assert.Equal(t, "192.0.2.11", r.ribOut[second][fam][key].SourcePeer)
+	r.removeSentNLRIs(second, fam, raw, false)
+	assert.Empty(t, r.ribOut)
 }
 
-func TestRibOutSourceRefCount_ReannounceNoDouble(t *testing.T) {
+// TestRibOutSourceReplay preserves received ownership on replay feedback, while
+// a new locally injected advertisement deliberately takes ownership.
+func TestRibOutSourceReplay(t *testing.T) {
 	r := newTestRIBManager(t)
-
 	fam := family.IPv4Unicast
 	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
-
-	// First announcement: new entry
-	r.setRibOutSource(fam, key, "src-peer", true)
-	// Re-announcement: existing entry, isNew=false
-	r.setRibOutSource(fam, key, "src-peer", false)
-
-	// refCount should be 1, not 2
-	r.releaseRibOutSource(fam, key)
-	assert.Equal(t, "", r.ribOutSourcePeer(fam, key), "re-announce must not double-count")
+	raw := []byte{24, 10, 0, 0}
+	peer := netip.MustParseAddr("192.0.2.1")
+	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{StaleLevel: 2}, "192.0.2.10", false)
+	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", true)
+	assert.Equal(t, "192.0.2.10", r.ribOut[peer][fam][key].SourcePeer)
+	assert.Equal(t, uint8(2), r.ribOut[peer][fam][key].StaleLevel)
+	r.storeSentEntries(peer, fam, raw, false, ribOutEntry{}, "", false)
+	assert.Empty(t, r.ribOut[peer][fam][key].SourcePeer)
+	assert.Zero(t, r.ribOut[peer][fam][key].StaleLevel)
+	r.removeSentNLRIs(peer, fam, raw, false)
 }
 
 func TestReconstructRoute_InvalidHandle(t *testing.T) {
-	entry := ribOutEntry{MsgID: 42}
-	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}, "src")
+	entry := ribOutEntry{MsgID: 42, SourcePeer: "src"}
+	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")})
 
 	assert.Equal(t, uint64(42), route.MsgID)
 	assert.Equal(t, "10.0.0.0/24", route.Prefix)
@@ -198,7 +201,7 @@ func TestPackEventAttrs_IPv6NextHopNotPacked(t *testing.T) {
 	defer func() { _ = pool.RibOut.Release(handle) }()
 
 	entry := ribOutEntry{MsgID: 1, AttrHandle: handle}
-	route := reconstructRoute(entry, family.IPv6Unicast, ribOutKey{Prefix: netip.MustParsePrefix("2001:db8::/32")}, "")
+	route := reconstructRoute(entry, family.IPv6Unicast, ribOutKey{Prefix: netip.MustParsePrefix("2001:db8::/32")})
 
 	assert.Empty(t, route.NextHop, "IPv6 next-hop not encoded by packEventAttrs (requires MP_REACH)")
 }

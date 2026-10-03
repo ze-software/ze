@@ -117,10 +117,13 @@ func runInject(args []string) int {
 	var sent uint64
 	handler := &mrt.Handler{
 		OnMessage: func(_ mrt.Header, _ uint32, m *mrt.MessageRecord) error {
-			if len(m.BGPMessage) < 19 || m.BGPMessage[18] != 2 {
+			if len(m.BGPMessage.Bytes) < 19 || m.BGPMessage.Bytes[18] != 2 {
 				return nil
 			}
-			_, err := conn.Write(m.BGPMessage)
+			if err := checkReplayUpdate(m.BGPMessage); err != nil {
+				return err
+			}
+			_, err := conn.Write(m.BGPMessage.Bytes)
 			if err != nil {
 				return err
 			}
@@ -128,6 +131,9 @@ func runInject(args []string) int {
 			return nil
 		},
 		OnRIB: func(h mrt.Header, r *mrt.RIBRecord) error {
+			if mrt.IsAddPathRIBSubtype(h.Subtype) && len(r.Entries) != 0 {
+				return errReplayAddPath
+			}
 			trailing := ribSubtypeHasTrailingNLRI(h.Subtype)
 			for i := range r.Entries {
 				update := buildUpdateFromRIB(r.PrefixLength, r.Prefix, &r.Entries[i], trailing)

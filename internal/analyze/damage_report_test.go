@@ -119,7 +119,7 @@ func TestRunDensity_ReportsDamagedUpdate(t *testing.T) {
 	code, stderr := runSubcommand(t, damagedBGP4MPFile(), func() int {
 		return runDensity([]string{"-"})
 	})
-	assert.Equal(t, 0, code)
+	assert.Equal(t, 1, code)
 	assert.Contains(t, stderr, "malformed MRT record",
 		"density must tell the operator its figures are incomplete")
 

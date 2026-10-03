@@ -1021,16 +1021,20 @@ duplicated for every peer.
 
 ### ribOut Compact Storage (pool.RibOut, idx 16)
 
-The plugin ribOut now stores a 16 B `ribOutEntry` per peer per route:
-`MsgID` (8 B) + `AttrHandle` (4 B) + `StaleLevel` (1 B) + padding (3 B).
+The measurements above predate native-family inventory support. The current
+`ribOutEntry` retains `MsgID`, `AttrHandle`, freshness and config ownership,
+ADD-PATH presence, native NLRI bytes for opaque families, and a separately
+delivered JSON next hop. Plain CIDR routes still use allocation-free value keys.
 Wire attribute bytes are deduplicated in `pool.RibOut`: the same UPDATE
 sent to N peers stores one pool copy and N 4-byte handles.
 
 Full `*Route` is reconstructed on demand (cold paths only: replay, show,
 refresh) by parsing wire bytes from the pool via `reconstructRoute()`.
 
-Source peer tracking uses a separate refcounted map (`ribOutSource`)
-with one entry per unique route, not per destination peer.
+Each destination entry retains its own `SourcePeer`. Two destinations can select
+different origins for the same native route key without overwriting ownership.
+Removing an entry releases its source reference with it; no separate source map
+needs a synchronized reference count.
 
 ### Scaling Impact
 
@@ -1049,9 +1053,10 @@ path hands to `CommitService`; it is not a storage layer and nothing retains it.
 
 ### Where the Bytes Go
 
-**Plugin ribOutEntry (16 B):** MsgID (uint64, 8 B) + AttrHandle (uint32,
-4 B) + StaleLevel (uint8, 1 B) + padding (3 B). Zero heap allocations
-per entry. Map overhead adds ~50 B/entry.
+**Plugin ribOutEntry:** The earlier 16 B measurement above does not include the
+native NLRI and JSON next-hop fields. No new per-route heap allocation is needed
+for a CIDR entry. Opaque families own their native wire bytes; immutable path
+attributes remain shared in the pool. Current heap totals have not been measured.
 
 **Plugin RIB RouteEntry (69 B):** 32 B struct (Bundle handle + ASPath handle +
 fingerprint + stale level) + 37 B BART trie node overhead. Pool attribute

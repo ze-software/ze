@@ -212,7 +212,7 @@ func newSyncOrderFixture(t *testing.T, updateID uint64) (*Reactor, *Peer, *Peer,
 	// The announce this forwarded withdraw must never overtake. It is queued,
 	// not sent: shouldQueue() is true for a peer inside its initial sync, so the
 	// injection rail parks it here and sendInitialRoutes drains it.
-	require.NoError(t, dst.QueueAnnounce(testRoute(syncOrderPrefix), false))
+	require.NoError(t, dst.QueueAnnounce(testRoute(syncOrderPrefix), false, false))
 
 	return r, src, dst, conn, update
 }

@@ -50,6 +50,7 @@ type MPReach struct {
 	NextHop   netip.Addr
 	LinkLocal netip.Addr // set when the next hop is the 32-byte RFC 2545 form
 	Prefixes  []netip.Prefix
+	PathIDs []uint32
 }
 
 // MPUnreach is a decoded MP_UNREACH_NLRI attribute (RFC 4760 Section 4).
@@ -57,6 +58,7 @@ type MPUnreach struct {
 	AFI      uint16
 	SAFI     uint8
 	Prefixes []netip.Prefix
+	PathIDs []uint32
 }
 
 // Aggregator is a decoded AGGREGATOR attribute (RFC 4271 Section 5.1.7).
@@ -137,7 +139,8 @@ func ParseMPReachRIBEntry(value []byte) (netip.Addr, error) {
 // unable to tell "3 prefixes" from "3 prefixes and the rest is unreadable".
 // A failure BEFORE the NLRI section (a truncated fixed header or an unusable
 // next hop) yields nil, because nothing was decoded.
-func ParseMPReach(value []byte) (*MPReach, error) {
+// Callers MUST resolve addPath for this AFI/SAFI from the enclosing message context.
+func ParseMPReach(value []byte, addPath bool) (*MPReach, error) {
 	const fixedHeader = 4 // AFI(2) + SAFI(1) + Next Hop Length(1)
 	if len(value) < fixedHeader {
 		return nil, fmt.Errorf("%w: need at least %d octets for AFI/SAFI/next-hop-length, have %d", errMPReachShort, fixedHeader, len(value))
@@ -168,8 +171,9 @@ func ParseMPReach(value []byte) (*MPReach, error) {
 	off++ // Reserved
 	if off < len(value) {
 		// Salvage: keep the prefixes decoded before the damage and report it.
-		prefixes, perr := ParsePrefixesAFI(value[off:], mp.AFI, false)
-		mp.Prefixes = prefixes
+		// RFC 8050 Section 2: "the MRT subtypes are utilized."
+		prefixes, ids, perr := parsePrefixesAFI(value[off:], mp.AFI, addPath, true)
+		mp.Prefixes, mp.PathIDs = prefixes, ids
 		if perr != nil {
 			return mp, fmt.Errorf("MP_REACH_NLRI (afi %d, safi %d): %w", mp.AFI, mp.SAFI, perr)
 		}
@@ -182,7 +186,8 @@ func ParseMPReach(value []byte) (*MPReach, error) {
 //
 // Like ParseMPReach, a damaged withdrawn-routes section returns both the
 // prefixes decoded so far and an error.
-func ParseMPUnreach(value []byte) (*MPUnreach, error) {
+// Callers MUST resolve addPath for this AFI/SAFI from the enclosing message context.
+func ParseMPUnreach(value []byte, addPath bool) (*MPUnreach, error) {
 	const fixedHeader = 3 // AFI(2) + SAFI(1)
 	if len(value) < fixedHeader {
 		return nil, fmt.Errorf("%w: need at least %d octets for AFI/SAFI, have %d", errMPUnreachShort, fixedHeader, len(value))
@@ -193,8 +198,9 @@ func ParseMPUnreach(value []byte) (*MPUnreach, error) {
 	}
 	if len(value) > fixedHeader {
 		// Salvage: keep the prefixes decoded before the damage and report it.
-		prefixes, perr := ParsePrefixesAFI(value[fixedHeader:], mp.AFI, false)
-		mp.Prefixes = prefixes
+		// RFC 8050 Section 2: "the MRT subtypes are utilized."
+		prefixes, ids, perr := parsePrefixesAFI(value[fixedHeader:], mp.AFI, addPath, true)
+		mp.Prefixes, mp.PathIDs = prefixes, ids
 		if perr != nil {
 			return mp, fmt.Errorf("MP_UNREACH_NLRI (afi %d, safi %d): %w", mp.AFI, mp.SAFI, perr)
 		}

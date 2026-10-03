@@ -2,7 +2,11 @@
 
 package mrt
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"math"
+	"unicode/utf8"
+)
 
 var be = binary.BigEndian
 
@@ -41,7 +45,16 @@ func WritePeerEntry(buf []byte, off int, p *PeerEntry) int {
 	return off - start
 }
 
-func WritePeerIndexTable(buf []byte, off int, collectorBGPID [4]byte, viewName string, peers []PeerEntry) int {
+// WritePeerIndexTable rejects an invalid view name before modifying buf.
+func WritePeerIndexTable(buf []byte, off int, collectorBGPID [4]byte, viewName string, peers []PeerEntry) (int, error) {
+	// RFC 6396 Section 4.3.1: "The View Name encoding MUST follow the UTF-8
+	// transformation format [RFC3629]." The length field is two octets.
+	if !utf8.ValidString(viewName) {
+		return 0, ErrViewName
+	}
+	if len(viewName) > math.MaxUint16 {
+		return 0, ErrViewName
+	}
 	start := off
 	copy(buf[off:], collectorBGPID[:])
 	off += 4
@@ -53,7 +66,7 @@ func WritePeerIndexTable(buf []byte, off int, collectorBGPID [4]byte, viewName s
 	for i := range peers {
 		off += WritePeerEntry(buf, off, &peers[i])
 	}
-	return off - start
+	return off - start, nil
 }
 
 func prefixBytes(prefixLen uint8) int {

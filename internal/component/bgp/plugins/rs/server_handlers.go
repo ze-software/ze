@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -153,6 +154,23 @@ func (rs *routeServer) handleStateDown(peerAddr string) {
 	entries := rs.withdrawals[peerAddr]
 	delete(rs.withdrawals, peerAddr)
 	rs.withdrawalMu.Unlock()
+
+	// Resolve retention synchronously: a reconnect or expiry must not change
+	// this DOWN decision before the asynchronous withdrawals run. Query once
+	// per distinct family, without holding RS locks. The RIB owns retained
+	// source/output inventory and its eventual purge withdrawals; this
+	// transient forwarding inventory must not become a second stale store.
+	retained := make(map[family.Family]bool)
+	for wk := range entries {
+		keep, seen := retained[wk.fam]
+		if !seen {
+			keep = retention.Family(peerAddr, wk.fam)
+			retained[wk.fam] = keep
+		}
+		if keep {
+			delete(entries, wk)
+		}
+	}
 
 	go rs.sendBatchedWithdrawals(peerAddr, entries)
 }

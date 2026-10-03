@@ -2051,17 +2051,6 @@
     },
     {
       "rid": "RFC4271-9.2-10",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld",
-      "unit-sha": "2e607a07bb985768",
-      "claim-sha": "71b8db6f0dd25d93",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-      "producer-sha": "07bd5b4c70e0a99c",
-      "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC4271-9.2-10",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld",
       "unit-sha": "2e607a07bb985768",
@@ -2070,6 +2059,17 @@
       "producer": "internal/component/bgp/wireu/split.go::buildCombinedUpdates",
       "producer-sha": "194adddebb8b1b64",
       "break": "body of buildCombinedUpdates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-9.2-10",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld",
+      "unit-sha": "2e607a07bb985768",
+      "claim-sha": "71b8db6f0dd25d93",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+      "producer-sha": "904d752d96d29eac",
+      "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9.2-4",

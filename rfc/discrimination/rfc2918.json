@@ -48,6 +48,28 @@
     {
       "rid": "RFC2918-4-3",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh",
+      "unit-sha": "5195faade5bcc046",
+      "claim-sha": "08eef7c8adfedc90",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
+      "producer-sha": "3a0c432ed15b6cb5",
+      "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer",
+      "unit-sha": "d7421049036a68c9",
+      "claim-sha": "cc8cea8b01d8ded9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleRefreshStructured",
+      "producer-sha": "aaaaba231975ab79",
+      "break": "body of handleRefreshStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState",
       "unit-sha": "dc7158d6e752ab97",
       "claim-sha": "365dcdddfa2cf2a0",
@@ -55,6 +77,51 @@
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
       "producer-sha": "61de16c2a7d6e3ff",
       "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy",
+      "unit-sha": "bac5ba3c5f67b300",
+      "claim-sha": "e0533dc06e5cb1c2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/egress_inject_filter.go::exportFilterForBody",
+      "producer-sha": "140edaf33fa1efa8",
+      "break": "body of exportFilterForBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy",
+      "unit-sha": "bac5ba3c5f67b300",
+      "claim-sha": "9a5292ee3b9e32eb",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/egress_inject_filter.go::exportFilterForBody",
+      "producer-sha": "140edaf33fa1efa8",
+      "break": "body of exportFilterForBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin",
+      "unit-sha": "38326072ce5d6a61",
+      "claim-sha": "c89ca1a7c20cd43b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_write.go::sendUpdateCounted",
+      "producer-sha": "84c01c3dc5ecc81e",
+      "break": "body of sendUpdateCounted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "positive",
+      "unit": "test/plugin/refresh-config-static.ci",
+      "unit-sha": "f0fbdef4ef305d3c",
+      "claim-sha": "def37428f24761e2",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
+      "producer-sha": "3a0c432ed15b6cb5",
+      "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801"
     }
   ]
 }

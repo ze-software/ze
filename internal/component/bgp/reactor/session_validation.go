@@ -432,12 +432,10 @@ func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
 func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	// RFC 4271 Section 9: "If an optional transitive attribute is unrecognized, the
 	// Partial bit (the third high-order bit) in the attribute flags octet is set to 1,
-	// and the attribute is retained for propagation to other BGP speakers." Section 5
-	// states the same obligation from the sending side, and this is the one place that
-	// satisfies both: the bytes stamped here are the bytes the RIB retains, the bytes a
-	// route server relays zero-copy, and the bytes every rebuild copies the untouched
-	// attributes out of. Stamping per destination instead would cost a rebuild on a
-	// forward rail that otherwise sends the received buffer unchanged.
+	// and the attribute is retained for propagation to other BGP speakers."
+	// Ordinary sessions normalize before publication so stored routes and every
+	// forward rail share the result. Route-server client sessions instead retain
+	// the optional attributes for RFC 7947 Section 2.2 transparency.
 	//
 	// It runs only on the paths that PUBLISH, which is why it lives here rather than
 	// beside the RFC 7606 walk: an UPDATE ze session-resets or turns into withdrawals
@@ -450,7 +448,13 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	// call below, which fails on the same input.
 	if sections, secErr := wire.ParseUpdateSections(wu.Payload()); secErr == nil {
 		attrs := sections.Attrs(wu.Payload())
-		attribute.SetPartialOnUnrecognizedTransitive(attrs)
+		// RFC 7947 Section 2.2: "Optional recognized and unrecognized BGP
+		// attributes, whether transitive or non-transitive, SHOULD NOT be
+		// updated by the route server (unless enforced by local IXP operator
+		// configuration) and SHOULD be passed on to other route server clients."
+		if !s.settings.RSClient {
+			attribute.SetPartialOnUnrecognizedTransitive(attrs)
+		}
 
 		// RFC 4271 Section 4.3, the requirement the stamp above does not answer:
 		// "For well-known attributes and for optional non-transitive attributes,
@@ -483,13 +487,15 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 		// Removing an attribute shortens the section, so unlike the stamp this cannot
 		// be done in place. It takes the same route the Section 3.g duplicate strip
 		// above takes, and allocates only when a peer actually sent one.
-		if ranges := message.UnrecognizedNonTransitiveRanges(attrs); len(ranges) > 0 {
-			stripped := message.StripAttrRanges(attrs, ranges)
-			rebuilt := wireu.NewWireUpdate(message.RebuildUpdateBody(wu.Payload(), stripped), wu.SourceCtxID())
-			rebuilt.SetSourceID(wu.SourceID())
-			wu = rebuilt
-			sessionLogger().Debug("RFC 4271 Section 5: dropped unrecognized non-transitive attributes",
-				"peer", s.settings.Address, "count", len(ranges))
+		if !s.settings.RSClient {
+			if ranges := message.UnrecognizedNonTransitiveRanges(attrs); len(ranges) > 0 {
+				stripped := message.StripAttrRanges(attrs, ranges)
+				rebuilt := wireu.NewWireUpdate(message.RebuildUpdateBody(wu.Payload(), stripped), wu.SourceCtxID())
+				rebuilt.SetSourceID(wu.SourceID())
+				wu = rebuilt
+				sessionLogger().Debug("RFC 4271 Section 5: dropped unrecognized non-transitive attributes",
+					"peer", s.settings.Address, "count", len(ranges))
+			}
 		}
 	}
 

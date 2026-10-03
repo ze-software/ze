@@ -1,15 +1,17 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-02",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6396-1-1": {
-      "note": "Forbidden: any multi-octet MRT field written little-endian. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip byte-asserts MSB-first order only for the four common-header fields (Timestamp, Type, Subtype, Length). No tagged assertion covers the PEER_INDEX_TABLE, RIB entry or BGP4MP multi-octet fields (Peer AS, View Name Length, Peer Count, Sequence Number, Entry Count, Originated Time, Interface Index), so a little-endian writer for any of them that round-trips through a matching decoder stays green.",
+      "note": "Independent MRTJudge 2026-10-02. RFC6396 section 1: Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet. TestRFC6396NumericFieldsUseExternalNetworkOrder genuinely closes the old PIT/RIB/BGP4MP field hole: exact literal octets, asymmetric multi-byte values, and separate decoding of independent literals pin name/count/ASN, sequence/count/index/time/attribute-length, and AS2/AS4 ASN/interface/AFI fields. TestCommonHeaderRoundTrip pins its four common-header fields. Whole requirement remains weak: neither tagged unit exercises independently implemented extended-timestamp microseconds, state-change old/new state fields, RIB_GENERIC AFI, or legacy TABLE_DUMP numeric fields; a local endian reversal there survives these tags. The recorded WritePeerIndexTable panic establishes execution, not those missing field assertions. Single-positive annotation is appropriate for a deterministic encoding rule.",
       "requirement_sha": "2760ee7de2407440",
       "tests": {
-        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "a3cf168d6cde55bd"
+        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "e61180c0b2ad8e39",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "31a4363d23e23836"
       },
       "units": {
-        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "449046ff5ce584d2"
+        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "449046ff5ce584d2",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "79bee9db6a159232"
       },
       "verdict": "weak"
     },
@@ -25,26 +27,32 @@
       "verdict": "weak"
     },
     "RFC6396-4.3.1-1": {
-      "note": "Forbidden: an absent view name with a nonzero View Name Length. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName writes a PEER_INDEX_TABLE with an empty view name and asserts binary.BigEndian.Uint16(buf[4:6]) == 0, which goes red on any nonzero length. Single-polarity positive marker on the row: the encoder derives the length from len(viewName), so no absent-name-with-length input exists to reject.",
+      "note": "Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.",
       "requirement_sha": "47bf8b0aa4c0f0a7",
       "tests": {
-        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "a3cf168d6cde55bd"
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "e61180c0b2ad8e39"
       },
       "units": {
-        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "ddc9c811348f593d"
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "c68177d749e81a44"
       },
       "verdict": "enforced"
     },
     "RFC6396-4.3.1-2": {
-      "note": "Forbidden: a View Name that is not UTF-8. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName only writes the empty name, and its utf8.ValidString assertion cannot go red on that input because the empty string is always valid UTF-8. The unit calls the encoder directly and does not drive the producer (internal/plugins/mrt/dump.go), so a producer or encoder that emitted a non-UTF-8 name would stay green.",
+      "note": "Independent MRTJudge 2026-10-02. RFC6396 section 4.3.1: The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. TestRFC6396ViewNameUTF8 positively pins nonempty ASCII and multibyte UTF-8 literal octets and byte length on encode and independent decode; negative inputs isolate illegal leading byte, overlong form, surrogate, out-of-range code point and truncated sequence, requiring encoder error/zero count/untouched buffer and decoder error. Removing either utf8 validation fails the relevant negative assertions. TestRFC6396DumpProducerEmitsNoViewName reaches writeTableDumpV2/writePeerIndexTable and compares exact full PIT body, so invalid production name insertion cannot hide behind the old vacuous empty-string test. Retained empty-name tagged test is supplementary. Native records for both codec polarities and actual producer are present; their panic breaks prove reachability only, while the inspected assertions establish this verdict.",
       "requirement_sha": "cf8b44fb065cbe2f",
       "tests": {
-        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "a3cf168d6cde55bd"
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "e61180c0b2ad8e39",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "31a4363d23e23836",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "31a4363d23e23836",
+        "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName": "aa0a92dcef65f518"
       },
       "units": {
-        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "ddc9c811348f593d"
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "c68177d749e81a44",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "3fb5531384c27cc0",
+        "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "3fb5531384c27cc0",
+        "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName": "3b4cf3a8ba36a2be"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC6396-4.3.1-3": {
       "note": "Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.",
@@ -77,13 +85,13 @@
       "verdict": "enforced"
     },
     "RFC6396-4.4.2-2": {
-      "note": "Forbidden: more than one BGP message in one BGP4MP message record. internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord makes one OnBGPMessage call and asserts one record whose body equals that message. With a single input message there is nothing to coalesce, so a writer that batched consecutive messages into one record would stay green. A second call is needed before the assertion can fail.",
+      "note": "Independent MRTJudge 2026-10-02. RFC6396 section 4.4.2: Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. TestOneBGPMessagePerBGP4MPRecord correctly migrates to the body-only callback and compares the complete reconstructed KEEPALIVE byte-for-byte, but still invokes OnBGPMessage only once. A writer coalescing consecutive callbacks can pass this sole tagged unit. The reactor observer test does assert many separate complete records, but is not tagged to this row. Keep the finding until the row owns consecutive-message evidence; the refreshed panic record cannot close the missing assertion.",
       "requirement_sha": "83fcb565bbdf4552",
       "tests": {
-        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "7ce0477ea917cc7e"
+        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "0e955cefe41cb14e"
       },
       "units": {
-        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "ee14c0aa148ab5bf"
+        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "c67fac046385aa00"
       },
       "verdict": "weak"
     }

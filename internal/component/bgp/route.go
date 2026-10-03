@@ -26,6 +26,7 @@ type Route struct {
 	Family    family.Family `json:"family"`
 	Prefix    string        `json:"prefix"`
 	PathID    uint32        `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
+	AddPath   bool          `json:"add-path,omitempty"` // Distinguishes ADD-PATH identifier zero from no identifier.
 	NextHop   string        `json:"next-hop"`
 	Timestamp time.Time     `json:"timestamp,omitzero"`
 
@@ -43,6 +44,10 @@ type Route struct {
 	// instead of per-field text format. This preserves ALL transitive attributes
 	// (including OTC, unknown attributes) through RIB replay.
 	RawAttrs string `json:"raw-attrs,omitempty"`
+
+	// RawNLRI is one hex-encoded native NLRI, including its path identifier when
+	// AddPath is true. Opaque families use this for lossless replay and display.
+	RawNLRI string `json:"raw-nlri,omitempty"`
 
 	// Meta carries route-level metadata through the RIB for egress filtering on replay.
 	// Set by handleSent from ReceivedUpdate.Meta (e.g., "src-role" for OTC suppression).

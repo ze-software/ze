@@ -88,10 +88,6 @@ var reactorLogger = slogutil.LazyLogger("bgp.reactor")
 // Controlled by ze.log.bgp.routes environment variable.
 var routesLogger = slogutil.LazyLogger("bgp.routes")
 
-// collisionResolutionTimeout is the maximum time to wait for an existing
-// session to close during connection collision resolution (RFC 4271 §6.8).
-const collisionResolutionTimeout = 5 * time.Second
-
 // Reactor errors.
 var (
 	ErrAlreadyRunning = errors.New("reactor already running")
@@ -253,10 +249,10 @@ type peerLifecycleObserver interface {
 	OnPeerClosed(peer *Peer, reason string)
 }
 
-// MessageObserver receives raw BGP messages as they pass through the reactor.
-// Called synchronously on the session read/write goroutine.
-// Implementations MUST NOT block; buffer internally if I/O is needed.
-// Direction: false = received, true = sent.
+// MessageObserver receives complete original BGP messages at the wire boundary.
+// Called synchronously before semantic receive handling or after transport write.
+// Implementations MUST NOT block, retain bytes, or reenter session writes.
+// Direction: false = received, true = sent; rawBytes includes the original header.
 type MessageObserver interface {
 	OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageType, sent bool, rawBytes []byte)
 }

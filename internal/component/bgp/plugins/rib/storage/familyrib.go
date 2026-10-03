@@ -152,7 +152,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	attrLen := uint32(len(attrBytes))
 
 	if !r.cidr {
-		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen) {
+		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen, 0) {
 			return
 		}
 		newEntry, err := ParseAttributes(attrBytes)
@@ -171,7 +171,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	}
 
 	if r.addPath {
-		if r.insertMultiNoOp(pfx, pathID, fp, attrLen) {
+		if r.insertMultiNoOp(pfx, pathID, fp, attrLen, 0) {
 			return
 		}
 		newEntry, err := ParseAttributes(attrBytes)
@@ -222,7 +222,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 // copy after all inserts.
 func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, attrLen uint32) {
 	if !r.cidr {
-		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen) {
+		if r.insertOpaqueNoOp(nlriBytes, fp, attrLen, entry.MsgID) {
 			return
 		}
 		clone := entry
@@ -239,7 +239,7 @@ func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, a
 	}
 
 	if r.addPath {
-		if r.insertMultiNoOp(pfx, pathID, fp, attrLen) {
+		if r.insertMultiNoOp(pfx, pathID, fp, attrLen, entry.MsgID) {
 			return
 		}
 		clone := entry
@@ -252,8 +252,9 @@ func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, a
 
 	if oldEntry, exists := r.direct.Lookup(pfx); exists {
 		if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
-			if oldEntry.StaleLevel != StaleLevelFresh {
+			if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != entry.MsgID {
 				oldEntry.StaleLevel = StaleLevelFresh
+				oldEntry.MsgID = entry.MsgID
 				r.direct.Insert(pfx, oldEntry)
 			}
 			return
@@ -267,8 +268,9 @@ func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, a
 
 	if oldEntry, exists := r.direct.Lookup(pfx); exists {
 		if entriesEqual(oldEntry, clone) {
-			if oldEntry.StaleLevel != StaleLevelFresh {
+			if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != clone.MsgID {
 				oldEntry.StaleLevel = StaleLevelFresh
+				oldEntry.MsgID = clone.MsgID
 				r.direct.Insert(pfx, oldEntry)
 			}
 			clone.Release()
@@ -316,6 +318,7 @@ func (r *FamilyRIB) insertOpaque(nlriBytes []byte, newEntry RouteEntry) {
 	if oldEntry, exists := r.opaque[key]; exists {
 		if entriesEqual(oldEntry, newEntry) {
 			oldEntry.StaleLevel = StaleLevelFresh
+			oldEntry.MsgID = newEntry.MsgID
 			r.opaque[key] = oldEntry
 			newEntry.Release()
 			return
@@ -332,6 +335,7 @@ func (r *FamilyRIB) insertMulti(pfx netip.Prefix, pathID uint32, newEntry RouteE
 	if ps, exists := r.multi.Lookup(pfx); exists {
 		if oldEntry, have := ps.lookup(pathID); have && entriesEqual(oldEntry, newEntry) {
 			oldEntry.StaleLevel = StaleLevelFresh
+			oldEntry.MsgID = newEntry.MsgID
 			ps.upsert(pathID, oldEntry)
 			r.multi.Insert(pfx, ps)
 			newEntry.Release()
@@ -762,13 +766,14 @@ func attrFingerprint(attrBytes []byte) uint64 {
 }
 
 // insertOpaqueNoOp checks if the opaque entry exists with a matching
-// fingerprint+length. If so, clears stale (if needed) and returns true.
-func (r *FamilyRIB) insertOpaqueNoOp(nlriBytes []byte, fp uint64, attrLen uint32) bool {
+// fingerprint+length. If so, refreshes stale state and received ownership.
+func (r *FamilyRIB) insertOpaqueNoOp(nlriBytes []byte, fp uint64, attrLen uint32, messageID uint64) bool {
 	key := r.opaqueKey(nlriBytes)
 	if oldEntry, exists := r.opaque[key]; exists {
 		if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
-			if oldEntry.StaleLevel != StaleLevelFresh {
+			if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID {
 				oldEntry.StaleLevel = StaleLevelFresh
+				oldEntry.MsgID = messageID
 				r.opaque[key] = oldEntry
 			}
 			return true
@@ -778,13 +783,14 @@ func (r *FamilyRIB) insertOpaqueNoOp(nlriBytes []byte, fp uint64, attrLen uint32
 }
 
 // insertMultiNoOp checks if the multi (ADD-PATH) entry exists with a matching
-// fingerprint+length. If so, clears stale (if needed) and returns true.
-func (r *FamilyRIB) insertMultiNoOp(pfx netip.Prefix, pathID uint32, fp uint64, attrLen uint32) bool {
+// fingerprint+length. If so, refreshes stale state and received ownership.
+func (r *FamilyRIB) insertMultiNoOp(pfx netip.Prefix, pathID uint32, fp uint64, attrLen uint32, messageID uint64) bool {
 	if ps, exists := r.multi.Lookup(pfx); exists {
 		if oldEntry, have := ps.lookup(pathID); have {
 			if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
-				if oldEntry.StaleLevel != StaleLevelFresh {
+				if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID {
 					oldEntry.StaleLevel = StaleLevelFresh
+					oldEntry.MsgID = messageID
 					ps.upsert(pathID, oldEntry)
 					r.multi.Insert(pfx, ps)
 				}

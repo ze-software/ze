@@ -3,12 +3,16 @@
 package mrt
 
 import (
+	"encoding/binary"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 	mrtfmt "github.com/ze-software/ze/internal/mrt"
 )
 
@@ -196,7 +200,11 @@ func (c *Component) writePeerIndexTable(hdrSize int, now time.Time, peers []mrtf
 		}
 	}
 	pitBuf := make([]byte, hdrSize+pitSize)
-	pitLen := mrtfmt.WritePeerIndexTable(pitBuf, hdrSize, [4]byte{}, "", peers)
+	pitLen, err := mrtfmt.WritePeerIndexTable(pitBuf, hdrSize, [4]byte{}, "", peers)
+	if err != nil {
+		c.logger.Warn("mrt: encode peer index table", "error", err)
+		return
+	}
 	writeHeader(pitBuf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, mrtfmt.TDV2PeerIndexTable, pitLen)
 	if err := c.routes.Write(pitBuf[:hdrSize+pitLen]); err != nil {
 		c.logger.Warn("mrt: write peer index table", "error", err)
@@ -237,14 +245,53 @@ func (c *Component) headerSize() int {
 	return mrtfmt.CommonHeaderLen
 }
 
-func (c *Component) bgp4mpTypeSubtype() (uint16, uint16) {
+func (c *Component) bgp4mpTypeSubtype(addPath bool) (uint16, uint16) {
 	typ := mrtfmt.TypeBGP4MP
 	if c.config.ExtendedTimestamp {
 		typ = mrtfmt.TypeBGP4MPET
 	}
 	subtype := mrtfmt.BGP4MPMessageAS4
-	if c.config.AddPath {
+	if addPath {
 		subtype = mrtfmt.BGP4MPMessageAS4AP
 	}
 	return typ, subtype
+}
+
+// updateAddPath reads only family fields, never copies or decodes the NLRI.
+// RFC 8050 Section 2: "new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396]
+// are required to signal to an MRT parser how to parse the NLRI."
+func updateAddPath(body []byte, ctxID bgpctx.ContextID) bool {
+	ctx := bgpctx.Registry.Get(ctxID)
+	if ctx == nil {
+		return false
+	}
+	withdrawn, attrs, nlri, err := mrtfmt.UpdateSections(body)
+	if err != nil {
+		// A malformed UPDATE is still recorded. No complete family fields
+		// exist to justify marking this record as ADD-PATH.
+		return false
+	}
+	if len(withdrawn)+len(nlri) > 0 {
+		if ctx.AddPath(family.IPv4Unicast) {
+			return true
+		}
+	}
+	iter := attribute.NewAttrIterator(attrs)
+	for code, _, value, ok := iter.Next(); ok; code, _, value, ok = iter.Next() {
+		switch code {
+		case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI:
+			if len(value) < 3 {
+				continue
+			}
+			fam := family.Family{
+				AFI:  family.AFI(binary.BigEndian.Uint16(value[:2])),
+				SAFI: family.SAFI(value[2]),
+			}
+			if ctx.AddPath(fam) {
+				return true
+			}
+		default:
+		}
+	}
+	return false
 }

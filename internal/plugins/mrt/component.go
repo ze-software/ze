@@ -96,12 +96,22 @@ func (c *Component) Start(bus ze.EventBus) {
 }
 
 // OnBGPMessage implements reactor.MessageObserver.
-// Called synchronously on the session goroutine with raw wire bytes.
+// Called synchronously with the complete original BGP header and body.
+// The caller MUST supply its direction-specific MessageContextID and MUST keep
+// rawBytes valid until return; the recorder copies it into its own pooled record.
 func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageType, sent bool, rawBytes []byte) {
 	if c.updates == nil && c.allMsgs == nil {
 		return
 	}
 	if !c.shouldRecord(peer, sent) {
+		return
+	}
+	if len(rawBytes) > maxBGPMessageLen {
+		c.logger.Warn("mrt: BGP message exceeds maximum message length", "size", len(rawBytes))
+		return
+	}
+	if len(rawBytes) < 19 {
+		c.logger.Warn("mrt: incomplete BGP message", "size", len(rawBytes))
 		return
 	}
 
@@ -111,7 +121,11 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageT
 	defer bufPool.Put(pb)
 
 	now := time.Now()
-	typ, subtype := c.bgp4mpTypeSubtype()
+	addPath := false
+	if isUpdate {
+		addPath = updateAddPath(rawBytes[19:], peer.MessageContextID)
+	}
+	typ, subtype := c.bgp4mpTypeSubtype(addPath)
 	as4 := mrtfmt.IsAS4Subtype(subtype)
 	if sent {
 		subtype = localSubtype(subtype)
@@ -121,6 +135,8 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType msgtype.MessageT
 	var hdr mrtfmt.BGP4MPHeader
 	peerInfoToHeader(peer, ipBuf[:], &hdr)
 	off := c.headerSize()
+	// RFC 6396 Section 4.4.2: "Only one BGP message SHALL be encoded in the
+	// BGP4MP_MESSAGE Subtype." Never reconstruct or split the observed packet.
 	msgLen := mrtfmt.WriteBGP4MPMessage(pb.b, off, &hdr, as4, rawBytes)
 	total := off + msgLen
 	if total > len(pb.b) {

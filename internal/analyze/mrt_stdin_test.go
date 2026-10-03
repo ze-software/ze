@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 func bgp4mpRecord() []byte {
@@ -19,8 +20,9 @@ func bgp4mpRecord() []byte {
 	binary.BigEndian.PutUint32(rec[0:4], 1000) // timestamp
 	binary.BigEndian.PutUint16(rec[4:6], mrtBGP4MP)
 	binary.BigEndian.PutUint16(rec[6:8], subtypeBGP4MPMessageAS4)
-	binary.BigEndian.PutUint32(rec[8:12], 0) // zero-length body
-	return rec
+	body := makeBGP4MPRecord(4, 65000, 1, buildUpdate(nil, nil, nil))
+	binary.BigEndian.PutUint32(rec[8:12], uint32(len(body)))
+	return append(rec, body...)
 }
 
 func countBGP4MP(t *testing.T, stdin []byte) int {
@@ -29,7 +31,7 @@ func countBGP4MP(t *testing.T, stdin []byte) int {
 	defer restore()
 	count := 0
 	err := processMRTFile("-", mrtHandler{
-		OnBGP4MP: func(_ []byte, _ uint16, _ uint32) { count++ },
+		OnBGP4MP: func(_ []byte, _ uint16, _ uint32, _ mrt.BGPMessage) { count++ },
 	})
 	if err != nil {
 		t.Fatalf("processMRTFile(-): %v", err)

@@ -128,13 +128,10 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		}
 	}
 
-	// Protocol event capture tee (capture_replay.go). Placed here, on the
-	// complete wire message and BEFORE processMessage, because everything
-	// downstream can rewrite or short-circuit it: RFC 7606 enforcement
-	// tombstones attributes and synthesizes withdrawals, and the message
-	// observer hook fires only after that. A capture exists to record what the
-	// peer actually sent, which is exactly what the observer hook cannot see.
+	// Both capture consumers observe the original complete packet before semantic
+	// validation, synthesis or coalescing. Neither semantic callback is a wire tee.
 	s.teeCapture(uint8(hdr.Type), buf.Buf[:hdr.Length])
+	s.observeReceivedWire(buf.Buf[:hdr.Length])
 
 	// Track wire bytes received.
 	if s.prefixMetrics != nil {

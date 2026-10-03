@@ -102,8 +102,8 @@ func runStatistics(args []string) int {
 			OnMessage: func(_ mrt.Header, _ uint32, m *mrt.MessageRecord) error {
 				peerKey := net.IP(m.PeerIP).String()
 				st.Peers[peerKey] = uint64(m.PeerAS)
-				if len(m.BGPMessage) >= 19 {
-					bgpType := m.BGPMessage[18]
+				if len(m.BGPMessage.Bytes) >= 19 {
+					bgpType := m.BGPMessage.Bytes[18]
 					st.BGPMsgTypes[bgpMsgTypeName(bgpType)]++
 				}
 				return nil

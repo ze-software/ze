@@ -286,8 +286,8 @@ func TestBGP4MPTypeSubtype(t *testing.T) {
 		{true, true, mrtfmt.TypeBGP4MPET, mrtfmt.BGP4MPMessageAS4AP},
 	}
 	for _, tc := range cases {
-		c := &Component{config: Config{ExtendedTimestamp: tc.extTS, AddPath: tc.addPath}}
-		typ, sub := c.bgp4mpTypeSubtype()
+		c := &Component{config: Config{ExtendedTimestamp: tc.extTS, AddPath: !tc.addPath}}
+		typ, sub := c.bgp4mpTypeSubtype(tc.addPath)
 		if typ != tc.wantType || sub != tc.wantSubtype {
 			t.Errorf("bgp4mpTypeSubtype(extTS=%v,addPath=%v) = (%d,%d), want (%d,%d)",
 				tc.extTS, tc.addPath, typ, sub, tc.wantType, tc.wantSubtype)

@@ -25,7 +25,7 @@ func buildBGPMessage(msgType byte, body []byte) []byte {
 
 func TestParseBGPMessage_Keepalive(t *testing.T) {
 	msg := buildBGPMessage(4, nil)
-	parsed, err := mrt.ParseBGPMessage(msg)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	require.NoError(t, err)
 	assert.Equal(t, uint8(4), parsed.Type)
 	assert.Nil(t, parsed.Open)
@@ -47,7 +47,7 @@ func TestParseBGPMessage_Open(t *testing.T) {
 	body[9] = 0 // opt params length
 
 	msg := buildBGPMessage(1, body)
-	parsed, err := mrt.ParseBGPMessage(msg)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	require.NoError(t, err)
 	require.NotNil(t, parsed.Open)
 	assert.Equal(t, uint8(4), parsed.Open.Version)
@@ -73,7 +73,7 @@ func TestParseBGPMessage_OpenWith4ByteAS(t *testing.T) {
 	copy(body[10:], optParam)
 
 	msg := buildBGPMessage(1, body)
-	parsed, err := mrt.ParseBGPMessage(msg)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	require.NoError(t, err)
 	require.NotNil(t, parsed.Open)
 	assert.Equal(t, uint32(65536), parsed.Open.ASN)
@@ -96,7 +96,7 @@ func TestParseBGPMessage_Update(t *testing.T) {
 	body[off+1] = 10 // 10.x.x.x
 
 	msg := buildBGPMessage(2, body)
-	parsed, err := mrt.ParseBGPMessage(msg)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	require.NoError(t, err)
 	require.NotNil(t, parsed.Update)
 	assert.Empty(t, parsed.Update.WithdrawnPrefixes)
@@ -117,7 +117,7 @@ func TestParseBGPMessage_UpdateWithWithdrawn(t *testing.T) {
 	binary.BigEndian.PutUint16(body[2+len(withdrawn):], 0) // attr length
 
 	msg := buildBGPMessage(2, body)
-	parsed, err := mrt.ParseBGPMessage(msg)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	require.NoError(t, err)
 	require.NotNil(t, parsed.Update)
 	require.Len(t, parsed.Update.WithdrawnPrefixes, 1)
@@ -127,7 +127,7 @@ func TestParseBGPMessage_UpdateWithWithdrawn(t *testing.T) {
 func TestParseBGPMessage_Notification(t *testing.T) {
 	body := []byte{6, 2, 0xDE, 0xAD} // Cease, Administrative Shutdown, data
 	msg := buildBGPMessage(3, body)
-	parsed, err := mrt.ParseBGPMessage(msg)
+	parsed, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	require.NoError(t, err)
 	require.NotNil(t, parsed.Notification)
 	assert.Equal(t, uint8(6), parsed.Notification.Code)
@@ -140,12 +140,12 @@ func TestParseBGPMessage_BadMarker(t *testing.T) {
 	msg[0] = 0x00 // bad marker
 	binary.BigEndian.PutUint16(msg[16:], 19)
 	msg[18] = 4
-	_, err := mrt.ParseBGPMessage(msg)
+	_, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: msg})
 	assert.Error(t, err)
 }
 
 func TestParseBGPMessage_TooShort(t *testing.T) {
-	_, err := mrt.ParseBGPMessage([]byte{0xff, 0xff})
+	_, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: []byte{0xff, 0xff}})
 	assert.Error(t, err)
 }
 
@@ -194,7 +194,8 @@ func TestParseAttributes(t *testing.T) {
 		0x40, 1, 1, 0x00, // ORIGIN IGP
 		0x40, 5, 4, 0, 0, 0, 100, // LOCAL_PREF 100
 	}
-	attrs := mrt.ParseAttributes(data)
+	attrs, err := mrt.ParseAttributes(data)
+	require.NoError(t, err)
 	require.Len(t, attrs, 2)
 	assert.Equal(t, uint8(1), attrs[0].Code)
 	assert.Equal(t, []byte{0x00}, attrs[0].Value)
@@ -283,7 +284,7 @@ func TestParseBGPMessage_DamagedUpdateSalvagesAndReports(t *testing.T) {
 		0, 0, // path attribute length 0
 		16, 192, // claims /16 (2 octets), only 1 follows -- truncated
 	}
-	msg, err := mrt.ParseBGPMessage(buildBGPMessage(2, body))
+	msg, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: buildBGPMessage(2, body)})
 
 	require.Error(t, err, "a damaged UPDATE MUST be reported")
 	require.NotNil(t, msg, "the salvaged message MUST be returned, not discarded")
@@ -308,7 +309,7 @@ func TestParseBGPMessage_CleanUpdateReportsNoError(t *testing.T) {
 		0, 0, // attribute length 0
 		16, 192, 168, // 192.168.0.0/16
 	}
-	msg, err := mrt.ParseBGPMessage(buildBGPMessage(2, body))
+	msg, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: buildBGPMessage(2, body)})
 	require.NoError(t, err)
 	require.NotNil(t, msg.Update)
 	assert.Len(t, msg.Update.WithdrawnPrefixes, 1)
@@ -319,7 +320,7 @@ func TestParseBGPMessage_UnsalvageableUpdateReturnsNil(t *testing.T) {
 	// VALIDATES: a body too broken to yield any field still returns nil.
 	// PREVENTS: handing callers a ParsedMessage whose Update is nil, which the
 	// existing consumers dereference.
-	msg, err := mrt.ParseBGPMessage(buildBGPMessage(2, []byte{0, 99}))
+	msg, err := mrt.ParseBGPMessage(mrt.BGPMessage{Bytes: buildBGPMessage(2, []byte{0, 99})})
 	require.Error(t, err)
 	assert.Nil(t, msg)
 }

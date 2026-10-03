@@ -121,6 +121,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	// flushCoalesce dispatches a synthetic UPDATE with a header the peer never
 	// sent, which would replay as one message where the peer sent several.
 	s.teeCapture(uint8(hdr.Type), buf.Buf[:hdr.Length])
+	s.observeReceivedWire(buf.Buf[:hdr.Length])
 
 	// Counts actual wire bytes, not coalesced synthetic size.
 	if s.prefixMetrics != nil {

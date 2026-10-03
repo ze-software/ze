@@ -123,6 +123,12 @@ Peers are keyed by name: `peer <name> { }` where the name must start with a lett
 | `capture { }` | Protocol event capture, off by default | No |
 | `attach { process <name> { } }` | Programs this peer feeds and accepts messages from | No |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree -->
+
+GTSM's no-decrement rule concerns locally originated control traffic crossing
+the router's own output path (RFC 5082 Section 3), not transit packets.
+The Linux proof captures a configured TCP dialer's SYN and payload at an
+adjacent namespace over a routed veth link and checks TTL 255 on that egress.
+Loopback TTL tests are calibration only.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings -->
 
 ## Capabilities

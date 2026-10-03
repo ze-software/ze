@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -356,6 +355,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 // Interns wire attribute bytes into pool.RibOut for deduplication.
 func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	msgID := se.MessageID
+	// Replay and RIB-owned lifecycle writes are feedback, not new ownership.
+	// Delayed feedback MUST NOT restore purged routes or their old attributes.
+	if _, replay := se.Meta["replay"]; replay {
+		return
+	}
+	if _, lifecycle := se.Meta["rib-lifecycle"]; lifecycle {
+		return
+	}
 
 	if se.PeerAddress == "" {
 		return
@@ -366,14 +373,12 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		return
 	}
 
-	// Skip config-static routes: they are always re-sent from config on
-	// reconnection by sendInitialRoutes. Storing them in ribOut would cause
-	// duplicates (config re-send + RIB replay).
-	if se.Meta != nil {
-		if _, isConfigStatic := se.Meta["config-static"]; isConfigStatic {
-			return
-		}
-	}
+	// RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to
+	// that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message,
+	// based on its outbound route filtering policy."
+	// Config owns initial advertisement, but refresh needs its sent routes too.
+	_, configStatic := se.Meta["config-static"]
+	_, replay := se.Meta["replay"]
 
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
@@ -432,7 +437,8 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath, msgID, attrHandle, sourcePeer)
+		r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath,
+			ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID}, sourcePeer, replay)
 	}
 
 	// Process MP_REACH_NLRI announces.
@@ -442,7 +448,8 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath, msgID, attrHandle, sourcePeer)
+			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath,
+				ribOutEntry{MsgID: msgID, AttrHandle: attrHandle, ConfigStatic: configStatic, SourceMessageID: msg.SourceMessageID}, sourcePeer, replay)
 		}
 	}
 
@@ -455,35 +462,49 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 // storeSentEntries walks NLRI bytes and stores ribOutEntry records in ribOut.
 // Caller must hold write lock.
 func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nlriData []byte, addPath bool,
-	msgID uint64, attrHandle attrpool.Handle, sourcePeer string) {
+	entry ribOutEntry, sourcePeer string, replay bool) {
 
+	if replay {
+		return
+	}
+	split := nlrisplit.Get(fam)
+	if split == nil {
+		logger().Warn("sent: unsupported NLRI family", "family", fam)
+		return
+	}
+	if r.ribOut[peerAddr] == nil {
+		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
+	}
 	if r.ribOut[peerAddr][fam] == nil {
 		r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 	}
-
-	iter := nlri.NewNLRIIterator(nlriData, addPath)
-	for {
-		wirePrefix, pathID, ok := iter.Next()
-		if !ok {
-			break
-		}
-		pfx, valid := nlri.WirePrefixToKey(wirePrefix, fam)
+	_, err := split(nlriData, addPath, func(raw []byte) {
+		key, valid := ribOutRouteKey(fam, raw, addPath)
 		if !valid {
-			continue
+			logger().Warn("sent: invalid NLRI key", "family", fam)
+			return
 		}
-		key := ribOutKey{Prefix: pfx, PathID: pathID}
-		_, existed := r.ribOut[peerAddr][fam][key]
+		old, existed := r.ribOut[peerAddr][fam][key]
+		stored := entry
+		stored.AddPath = addPath
+		stored.SourcePeer = sourcePeer
+		if !key.Prefix.IsValid() {
+			if key.Native == string(raw) {
+				stored.NativeNLRI = key.Native
+			} else {
+				stored.NativeNLRI = string(raw)
+			}
+		}
 		if existed {
-			r.ribOut[peerAddr][fam][key].release()
+			old.release()
 		}
-		if attrHandle.IsValid() {
-			_ = pool.RibOut.AddRef(attrHandle)
+		if stored.AttrHandle.IsValid() {
+			_ = pool.RibOut.AddRef(stored.AttrHandle)
 		}
-		r.ribOut[peerAddr][fam][key] = ribOutEntry{
-			MsgID:      msgID,
-			AttrHandle: attrHandle,
-		}
-		r.setRibOutSource(fam, key, sourcePeer, !existed)
+		r.ribOut[peerAddr][fam][key] = stored
+	})
+	if err != nil {
+		logger().Warn("sent: invalid NLRI framing", "family", fam, "error", err)
 	}
 }
 
@@ -495,22 +516,24 @@ func (r *RIBManager) removeSentNLRIs(peerAddr netip.Addr, fam family.Family, wdD
 		return
 	}
 
-	iter := nlri.NewNLRIIterator(wdData, addPath)
-	for {
-		wirePrefix, pathID, ok := iter.Next()
-		if !ok {
-			break
-		}
-		pfx, valid := nlri.WirePrefixToKey(wirePrefix, fam)
+	split := nlrisplit.GetWithdraw(fam)
+	if split == nil {
+		logger().Warn("sent withdrawal: unsupported NLRI family", "family", fam)
+		return
+	}
+	_, err := split(wdData, addPath, func(raw []byte) {
+		key, valid := ribOutRouteKeyForAction(fam, raw, addPath, true)
 		if !valid {
-			continue
+			logger().Warn("sent withdrawal: invalid NLRI key", "family", fam)
+			return
 		}
-		key := ribOutKey{Prefix: pfx, PathID: pathID}
 		if old, exists := familyRoutes[key]; exists {
 			old.release()
 			delete(familyRoutes, key)
 		}
-		r.releaseRibOutSource(fam, key)
+	})
+	if err != nil {
+		logger().Warn("sent withdrawal: invalid NLRI framing", "family", fam, "error", err)
 	}
 
 	if len(familyRoutes) == 0 {

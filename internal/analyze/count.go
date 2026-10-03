@@ -37,7 +37,11 @@ Examples:
 		if err := processMRTFile(fname, mrtHandler{
 			OnRIB: func(data []byte, subtype uint16) {
 				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
-					n := countAttrs(attrs)
+					n, err := countAttrs(attrs)
+					if err != nil {
+						damaged.note(err)
+						return
+					}
 					counts[n]++
 					total++
 				}))

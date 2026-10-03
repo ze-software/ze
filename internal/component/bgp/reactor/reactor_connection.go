@@ -23,12 +23,11 @@ import (
 // Architecture:
 //
 //	handleConnection()
-//	├── ESTABLISHED → rejectConnectionCollision() [NOTIFICATION 6/7]
-//	├── OpenConfirm → setPendingConnection() + go handlePendingCollision()
+//	├── OpenSent/OpenConfirm/Established → setPendingConnection() + go handlePendingCollision()
 //	│                  └── Read OPEN → resolvePendingCollision()
 //	│                       ├── Local wins → rejectConnectionCollision()
-//	│                       └── Remote wins → CloseWithNotification() existing
-//	│                                        + acceptPendingConnection()
+//	│                       └── Remote wins → queue original OPEN + socket
+//	│                                        + CloseWithNotification() existing
 //	└── Other states → normal acceptConnection()
 func (r *Reactor) handleConnection(conn net.Conn) {
 	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
@@ -361,41 +360,11 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 		return
 	}
 
-	// Resolve collision using BGP ID from OPEN
-	acceptPending, pendingConn, pendingOpen, waitSession := peer.resolvePendingCollision(open)
-
-	if !acceptPending {
-		// Local wins: close pending with NOTIFICATION
-		r.rejectConnectionCollision(pendingConn)
-		return
-	}
-
-	// Remote wins: existing session is being closed, accept pending
-	// We need to wait a bit for the existing session to close, then
-	// start a new session with the pending connection
-	r.acceptPendingConnection(peer, pendingConn, pendingOpen, waitSession)
-}
-
-// acceptPendingConnection accepts a pending connection after collision resolution.
-// The existing session has been closed, so we accept the pending connection with its pre-received OPEN.
-func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *message.Open, waitSession <-chan struct{}) {
-	// Wait for existing session to fully close
-	// The CloseWithNotification was called in resolvePendingCollision
-	if waitSession != nil {
-		timer := r.clock.NewTimer(collisionResolutionTimeout)
-		defer timer.Stop()
-		select {
-		case <-waitSession:
-			// Session closed
-		case <-timer.C():
-			reactorLogger().Warn("session teardown timed out during collision resolution", "peer", peer.Settings().Address)
-		}
-	}
-
-	// Accept connection with the pre-received OPEN
-	if err := peer.acceptConnectionWithOpen(conn, open); err != nil {
-		// Failed to accept - peer may have been stopped or old session not yet closed
-		_ = conn.Close()
+	// Resolution consumes the original OPEN buffer when the remote wins.
+	// The Peer run loop owns acceptance after the losing epoch is cleaned up.
+	accepted, rejected := peer.resolvePendingCollision(open, buf[:hdr.Length])
+	if !accepted && rejected != nil {
+		r.rejectConnectionCollision(rejected)
 	}
 }
 

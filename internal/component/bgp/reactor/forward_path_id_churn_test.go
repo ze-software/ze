@@ -265,10 +265,6 @@ func TestForwardPathIDWithdrawCarriesTheAnnouncedValue(t *testing.T) {
 // rewrites the identifiers of a withdrawn section exactly as it rewrites an
 // announced one, and each distinct value in it used to buy a permanent entry. A
 // full-size UPDATE carries hundreds of them and needs no announcement first.
-// RFC requirement: RFC7911-5-4 positive -- "If a BGP speaker receives a message
-// to withdraw a prefix with a Path Identifier not seen before, it SHOULD
-// silently ignore it", which is what the destination does with the identifier ze
-// mints for such a withdraw and immediately frees.
 func TestForwardPathIDWithdrawOfUnknownPathLeavesNothing(t *testing.T) {
 	r, src, _, _, ctxID := fwdChurnRail(t)
 

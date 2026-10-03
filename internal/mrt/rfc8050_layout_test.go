@@ -138,8 +138,8 @@ func TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields(t *testing.T) {
 			if !bytes.Equal(got.LocalIP, []byte{0xc0, 0x00, 0x02, 0x02}) {
 				t.Errorf("Local IP = % x, want c0 00 02 02", got.LocalIP)
 			}
-			if !bytes.Equal(got.BGPMessage, rfc8050Update) {
-				t.Errorf("BGP message = % x, want the entire UPDATE % x", got.BGPMessage, rfc8050Update)
+			if !bytes.Equal(got.BGPMessage.Bytes, rfc8050Update) {
+				t.Errorf("BGP message = % x, want the entire UPDATE % x", got.BGPMessage.Bytes, rfc8050Update)
 			}
 
 			_, base := readRFC8050Message(t, rfc8050BGP4MPRecord(tc.base, tc.fields))
@@ -147,8 +147,8 @@ func TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields(t *testing.T) {
 				t.Errorf("base subtype %d read AS %d/%d AFI %d, add-path read AS %d/%d AFI %d",
 					tc.base, base.PeerAS, base.LocalAS, base.AFI, got.PeerAS, got.LocalAS, got.AFI)
 			}
-			if !bytes.Equal(base.BGPMessage, got.BGPMessage) {
-				t.Errorf("base subtype %d message % x differs from add-path % x", tc.base, base.BGPMessage, got.BGPMessage)
+			if !bytes.Equal(base.BGPMessage.Bytes, got.BGPMessage.Bytes) {
+				t.Errorf("base subtype %d message % x differs from add-path % x", tc.base, base.BGPMessage.Bytes, got.BGPMessage.Bytes)
 			}
 		})
 	}

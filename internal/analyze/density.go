@@ -10,6 +10,7 @@
 package analyze
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -101,11 +102,12 @@ Examples:
 
 	for _, fname := range args {
 		if err := processMRTFile(fname, mrtHandler{
-			OnBGP4MP: func(data []byte, subtype uint16, ts uint32) {
-				damaged.note(densityProcessBGP4MP(data, subtype, ts, st))
+			OnBGP4MP: func(data []byte, subtype uint16, ts uint32, wire mrt.BGPMessage) {
+				damaged.note(densityProcessBGP4MP(data, subtype, ts, wire, st))
 			},
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "error processing %s: %v\n", fname, err)
+			return 1
 		}
 	}
 
@@ -125,6 +127,9 @@ Examples:
 	// Before the results, not after: the warning qualifies every number that
 	// follows, and on a long report a trailing note scrolls past unread.
 	damaged.report(os.Stderr)
+	if damaged.records > 0 {
+		return 1
+	}
 	printDensityResults(st)
 	return 0
 }
@@ -132,7 +137,11 @@ Examples:
 // densityProcessBGP4MP folds one BGP4MP record into the density statistics.
 // It returns the NLRI-counting error so the caller can tell the operator the
 // figures are incomplete; a nil return means the record counted cleanly.
-func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densityStats) error {
+func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, wire mrt.BGPMessage, st *densityStats) error {
+	annCount, wdCount, countErr := countUpdateNLRIs(wire)
+	if countErr != nil {
+		return countErr
+	}
 	body, peerASN := extractBGP4MPUpdate(subtype, data)
 	if body == nil {
 		return nil
@@ -159,7 +168,6 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densitySta
 		}
 	}
 
-	annCount, wdCount, countErr := countUpdateNLRIs(body)
 
 	st.totalUpdates++
 	st.totalAnnNLRI += annCount
@@ -213,49 +221,41 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densitySta
 // still the best available -- the salvage contract of mrt.ParsePrefixesAFI --
 // but the caller MUST surface the error, or it has reintroduced the same silent
 // under-count in a new place (ai/rules/evidence.md).
-func countUpdateNLRIs(body []byte) (announced, withdrawn int, err error) {
-	wd, attrs, nlri, serr := mrt.UpdateSections(body)
-	if serr != nil {
-		return 0, 0, serr
+func countUpdateNLRIs(wire mrt.BGPMessage) (announced, withdrawn int, err error) {
+	parsed, err := mrt.ParseBGPMessage(wire)
+	if parsed == nil {
+		return 0, 0, err
 	}
-
-	var damage []error
-
-	// RFC 4271 Section 4.3: the UPDATE's own withdrawn and NLRI fields are
-	// IPv4 unicast; every other family travels in MP_REACH/MP_UNREACH.
-	wdPrefixes, wderr := mrt.ParsePrefixes(wd, false)
-	withdrawn = len(wdPrefixes)
-	if wderr != nil {
-		damage = append(damage, fmt.Errorf("withdrawn routes: %w", wderr))
+	if parsed.Update == nil {
+		return 0, 0, err
 	}
-
-	annPrefixes, anerr := mrt.ParsePrefixes(nlri, false)
-	announced = len(annPrefixes)
-	if anerr != nil {
-		damage = append(damage, fmt.Errorf("NLRI: %w", anerr))
-	}
-
-	for _, a := range mrt.ParseAttributes(attrs) {
+	update := parsed.Update
+	announced, withdrawn = len(update.AnnouncedPrefixes), len(update.WithdrawnPrefixes)
+	damage := []error{err}
+	for _, a := range update.Attributes {
+		if a.Code != mrt.AttrMPReachNLRI && a.Code != mrt.AttrMPUnreachNLRI {
+			continue
+		}
+		if len(a.Value) < 3 {
+			damage = append(damage, mrt.ErrShortData)
+			continue
+		}
+		addPath := update.AddPathFor(binary.BigEndian.Uint16(a.Value[:2]), a.Value[2])
 		switch a.Code {
 		case mrt.AttrMPReachNLRI:
-			mp, mperr := mrt.ParseMPReach(a.Value)
+			mp, mperr := mrt.ParseMPReach(a.Value, addPath)
 			if mp != nil {
 				announced += len(mp.Prefixes)
 			}
-			if mperr != nil {
-				damage = append(damage, mperr)
-			}
+			damage = append(damage, mperr)
 		case mrt.AttrMPUnreachNLRI:
-			mp, mperr := mrt.ParseMPUnreach(a.Value)
+			mp, mperr := mrt.ParseMPUnreach(a.Value, addPath)
 			if mp != nil {
 				withdrawn += len(mp.Prefixes)
 			}
-			if mperr != nil {
-				damage = append(damage, mperr)
-			}
+			damage = append(damage, mperr)
 		}
 	}
-
 	return announced, withdrawn, errors.Join(damage...)
 }
 
