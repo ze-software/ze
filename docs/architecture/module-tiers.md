@@ -87,20 +87,70 @@ consumers and `./le repo feature-tags check` refuses drift.
 ## What the gate enforces
 
 `./le arch tier check` enforces engine placement, the non-engine manifest, core
-import direction, disable-ability, and build-tag drift. Grandfathered core
-import pairs are non-code data in
+import direction, disable-ability, build-tag drift, and plugin import ownership.
+Grandfathered core import pairs are non-code data in
 `internal/le/arch/tier/testdata/core_import_baseline.txt`; a new pair and a stale
-row both fail.
+row both fail. Plugin ownership has **no baseline**.
 
 `internal/le/arch/tier/testdata/tier_migration_baseline.txt` lists engines scheduled
 to move. The gate fails on a new violation and on a stale entry, so the file
 can only shrink. An empty baseline means zero exceptions.
 
-The gate excludes nested sub-plugin namespaces, which it reads from `pluginDirs`
-in `internal/le/plugin/imports/pluginimports.go`, so packages under
-`internal/component/bgp/plugins/` are never flagged for being nested.
+The **placement** check excludes nested sub-plugin namespaces, which it reads
+from `PluginSearchRoots` in `internal/le/plugin/imports/pluginimports.go`.
+The **ownership** check includes them. Both use the composition generator's
+policy roots rather than maintaining another list.
 
-<!-- source: internal/le/plugin/imports/pluginimports.go -- pluginDirs -->
+### Plugin import ownership
+
+The ownership check rejects production imports into another plugin's
+implementation. It reads actual Go import declarations, including aliases, dot
+imports and blank imports, without filtering platform files or build tags.
+Unreadable or malformed source fails the check; comments and string literals
+are not import edges. Dependency direction is checked throughout production
+source, so routing an import through a shared helper still fails at the helper's
+edge into the plugin.
+
+Ownership follows the existing registration layout:
+
+- Under a `plugins` search root, the first non-schema `register.go` on a package's
+  ancestry defines its owner. This distinguishes grouped plugins such as
+  `bgp/plugins/nlri/ls` and `bgp/plugins/nlri/flowspec`, while keeping `rib/pool`
+  and a registered owner's command packages inside their owner. Without a
+  registration, the immediate child of the namespace owns its subtree.
+- A nested standalone search root, such as `bgp/reactor/filter`, owns its subtree.
+  A more deeply declared search root starts a separate ownership boundary.
+- Top-level component search roots, such as BFD and iface, remain host
+  infrastructure, not edge-plugin owners. Their shared APIs remain valid
+  dependencies; a registered descendant still owns its implementation.
+
+Within-owner imports and shared contracts outside an owned subtree remain
+allowed. A package called `api` inside a plugin does not become shared by name.
+Registration is allowed only for an actual blank-import edge from `cmd/ze`'s
+main package or the import-only `internal/component/plugin/all` composition
+files. A `dispatch` or `all.go` filename alone grants no exemption. Named and dot
+imports from those roots still fail, and an arbitrary production package's
+blank import still pins the plugin and fails.
+
+Test files, test/chaos/performance harnesses, `internal/le` and `bin` tools are not
+production importers. The shared scanner excludes fixture `testdata` directories,
+vendored dependencies, scratch trees and the existing module-cache/worktree
+exclusions. It parses the remaining Go files in full.
+
+`./le arch tier check` already runs in regular worktree verification.
+`./le arch tier selftest` includes clean ownership and forbidden platform-helper
+fixtures; package tests also dispatch the registered command and distinguish
+registration from functional imports. Ownership failures name each importing
+file and imported package in deterministic order.
+
+This graph check does **not** prove full feature ownership or runtime
+removeability. In particular, copied role policy such as reactor logic reading
+`RSClient` can violate the plugin rule without importing the route-server plugin.
+The process-local-call heuristic and generated-import freshness check enforce
+different properties; neither substitutes for ownership checks.
+
+<!-- source: internal/le/plugin/imports/pluginimports.go -- PluginSearchRoots -->
+<!-- source: internal/le/arch/tier/ownership.go -- pluginOwner, pluginOwnershipGate, compositionRegistration -->
 
 ## Related documents
 

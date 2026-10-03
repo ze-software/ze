@@ -2,8 +2,8 @@
 //
 // Overview: tier.go -- the import audit these fixtures exercise
 //
-// selftest.go proves the five checks independently from the live tree. It uses
-// three fixture checkouts and one row for each property.
+// selftest.go proves placement and ownership independently from the live tree,
+// with one row for each property.
 //
 // Clean output cannot distinguish a valid gate from broken detection. Fixtures
 // therefore place required failures beside permitted placements.
@@ -207,15 +207,14 @@ func caseResult(name string, ok bool, detail string) leroot.SelftestResult {
 	return leroot.Fail(name, detail)
 }
 
-// Selftest writes three fixture checkouts and runs all checks. It answers one row
-// for each property.
+// Selftest writes isolated fixture checkouts and answers one row per property.
 //
 // A fixture write or scan error differs from failed detection. The function
 // returns that error separately instead of adding another failing row.
 func Selftest() (leroot.SelftestReport, error) {
 	var results []leroot.SelftestResult
 	for _, stage := range []func() ([]leroot.SelftestResult, error){
-		runPlacementCases, runManifestCases, runCoreCases,
+		runPlacementCases, runManifestCases, runCoreCases, runOwnershipCases,
 	} {
 		rows, err := stage()
 		if err != nil {
@@ -398,11 +397,11 @@ func runGateSequence(root string, edges Edges, misplaced map[string]string) ([]l
 		"a stale baseline entry passed, so the baseline can grow")), nil
 }
 
-// quietCheck runs the five gates and answers the code alone. Nothing is
-// printed: a selftest that wrote its fixtures' pages to the terminal would bury
-// its own verdict.
+// quietCheck runs the five placement checks and answers the code alone. The
+// placement fixture deliberately includes imports of misplaced edge packages;
+// the ownership gate has separate fixtures and no migration baseline.
 func quietCheck(root string, edges Edges) (int, error) {
-	report, err := CheckWith(root, fixtureModule, edges)
+	report, err := tierChecks(root, fixtureModule, edges)
 	if err != nil {
 		return 0, err
 	}
@@ -635,4 +634,56 @@ func runSelftest() (any, int) {
 		return nil, 2
 	}
 	return report, report.Code(1)
+}
+
+// ownershipFixture keeps the placement gates clean while changing import edges.
+// A grouped NLRI owner, an owner-local helper and shared host contracts coexist.
+func ownershipFixture() map[string]string {
+	return map[string]string{
+		"go.mod":                  "module example.com/m\n",
+		FeatureGatesManifest:      "# no compile-out gates\n",
+		Golangci:                  "run:\n  build-tags:\n    - ze_core\nlinters: {}\n",
+		NonEngineCategories:       "internal/component/bgp framework fixture host\ninternal/component/plugin framework fixture composition\n",
+		"internal/plugins/doc.go": "package plugins\n",
+		"internal/component/bgp/plugins/nlri/ls/register.go": "package ls\n",
+		"internal/component/bgp/plugins/nlri/ls/codec.go":    "package ls\nconst Value = 1\n",
+		"internal/component/bgp/plugins/rib/register.go":     "package rib\n",
+		"internal/component/bgp/plugins/rib/pool/pool.go":    "package pool\nconst Value = 1\n",
+		"internal/component/bgp/plugins/rib/use.go":          "package rib\nimport \"example.com/m/internal/component/bgp/plugins/rib/pool\"\nvar Value = pool.Value\n",
+		"internal/component/bgp/filterapi/api.go":            "package filterapi\nconst Value = 1\n",
+		"internal/component/bgp/plugins/nlri/ls/shared.go":   "package ls\nimport \"example.com/m/internal/component/bgp/filterapi\"\nvar Shared = filterapi.Value\n",
+		"internal/component/plugin/all/all.go":               allImports("internal/component/bgp/plugins/nlri/ls", "internal/component/bgp/plugins/rib"),
+		"cmd/ze/dispatch.go":                                 blankImport("main", "internal/component/bgp/plugins/rib"),
+	}
+}
+
+// runOwnershipCases proves the complete check changes verdict for a platform-only
+// helper dependency, rather than merely testing an unregistered predicate.
+func runOwnershipCases() ([]leroot.SelftestResult, error) {
+	root, err := os.MkdirTemp("", "tier-selftest-ownership")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(root) //nolint:errcheck // temp fixture
+	if err := writeFixture(root, ownershipFixture()); err != nil {
+		return nil, err
+	}
+	clean, err := Check(root)
+	if err != nil {
+		return nil, err
+	}
+	const importer = "internal/component/bgp/helper/use_linux.go"
+	if err := writeFixture(root, map[string]string{
+		importer: "//go:build linux\n\npackage helper\nimport codec \"example.com/m/internal/component/bgp/plugins/nlri/ls\"\nvar Value = codec.Value\n",
+	}); err != nil {
+		return nil, err
+	}
+	bad, err := Check(root)
+	if err != nil {
+		return nil, err
+	}
+	return []leroot.SelftestResult{
+		caseResult("plugin-ownership-legitimate-directions", clean.Failed == 0, clean.Diagnosis()),
+		caseResult("plugin-ownership-platform-helper-refused", bad.Failed == 2 && strings.Contains(bad.Diagnosis(), importer), bad.Diagnosis()),
+	}, nil
 }

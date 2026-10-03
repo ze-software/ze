@@ -24,9 +24,9 @@ const area = "arch tier"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "module-tier placement (ai/rules/architecture.md): a config-driven engine lives in internal/component/ when a feature depends on it, and in internal/plugins/ otherwise",
+	leaction.Action{Verb: "check", Why: "module-tier placement and plugin import ownership (ai/rules/architecture.md, ai/rules/plugins.md): enforce dependency direction without importing another plugin's implementation",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the tier gate's own isolated fixtures -- engine placement, and the wired-versus-core classification -- before it judges the live tree",
+	leaction.Action{Verb: "selftest", Why: "isolated fixtures for placement, composition classification, and forbidden versus legitimate plugin imports",
 		Answer: runSelftest},
 	leaction.Action{
 		// This reverse-dependency report is an explicit native action for

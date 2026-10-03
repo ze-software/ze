@@ -5,9 +5,8 @@
 // importers.
 //
 // A directory imported only by registration roots and tests is a plugin
-// candidate. No core or sibling package calls it, so only the registry reaches
-// it. It already passes the delete-the-folder test. External importers identify
-// genuine core or shared code.
+// candidate. The ownership check separately judges production import edges;
+// neither import classification nor ownership proves semantic removeability.
 //
 // The static scan reads import strings without build-tag filtering. Thus, it
 // sees platform-specific imports that `go list` misses on another platform. It
@@ -19,7 +18,7 @@
 // the same list from internal/le/plugin/imports/pluginimports.go. A direct call preserves
 // the guarantee and survives script deletion.
 //
-// Detail: gates.go -- the five checks --check runs
+// Detail: gates.go -- the checks the tier gate runs
 // Detail: selftest.go -- the fixtures that prove those checks still detect
 // Detail: actions.go -- the four actions and the tree each is pointed at
 // Detail: report.go -- what each action answers
@@ -27,12 +26,15 @@ package archtier
 
 import (
 	"errors"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -60,6 +62,7 @@ var skipWalk = map[string]bool{
 	".claude":      true,
 	"vendor":       true,
 	"tmp":          true,
+	"testdata":     true,
 	"node_modules": true,
 }
 
@@ -119,20 +122,32 @@ func isRegistrationImporter(rel string) bool {
 		setupFeatureRe.MatchString(rel)
 }
 
-// collectEdges reads every tree Go file and answers its import edges.
+// collectEdges parses tree Go files outside dependency, scratch and fixture trees.
 //
 // An unreadable file stops the run. The script skipped it. A missing import edge
 // can hide an upward import from the direction gate. The resulting lower
 // violation count looks like a pass, with no skipped-file notice.
 func collectEdges(tree, module string) (Edges, error) {
-	var tb textbuf.Buffer
-	importRe, err := regexp.Compile(tb.Byte('"').Byte('(').Str(regexp.QuoteMeta(module)).Str(`/[^"]+)"`).String())
-	if err != nil {
-		return nil, err
-	}
+	graph, err := collectSourceEdges(tree, module)
+	return graph.edges, err
+}
 
-	edges := make(Edges)
-	err = filepath.WalkDir(tree, func(name string, entry fs.DirEntry, walkErr error) error {
+// sourceGraph keeps edge kinds and declared package ownership beside the imports.
+type sourceGraph struct {
+	edges         Edges
+	registrations map[corePair]bool
+	declared      []string
+}
+
+// collectSourceEdges retains the actual blank-import edges at composition roots.
+// Parsing whole files also refuses malformed bodies behind inactive build tags.
+func collectSourceEdges(tree, module string) (sourceGraph, error) {
+	graph := sourceGraph{
+		edges:         make(Edges),
+		registrations: make(map[corePair]bool),
+	}
+	files := token.NewFileSet()
+	err := filepath.WalkDir(tree, func(name string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -153,22 +168,38 @@ func collectEdges(tree, module string) (Edges, error) {
 		if !strings.HasSuffix(entry.Name(), ".go") {
 			return nil
 		}
-		raw, readErr := os.ReadFile(name) //nolint:gosec // a Go file of the tree the caller named
-		if readErr != nil {
-			return readErr
+		file, parseErr := parser.ParseFile(files, name, nil, parser.SkipObjectResolution)
+		if parseErr != nil {
+			return parseErr
 		}
-		for _, match := range importRe.FindAllStringSubmatch(string(raw), -1) {
-			edges[match[1]] = append(edges[match[1]], rel)
+		if path.Base(rel) == "register.go" {
+			dir := path.Dir(rel)
+			if path.Base(dir) != "yang" && path.Base(dir) != "schema" {
+				graph.declared = append(graph.declared, dir)
+			}
+		}
+		for _, spec := range file.Imports {
+			imported, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				return err
+			}
+			if !underDir(imported, module) {
+				continue
+			}
+			graph.edges[imported] = append(graph.edges[imported], rel)
+			if compositionRegistration(rel, file, spec) {
+				graph.registrations[corePair{File: rel, Package: imported}] = true
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return sourceGraph{}, err
 	}
-	for imported := range edges {
-		slices.Sort(edges[imported])
+	for imported := range graph.edges {
+		slices.Sort(graph.edges[imported])
 	}
-	return edges, nil
+	return graph, nil
 }
 
 // importersOf answers the tree-relative files importing a package or anything

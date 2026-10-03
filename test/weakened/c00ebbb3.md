@@ -1,0 +1,4 @@
+| Test | Reason |
+|---|---|
+| TestTheSelftestCasesAreNamedAndDistinct | Removed the copied catalog of selftest case names, not the checks rejecting missing or duplicate case identities. The catalog pinned internal wiring rather than import behavior. TestRegisteredTierCheckEnforcesPluginOwnership exercises the registered command and proves clean, forbidden helper dependency, and repaired states; native arch tier selftest also passed. |
+| TestTheFirstFailingCheckDecidesTheCode | Removed the incidental exact check-count and first-check-name assertion instead of repinning five to six. The test still compares the reported exit code with the first failure and distinguishes first failure from last using different nonzero codes. Registered-command ownership fixtures separately prove the additional gate is active. |

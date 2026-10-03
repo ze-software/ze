@@ -119,7 +119,7 @@ func sortByExternalCount(rows []Row) {
 	}
 }
 
-// CheckResult is what one of the five checks said.
+// CheckResult is what one check said.
 type CheckResult struct {
 	// Name is the check, so a caller of `| json` can tell which one failed.
 	Name string `json:"name"`
@@ -133,7 +133,7 @@ type CheckResult struct {
 
 // CheckReport is the whole answer of `le arch tier check`.
 type CheckReport struct {
-	// Checks are the five checks, in the order they ran.
+	// Checks are the checks, in the order they ran.
 	Checks []CheckResult `json:"checks"`
 	// Failed is the FIRST non-zero code, which is the one a caller can act on:
 	// a later check's failure says nothing about the first one's.

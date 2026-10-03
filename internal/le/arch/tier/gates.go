@@ -1,10 +1,9 @@
-// Design: ai/rules/architecture.md -- the five checks the tier gate runs
+// Design: ai/rules/architecture.md -- the checks the tier gate runs
 //
 // Overview: tier.go -- the import audit these checks read
 //
-// gates.go contains the five `le arch tier check` checks in script order: engine
-// placement, non-engine categories, core imports, disableable-feature imports,
-// and lint build-tag drift.
+// The tier gate checks engine placement, non-engine categories, core imports,
+// disableable-feature imports, lint build-tag drift, and plugin ownership.
 //
 // Each check answers its page and code. The run uses the FIRST nonzero code, so
 // callers act on the first failure.
@@ -923,22 +922,28 @@ func sortedRowKeys(items map[string]Row) []string {
 	return keys
 }
 
-// Check runs the five gates in the script's order and answers what each said.
+// Check runs all tier and ownership checks over the same parsed import graph.
 func Check(tree string) (CheckReport, error) {
 	module, err := modulePath(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	edges, err := collectEdges(tree, module)
+	graph, err := collectSourceEdges(tree, module)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	return CheckWith(tree, module, edges)
+	report, err := tierChecks(tree, module, graph.edges)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	report.Checks = append(report.Checks, pluginOwnershipGate(module, graph))
+	report.Failed = firstFailure(report.Checks)
+	return report, nil
 }
 
-// CheckWith runs the five gates over an audit already collected, which is what
-// the selftest needs.
-func CheckWith(tree, module string, edges Edges) (CheckReport, error) {
+// tierChecks runs the placement checks separately so their fixtures can exercise
+// migration baselines without exempting those migrations from plugin ownership.
+func tierChecks(tree, module string, edges Edges) (CheckReport, error) {
 	steps := []func() (CheckResult, error){
 		func() (CheckResult, error) { return enginePlacementGate(tree, module, edges) },
 		func() (CheckResult, error) { return nonEngineCategoryGate(tree, module, edges) },
@@ -962,7 +967,7 @@ func CheckWith(tree, module string, edges Edges) (CheckReport, error) {
 // firstFailure answers the FIRST nonzero run code. A later failure gives no
 // information about the first failure that a caller must correct.
 //
-// A separate function makes the rule directly testable. All five checks
+// A separate function makes the rule directly testable. All checks
 // currently answer 0 or 2, so their output cannot expose first-versus-last
 // behavior. Untested rules can silently stop holding.
 func firstFailure(gates []CheckResult) int {

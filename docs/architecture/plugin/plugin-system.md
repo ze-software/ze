@@ -468,6 +468,16 @@ check is a presence heuristic: it does not prove the guard covers the call at
 run time. An `allowlist` entry covers a package's own legitimate calls to its
 own function.
 
+`./le arch tier check` separately rejects production imports into another
+plugin's owned implementation, using the composition generator's policy roots
+and registration layout. It checks nested plugins and downstream helper imports
+as well as direct callers, while preserving shared host contracts, within-owner
+packages and actual composition blank imports. See
+[module-tiers.md](../module-tiers.md#plugin-import-ownership) for its boundaries
+and fixture coverage. `./le plugin imports check` only checks generated
+composition freshness. None of these import checks detects feature policy
+copied into the core without an import, or proves runtime removeability.
+
 A plugin's COMMAND declaration crosses the same boundary and fails the same
 quiet way. `Registration.Commands` is read by anything that links the
 composition root, and the `sdk.Registration` a runner passes to `p.Run` is read
