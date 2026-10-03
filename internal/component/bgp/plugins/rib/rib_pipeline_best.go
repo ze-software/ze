@@ -11,6 +11,7 @@ package rib
 import (
 	"encoding/json"
 	"iter"
+	"net/netip"
 	"sort"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -90,7 +91,17 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		familyS string
 		prefixS string
 	}
-	seen := make(map[string]routeKey) // "familyStr|nlriKey" → routeKey
+	// electionKey names one election: a CIDR route by its parsed, masked
+	// prefix, every other route by its route key (routeIdentity). Keying a CIDR
+	// route on its wire bytes would split one prefix into two elections when
+	// two sessions encode it with different bits past the prefix length, which
+	// the wire allows in the last octet and NLRIToPrefix discards.
+	type electionKey struct {
+		fam   family.Family
+		pfx   netip.Prefix
+		route string
+	}
+	seen := make(map[electionKey]routeKey)
 
 	// Caller bestPipeline holds r.peerMu.RLock across this function; the
 	// bgpPeers / ribInPool iterations below are protected by that outer lock.
@@ -107,13 +118,22 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 			// non-CIDR route key, from every peer in either ADD-PATH mode,
 			// lands on one key, so the route answers with one best (RFC 8277
 			// Section 3.1, RFC 7911 Section 2).
-			var scratch [nlrisplit.PrefixKeyScratchSize]byte
-			identity, ok := routeIdentity(fam, nlriBytes, addPath[fam], false, scratch[:])
-			if !ok {
-				return true
+			key := electionKey{fam: fam}
+			if storage.IsCIDRFamily(fam) {
+				_, pfx, ok := parsePrevKey(fam, nlriBytes, addPath[fam])
+				if !ok {
+					return true
+				}
+				key.pfx = pfx.Masked()
 			}
-			var tb textbuf.Buffer
-			key := tb.Str(fStr).Byte('|').Str(string(identity)).String()
+			if !storage.IsCIDRFamily(fam) {
+				var scratch [nlrisplit.PrefixKeyScratchSize]byte
+				identity, ok := routeIdentity(fam, nlriBytes, addPath[fam], false, scratch[:])
+				if !ok {
+					return true
+				}
+				key.route = string(identity)
+			}
 			if _, ok := seen[key]; !ok {
 				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), addPath: addPath[fam], familyS: fStr, prefixS: pStr}
 			}

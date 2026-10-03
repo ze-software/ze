@@ -1118,12 +1118,35 @@ func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Ca
 // gatherFramedCandidates is gatherCandidates for a key whose framing the caller
 // names: under addPath, nlriBytes leads with the sender's 4-byte path
 // identifier (RFC 7911 Section 3). Acquires r.peerMu.RLock internally, with the
-// same recursion ban as gatherCandidates. The hot-path caller is
-// checkBestPathChange, which runs with no outer lock held.
+// same recursion ban as gatherCandidates. The NLRI is read as an announcement:
+// a caller holding a withdrawal's NLRI keys it itself (routeIdentity) and calls
+// gatherKeyCandidates.
 func (r *RIBManager) gatherFramedCandidates(fam family.Family, nlriBytes []byte, addPath bool) []*Candidate {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 	return r.gatherCandidatesLocked(fam, nlriBytes, addPath)
+}
+
+// gatherPrefixCandidates is gatherPrefixCandidatesLocked taking r.peerMu.RLock
+// itself, with the recursion ban gatherCandidates states. The hot-path caller
+// is checkRouteBestChange, which runs with no outer lock held and has already
+// parsed the prefix.
+func (r *RIBManager) gatherPrefixCandidates(fam family.Family, pfx netip.Prefix) []*Candidate {
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	return r.gatherPrefixCandidatesLocked(fam, pfx)
+}
+
+// gatherKeyCandidates is gatherKeyCandidatesLocked taking r.peerMu.RLock
+// itself, with the recursion ban gatherCandidates states. The caller passes the
+// route key it already computed, so the key that gathers the candidates is the
+// key that stores the best: checkRouteBestChange computes it with the framing
+// the NLRI arrived in, which for a withdrawal reads the label field as a
+// Compatibility field (RFC 8277 Section 2.4).
+func (r *RIBManager) gatherKeyCandidates(fam family.Family, routeKey []byte) []*Candidate {
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	return r.gatherKeyCandidatesLocked(fam, routeKey)
 }
 
 // gatherCandidatesLocked is gatherCandidates without the internal RLock.

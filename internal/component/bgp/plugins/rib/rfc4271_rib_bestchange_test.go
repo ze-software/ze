@@ -322,9 +322,12 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 // and when the leaving peer goes down the surviving path is elected.
 //
 // VALIDATES: purgeBestPrevForPeer drops the one per-prefix record, and
-// emitPurgedWithdraws re-elects the prefix from the paths that remain.
+// emitPurgedWithdraws re-elects the prefix from the paths that remain before
+// it publishes, so the survivor arrives as one Update.
 // PREVENTS: a prefix left withdrawn after its winner leaves while another
-// peer still holds a path to it.
+// peer still holds a path to it, and a Withdraw published ahead of the
+// survivor, which removes the route from the Loc-RIB and every consumer for
+// the instant before the survivor's Add.
 func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
@@ -388,11 +391,10 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 			got = append(got, batch.Changes...)
 		}
 	}
-	require.Len(t, got, 2, "a withdraw of the departed best, then the survivor's add")
-	assert.Equal(t, ribevents.BestChangeWithdraw, got[0].Action)
-	assert.Equal(t, uint32(1), got[0].PathID, "the withdraw names the path that was best")
-	assert.Equal(t, ribevents.BestChangeAdd, got[1].Action)
-	assert.Equal(t, uint32(3), got[1].PathID, "the survivor's path id is the new best")
+	require.Len(t, got, 1, "one change: the survivor replaces the departed best, with no withdrawal between them")
+	assert.Equal(t, ribevents.BestChangeUpdate, got[0].Action, "the prefix never stops having a best")
+	assert.Equal(t, uint32(3), got[0].PathID, "the survivor's path id is the new best")
+	assert.Equal(t, netip.MustParseAddr("192.168.21.21"), got[0].NextHop, "the survivor's next hop is installed")
 }
 
 // TestBestChangeEntryPathIDPropagation validates that PathID flows from

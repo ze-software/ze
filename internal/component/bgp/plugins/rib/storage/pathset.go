@@ -49,16 +49,19 @@ type pathEntry struct {
 //
 // RFC 8277 Section 2.5: "If I1 is the same as I2, UPDATE U2 MUST be
 // interpreted as meaning that L2 is now bound to P at N1 and that L1 is no
-// longer bound to P at N1." Replacing the route of a path id ends the label
-// binding of the route it replaces, so the replaced handle is released here
-// and the new UPDATE's labels are bound by setLabels. A refresh that keeps the
-// same route goes through refresh, which keeps the binding.
+// longer bound to P at N1." The replacement ends L1's binding in setLabels,
+// which the ingest calls for every labeled UPDATE right after the insert and
+// which releases the handle it replaces. upsert keeps the binding in place,
+// on purpose: the insert and the rebind take the RIB lock separately, and
+// releasing here would leave the path with no label between the two, where a
+// concurrent election installs the route with no label stack. The binding is
+// replaced, never removed, the same way the parallel label store of a family
+// without ADD-PATH replaces it (FamilyRIB.SetLabels).
 func (s *pathSet) upsert(pathID uint32, entry RouteEntry) (RouteEntry, bool) {
 	for i := range s.entries {
 		if s.entries[i].pathID == pathID {
 			old := s.entries[i].entry
 			s.entries[i].entry = entry
-			releaseLabels(&s.entries[i])
 			return old, true
 		}
 	}

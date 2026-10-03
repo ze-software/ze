@@ -776,7 +776,9 @@ The Loc-RIB mirror writes one BGP path per prefix under Instance 0
 BGP path in the Loc-RIB would be ranked by distance and metric alone. A peer
 going down drops the records its paths won (`purgeBestPrevForPeer`), and
 `emitPurgedWithdraws` then re-elects each of those routes from the paths that
-remain.
+remain before it publishes anything: a route with a survivor goes to it in one
+Update and never leaves the Loc-RIB, and only a route left with no candidate is
+withdrawn.
 
 Other non-CIDR families take the same opaque-map backend `FamilyRIB` does, for the
 same reason: its NLRI leads with a label stack and a Route Distinguisher, or
@@ -788,7 +790,11 @@ label stack, an EVPN route its labels, ESI and gateway, so two PEs announcing
 one RD and prefix under two labels are two paths of one route (RFC 8277
 Section 3.1), a relabel replaces the route (Section 2.5), and a withdrawal whose
 label field is the Compatibility value is read with the withdrawal framing
-(`FamilyRIB.Withdraw`, Section 2.4). The wire route each path was received with,
+(`FamilyRIB.Withdraw`, Section 2.4). The election that follows reads it the
+same way: `checkRouteBestChange` computes the route key once, with the framing
+the NLRI arrived in, and that one key gathers the candidates
+(`gatherKeyCandidates`) and finds the stored best, so a withdrawal from one PE
+promotes the other PE's path whatever its Compatibility field holds. The wire route each path was received with,
 labels included, is kept beside the key (`FamilyRIB.wire`, only for a route
 whose key differs from it), and every walk, `PrefixPath.Route`,
 `Candidate.Route` and the stored best (`opaqueBestPrev`) read the labels from

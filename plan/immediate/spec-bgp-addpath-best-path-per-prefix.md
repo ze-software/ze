@@ -359,7 +359,7 @@ Design documents changed with the code: `docs/architecture/plugin/rib-storage-de
 | Naming | `lost-path-id` / `path-id` step name; JSON `path-id` unchanged |
 | Data flow | Selection per prefix in `gatherPrefixCandidatesLocked`; storage keyed (path id, prefix) |
 | Rule: no-layering | `bestPrevSet`, the `multi` best-prev store and the prefix-keyed label store are deleted, not kept beside the new shape |
-| Rule: performance | No new per-UPDATE allocation on the gather (stack-backed path slice) or the winner key (stack buffer) |
+| Rule: performance | No new per-UPDATE allocation on the gather (stack-backed path slice) or the winner key. Review round 1 (I-1) measured the first landing at 5 allocs/op on a CIDR same-best re-run against 2 at `e059baccb8^`: the route-key scratch and the winner and sibling key buffers reached the family key operation (an indirect call) through `PeerRIB.Lookup` and moved to the heap. After the fix the CIDR winner is read by prefix (`storedPath`, `PeerRIB.LookupPath`), the route key is computed only for a non-CIDR family, and the count is back to 2 (one Candidate, one slice), pinned by `TestCIDRSameBestAllocations` |
 
 ### Deliverables Checklist
 
@@ -388,6 +388,22 @@ Design documents changed with the code: `docs/architecture/plugin/rib-storage-de
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Review Round 1 (2026-10-03)
+
+| ID | Finding | Disposition | Evidence |
+|----|---------|-------------|----------|
+| B-1 | A VPN withdrawal was gathered with the announcement framing and its stored best keyed with the withdrawal framing, so a Compatibility field of 0x800000 or 0x000000 withdrew the route another PE still carried | Fixed: `checkRouteBestChange` computes the key once and gathers by it (`gatherPrefixCandidates`, `gatherKeyCandidates`); `rfc/short/rfc8277.md` coverage and `rib-storage-design.md` corrected | `TestVPNWithdrawPromotesTheOtherPE`, both subtests red at HEAD (best records 0, want 1), green after |
+| B-2 | Four RFC-tagged rib test files changed by the ADD-PATH commits without approval | Owner approved, 2026-10-03, "Approve"; recorded with `./le rfc approve` for each changed unit, carried as `RFC-approved:` trailers | The fix commit's trailers |
+| I-1 | Election buffers escaped to the heap, 5 allocs/op (6 with a second ADD-PATH peer) against 2 at base | Fixed: prefix-typed winner reads, branch-local route-key scratch | `TestCIDRSameBestAllocations` red at HEAD (5 allocs/op in both subtests), green after (2); `-gcflags=-m` no longer moves `winnerBuf` or `siblingBuf`, and `keyScratch` only on the non-CIDR branch |
+| I-2 | `TestRFC8277AddPathRoutesOnOneSessionAreComparable` claimed MED decided, but MED was never compared (eBGP, empty AS_PATH) and path 7 won on the tie-break | Prepared, awaiting the owner's approval of the tagged unit: iBGP session, path 7 MED 20 and path 9 MED 10, asserts path 9 | The prepared version passes on the real code and fails under the MED-inversion mutant, which the landed version survives. Its discrimination record is re-recorded once the file lands |
+| I-3 | `emitPurgedWithdraws` published Withdraw and removed the Loc-RIB entry before re-electing, so a route with a survivor went Withdraw then Add | Fixed: the purge publishes nothing; the re-election runs first, a survivor is one Update, and only a route with no candidate is withdrawn and leaves the Loc-RIB | `TestPurgeBestPrevForPeerAddPath` (untagged) asserts one Update to path 3: red at HEAD (two changes), green after |
+| I-4 | Under ADD-PATH `upsert` released a replaced path's label inside the insert lock, and `SetLabelsIfRouteExists` rebound it under a second lock | Fixed: `upsert` keeps the binding, and `setLabels` alone replaces and releases it, as the label store without ADD-PATH already did | `TestADDPathRelabelNeverUnbindsTheLabel` red at HEAD (about 19,990 unbound reads in 20,000 relabels), green after, also under `-race` |
+| I-5 | The performance row recorded "no new per-UPDATE allocation" without a measurement | Fixed: the row carries the measured counts | Critical Review Checklist, performance row |
+| N-1 | Some discrimination records use a non-behavioural break | Open: re-record behaviourally where `./le rfc discriminate-record` allows, with the I-2 record | Not yet done |
+| N-2 | `newBestSource` keyed a CIDR election on its raw wire prefix | Fixed: a typed key on the parsed, masked `netip.Prefix`. Storage already canonicalises the keys it hands back, so no test goes red on the old form and none was added | `rib_pipeline_best.go`, `electionKey` |
+| N-3 | Memory note | Noted | |
+| N-4 | Accepted by the reviewer | Accepted | |
 
 ## Design Insights
 <!-- LIVE: write immediately when you learn something. Route each lesson to its

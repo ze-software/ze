@@ -132,6 +132,26 @@ func (r *PeerRIB) Lookup(fam family.Family, nlriBytes []byte) (RouteEntry, bool)
 	return rib.lookupEntry(nlriBytes)
 }
 
+// LookupPath returns the entry this peer holds for one path of a CIDR prefix:
+// the path pathID names under ADD-PATH, the prefix's one path otherwise. It is
+// Lookup asked by prefix rather than by wire key, with Lookup's contract on the
+// returned handles, and it answers false for a non-CIDR family, which has no
+// prefix to ask by.
+//
+// It exists so a caller holding a parsed prefix never builds a wire key: a wire
+// key reaches the family's registered key operation on Lookup's non-CIDR
+// branch, which moves the caller's buffer to the heap. Safe for concurrent use.
+func (r *PeerRIB) LookupPath(fam family.Family, pathID uint32, pfx netip.Prefix) (RouteEntry, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists {
+		return RouteEntry{}, false
+	}
+	return rib.lookupPrefixPath(pathID, pfx)
+}
+
 // AppendPrefixPaths appends every path this peer holds for pfx to dst, and
 // reports whether the family is stored with ADD-PATH, which says how each
 // path's own NLRI key is formed: the path identifier then the prefix, or the
@@ -485,6 +505,19 @@ func (r *PeerRIB) LookupLabels(fam family.Family, nlriBytes []byte) attrpool.Han
 	}
 	pathID, pfx, ok := rib.parseNLRIKey(nlriBytes)
 	if !ok {
+		return attrpool.InvalidHandle
+	}
+	return rib.LookupLabels(pathID, pfx)
+}
+
+// LookupPathLabels is LookupLabels for a path named by prefix and path
+// identifier rather than by wire key, the form LookupPath takes.
+func (r *PeerRIB) LookupPathLabels(fam family.Family, pathID uint32, pfx netip.Prefix) attrpool.Handle {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists || !rib.isLabeled() {
 		return attrpool.InvalidHandle
 	}
 	return rib.LookupLabels(pathID, pfx)

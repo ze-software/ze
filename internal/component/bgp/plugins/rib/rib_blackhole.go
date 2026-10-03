@@ -140,7 +140,7 @@ func (r *RIBManager) blackholeHonorRuleCount() int {
 // member that states its own rule keeps it.
 //
 // Caller must not hold r.peerMu.
-func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []byte, pfx netip.Prefix, peerAddr netip.Addr) routetype.Type {
+func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, path storedPath, peerAddr netip.Addr) routetype.Type {
 	p := r.blackholeCfg.Load()
 	if p == nil || len(*p) == 0 {
 		return 0
@@ -159,8 +159,9 @@ func (r *RIBManager) blackholeRouteTypeForBest(fam family.Family, nlriBytes []by
 	if !ok {
 		return 0
 	}
-	return blackholeRouteType(cfg, pfx, func() bool {
-		return r.bestCarriesBlackhole(fam, nlriBytes, peerAddr, cfg.communities)
+	// Asked for CIDR families only, so path names its prefix (storedPath).
+	return blackholeRouteType(cfg, path.pfx, func() bool {
+		return r.bestCarriesBlackhole(fam, path, peerAddr, cfg.communities)
 	})
 }
 
@@ -183,17 +184,11 @@ func (r *RIBManager) peerGroupName(peerAddr netip.Addr) string {
 //
 // It reads the interned COMMUNITIES attribute out of the peer's own RouteEntry,
 // the same route the best-path selection just chose, rather than re-parsing a
-// wire payload. lookupSRv6SIDForBest reads the same bundle for the same reason.
+// wire payload. storedPathSRv6SID reads the same bundle for the same reason.
 //
 // Caller must not hold r.peerMu.
-func (r *RIBManager) bestCarriesBlackhole(fam family.Family, nlriBytes []byte, peerAddr netip.Addr, want []attribute.Community) bool {
-	r.peerMu.RLock()
-	peerRIB := r.bgpPeers[peerAddr]
-	r.peerMu.RUnlock()
-	if peerRIB == nil {
-		return false
-	}
-	entry, ok := peerRIB.Lookup(fam, nlriBytes)
+func (r *RIBManager) bestCarriesBlackhole(fam family.Family, path storedPath, peerAddr netip.Addr, want []attribute.Community) bool {
+	entry, ok := r.lookupStoredPath(fam, path, peerAddr)
 	if !ok {
 		return false
 	}

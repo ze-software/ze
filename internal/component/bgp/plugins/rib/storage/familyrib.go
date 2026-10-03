@@ -425,6 +425,16 @@ func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 	if !ok {
 		return RouteEntry{}, false
 	}
+	return r.lookupPrefixPath(pathID, pfx)
+}
+
+// lookupPrefixPath is lookupEntry for a CIDR path named by its prefix and path
+// identifier, which is ignored without ADD-PATH. A non-CIDR family answers
+// false: its routes have no prefix.
+func (r *FamilyRIB) lookupPrefixPath(pathID uint32, pfx netip.Prefix) (RouteEntry, bool) {
+	if !r.cidr {
+		return RouteEntry{}, false
+	}
 	if !r.addPath {
 		return r.direct.Lookup(pfx)
 	}
