@@ -558,7 +558,7 @@ type rfcCoverageBucket struct {
 // rfcCoverageBuckets answers the per-RFC counters with the ids behind each
 // weakness, and the rows derived from other rows apart from them.
 func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
-	var both, one, missing, nightly, annotated, derived []string
+	var both, one, missing, nightly, annotated, partial, derived []string
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
 		if !requirement.Gated {
@@ -581,6 +581,9 @@ func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
 		switch {
 		case requirement.Annotation != nil:
 			annotated = append(annotated, requirement.RID)
+			if requirement.Annotation.Kind == rfc.AnnotationPartial {
+				partial = append(partial, requirement.RID)
+			}
 		case rfcHasBothPolarities(requirement):
 			both = append(both, requirement.RID)
 		case len(requirement.Covers) != 0:
@@ -592,11 +595,12 @@ func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
 	return []rfcCoverageBucket{
 		{Label: "Positive and negative tests", Count: entry.Coverage.Both, IDs: both,
 			Partitions: true},
-		{Label: "Annotated instead of tested", Count: entry.Coverage.Annotated, IDs: annotated,
+		{Label: "Annotated (including scoped evidence)", Count: entry.Coverage.Annotated, IDs: annotated,
 			Partitions: true},
 		{Label: "One polarity only", Count: entry.Coverage.One, IDs: one, Partitions: true},
 		{Label: "No test and no annotation", Count: entry.Coverage.Missing, IDs: missing,
 			Partitions: true},
+		{Label: rfcPartialLabel + " (subset of annotated; zero whole-requirement credit)", Count: entry.Coverage.Partial, IDs: partial},
 		{Label: "Evidence that runs nightly only", Count: entry.Coverage.NightlyOnly, IDs: nightly},
 		{Label: rfcRollupLabel, Count: entry.Coverage.Rollup, IDs: derived, Derived: true},
 	}
@@ -916,6 +920,9 @@ func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
 		// its own: what the rows its reason names add up to today.
 		if requirement.Annotation.Derived != "" {
 			marks = append(marks, [2]string{"derived", requirement.Annotation.Derived})
+		}
+		if requirement.Annotation.Kind == rfc.AnnotationPartial {
+			marks = append(marks, [2]string{"Scoped evidence", "Tests and tag-claim records apply only to Tested; zero whole-requirement credit. " + rfcVerdictText(requirement.Audit)})
 		}
 	}
 	if requirement.NightlyOnly {

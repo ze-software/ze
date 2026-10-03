@@ -46,9 +46,11 @@ type coverageRow struct {
 // annotationPattern answers the pattern that finds one annotation kind on a
 // requirement line. The trailing class is what tells `{gap}` from `{gap: why}`
 // and from a word that merely starts the same way.
+// Match the Unicode whitespace accepted by the summary parser's strings.TrimSpace.
 func annotationPattern(kind string) *regexp.Regexp {
+	const space = `[\s\v\p{Z}\x{0085}]*`
 	var tb textbuf.Buffer
-	return regexp.MustCompile(tb.Str(`\{`).Str(regexp.QuoteMeta(kind)).Str(`[:}]`).String())
+	return regexp.MustCompile(tb.Str(`\{`).Str(space).Str(regexp.QuoteMeta(kind)).Str(space).Str(`[:}]`).String())
 }
 
 // annotationKinds are the coverage annotations the split partitions the
@@ -428,6 +430,8 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 			"above rather than being subtracted from it), ").
 		Int(int64(kinds.get(rfc.AnnotationGap))).
 		Str(" known gap (unimplemented, genuinely untested), ").
+		Int(int64(kinds.get(rfc.AnnotationPartial))).
+		Str(" partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), ").
 		Int(int64(kinds.get(rfc.AnnotationSinglePolarity))).
 		Str(" single-polarity -- those DO have a passing tagged test, just one side of the " +
 			"pair, and the RFC gate fails if that test is missing -- ").

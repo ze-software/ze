@@ -289,13 +289,21 @@ the day `all` covers it.
 
 **The closed vocabularies the gate reads are EXPORTED, and every publisher of a
 verdict reads them rather than spelling one.** The polarities, the annotation
-kinds, the five audit verdicts with the sentence each one means, the four
+kinds, the audit verdicts with the sentence each one means, the four
 freshness states, the three discrimination routes and the two site dispositions
 are named by `internal/le/rfc` and by nothing else. `RequirementRows` answers
 the six cells of one requirement, and `rfc/requirements/<stem>.md` plus the
 published page at `/quality/rfc-compliance/<stem>/` are two formattings of that
 one answer. A second spelling of any of them is a second declaration of a closed
 set, which is where the verdict vocabulary drifted before the schema existed.
+
+Clause-scoped RFC evidence uses the same annotation and audit registers:
+`partial` retains the complete requirement and scopes every standing tag to
+one tested span beside an explicit gap. The requirement-aware audit digest
+binds that scope, while native discrimination observations keep their original
+identities. Gates read and verify those records; they never execute proof.
+Partial is a subset of annotated requirements and contributes zero whole-proof
+credit in every publication, including site builds that do not call Check.
 
 The retired auxiliary tooling tree has no current role. Data fixtures live
 under the `testdata/` directory of the Go package that owns them.

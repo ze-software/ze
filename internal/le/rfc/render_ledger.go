@@ -348,7 +348,8 @@ func proofCell(row CoverageRow) string {
 	}
 	var tb textbuf.Buffer
 	return tb.Int(int64(row.Gated)).Str(" gated: ").Int(int64(row.Both)).
-		Str(" proven, ").Int(int64(row.Annotated)).Str(" annotated, ").
+		Str(" proven, ").Int(int64(row.Annotated)).Str(" annotated (").
+		Int(int64(row.Partial)).Str(" partial subset), ").
 		Int(int64(row.Outstanding())).Str(" untested").String()
 }
 
@@ -436,7 +437,7 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("**What on this page a machine checks, and what stays a human judgement.** ")
 	tb.Str("`./le rfc check` enforces exactly three properties of the tables below.\n\n")
 	tb.Str("- **Gap-count agreement.** A `Support remaining` cell can spell a number immediately ")
-	tb.Str("before MUST or SHALL. That number must equal the count of `{gap}` annotations in the ")
+	tb.Str("before MUST or SHALL. That number must equal the count of `{gap}` plus `{partial}` requirement rows in the ")
 	tb.Str("same summary.\n")
 	tb.Str("- **Disclosure under a `{gap}`.** A summary can privately admit an unmet MUST. Its row ")
 	tb.Str("here must then say so, in the Status cell or in the Remaining cell.\n")
@@ -455,7 +456,7 @@ func statusPageIntro(unrowed, summaries int) string {
 	tb.Str("**Proof** is the one derived cell in these tables. It restates that RFC's own coverage ")
 	tb.Str("from `rfc/requirements/<stem>.md`: how many MUST-level requirements the summary gates, ")
 	tb.Str("then how many of them carry a test in BOTH polarities (`proven`), how many carry an ")
-	tb.Str("annotation instead (`annotated`), and how many carry neither -- one polarity only, or ")
+	tb.Str("annotation (`annotated`, with partial scoped evidence shown as a subset), and how many carry neither -- one polarity only, or ")
 	tb.Str("no test at all (`untested`). The three sum to the gated count. A summary gating no ")
 	tb.Str("MUST-level requirement reads `no gated MUST`, and no cell an author writes changes any ")
 	tb.Str("of it.\n\n")

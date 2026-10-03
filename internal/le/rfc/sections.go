@@ -80,9 +80,9 @@ func renderRollup(in RenderInput) []string {
 
 	out = append(out, renderSupersededNote(in, cov)...)
 	out = append(out,
-		"| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | "+
+		"| RFC | Gated | Both | One polarity | Annotated | Partial (subset) | No test | Outstanding | "+
 			"Nightly-only | State |",
-		"|---|---|---|---|---|---|---|---|---|")
+		"|---|---|---|---|---|---|---|---|---|---|")
 	for _, c := range cov {
 		state := "backlog"
 		switch {
@@ -98,7 +98,7 @@ func renderRollup(in RenderInput) []string {
 		var row textbuf.Buffer
 		out = append(out, row.Str("| `").Str(c.RFC).Str("` | ").Int(int64(c.Gated)).
 			Str(" | ").Int(int64(c.Both)).Str(" | ").Int(int64(c.One)).
-			Str(" | ").Int(int64(c.Annotated)).Str(" | ").Int(int64(c.Missing)).
+			Str(" | ").Int(int64(c.Annotated)).Str(" | ").Int(int64(c.Partial)).Str(" | ").Int(int64(c.Missing)).
 			Str(" | ").Int(int64(c.Outstanding())).Str(" | ").Int(int64(c.NightlyOnly)).
 			Str(" | ").Str(state).Str(" |").String())
 	}
@@ -299,7 +299,7 @@ var stateMeaning = map[string]string{
 	StaleUnitState: "what it judged changed -- the tagged unit itself, or the producing " +
 		"code it cites; it must be re-judged with the `ze-rfc-audit` skill before it " +
 		"counts as anything",
-	StaleRequirementState: "the requirement's own text changed since it was judged, so " +
+	StaleRequirementState: "the requirement's own text or declared partial scope changed since it was judged, so " +
 		"every judgement under it is void; re-read it with the `ze-rfc-audit` skill",
 }
 

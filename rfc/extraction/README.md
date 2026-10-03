@@ -58,6 +58,12 @@ The artifact makes the source-sentence-to-requirement pair explicit, which is wh
 reader needs in order to judge it. The gate checks that the link's endpoints exist; it
 never claims to judge the rendering.
 
+Mapping is not enforcement. A `{partial}` requirement remains one unchanged
+requirement id with the complete source sentence, its existing mapped site or
+sanctioned unsourced-ids entry, and the same extraction denominator. Tested and
+gap selectors create no sites, child requirements or exclusions. Correcting
+scope explanation does not constitute a new full extraction walk.
+
 ## Derived versus authored
 
 Only **dispositions, reasons and the two relocation fields** are authored. `sites`,

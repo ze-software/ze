@@ -218,8 +218,14 @@ func TestAnEnrollableRFCIsNamedSoTheNextOneToFinishIsAtTheTop(t *testing.T) {
 	if !strings.Contains(body, "**Enrollable now** (1)") {
 		t.Errorf("an annotated requirement did not make its RFC enrollable:\n%s", body)
 	}
-	if !strings.Contains(body, "| `rfc9999` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | enrollable |") {
-		t.Errorf("the rollup row is wrong:\n%s", body)
+	cells := renderedLedgerCells(t, body, "Both", "`rfc9999`")
+	if cells["Gated"] != "1" || cells["Annotated"] != "1" || cells["Both"] != "0" || cells["State"] != "enrollable" {
+		t.Errorf("the enrollable rollup lost its coverage or state: %v", cells)
+	}
+	for _, column := range []string{"One polarity", "Partial (subset)", "No test", "Nightly-only", "Outstanding"} {
+		if cells[column] != "0" {
+			t.Errorf("the enrollable annotated row also occupies %s: %v", column, cells)
+		}
 	}
 }
 
@@ -263,8 +269,14 @@ func TestARequirementProvenOnlyByNightlyEvidenceIsMarkedOnItsOwnRow(t *testing.T
 	}
 	// The polarity view still counts it: Both and Nightly-only answer different
 	// questions, and the overlap is the point.
-	if !strings.Contains(body, "| `rfc9999` | 1 | 1 | 0 | 0 | 0 | 0 | 1 |") {
-		t.Errorf("the polarity columns dropped the nightly-only row:\n%s", body)
+	cells := renderedLedgerCells(t, body, "Both", "`rfc9999`")
+	if cells["Gated"] != "1" || cells["Both"] != "1" || cells["Nightly-only"] != "1" {
+		t.Errorf("the polarity view dropped the nightly-only row: %v", cells)
+	}
+	for _, column := range []string{"One polarity", "Annotated", "Partial (subset)", "No test", "Outstanding"} {
+		if cells[column] != "0" {
+			t.Errorf("the nightly-proven row also occupies %s: %v", column, cells)
+		}
 	}
 }
 
@@ -354,20 +366,66 @@ func TestASummaryDeclaringNoMUSTLevelRowRendersNoSectionAtAll(t *testing.T) {
 	}
 }
 
-func TestTheAuditTableCannotBeMistakenForTheRollup(t *testing.T) {
-	// internal/le/test/health/actions.go pins the polarity rollup with a nine-cell
-	// regex and matches it against every line of the ledger, so an audit row
-	// with the same shape would be folded into that tool's proof-density figure.
+func TestRenderedLedgerRowsStayAlignedWithTheirHeaders(t *testing.T) {
 	in := renderFixture(t, nil)
+	var header []string
+	rows := 0
 	for line := range strings.SplitSeq(renderedIndex(t, in), "\n") {
-		if !strings.HasPrefix(line, "| `rfc") {
+		if !strings.HasPrefix(line, "|") {
+			header = nil
 			continue
 		}
-		if cells := strings.Count(line, "|"); cells != 10 && cells != 7 && cells != 5 && cells != 9 {
-			t.Errorf("a rendered row carries %d pipes, a shape no consumer expects: %q",
-				cells, line)
+		cells := splitMetaCells(line)
+		if header == nil {
+			header = cells
+			continue
+		}
+		rows++
+		if len(cells) != len(header) {
+			t.Errorf("row has %d cells under %d named columns: %q", len(cells), len(header), line)
 		}
 	}
+	if rows == 0 {
+		t.Fatal("the fixture published no table rows")
+	}
+}
+
+// renderedLedgerCells addresses the actual rendered table by a distinguishing
+// column, rather than pinning the number or order of unrelated columns.
+func renderedLedgerCells(t *testing.T, body, column, row string) map[string]string {
+	t.Helper()
+	var header []string
+	for line := range strings.SplitSeq(body, "\n") {
+		if !strings.HasPrefix(line, "|") {
+			header = nil
+			continue
+		}
+		cells := splitMetaCells(line)
+		if header == nil {
+			header = cells
+			continue
+		}
+		if len(cells) == 0 || cells[0] != row {
+			continue
+		}
+		found := false
+		for _, name := range header {
+			found = found || name == column
+		}
+		if !found {
+			continue
+		}
+		if len(cells) != len(header) {
+			t.Fatalf("misaligned rendered table: %v over %v", cells, header)
+		}
+		out := make(map[string]string, len(header))
+		for index, name := range header {
+			out[name] = cells[index]
+		}
+		return out
+	}
+	t.Fatalf("no rendered %s row in the table containing %s", row, column)
+	return nil
 }
 
 func TestASignOffWithNoSiteRendersADashRatherThanDividingByZero(t *testing.T) {

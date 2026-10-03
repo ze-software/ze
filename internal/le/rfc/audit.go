@@ -28,9 +28,8 @@ import (
 // auditRel is where the verdicts live.
 const auditRel = "rfc/audit"
 
-// The verdict vocabulary of ai/skills/ze-rfc-audit.md, as a closed enum. A
-// fifth word is drift, and drift in this field is a compliance claim nobody can
-// read.
+// The verdict vocabulary is closed: an unknown word is refused rather than
+// published as a compliance claim nobody can interpret.
 //
 // `not-applicable` is owner ruling OR-1 (2026-07-29): a requirement with
 // genuinely no reachable code path had no legal state, because `enforced` with
@@ -38,6 +37,7 @@ const auditRel = "rfc/audit"
 // `unimplemented`.
 const (
 	VerdictEnforced      = "enforced"
+	VerdictPartial       = "partial"
 	VerdictWeak          = "weak"
 	VerdictWrong         = "wrong"
 	VerdictUnimplemented = "unimplemented"
@@ -53,6 +53,7 @@ const (
 // disagreement (ai/rules/principles.md).
 var auditVerdicts = map[string]string{
 	VerdictEnforced:      "the tests do what the requirement demands",
+	VerdictPartial:       "the tests enforce only the declared tested scope; the whole requirement remains unmet",
 	VerdictWeak:          "the tests pass over code that does not enforce the requirement",
 	VerdictWrong:         "the tests assert something other than what the requirement demands",
 	VerdictUnimplemented: "no code path enforces the requirement",

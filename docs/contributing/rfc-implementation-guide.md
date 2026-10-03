@@ -653,33 +653,36 @@ never sums the two, because a nightly tier is not merge-gate proof.
   each says the DOCUMENT imposes no MUST, and this red is about a MUST that exists and
   is unproven. Prove one requirement, or write `| Support status | Partial |`, which is
   what the public page's own vocabulary calls "not proven". Third, a `Support remaining`
-  cell that spells a gap count immediately before MUST or SHALL must agree with the
-  summary's `{gap}` count.
+  cell that spells a gap count, including zero, immediately before MUST or SHALL
+  must agree with the summary's `{gap}` plus `{partial}` row count.
   <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
   <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
   complying, and records a per-requirement verdict in `rfc/audit/<rfc>.json`.
-  The verdict is one of five closed values, and the gate reads it:
-  - `enforced` is the only one that means proven.
-  - `weak`, `wrong`, `unimplemented` and `not-applicable` each subtract the
-    requirement from the published proven count. That count is in the ledger's
-    **Audit coverage** section, and the gate still exits 0.
+  The verdict uses the closed vocabulary the gate reads:
+  - `enforced` is the only one that means whole-requirement proof.
+  - `partial` means the declared tested scope is proven while the remainder is
+    unmet or unproven; it needs the matching annotation and verified claim records.
+  - `partial`, `weak`, `wrong`, `unimplemented` and `not-applicable` each stay
+    outside the ledger's whole-proven count. Honest findings are legal when
+    their evidence and public disclosure satisfy the gate.
 
   Recording a finding is free, and deleting one is not. `./le rfc check`
-  re-stales a verdict when the requirement text, the tagged test's own function,
-  or a cited producer changes.
+  re-stales a verdict when the requirement text, declared partial scope, tagged
+  test's own function, or a cited producer changes. Whitespace-only partial
+  reflow is not a new judgment; ordinary requirement fingerprints are unchanged.
   <!-- source: internal/le/rfc/audit.go -- auditVerdicts -->
   <!-- source: internal/le/rfc/check_audit.go -- checkAuditSchema -->
   <!-- source: internal/le/rfc/coverage.go -- auditCoverageRows -->
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
-  `./le rfc reseal` then `./le rfc index-update`. It is the only command that
-  re-stamps a recorded verdict, and that is deliberate. A check that also wrote cannot be trusted
-  to report. And a regen target that wrote evidence would re-stamp hand-authored
-  judgements during unrelated work.
+  `./le rfc reseal` then `./le rfc index-update`. Reseal owns mechanical
+  fingerprint shifts, not independent rejudgment. Semantic changes require a
+  new audit and `audit-stamp ... mode rejudge`; regeneration never authorizes
+  a broader claim.
   <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
   <!-- source: internal/le/rfc/reseal.go -- resealTree -->
 - **A `STALE` verdict is.** The tagged unit itself changed, so re-run

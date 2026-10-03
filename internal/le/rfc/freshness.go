@@ -16,12 +16,35 @@
 package rfc
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// AuditRequirementSHA binds partial judgments to their declared scope while
+// preserving every non-partial fingerprint. Length prefixes make the tuple
+// unambiguous even when authored fields contain punctuation or delimiters.
+func AuditRequirementSHA(req Requirement) string {
+	if req.Annotation == nil {
+		return RequirementSHA(req.Text)
+	}
+	a := req.Annotation
+	if a.Kind != AnnotationPartial {
+		return RequirementSHA(req.Text)
+	}
+	var tuple textbuf.Buffer
+	for _, field := range []string{req.Text, a.Kind, a.Tested, a.Gap, a.Producer, a.Reason} {
+		value := squashWhitespace(field)
+		tuple.Str(strconv.Itoa(len(value))).Byte(':').Str(value)
+	}
+	sum := sha256.Sum256(tuple.Bytes())
+	return hex.EncodeToString(sum[:])[:shaHexLen]
+}
 
 // The four freshness states, mutually exclusive and total.
 const (
@@ -395,6 +418,10 @@ func auditFreshness(in auditFreshnessInput) map[string]Freshness {
 		if !held || len(verdict) == 0 {
 			continue
 		}
+		if recordedSHA, _ := verdict["requirement_sha"].(string); recordedSHA != AuditRequirementSHA(req) {
+			out[req.RID] = Freshness{State: StaleRequirementState}
+			continue
+		}
 		keys := tagKeys(byRID[req.RID], reader, index)
 		codeKeys := verdictCodeKeys(audit, req.RID, verdict)
 
@@ -409,7 +436,7 @@ func auditFreshness(in auditFreshnessInput) map[string]Freshness {
 			out[req.RID] = Freshness{State: StaleUnitState, Moved: dedupe(unresolved)}
 			continue
 		}
-		out[req.RID] = verdictFreshness(verdict, RequirementSHA(req.Text),
+		out[req.RID] = verdictFreshness(verdict, AuditRequirementSHA(req),
 			taggedUnitSHAs(byRID[req.RID], reader, index), units, code)
 	}
 	return out

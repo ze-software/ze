@@ -519,7 +519,93 @@ func TestTheAuditVerdictAccessorAnswersTheRecordedFields(t *testing.T) {
 	if _, known := AuditVerdictMeaning("splendid"); known {
 		t.Error("a word outside the closed vocabulary answered a meaning")
 	}
-	if len(AuditVerdicts()) != 5 {
-		t.Errorf("the vocabulary holds %d words, want five", len(AuditVerdicts()))
+}
+
+// Scope changes invalidate judgement while generic requirement/claim hashes stay stable.
+func TestPartialScopeChangesInvalidateAudit(t *testing.T) {
+	for _, change := range []string{"tested", "gap", "reason", "producer", "remove", "to-gap", "reflow"} {
+		t.Run(change, func(t *testing.T) {
+			root := partialStampTree(t)
+			stampPartial(t, root)
+			before := string(readStampAudit(t, root))
+			files := partialFiles()
+			body := files[selftestSummaryRel]
+			switch change {
+			case "tested":
+				body = strings.Replace(body, `tested "ignored on receipt."`, `tested "ignored"`, 1)
+			case "gap":
+				body = strings.Replace(body, `gap "MUST be zero when sent"`, `gap "zero when sent"`, 1)
+			case "reason":
+				body = strings.Replace(body, partialMarker, strings.Replace(partialMarker, "native sending is absent", "native packet sending is absent", 1), 1)
+			case "producer":
+				body = strings.Replace(body, stampProducerKey, selftestProducerPath+"::ReceiveWidget", 1)
+				writeFixtureFiles(t, root, map[string]string{selftestProducerPath: selftestProducerSource + "\nfunc ReceiveWidget() {}\n"})
+			case "remove":
+				body = strings.Replace(body, " "+partialMarker, "", 1)
+			case "to-gap":
+				body = strings.Replace(body, partialMarker, "{gap: native sending absent}", 1)
+			case "reflow":
+				body = strings.Replace(body, partialMarker, strings.Replace(partialMarker, "native sending is absent", "native   sending is absent", 1), 1)
+			}
+			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: body})
+			collected, err := Collect(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(collected.ParseErrors) != 0 || len(collected.Requirements) != 1 {
+				t.Fatalf("scope mutation did not remain a parsed row: %+v", collected)
+			}
+			if change == "reason" || change == "reflow" {
+				if collected.Requirements[0].Annotation.Reason == partialRow(t).Annotation.Reason {
+					t.Fatal("fixture changed metadata rather than the partial reason")
+				}
+			}
+			state := stampFreshness(t, root)[selftestRIDSend].State
+			if change == "reflow" {
+				if state != FreshState {
+					t.Fatal(state)
+				}
+				return
+			}
+			if state != StaleRequirementState {
+				t.Fatalf("scope %s: %s", change, state)
+			}
+			report, err := ResealWithProof(root, func(string) bool { return true }, "test proof")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(report.Refused) == 0 || string(readStampAudit(t, root)) != before {
+				t.Fatal("reseal laundered scope judgement")
+			}
+		})
+	}
+	plain := partialRow(t)
+	plain.Annotation = nil
+	if AuditRequirementSHA(plain) != RequirementSHA(plain.Text) {
+		t.Fatal("nonpartial fingerprint changed")
+	}
+	if AuditRequirementSHA(partialRow(t)) == AuditRequirementSHA(plain) {
+		t.Fatal("adding scope retained judgement hash")
+	}
+}
+
+func TestAddingPartialScopeRequiresRejudgment(t *testing.T) {
+	root := partialStampTree(t)
+	body := partialFiles()[selftestSummaryRel]
+	writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: strings.Replace(body, " "+partialMarker, "", 1)})
+	from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: map[string]any{"verdict": VerdictWeak, "note": "whole sentence is not demonstrated"}})
+	if _, err := auditStamp(root, selftestStem, from, stampModeNew, stampNow); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: body})
+	if state := stampFreshness(t, root)[selftestRIDSend].State; state != StaleRequirementState {
+		t.Fatal(state)
+	}
+	from = stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
+	if _, err := auditStamp(root, selftestStem, from, stampModeRejudge, stampNow); err != nil {
+		t.Fatal(err)
+	}
+	if state := stampFreshness(t, root)[selftestRIDSend].State; state != FreshState {
+		t.Fatal(state)
 	}
 }

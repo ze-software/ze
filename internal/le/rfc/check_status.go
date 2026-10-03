@@ -31,7 +31,10 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 	enrolled map[string]bool) []string {
 	var errs []string
 	for _, req := range requirements {
-		if req.Annotation == nil || req.Annotation.Kind != AnnotationGap {
+		if req.Annotation == nil {
+			continue
+		}
+		if req.Annotation.Kind != AnnotationGap && req.Annotation.Kind != AnnotationPartial {
 			continue
 		}
 		row, held := rows[req.RFC]
@@ -40,15 +43,20 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 				continue
 			}
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(req.RID).Str(" is annotated {gap} but ").Str(req.RFC).
+			errs = append(errs, tb.Str(req.RID).Str(" is annotated {").Str(req.Annotation.Kind).Str("} but ").Str(req.RFC).
 				Str(" has no row in docs/features/rfc-status.md; the public ledger must disclose it").String())
 			continue
 		}
-		if rowDisclosesGap(row) {
+		disclosed := rowDisclosesGap(row)
+		if req.Annotation.Kind == AnnotationPartial {
+			remaining := strings.TrimSpace(row.Remaining)
+			disclosed = disclosed && remaining != "" && !strings.EqualFold(remaining, "none") && !noGapRE.MatchString(remaining)
+		}
+		if disclosed {
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(req.RID).Str(" is annotated {gap: ").Str(truncateRunes(req.Annotation.Reason, 50)).
+		errs = append(errs, tb.Str(req.RID).Str(" is annotated {").Str(req.Annotation.Kind).Str(": ").Str(truncateRunes(req.Annotation.Reason, 50)).
 			Str("} but its public row says ").Str(req.RFC).Str(" is '").Str(row.Status).
 			Str("' with '").Str(truncateRunes(row.Remaining, 40)).Str("'. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary's own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run").String())
 	}
@@ -241,7 +249,7 @@ func unprovenChecklist(stem string, row LedgerRow, gated int, cover CoverageRow)
 func spelledNumbers() map[string]int {
 	units := strings.Fields("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen")
 	tens := []string{"twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"}
-	out := map[string]int{}
+	out := map[string]int{"zero": 0}
 	var tb textbuf.Buffer
 	for index, unit := range units {
 		out[unit] = index + 1
@@ -278,7 +286,7 @@ func spelledGapCount(remaining string) (int, bool) {
 func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRow) []string {
 	gaps := map[string]int{}
 	for _, req := range requirements {
-		if req.Annotation != nil && req.Annotation.Kind == AnnotationGap {
+		if req.Annotation != nil && (req.Annotation.Kind == AnnotationGap || req.Annotation.Kind == AnnotationPartial) {
 			gaps[req.RFC]++
 		}
 	}
@@ -291,7 +299,7 @@ func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRo
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str("rfc/short/").Str(stem).Str(".md says in its `Support remaining` cell that it has ").Int(int64(claimed)).
 			Str(" MUST-level gap(s), and its own checklist carries ").Int(int64(gaps[stem])).
-			Str(" {gap} annotation(s). One of the two is wrong. Only a spelled number sitting immediately before MUST or SHALL is read as a gap count; a digit count, or a number further from the keyword, is outside this check").String())
+			Str(" {gap} or {partial} annotation(s), counted once per requirement row, not per protocol obligation. One of the two is wrong. Only a spelled number sitting immediately before MUST or SHALL is read as a gap count; a digit count, or a number further from the keyword, is outside this check").String())
 	}
 	return errs
 }

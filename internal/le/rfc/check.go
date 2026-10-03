@@ -81,11 +81,13 @@ type CheckReport struct {
 	CannotRun string `json:"cannot-run,omitempty"`
 	// Findings is every violation, in parts. Violations is rendered from it, so
 	// the two cannot hold different populations.
-	Findings   []Finding `json:"findings,omitempty"`
-	Violations []string  `json:"violations,omitempty"`
-	Gated      int       `json:"gated,omitempty"`
-	Enrolled   int       `json:"enrolled,omitempty"`
-	Tags       int       `json:"tags,omitempty"`
+	Findings      []Finding     `json:"findings,omitempty"`
+	Violations    []string      `json:"violations,omitempty"`
+	Gated         int           `json:"gated,omitempty"`
+	Enrolled      int           `json:"enrolled,omitempty"`
+	Partial       int           `json:"partial"`
+	PartialScopes []Requirement `json:"partial-scopes"`
+	Tags          int           `json:"tags,omitempty"`
 	// The two gap figures render even at zero, for the reason the
 	// discrimination figures below do: they are published debt. A demonstrated
 	// gap is a `{gap}` row a test asserts through rfcgap.Demonstrate, which goes
@@ -190,6 +192,10 @@ func (r *CheckReport) Text() string {
 			Str("or an annotation saying why not. A {gap} row can also carry a\n").
 			Str("`RFC requirement: <ID> gap` tag on a Go test that calls rfcgap.Demonstrate.\n").
 			Str("See ai/skills/ze-rfc.md.\n")
+		tb.Str("partial: ").Int(int64(r.Partial)).Str(" gated rows; zero whole-requirement credit.\n")
+		for _, req := range r.PartialScopes {
+			tb.Str(req.RID).Str(": ").Str(req.Text).Str("\n  scoped evidence: ").Str(req.Annotation.Reason).Str("; whole requirement remains unproven.\n")
+		}
 		return tb.String()
 	}
 	percentage := 0.0
@@ -203,6 +209,10 @@ func (r *CheckReport) Text() string {
 		Int(int64(r.GapsDescribed)).Str(" described by the annotation alone, of ").
 		Int(int64(r.GapsDemonstrated + r.GapsDescribed)).Str(" {gap} row(s) in every summary").
 		Str(demonstratedStemsPhrase(r.GapsByStem)).Str(".\n")
+	tb.Str("partial: ").Int(int64(r.Partial)).Str(" gated rows with scoped evidence and a remaining gap; zero whole-requirement credit.\n")
+	for _, req := range r.PartialScopes {
+		tb.Str(req.RID).Str(": ").Str(req.Text).Str("\n  scoped evidence: ").Str(req.Annotation.Reason).Str("; whole requirement remains unproven.\n")
+	}
 	tb.Str("extraction: ").Str(registerPhrase(r.SignedByRegister)).Str(" signed off of ").Int(int64(r.Enrolled)).
 		Str(" enrolled; ").Int(int64(r.Unsigned)).Str(" unsigned (grandfathered backlog).\n")
 	// The line above counts the ENROLLED set, so a completed walk for a stem
@@ -221,7 +231,7 @@ func (r *CheckReport) Text() string {
 	tb.Str("discrimination: ").Int(int64(r.DiscriminationProven)).Str(" proven, ").
 		Int(int64(r.DiscriminationOwed)).Str(" owed, ").Int(int64(r.DiscriminationEscaped)).
 		Str(" escaped; a proof is a recorded break under which the tagged unit itself goes red, ").
-		Str("and a tag the commit under test did not add is grandfathered.\n")
+		Str("and a tag the commit under test did not add is grandfathered. These are tag-claim records, not whole-requirement proofs; partial scope remains binding.\n")
 	if r.DiscriminationBacklog != nil {
 		tb.Str("discrimination: ").Int(int64(*r.DiscriminationBacklog)).
 			Str(" tagged unit(s) carry a tag added since ").Str(backlogRevision).
@@ -447,6 +457,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	}
 	findings = append(findings, notes(compileErrors)...)
 	findings = append(findings, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements))...)
+	findings = append(findings, notes(checkPartialScopes(discriminationSources, collected.Requirements))...)
 	findings = append(findings, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements))...)
 	findings = append(findings, notes(checkRowQuotes(tree, collected.Requirements))...)
 	findings = append(findings, notes(checkRollupTargets(collected.Requirements, collected.Enrolled))...)
@@ -485,6 +496,7 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	}
 	findings = append(findings, notes(auditFileErrors)...)
 	findings = append(findings, notes(checkAuditSchema(collected.Requirements, collected.Tags, audits))...)
+	findings = append(findings, notes(checkPartialProofs(collected.Requirements, audits, discriminationCovers, discrimination))...)
 	states := auditFreshness(auditFreshnessInput{Tree: tree, Requirements: collected.Requirements,
 		Tags: collected.Tags, Enrolled: collected.Enrolled, Audits: audits})
 	findings = append(findings, notes(checkAuditFreshness(collected.Requirements, states))...)
@@ -522,9 +534,6 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	findings = append(findings, notes(checkDrainFloor(tree, collected.Enrolled, signed, today))...)
 
 	report := CheckReport{Findings: findings, Violations: findingMessages(findings)}
-	if len(findings) > 0 {
-		return report, nil
-	}
 	for _, req := range collected.Requirements {
 		if req.Gated() && collected.Enrolled[req.RFC] {
 			report.Gated++
@@ -537,6 +546,17 @@ func check(tree string, today time.Time, approvals map[string]string) (CheckRepo
 	for _, count := range report.GapsByStem {
 		report.GapsDemonstrated += count.Demonstrated
 		report.GapsDescribed += count.Described
+	}
+	for _, row := range CoverageRows(collected.Requirements, collected.Tags, carriers) {
+		if collected.Enrolled[row.RFC] {
+			report.Partial += row.Partial
+		}
+	}
+	report.PartialScopes = []Requirement{}
+	for _, req := range collected.Requirements {
+		if req.Annotation != nil && req.Annotation.Kind == AnnotationPartial {
+			report.PartialScopes = append(report.PartialScopes, req)
+		}
 	}
 	report.Evidence = evidenceCounts(collected.Tags, carriers)
 	report.Signed = len(credited)

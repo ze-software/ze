@@ -34,6 +34,14 @@ the red WAS observed, and that the code it was observed over has not moved
 since. It does not say the red would happen again on a machine that never ran
 it.
 
+A `{partial}` row scopes all its tags to the declared Tested selector. The
+independent partial audit binds that selector to the existing claim records;
+the records themselves still prove only their own claim paragraphs. Adopting
+or changing scope does not re-key, copy or rewrite unchanged observations, but
+does stale their audit binding. Partial judgment requires a verified mutant or
+revert for every cover; no-break, missing and stale records do not qualify.
+Record proof counts count tag claims, never whole requirements.
+
 **It is not a bound over the standing corpus.** 3,923 tags are in scope today
 and almost none carry a record. The obligation is change-scoped and keyed on the
 tagged UNIT: a unit the TIP COMMIT added against `HEAD^`, on a gated

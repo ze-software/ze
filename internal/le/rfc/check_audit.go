@@ -77,7 +77,40 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 	var prefix textbuf.Buffer
 	rel := prefix.Str(auditRel).Byte('/').Str(rfc).Str(".json: ").Str(rid).String()
 	var errs []string
+	if value == VerdictPartial {
+		if req.Annotation == nil {
+			return []string{rel + " is 'partial' without a matching {partial} annotation"}
+		}
+		if req.Annotation.Kind != AnnotationPartial {
+			return []string{rel + " is 'partial' without a matching {partial} annotation"}
+		}
+		if why := partialScopeRefusal(&req); why != "" {
+			errs = append(errs, rel+" has invalid partial scope: "+why)
+		}
+		for _, field := range []string{fingerprintTests, fingerprintUnits} {
+			if len(recordedMap(verdict, field)) == 0 {
+				errs = append(errs, rel+" is 'partial' with an empty '"+field+"' map")
+			}
+		}
+		if recordedMap(verdict, fingerprintCode)[req.Annotation.Producer] == "" {
+			errs = append(errs, rel+" is 'partial' without its gap-context producer in the code map")
+		}
+		for _, polarity := range []string{PolarityPositive, PolarityNegative} {
+			if !polarities[polarity] {
+				errs = append(errs, rel+" is 'partial' without a "+polarity+" test")
+			}
+		}
+		note, _ := verdict[verdictFieldNote].(string)
+		for _, field := range []string{req.Annotation.Tested, req.Annotation.Gap, req.Annotation.Producer} {
+			if !strings.Contains(normalize(note), normalize(field)) {
+				errs = append(errs, rel+" partial note must identify tested and missing behavior and boundary: "+field)
+			}
+		}
+	}
 	if value == VerdictEnforced {
+		if req.Annotation != nil && req.Annotation.Kind == AnnotationPartial {
+			errs = append(errs, rel+" cannot be 'enforced' while a {partial} scope remains")
+		}
 		if len(recordedMap(verdict, fingerprintTests)) == 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'enforced' with an empty 'tests' map. 'enforced' means the tests would fail if the code stopped complying, so it must cite at least one. If no reachable code path could satisfy or violate the requirement, the honest verdict is 'not-applicable' with a 'no_code_path' reason and an agreeing {not-applicable} annotation").String())
@@ -165,7 +198,7 @@ func checkAuditFreshness(requirements []Requirement, states map[string]Freshness
 		case StaleRequirementState:
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
-				Str(" has a STALE audit verdict -- the REQUIREMENT TEXT changed since it was judged, so every judgement under it is void. Re-read ").Str(req.RFC).Str(" with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)").String())
+				Str(" has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read ").Str(req.RFC).Str(" with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)").String())
 		default:
 			var tb textbuf.Buffer
 			var details []string
@@ -201,7 +234,7 @@ func checkAuditDisclosure(requirements []Requirement, rows map[string]LedgerRow,
 			continue
 		}
 		value := verdictValue(verdict)
-		if value != VerdictWrong && value != VerdictUnimplemented {
+		if value != VerdictWrong && value != VerdictUnimplemented && value != VerdictPartial {
 			continue
 		}
 		seen[req.RID] = true
@@ -233,7 +266,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 		}
 		was := baseline[req.RFC][req.RID]
 		oldValue := verdictValue(was)
-		if oldValue != VerdictWeak && oldValue != VerdictWrong {
+		if oldValue != VerdictWeak && oldValue != VerdictWrong && oldValue != VerdictPartial {
 			continue
 		}
 		seen[req.RID] = true
@@ -259,7 +292,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 // 'wrong', to 'enforced'.
 func findingUpgrade(was, now map[string]any) bool {
 	oldValue := verdictValue(was)
-	if oldValue != VerdictWeak && oldValue != VerdictWrong {
+	if oldValue != VerdictWeak && oldValue != VerdictWrong && oldValue != VerdictPartial {
 		return false
 	}
 	return verdictValue(now) == VerdictEnforced
@@ -369,6 +402,53 @@ func checkAuditNote(tree string, requirements []Requirement, tags []Tag, enrolle
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" is 'enforced' but its note names nothing that occurs in the tagged unit(s). Searched ").Str(strings.Join(sortedSet(files), ", ")).Str("; tokens checked: ").Str(firstTokens(tokens, 12)).Str(". A note that cannot be tied to the test it judges is not evidence that the test was read -- name the assertion, the helper, or the constant the judgement turns on").String())
+	}
+	return errs
+}
+
+// partialProofClaims reads current native observations, never executing proof.
+// Every distinct cover must have a verified mutant or revert, not an escape.
+func partialProofClaims(tree string, req Requirement, tags []Tag) ([]string, error) {
+	covers, err := tagCovers(newSourceReader(tree), newScopeIndex(), tags)
+	if err != nil {
+		return nil, err
+	}
+	records, err := loadDiscriminationFile(tree, req.RFC+".json")
+	if err != nil {
+		return nil, err
+	}
+	verdicts, err := verifyDiscrimination(tree, records, covers)
+	if err != nil {
+		return nil, err
+	}
+	return partialCoverRefusals(req.RID, covers, verdicts), nil
+}
+
+func partialCoverRefusals(rid string, covers map[Cover][]Tag, verdicts []DiscriminationVerdict) []string {
+	proven := map[Cover]bool{}
+	for _, verdict := range verdicts {
+		if verdict.Verified() && verdict.Record.Proves() {
+			proven[verdict.Record.Cover()] = true
+		}
+	}
+	var errs []string
+	for cover := range covers {
+		if cover.RID == rid && !proven[cover] {
+			errs = append(errs, rid+" partial scope needs a current verified mutant/revert for "+cover.Polarity+" "+cover.Unit)
+		}
+	}
+	slices.Sort(errs)
+	return errs
+}
+
+func checkPartialProofs(requirements []Requirement, audits map[string]Audit,
+	covers map[Cover][]Tag, verdicts []DiscriminationVerdict) []string {
+	var errs []string
+	for _, req := range requirements {
+		verdict, held := audits[req.RFC].Verdict(req.RID)
+		if held && verdictValue(verdict) == VerdictPartial {
+			errs = append(errs, partialCoverRefusals(req.RID, covers, verdicts)...)
+		}
 	}
 	return errs
 }

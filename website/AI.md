@@ -197,6 +197,18 @@ artifact boundary and can seed it from the current complete Pages checkout.
   a page this family wrote: on a real build the output is the published
   checkout, so a removal keyed on "a name that is not a live stem" would take
   any directory another producer or an author put under that prefix.
+  A partial annotation carries typed `tested`, `gap` and `producer` fields
+  beside its complete reason and unchanged Text. Its gated count is the
+  `partial` subset of Annotated; `partial-rows` includes advisory rows too.
+  The separate `Partial proof; remaining gap` bucket is not whole satisfaction
+  or NoTest. Gap detail and record lists disclose both scopes without adding
+  the row to ordinary Gaps, GatedGaps or DemonstratedGaps. Verified records are
+  tag-claim evidence only. Render-only builds suppress whole credit even for
+  an invalid stored enforced verdict on a partial row.
+  A malformed checklist prevents publication through the shared render-input
+  constructor, even when this path does not run the gate. A whitespace-padded
+  malformed partial marker cannot become an ordinary whole-proof row. The
+  partial tape segment uses the unmet-obligation color, never the proven color.
 - **The RFC family renders once for two outputs.** `rfcdetail.go` declares each
   section of a detail page as a heading and a PAIR of functions, one for the
   markup and one for the Markdown mirror, so a section cannot reach the page and

@@ -110,6 +110,7 @@ func (r discriminationRecordReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str(r.Artifact).Str(": recorded ").Str(r.Record.RID).Byte(' ').Str(r.Record.Polarity).
 		Str(" at ").Str(r.Record.Unit).Str(" by ").Str(r.Record.Route).Byte('\n')
+	tb.Str("Evidence unit: tag claim; a partial annotation scopes this record, never the whole requirement.\n")
 	if r.Record.Proves() {
 		tb.Str("break: ").Str(r.Record.Break).Str(" in ").Str(r.Record.Producer).Byte('\n').
 			Str("command: ").Str(r.Observed.Command).Byte('\n').

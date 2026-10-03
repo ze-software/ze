@@ -93,8 +93,11 @@ type rfcLedgerCoverage struct {
 	Both         int `json:"both"`
 	One          int `json:"one"`
 	Annotated    int `json:"annotated"`
-	Missing      int `json:"missing"`
-	NightlyOnly  int `json:"nightly-only"`
+	// Partial is the gated subset of Annotated; PartialRows also includes advisory rows.
+	Partial     int `json:"partial"`
+	PartialRows int `json:"partial-rows"`
+	Missing     int `json:"missing"`
+	NightlyOnly int `json:"nightly-only"`
 	// Gaps counts EVERY declared gap, at any level, because that is the number
 	// the page discloses. GatedGaps counts the subset the gate holds, which is
 	// the one the binding arithmetic below can use: four SHOULD-level gaps in
@@ -227,6 +230,9 @@ type rfcLedgerAnnotation struct {
 	Kind     string   `json:"kind"`
 	Polarity string   `json:"polarity,omitempty"`
 	Reason   string   `json:"reason"`
+	Tested   string   `json:"tested,omitempty"`
+	Gap      string   `json:"gap,omitempty"`
+	Producer string   `json:"producer,omitempty"`
 	Targets  []string `json:"targets,omitempty"`
 	Derived  string   `json:"derived,omitempty"`
 }
@@ -496,7 +502,8 @@ func rfcLedgerRequirementOf(in *rfcLedgerInput, requirement *rfc.Requirement,
 	if requirement.Annotation != nil {
 		entry.Annotation = &rfcLedgerAnnotation{Kind: requirement.Annotation.Kind,
 			Polarity: requirement.Annotation.Polarity, Reason: requirement.Annotation.Reason,
-			Targets: requirement.Annotation.Targets}
+			Targets: requirement.Annotation.Targets, Tested: requirement.Annotation.Tested,
+			Gap: requirement.Annotation.Gap, Producer: requirement.Annotation.Producer}
 		if requirement.Rollup() {
 			entry.Annotation.Derived = requirement.DerivedMark()
 		}
@@ -549,6 +556,11 @@ func rfcLedgerVerdictOf(in *rfcLedgerInput, requirement *rfc.Requirement) *rfcLe
 	if state, known := in.Render.States[requirement.RID]; known {
 		verdict.Freshness, verdict.Moved = state.State, state.Moved
 	}
+	if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
+		if record.Verdict == rfc.VerdictEnforced {
+			verdict.Meaning = "INVALID: enforced on partial scope; zero whole-requirement credit"
+		}
+	}
 	return verdict
 }
 
@@ -561,11 +573,15 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 		Both:         bucket.Both,
 		One:          bucket.One,
 		Annotated:    bucket.Annotated,
+		Partial:      bucket.Partial,
 		Missing:      bucket.Missing,
 		NightlyOnly:  bucket.NightlyOnly,
 	}
 	for index := range requirements {
 		requirement := &requirements[index]
+		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
+			coverage.PartialRows++
+		}
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
 			coverage.Gaps++
 			if requirement.DemonstratedBy != "" {

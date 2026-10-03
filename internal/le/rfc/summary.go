@@ -8,12 +8,16 @@
 package rfc
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -151,10 +155,110 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	if kind == AnnotationFeatureDeclined {
 		return parseFeatureDeclined(rest, where)
 	}
+	if kind == AnnotationPartial {
+		annotation, err := parsePartial(rest, where)
+		if err != nil {
+			return nil, &ParseError{msg: err.Error()}
+		}
+		return annotation, nil
+	}
 	if kind == AnnotationRollup {
 		return parseRollup(rest, where)
 	}
 	return &Annotation{Kind: kind, Reason: rest}, nil
+}
+
+var partialRE = regexp.MustCompile(`^tested\s+("(?:[^"\\]|\\.)*")\s*;\s*gap\s+("(?:[^"\\]|\\.)*")\s*;\s*(\S.*)$`)
+
+// parsePartial keeps the entire declaration for publication and audit binding.
+func parsePartial(rest, where string) (*Annotation, error) {
+	parts := partialRE.FindStringSubmatch(rest)
+	if parts == nil {
+		return nil, fmt.Errorf("%s: {partial} needs tested \"<span>\"; gap \"<span>\"; <reason with path.go::Symbol>", where)
+	}
+	a := &Annotation{Kind: AnnotationPartial, Reason: rest}
+	if err := json.Unmarshal([]byte(parts[1]), &a.Tested); err != nil {
+		return nil, fmt.Errorf("%s: {partial} tested selector: %w", where, err)
+	}
+	if err := json.Unmarshal([]byte(parts[2]), &a.Gap); err != nil {
+		return nil, fmt.Errorf("%s: {partial} gap selector: %w", where, err)
+	}
+	a.Producer = producerRE.FindString(parts[3])
+	if a.Producer == "" {
+		return nil, fmt.Errorf("%s: {partial} explanation needs a production path.go::Symbol", where)
+	}
+	if strings.TrimSpace(strings.Replace(parts[3], a.Producer, "", 1)) == "" {
+		return nil, fmt.Errorf("%s: {partial} needs an explanation of missing behavior, not a producer alone", where)
+	}
+	path := producerFile(a.Producer)
+	if filepath.IsAbs(path) {
+		return nil, fmt.Errorf("%s: {partial} producer must be repo-relative", where)
+	}
+	for _, part := range strings.Split(path, "/") {
+		if part == ".." {
+			return nil, fmt.Errorf("%s: {partial} producer must remain inside the repository", where)
+		}
+	}
+	if strings.HasSuffix(path, "_test.go") {
+		return nil, fmt.Errorf("%s: {partial} producer names a test, not production code", where)
+	}
+	return a, nil
+}
+
+// partialScopeRefusal checks locators, not new requirements. The parent still
+// owes the unchanged source, section and minimum-length checks.
+func partialScopeRefusal(req *Requirement) string {
+	if req.Annotation == nil {
+		return ""
+	}
+	if req.Annotation.Kind != AnnotationPartial {
+		return ""
+	}
+	parent := quoteNeedle(req.Quote())
+	tested := quoteNeedle(req.Annotation.Tested)
+	gap := quoteNeedle(req.Annotation.Gap)
+	for _, selector := range []struct{ name, text string }{{"tested", tested}, {"gap", gap}} {
+		if selector.text == "" {
+			return selector.name + " selector is empty"
+		}
+		start := strings.Index(parent, selector.text)
+		if start < 0 {
+			return selector.name + " selector is absent from the parent quote"
+		}
+		if strings.Contains(parent[start+1:], selector.text) {
+			return selector.name + " selector must match exactly once in the parent quote"
+		}
+		if !partialWordBoundary(parent, start) {
+			return selector.name + " selector starts inside a word"
+		}
+		if !partialWordBoundary(parent, start+len(selector.text)) {
+			return selector.name + " selector ends inside a word"
+		}
+	}
+	if tested == parent {
+		return "tested selector must not be the whole parent quote"
+	}
+	startTested, startGap := strings.Index(parent, tested), strings.Index(parent, gap)
+	if startTested < startGap+len(gap) && startGap < startTested+len(tested) {
+		return "tested and gap selectors overlap"
+	}
+	return ""
+}
+
+func partialWordBoundary(text string, offset int) bool {
+	if offset == 0 {
+		return true
+	}
+	if offset == len(text) {
+		return true
+	}
+	left, _ := utf8.DecodeLastRuneInString(text[:offset])
+	right, _ := utf8.DecodeRuneInString(text[offset:])
+	return !(partialWordRune(left) && partialWordRune(right))
+}
+
+func partialWordRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }
 
 // producerRE reads the `<path>.go::<Symbol>` a {lower-layer} reason must name.
@@ -417,6 +521,9 @@ func stripMarkers(rest, where string) (*Annotation, *Successor, string, error) {
 	for {
 		loc := annotationRE.FindStringSubmatchIndex(rest)
 		if loc == nil {
+			if hasPartialMarker(rest) {
+				return nil, nil, "", &ParseError{msg: where + ": malformed {partial} marker; literal braces are unsupported"}
+			}
 			return annotation, successor, rest, nil
 		}
 		body := strings.TrimSpace(rest[loc[2]:loc[3]])
@@ -446,6 +553,22 @@ func stripMarkers(rest, where string) (*Annotation, *Successor, string, error) {
 			annotation = parsed
 		}
 		rest = strings.TrimSpace(rest[:loc[0]])
+	}
+}
+
+// hasPartialMarker recognizes the same whitespace-trimmed kind that
+// parseAnnotation accepts, even when nested braces prevent marker extraction.
+func hasPartialMarker(text string) bool {
+	for {
+		_, rest, found := strings.Cut(text, "{")
+		if !found {
+			return false
+		}
+		kind, _, _ := strings.Cut(rest, ":")
+		if strings.TrimSpace(kind) == AnnotationPartial {
+			return true
+		}
+		text = rest
 	}
 }
 
@@ -533,11 +656,15 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 	if err := validateID(rid, stem, where); err != nil {
 		return nil, err
 	}
-	return &Requirement{
+	req := &Requirement{
 		RFC: stem, RID: rid, Level: found[3], Text: rest, Section: section,
 		Annotation: annotation, Source: source, Line: lineno,
 		Ticked: ticked, Superseded: successor,
-	}, nil
+	}
+	if refusal := partialScopeRefusal(req); refusal != "" {
+		return nil, &ParseError{msg: where + ": {partial} " + refusal}
+	}
+	return req, nil
 }
 
 // parseSummaryText parses every checklist line in a summary. It raises on a

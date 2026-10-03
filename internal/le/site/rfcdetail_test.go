@@ -823,7 +823,9 @@ func TestTheSiteReadsItsRFCVocabularyFromThePackage(t *testing.T) {
 		}
 		for _, word := range vocabulary {
 			literal := `"` + word + `"`
-			if strings.Contains(string(content), literal) {
+			// JSON field names are the publication schema, not verdict literals.
+			source := strings.ReplaceAll(string(content), `json:"`+word+`"`, "")
+			if strings.Contains(source, literal) {
 				t.Errorf("%s spells %s as a literal; read it from internal/le/rfc instead",
 					name, literal)
 			}
@@ -888,7 +890,11 @@ type rfcBadState struct{ family, word string }
 func rfcBadStates(requirement *rfcLedgerRequirement) []rfcBadState {
 	var states []rfcBadState
 	if requirement.Gated && len(requirement.Covers) == 0 {
-		states = append(states, rfcBadState{"gated MUST with no test", "no test"})
+		if requirement.DemonstratedBy == "" {
+			states = append(states, rfcBadState{"gated MUST with no test", "no test"})
+		} else {
+			states = append(states, rfcBadState{"gap evidence without conformance proof", requirement.DemonstratedBy})
+		}
 	}
 	if requirement.NightlyOnly {
 		states = append(states, rfcBadState{"nightly-only evidence", "nightly-only"})
@@ -1000,11 +1006,11 @@ func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
 	pages := 0
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
-		var owed []string
+		var owed []*rfcLedgerRequirement
 		for position := range entry.Requirements {
 			requirement := &entry.Requirements[position]
 			if requirement.Gated && len(requirement.Covers) == 0 {
-				owed = append(owed, requirement.RID)
+				owed = append(owed, requirement)
 			}
 		}
 		if len(owed) == 0 {
@@ -1015,16 +1021,20 @@ func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
 		mirror := rfcDetailMirror(entry)
 		body := rfcDetailBody(entry)
 		all := rfcAllRIDs(entry)
-		for _, rid := range owed {
-			// "no test" under the id, not the id alone: every requirement id
-			// is emitted by the requirements table whatever else the page
-			// says, so naming it proves nothing about the disclosure.
-			if !strings.Contains(rfcDisclosureUnit(mirror, rid, all), "no test") {
-				t.Errorf("%s carries no test for %s and its mirror does not say so under it",
+		for _, requirement := range owed {
+			rid := requirement.RID
+			// A gap demonstration is real evidence, but not conformance proof.
+			// Name that unit when present, rather than claiming no test exists.
+			evidence := requirement.DemonstratedBy
+			if evidence == "" {
+				evidence = "no test"
+			}
+			if !strings.Contains(rfcDisclosureUnit(mirror, rid, all), evidence) {
+				t.Errorf("%s lacks conformance proof for %s and its mirror omits its evidence state",
 					entry.Stem, rid)
 			}
-			if !strings.Contains(rfcDisclosureUnit(body, rid, all), "no test") {
-				t.Errorf("%s carries no test for %s and its page does not say so under it",
+			if !strings.Contains(rfcDisclosureUnit(body, rid, all), evidence) {
+				t.Errorf("%s lacks conformance proof for %s and its page omits its evidence state",
 					entry.Stem, rid)
 			}
 		}
@@ -2657,5 +2667,183 @@ func TestADemonstratedGapNamesItsTest(t *testing.T) {
 	coverage := rfcLedgerCoverageOf(rfc.CoverageRow{}, entry.Requirements)
 	if coverage.DemonstratedGaps != 1 || coverage.Gaps < 1 {
 		t.Errorf("counters hold %d demonstrated of %d gaps, want 1 demonstrated", coverage.DemonstratedGaps, coverage.Gaps)
+	}
+}
+
+// Authored files pass through Collect, NewRenderInput and the site artifact
+// writer before any assertion reads their published scope or coverage.
+func TestPartialProofPublicationsAgree(t *testing.T) {
+	root, summary, marker := partialPublicationTree(t)
+	const rid = "RFC9999-2-1"
+	const tested = "ignored on receipt."
+	const gap = "MUST be zero when sent"
+	const producer = "internal/sample/widget.go::SendWidget"
+	paths := Paths{Repository: root, Output: t.TempDir()}
+	if err := publishRFCLedger(paths); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(paths.Output, rfcLedgerFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ledger rfcLedger
+	if err := json.Unmarshal(body, &ledger); err != nil {
+		t.Fatal(err)
+	}
+	if len(ledger.Stems) != 1 || len(ledger.Stems[0].Requirements) != 1 {
+		t.Fatalf("authored row disappeared from publication: %+v", ledger)
+	}
+	entry := &ledger.Stems[0]
+	row := &entry.Requirements[0]
+	if row.RID != rid || row.Annotation == nil || row.Annotation.Tested != tested || row.Annotation.Gap != gap || row.Annotation.Producer != producer {
+		t.Fatalf("authored scope changed in publication: %+v", row)
+	}
+	if len(row.Covers) != 2 || row.Positive == "" || row.Negative == "" {
+		t.Fatalf("scoped evidence links were lost: %+v", row)
+	}
+	if entry.Coverage.Gated != 1 || entry.Coverage.Annotated != 1 || entry.Coverage.Partial != 1 || entry.Coverage.PartialRows != 1 ||
+		entry.Coverage.Both != 0 || entry.Coverage.One != 0 || entry.Coverage.Missing != 0 || entry.Coverage.NoTest() != 0 || entry.Coverage.Gaps != 0 {
+		t.Fatalf("partial conflated with whole proof or untested gap: %+v", entry.Coverage)
+	}
+	if rfcCoverageTotal(rfcCoverageBuckets(entry)) != entry.Coverage.Gated {
+		t.Fatal("partial subset double-counted")
+	}
+	if rows := rfcGapRows(entry); len(rows) != 1 || rows[0].RID != rid {
+		t.Fatalf("remaining obligation lost its row: %+v", rows)
+	}
+	for _, fragment := range []string{`"partial": 1`, `"tested": "` + tested + `"`, `"gap": "` + gap + `"`, `"producer": "` + producer + `"`} {
+		if !strings.Contains(string(body), fragment) {
+			t.Errorf("published JSON omits %s", fragment)
+		}
+	}
+	page, mirror := renderRFCDetail(t, ledger, "rfc9999")
+	for _, surface := range []string{visibleText(mainContent(t, page)), mirror} {
+		for _, fact := range []string{rid, tested, gap, producer, row.Text} {
+			if !strings.Contains(surface, fact) {
+				t.Errorf("publication omits authored fact %q", fact)
+			}
+		}
+	}
+	collected, err := rfc.Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	render, err := rfc.NewRenderInput(root, collected, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, render.Carriers)
+	if err != nil || share.Proven != 0 || share.Gated != 1 {
+		t.Fatalf("published partial gained whole credit: %+v, %v", share, err)
+	}
+	// Deliberately corrupt a render-only input: no successful gate is assumed.
+	render.Audits["rfc9999"] = rfc.Audit{Verdicts: map[string]any{rid: map[string]any{"verdict": rfc.VerdictEnforced}}}
+	in := rfcLedgerInput{Render: render}
+	invalid := rfcLedgerRequirementOf(&in, &collected.Requirements[0], nil)
+	if !strings.Contains(invalid.Audit.Meaning, "INVALID") {
+		t.Fatal("invalid enforced looks sound")
+	}
+	entry.Requirements = []rfcLedgerRequirement{invalid}
+	if rfcProofCountsOf(entry).Unsound != 1 {
+		t.Fatal("invalid enforced counted sound")
+	}
+	render.States[rid] = rfc.Freshness{State: rfc.StaleRequirementState}
+	stale := rfcLedgerRequirementOf(&in, &collected.Requirements[0], nil)
+	if stale.Audit.Freshness != rfc.StaleRequirementState {
+		t.Fatal("scope freshness hidden")
+	}
+	for _, malformed := range []string{
+		strings.Replace(marker, `"ignored on receipt."`, `"not in the parent"`, 1),
+		strings.Replace(strings.Replace(marker, "{partial", "{ partial", 1), "native sending", "missing {native} sending", 1),
+	} {
+		writePartialPublicationFile(t, root, "rfc/short/rfc9999.md", strings.Replace(summary, marker, malformed, 1))
+		if err := publishRFCLedger(paths); err == nil {
+			t.Fatal("malformed scope was published as an ordinary or missing row")
+		}
+		after, err := os.ReadFile(filepath.Join(paths.Output, rfcLedgerFile))
+		if err != nil || string(after) != string(body) {
+			t.Fatal("refused publication replaced the valid artifact")
+		}
+	}
+}
+
+func partialPublicationTree(t *testing.T) (root, summary, marker string) {
+	t.Helper()
+	root = t.TempDir()
+	marker = `{partial: tested "ignored on receipt."; gap "MUST be zero when sent"; native sending is absent at internal/sample/widget.go::SendWidget}`
+	summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|---|---|\n" +
+		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | isolated source fixture |\n" +
+		"| Implementation | ze |\n| Implementation reason | fixture production boundary |\n" +
+		"| Support | bgp-base 10 |\n| Support area | Widgets |\n| Support status | Partial |\n" +
+		"| Support coverage | receipt ignores the field |\n| Support remaining | One MUST row remains unmet: native sending is absent. |\n\n" +
+		"## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A widget MUST be zero when sent and ignored on receipt. (§2) " + marker + "\n"
+	for path, body := range map[string]string{
+		"rfc/short/rfc9999.md":        summary,
+		"rfc/full/rfc9999.txt":        "Test RFC 9999\n\n2.  Widgets\n\nA widget MUST be zero when sent and ignored on receipt.\n",
+		"internal/sample/widget.go":   "package sample\n\nfunc SendWidget(count int) int { return count }\n",
+		"test/plugin/widget.ci":       "# RFC requirement: RFC9999-2-1 positive -- receipt accepts zero\n# RFC requirement: RFC9999-2-1 negative -- receipt ignores nonzero\nexpect=stdout:contains=OK\n",
+		".github/workflows/check.yml": "on:\n  push:\njobs:\n  check:\n    steps:\n      - run: ./le test functional plugin\n",
+	} {
+		writePartialPublicationFile(t, root, path, body)
+	}
+	return root, summary, marker
+}
+
+func writePartialPublicationFile(t *testing.T, root, rel, body string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A scanned Demonstrate call stays visible as gap evidence without turning into
+// a positive/negative cover or any whole-proof credit in the publication chain.
+func TestCollectedGapDemonstrationStaysOutsideWholeProof(t *testing.T) {
+	root, summary, marker := partialPublicationTree(t)
+	writePartialPublicationFile(t, root, "rfc/short/rfc9999.md", strings.Replace(summary, marker, "{gap: native sending absent}", 1))
+	writePartialPublicationFile(t, root, "test/plugin/widget.ci", "# no conformance assertion\n")
+	writePartialPublicationFile(t, root, "internal/sample/widget_test.go", `package sample
+
+import (
+	"testing"
+	"github.com/ze-software/ze/internal/test/rfcgap"
+)
+
+// RFC requirement: RFC9999-2-1 gap -- no native sender emits the widget.
+func TestMissingSend(t *testing.T) {
+	rfcgap.Demonstrate(t, "RFC9999-2-1", func(tb testing.TB) { tb.Error("no sender") })
+}
+`)
+	ledger, err := collectRequirementLedger(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ledger.Stems) != 1 || len(ledger.Stems[0].Requirements) != 1 {
+		t.Fatalf("gap population disappeared: %+v", ledger)
+	}
+	entry := &ledger.Stems[0]
+	req := &entry.Requirements[0]
+	const unit = "internal/sample/widget_test.go::TestMissingSend"
+	if req.DemonstratedBy != unit || len(req.Covers) != 0 || entry.Coverage.Both != 0 ||
+		entry.Coverage.SinglePolarity != 0 || entry.Coverage.GatedGaps != 1 || entry.Coverage.DemonstratedGaps != 1 {
+		t.Fatalf("gap demonstration was lost or credited as conformance: %+v", entry)
+	}
+	for _, surface := range []string{rfcDetailBody(entry), rfcDetailMirror(entry)} {
+		underID := rfcDisclosureUnit(surface, req.RID, rfcAllRIDs(entry))
+		if !strings.Contains(underID, unit) || !strings.Contains(underID, "{"+rfc.AnnotationGap+"}") {
+			t.Fatal("demonstrated gap is not disclosed as both evidence and unmet behavior")
+		}
+	}
+	collected, err := rfc.Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	share, err := rfc.ProvenShareOf(collected.Metas, collected.Requirements, collected.Tags, nil)
+	if err != nil || share.Proven != 0 || share.Gated != 1 {
+		t.Fatalf("demonstration moved whole proof: %+v, %v", share, err)
 	}
 }

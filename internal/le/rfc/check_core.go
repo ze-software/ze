@@ -101,6 +101,16 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			// (owner decision, 2026-09-15).
 			continue
 		}
+		if annotation != nil && annotation.Kind == AnnotationPartial {
+			for _, value := range []string{PolarityPositive, PolarityNegative} {
+				if !polarity[value] {
+					var tb textbuf.Buffer
+					errs = append(errs, requirementFinding(req, "partial scope lacks "+value+" test",
+						tb.Str(where).Str(": ").Str(req.RID).Str(" {partial} tested scope requires both polarities; missing ").Str(value).String()))
+				}
+			}
+			continue
+		}
 		if !req.Gated() {
 			continue
 		}
@@ -535,7 +545,7 @@ func rollupTargetState(req Requirement, polarity map[string]bool) RollupState {
 		return RollupUnproven
 	}
 	switch annotation.Kind {
-	case AnnotationGap:
+	case AnnotationGap, AnnotationPartial:
 		return RollupGap
 	case AnnotationSinglePolarity:
 		if polarity[annotation.Polarity] {
@@ -748,4 +758,27 @@ func declaresFunction(content, name string) bool {
 		}
 	}
 	return false
+}
+
+// checkPartialScopes validates the real production boundary even before an
+// independent audit exists. Selectors remain subordinate to the parent quote.
+func checkPartialScopes(reader *sourceReader, requirements []Requirement) []string {
+	var errs []string
+	index := newScopeIndex()
+	for _, req := range requirements {
+		if req.Annotation == nil {
+			continue
+		}
+		if req.Annotation.Kind != AnnotationPartial {
+			continue
+		}
+		if why := partialScopeRefusal(&req); why != "" {
+			errs = append(errs, req.RID+" {partial}: "+why)
+		}
+		_, found, err := resolveKeyText(reader.read, index, req.Annotation.Producer, req.RID+" partial producer")
+		if err != nil || !found {
+			errs = append(errs, req.RID+" {partial} gap-context producer does not resolve: "+req.Annotation.Producer)
+		}
+	}
+	return errs
 }

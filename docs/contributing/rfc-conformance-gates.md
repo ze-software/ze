@@ -18,7 +18,7 @@ names in snake_case. The Go names below are the current ones.
 | `rfc/short/<stem>.md` | The extracted summary, and the ONE place every fact about that RFC is declared. One checklist row per requirement, plus the `## Meta` table. That table states whether the RFC is gated, and what the public page claims for it |
 | `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc index-update`: which summaries are gated, and the recorded reason for each that is not |
 | `rfc/extraction/<stem>.json` | The extraction sign-off: the walk of the RFC text, recorded so a machine can re-check it |
-| `rfc/audit/<stem>.json` | A recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts from a pending file outside `rfc/audit/` and computes their fingerprints. With `mode rejudge` it replaces, in place, a recorded verdict a judge re-made, and accepts the `upgrade_reason` that a `weak` or `wrong` verdict raised to `enforced` over unchanged units needs. `./le rfc reseal` re-stamps a recorded one whose unit only shifted |
+| `rfc/audit/<stem>.json` | A recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts from a pending file outside `rfc/audit/` and computes their fingerprints. With `mode rejudge` it replaces, in place, a recorded verdict a judge re-made, and accepts the `upgrade_reason` that a `weak`, `wrong` or `partial` verdict raised to `enforced` over unchanged units needs. `./le rfc reseal` re-stamps a recorded one whose unit only shifted; it cannot re-judge changed scope |
 | `rfc/discrimination/<stem>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit |
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
 | `docs/features/rfc-status.md` | GENERATED from the Meta tables by `./le rfc index-update`: the PUBLIC support claim, one row per summary that declares a section. Its `Proof` column is the exception to that: it is derived from the checklist and the tags, and states each stem's gated count partitioned into proven, annotated and untested |
@@ -223,7 +223,7 @@ it, so each is a hard requirement rather than a HEAD comparison.
 | `checkPublicRowMonotonic` | a `Support` cell that read a section at HEAD and reads `-` now, while the summary is still there, and a newly enrolled RFC that arrives with no row at all. It is keyed on the ROW, never on enrolment, because `checkSupportedSignoff` bills any row whose Status promises conformance. RFCs enrolled before it existed are grandfathered, so the count of enrolled RFCs with no row can only shrink |
 | `checkLowerLayerProducer` | a `{lower-layer}` annotation whose producer this checkout cannot show: the file is absent, or it declares no function of that name. The kind rests on a fact a reader can open, and a producer that was renamed or deleted under the annotation is the event this catches |
 | `checkFeatureDeclined` | a `{feature-declined}` annotation whose quote is not in the RFC's own text, whose RFC has no text in this repository, or whose producer this checkout cannot show. Two facts, because the kind makes two claims: the DOCUMENT makes the feature optional, and ZE built the narrower thing |
-| `checkGapCountAgreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own: it says how many annotations exist, never that their classifications are right |
+| `checkGapCountAgreement` | a Remaining cell whose spelled number (including zero), sitting immediately before MUST or SHALL, disagrees with the number of `{gap}` plus `{partial}` rows. The COUNT is the only fact on that page a machine can own: it counts unmet requirement rows, never distinct protocol obligations or whether their classifications are right |
 
 Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
 un-enrolled RFC with no row makes no public claim to contradict; one that HAS a
@@ -383,6 +383,75 @@ line carries ONE disposition, so a line carrying both is refused rather than
 silently relabeled. That is the same reason `{superseded}` was kept out of the
 register: a way out of the gated population must not be creatable by writing a
 second marker beside the one already there.
+
+## Clause-scoped evidence
+
+A whole sourced sentence can contain both tested behavior and an implementation
+gap. Keep its permanent id, level, full quote and section citation, and add
+`{partial: tested "<tested span>"; gap "<unmet span>"; <reason>}`. The reason
+states what is absent and names the real inspected boundary as
+`path/to/producer.go::Symbol`. It must resolve to non-test Go production code.
+
+Selectors use JSON string escaping; semicolons inside a string are content.
+Literal braces inside markers are unsupported and refused, including when
+whitespace surrounds the `partial` kind. Collection records that parse error;
+the shared render-input constructor refuses it rather than publishing a row
+without its scope or silently dropping the requirement. Each selector must
+be non-empty, match exactly once in the normalized parent quote at word
+boundaries, and not overlap the other selector. Tested cannot select the whole
+parent. A short selector is a locator, not a new requirement: the parent's
+source, section and 24-character minimum remain unchanged. Only one coverage
+annotation is allowed; a superseded marker remains independent.
+
+Every positive/negative tag on the row refers only to Tested, and both
+polarities are required. The marker declares scope, not proof. All obligations
+outside Tested remain unmet or unproven, including any third obligation the
+Gap selector does not name. An ordinary `{gap}` still forbids polarity tags.
+A partial constituent makes a rollup a gap.
+
+The independent `partial` audit verdict requires this valid annotation, both
+polarities, non-empty tests and units maps, the gap-context Producer in its code
+map, and a current verified mutant/revert record for every distinct
+(requirement, polarity, unit) cover. Missing, stale and no-break records do not
+qualify. Its note includes the tested selector, gap selector and producer,
+explaining tested and missing behavior. Weak/wrong remain honest findings when
+the scoped assertions are inadequate. Enforced on a partial row is refused by
+both stamping modes and by the gate, and earns no audited proof on render-only
+paths.
+
+`AuditRequirementSHA` binds Text, kind, Tested, Gap, Producer and the complete
+Reason as a length-delimited tuple whose fields have every whitespace run
+collapsed to one space. Non-partial rows keep exactly `RequirementSHA(Text)`
+with its existing normalization; extraction source hashes are unchanged. Adding,
+removing or changing scope invalidates the audit as stale-requirement.
+Whitespace-only reflow does not. Reseal cannot repair a semantic scope change;
+an independent rejudgment must. Existing tag claims and observed-red identities
+are not rewritten to adopt the annotation. Changed claim prose or behavior
+still requires native re-recording.
+
+Partial is a finding and stays on the audit worklist. Deletion and
+partial-to-enforced upgrades use the existing finding ratchets, including
+upgrade_reason over unchanged units. Removing a marker alone does not resolve
+the finding. No owner-approval escape is added.
+
+Each gated partial row counts once in Gated and Annotated and in the explicit
+Partial subset, never in Both, One, Missing or any whole-proven numerator.
+The primary partition remains Gated = Both + One + Annotated + Missing.
+Ordinary gap and Demonstrate counters keep their meanings; partial rows have
+separate counts and lists and are not labelled no-test. Public status must
+disclose the remaining gap. A spelled unmet total counts ordinary gaps plus
+partial requirement rows once per id, not distinct protocol obligations.
+The six-cell shard, status page, CLI pipes, site JSON/HTML/mirror and health
+show scope and zero whole credit. Verified record counts measure tag claims,
+never whole requirements.
+`rfc check` exposes the gated `partial` subset even at zero and a
+`partial-scopes` list carrying each full requirement and its typed annotation.
+The list includes advisory rows too; those do not enlarge the gated subset.
+JSON, YAML and table pipes retain the same payload and exit status.
+
+<!-- source: internal/le/rfc/summary.go -- parsePartial, partialScopeRefusal -->
+<!-- source: internal/le/rfc/freshness.go -- AuditRequirementSHA -->
+<!-- source: internal/le/rfc/check_audit.go -- verdictClaims, checkPartialProofs -->
 
 ## The row quote
 

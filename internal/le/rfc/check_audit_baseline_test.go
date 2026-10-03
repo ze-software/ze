@@ -173,3 +173,58 @@ func TestCheckExtractionRatchetSeesTipCommit(t *testing.T) {
 		})
 	}
 }
+
+// A partial finding at HEAD^ cannot vanish in a commit, even when its scope marker
+// is removed at the same time. The audit stamp supplies the baseline fingerprints.
+func TestPartialFindingRatchetSeesTipCommit(t *testing.T) {
+	for _, change := range []string{"delete", "upgrade", "remove-scope", "untouched"} {
+		t.Run(change, func(t *testing.T) {
+			root := partialStampTree(t)
+			stampPartial(t, root)
+			gitFixture(t, root, []string{"init", "-q"})
+			layFixture(t, root, nil)
+			commitFixture(t, root, "partial baseline")
+			audit, err := loadAudit(root, selftestStem)
+			if err != nil {
+				t.Fatal(err)
+			}
+			document := audit.Document
+			requirements, verdict := checkAuditBaselineSendVerdict(t, document)
+			switch change {
+			case "delete":
+				delete(requirements, selftestRIDSend)
+			case "upgrade":
+				verdict["verdict"] = VerdictEnforced
+			case "remove-scope":
+				summary := strings.Replace(partialFiles()[selftestSummaryRel], " "+partialMarker, "", 1)
+				writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: summary})
+			case "untouched":
+				writeFixtureFiles(t, root, map[string]string{"nudge.txt": "unrelated change\n"})
+			}
+			writeFixtureFiles(t, root, map[string]string{checkAuditBaselineRel: pyDump(document) + "\n"})
+			layFixture(t, root, nil)
+			commitFixture(t, root, "tip")
+			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
+			report, _ := Check(root, nil)
+			violations := strings.Join(report.Violations, "\n")
+			switch change {
+			case "delete":
+				if !strings.Contains(violations, "the 'partial' finding on "+selftestRIDSend+" was DELETED") {
+					t.Fatal(violations)
+				}
+			case "upgrade":
+				if !strings.Contains(violations, "went from 'partial' to 'enforced' while every tagged unit stayed byte-identical") {
+					t.Fatal(violations)
+				}
+			case "remove-scope":
+				if !strings.Contains(violations, "'partial' without a matching {partial} annotation") {
+					t.Fatal(violations)
+				}
+			case "untouched":
+				if strings.Contains(violations, "was DELETED") || strings.Contains(violations, "while every tagged unit stayed byte-identical") {
+					t.Fatal(violations)
+				}
+			}
+		})
+	}
+}

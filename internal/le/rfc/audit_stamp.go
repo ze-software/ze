@@ -20,7 +20,7 @@
 // re-made. `mode rejudge` is the route for a judgement somebody DID re-make:
 // every pending id must already have a verdict, the new entry replaces the old
 // one in place with fresh fingerprints, and an `upgrade_reason` is admitted for
-// a weak or wrong verdict raised to enforced. reseal owns the mechanical case,
+// a weak, wrong or partial verdict raised to enforced. reseal owns the mechanical case,
 // where nothing was re-judged.
 package rfc
 
@@ -176,6 +176,19 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (
 		if err := stampFingerprints(verdict, req, byRID[rid], reader, index); err != nil {
 			refused = append(refused, err.Error())
 			continue
+		}
+		if verdictValue(verdict) == VerdictPartial || (req.Annotation != nil && req.Annotation.Kind == AnnotationPartial) {
+			refused = append(refused, verdictClaims(rfcStem, rid, verdict, req, byRID[rid])...)
+		}
+		if verdictValue(verdict) == VerdictPartial {
+			refused = append(refused, checkPartialScopes(reader, []Requirement{req})...)
+			refused = append(refused, checkRowQuotes(tree, []Requirement{req})...)
+			claims, err := partialProofClaims(tree, req, byRID[rid])
+			if err != nil {
+				refused = append(refused, err.Error())
+			} else {
+				refused = append(refused, claims...)
+			}
 		}
 		// The upgrade test compares units, so it runs on the fingerprints just
 		// computed. A default-mode entry reaching here has no recorded verdict
@@ -348,7 +361,7 @@ func stampRefusal(rid string, entry any, mode stampMode, judged, held bool, tagC
 // one, or "" when it can. It reads the fingerprints stampFingerprints has just
 // computed, because the upgrade test compares units.
 //
-// A weak or wrong verdict raised to `enforced` over units byte-identical to the
+// A weak, wrong or partial verdict raised to `enforced` over units byte-identical to the
 // recorded ones needs an `upgrade_reason`: upgradeOverUnchangedUnits is the
 // test `./le rfc check` applies to the same move, so the stamp refuses here
 // what the gate would refuse at commit. A reason on any other move is refused,
@@ -363,7 +376,7 @@ func rejudgeRefusal(rid string, recorded, verdict map[string]any) string {
 		}
 		return tb.Str(rid).Str(" carries 'upgrade_reason' but moves ").Str(pyRepr(verdictValue(recorded))).
 			Str(" to ").Str(pyRepr(verdictValue(verdict))).Str(". A reason is written only when a ").
-			Str("'weak' or 'wrong' verdict becomes 'enforced'").String()
+			Str("'weak', 'wrong' or 'partial' verdict becomes 'enforced'").String()
 	}
 	if !upgradeOverUnchangedUnits(recorded, verdict) {
 		return ""
@@ -385,7 +398,7 @@ func rejudgeRefusal(rid string, recorded, verdict map[string]any) string {
 // first `./le rfc check` after the stamp reads it fresh.
 func stampFingerprints(verdict map[string]any, req Requirement, tags []Tag,
 	reader *sourceReader, index *scopeIndex) error {
-	verdict["requirement_sha"] = RequirementSHA(req.Text)
+	verdict["requirement_sha"] = AuditRequirementSHA(req)
 	if verdict["verdict"] != VerdictNotApplicable && len(tags) > 0 {
 		units, err := unitSHAs(tagKeys(tags, reader, index), reader, index, auditWhere(req, fingerprintUnits))
 		if err != nil {

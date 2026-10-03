@@ -41,14 +41,17 @@ func rfcGapRows(entry *rfcLedgerStem) []rfcGapRow {
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
 		declared := requirement.Annotation != nil &&
-			requirement.Annotation.Kind == rfc.AnnotationGap
+			(requirement.Annotation.Kind == rfc.AnnotationGap || requirement.Annotation.Kind == rfc.AnnotationPartial)
 		untested := requirement.Gated && len(requirement.Covers) == 0
 		if !declared && !untested {
 			continue
 		}
 		var states []string
 		if declared {
-			states = append(states, "{"+rfc.AnnotationGap+"}")
+			states = append(states, "{"+requirement.Annotation.Kind+"}")
+			if requirement.Annotation.Kind == rfc.AnnotationPartial {
+				states = append(states, rfcPartialLabel)
+			}
 		}
 		// A demonstrated gap names the test that asserts it in place of "no
 		// test": the test covers no polarity, and it is the row's evidence.
@@ -145,7 +148,7 @@ func rfcProofCountsOf(entry *rfcLedgerStem) rfcProofCounts {
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
 		if requirement.Audit != nil {
-			if !rfcVerdictIsSound(requirement.Audit.Verdict) {
+			if !rfcVerdictIsSound(requirement.Audit.Verdict) || (requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial) {
 				counts.Unsound++
 			}
 			if requirement.Audit.Freshness != rfc.FreshState {
@@ -238,6 +241,10 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 	for _, requirement := range rows {
 		out.Str("<h3>").Str(rfcRequirementRefHTML(requirement.RID, "")).Str("</h3>\n")
 		out.Str("<p>").Str(html.EscapeString(requirement.Text)).Str("</p>\n")
+		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
+			out.Str("<p>").Str(html.EscapeString("Scoped tag-claim records only: " + requirement.Annotation.Reason)).
+				Str("; zero whole-requirement credit.</p>\n")
+		}
 		out.Str("<p><strong>Audit verdict:</strong> ").
 			Str(html.EscapeString(rfcVerdictText(requirement.Audit))).Str("</p>\n")
 		if len(requirement.Covers) == 0 {
@@ -272,6 +279,10 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 	for _, requirement := range rows {
 		out.Str("\n### ").Str(rfcRequirementRefMirror(requirement.RID, "")).Str("\n\n")
 		out.Str(requirement.Text).Str("\n\n")
+		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
+			out.Str("Scoped tag-claim records only: ").Str(rfc.TableCell(requirement.Annotation.Reason)).
+				Str("; zero whole-requirement credit.\n\n")
+		}
 		out.Str("Audit verdict: ").Str(rfcVerdictText(requirement.Audit)).Byte('\n')
 		if len(requirement.Covers) == 0 {
 			out.Str("\nNo test carries ").Str(requirement.RID).

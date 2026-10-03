@@ -1,16 +1,7 @@
-// VALIDATES: over THIS checkout's corpus, removing every annotation of a kind
-// that is not {single-polarity} changes no field of the published proof share.
-// PREVENTS: a headline percentage moved by classifying requirements. Only
-// {single-polarity} says a requirement IS proven, one side of the pair with a
-// reason for the other; every other kind says it is NOT proven by Ze, for a
-// different reason, so each belongs in the denominator and outside the
-// numerator whichever way the rows are annotated. The population is READ from
-// the vocabulary rather than listed, so a kind added tomorrow is held to this
-// rule on the day it is added: {lower-layer} arrived on 2026-09-03 and
-// {feature-declined} the same day, and a hand list would have covered one of
-// them. The unit tests beside this one hold the property over a three-row
-// fixture; this one holds it over the real corpus, where a reader meets the
-// number.
+// VALIDATES: annotating an obligation never inflates its whole-proof share.
+// Non-testing annotations change neither numerator nor denominator; partial
+// retains clause-only tags and excludes exactly their otherwise-whole credit.
+// Rollups remain outside the population because they derive other rows.
 
 package rfc
 
@@ -20,7 +11,7 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
+func TestAnnotationsNeverInflateThePublishedShare(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
@@ -52,6 +43,8 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 			// nothing about the annotation.
 			stripped := make([]Requirement, 0, len(collected.Requirements))
 			annotated := 0
+			scopedCredit := 0
+			byRID := tagsByRID(collected.Tags)
 			for _, requirement := range collected.Requirements {
 				if requirement.Annotation == nil || requirement.Annotation.Kind != kind {
 					stripped = append(stripped, requirement)
@@ -62,6 +55,9 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 					continue
 				}
 				requirement.Annotation = nil
+				if kind == AnnotationPartial && requirement.Gated() && Implements(collected.Metas[requirement.RFC]) && polarityCovered(requirement, byRID[requirement.RID]) {
+					scopedCredit++
+				}
 				stripped = append(stripped, requirement)
 			}
 			if annotated == 0 {
@@ -71,12 +67,13 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 			if err != nil {
 				t.Fatalf("the share over the counterfactual corpus: %v", err)
 			}
-			if with != without {
-				t.Errorf("%d {%s} annotation(s) moved the published share: %+v, was %+v",
-					annotated, kind, with, without)
+			expected := with
+			expected.Proven += scopedCredit
+			if expected != without {
+				t.Errorf("%d {%s} annotation(s) changed the population or whole credit beyond their %d scoped claims: with %+v, without %+v",
+					annotated, kind, scopedCredit, with, without)
 			}
-			t.Logf("%d {%s} requirement(s); share unmoved at %s%% (%d of %d)",
-				annotated, kind, with.Percent(), with.Proven, with.Gated)
+			t.Logf("%d {%s} rows retain their denominator; %d clause-only rows excluded from whole credit", annotated, kind, scopedCredit)
 		})
 	}
 }

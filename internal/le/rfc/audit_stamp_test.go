@@ -560,3 +560,138 @@ func TestAuditStampRefusesAReasonInNewMode(t *testing.T) {
 		t.Errorf("a refused stamp created the file:\n%s", got)
 	}
 }
+
+func partialPending() map[string]any {
+	return map[string]any{
+		"verdict":       VerdictPartial,
+		"note":          "Tested ignored on receipt.; missing MUST be zero when sent; native sending boundary " + stampProducerKey,
+		fingerprintCode: map[string]any{stampProducerKey: ""},
+	}
+}
+
+func partialRecords(t *testing.T, files map[string]string) []DiscriminationRecord {
+	t.Helper()
+	var records []DiscriminationRecord
+	for _, polarity := range []string{PolarityPositive, PolarityNegative} {
+		records = append(records, sealFixture(t, files, DiscriminationRecord{RID: selftestRIDSend, Polarity: polarity, Unit: selftestCIPath, Route: RouteRevert, Producer: stampProducerKey, Break: selftestBreak, Citation: "expect=stdout:contains=OK"}))
+	}
+	return records
+}
+
+func partialStampTree(t *testing.T) string {
+	t.Helper()
+	files := partialFiles()
+	files[selftestDiscriminationRel] = discriminationArtifact(t, partialRecords(t, files)...)
+	root := stampTree(t, nil)
+	writeFixtureFiles(t, root, files)
+	return root
+}
+
+func stampPartial(t *testing.T, root string) {
+	t.Helper()
+	pending := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
+	if _, err := auditStamp(root, selftestStem, pending, stampModeNew, stampNow); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The stamp does not authorize whole-sentence credit while a scope remains.
+func TestPartialAuditStampRefusesWholeEnforced(t *testing.T) {
+	for name, mode := range stampModeNames {
+		t.Run(name, func(t *testing.T) {
+			root := partialStampTree(t)
+			if mode == stampModeRejudge {
+				stampPartial(t, root)
+			}
+			before := string(readStampAudit(t, root))
+			verdict := partialPending()
+			verdict["verdict"] = VerdictEnforced
+			if mode == stampModeRejudge {
+				verdict[verdictFieldUpgradeReason] = "The unchanged units supposedly prove more."
+			}
+			from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: verdict})
+			_, err := auditStamp(root, selftestStem, from, mode, stampNow)
+			if err == nil || !strings.Contains(err.Error(), "cannot be 'enforced'") {
+				t.Fatalf("whole verdict accepted or wrong refusal: %v", err)
+			}
+			if string(readStampAudit(t, root)) != before {
+				t.Fatal("refused stamp wrote audit")
+			}
+		})
+	}
+}
+
+// Every cover needs its own current producer-break record, not merely two tag words.
+func TestPartialAuditRequiresVerifiedClaims(t *testing.T) {
+	root := partialStampTree(t)
+	stampPartial(t, root)
+	if state := stampFreshness(t, root)[selftestRIDSend].State; state != FreshState {
+		t.Fatal(state)
+	}
+	collected, err := Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verdict, err := loadAudit(root, selftestStem)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, _ := verdict.Verdict(selftestRIDSend)
+	if errs := verdictClaims(selftestStem, selftestRIDSend, entry, collected.Requirements[0], collected.Tags); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	for _, field := range []string{fingerprintTests, fingerprintUnits, fingerprintCode, verdictFieldNote} {
+		t.Run(field, func(t *testing.T) {
+			copy := map[string]any{}
+			for key, value := range entry {
+				copy[key] = value
+			}
+			delete(copy, field)
+			if len(verdictClaims(selftestStem, selftestRIDSend, copy, collected.Requirements[0], collected.Tags)) == 0 {
+				t.Fatal("missing prerequisite accepted")
+			}
+		})
+	}
+	for _, failure := range []string{"no-records", "one-cover", "changed-claim", "changed-unit", "changed-producer", "no-marker", "bad-source", "no-break"} {
+		t.Run(failure, func(t *testing.T) {
+			files := partialFiles()
+			records := partialRecords(t, files)
+			switch failure {
+			case "no-records":
+				records = nil
+			case "one-cover":
+				records = records[:1]
+			case "changed-claim":
+				files[selftestCIPath] = strings.Replace(files[selftestCIPath], "receipt accepts zero", "receipt accepts all", 1)
+			case "changed-unit":
+				files[selftestCIPath] += "expect=stdout:contains=other\n"
+			case "changed-producer":
+				files[selftestProducerPath] = strings.Replace(files[selftestProducerPath], "return count", "return count + 1", 1)
+			case "no-marker":
+				files[selftestSummaryRel] = strings.Replace(files[selftestSummaryRel], " "+partialMarker, "", 1)
+			case "bad-source":
+				files["rfc/full/rfc9999.txt"] = "2.  Widgets\n\nA widget MUST be green.\n"
+			case "no-break":
+				// Closed escape validation need not be forged: the claim-level predicate
+				// refuses even a structurally verified escape as partial proof.
+				cover := Cover{RID: selftestRIDSend, Polarity: PolarityPositive, Unit: selftestCIPath}
+				record := records[0]
+				record.Route = RouteNoBreak
+				if len(partialCoverRefusals(selftestRIDSend, map[Cover][]Tag{cover: nil}, []DiscriminationVerdict{{Record: record, State: ProofVerified}})) == 0 {
+					t.Fatal("escape counted as scoped proof")
+				}
+				return
+			}
+			files[selftestDiscriminationRel] = discriminationArtifact(t, records...)
+			root := stampTree(t, nil)
+			writeFixtureFiles(t, root, files)
+			from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
+			if _, err := auditStamp(root, selftestStem, from, stampModeNew, stampNow); err == nil {
+				t.Fatal("invalid partial audit stamped")
+			}
+			if len(readStampAudit(t, root)) != 0 {
+				t.Fatal("refusal wrote audit")
+			}
+		})
+	}
+}

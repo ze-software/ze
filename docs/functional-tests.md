@@ -1002,6 +1002,13 @@ Rules the gate enforces:
   Only the pair pins behavior to the requirement. A requirement that is genuinely
   testable only one way carries a `{single-polarity: positive|negative; why}`
   annotation on its summary line instead.
+- **Partial scope does not prove the whole sentence.** A
+  `{partial: tested "<span>"; gap "<span>"; <reason with path.go::Symbol>}`
+  marker retains the full RFC quote and scopes every standing tag to Tested.
+  Both polarities are still required. Independent partial judgment needs a
+  current native mutant/revert record per tagged cover; no-break is not proof.
+  Scope edits stale the audit, not unchanged historical observations.
+  Everything outside Tested stays unmet or unproven, with zero whole credit.
 - **`./le rfc check` is the gate.** For every MUST-level requirement of an
   enrolled RFC (its summary's `## Meta` table declares `Enrolment: enrolled`) it
   requires the positive/negative pair, or a reasoned `{gap}` /

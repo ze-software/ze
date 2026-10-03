@@ -85,6 +85,8 @@ type CoverageRow struct {
 	Both      int    `json:"both"`
 	One       int    `json:"one"`
 	Annotated int    `json:"annotated"`
+	// Partial is a subset of Annotated, never another partition term.
+	Partial int `json:"partial"`
 	// Missing counts gated requirements with no tag and no annotation.
 	Missing int `json:"missing"`
 	// NightlyOnly counts gated requirements whose evidence exists but runs in
@@ -145,6 +147,9 @@ func CoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []
 			switch {
 			case req.Annotation != nil:
 				row.Annotated++
+				if req.Annotation.Kind == AnnotationPartial {
+					row.Partial++
+				}
 			case bothPolarities(found):
 				row.Both++
 			case len(found) > 0:
@@ -328,7 +333,7 @@ func auditCoverageRows(in auditCoverageInput) ([]auditCoverage, []worklistRow) {
 			if recordedState, known := in.States[req.RID]; known {
 				state = recordedState.State
 			}
-			if value == VerdictEnforced && state == FreshState {
+			if value == VerdictEnforced && state == FreshState && (req.Annotation == nil || req.Annotation.Kind != AnnotationPartial) {
 				row.Proven++
 				continue
 			}

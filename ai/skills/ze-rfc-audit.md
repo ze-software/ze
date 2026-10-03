@@ -53,6 +53,14 @@ the break it names, and for nothing else. Questions 1, 3 and 4 stay yours, and s
 question 2 for every tag with no record, which is most of the corpus. Reading a record as
 a verdict is the substitution this skill exists to prevent.
 
+For `{partial}`, still read the whole sentence and judge every clause. All tags
+refer only to Tested; every other obligation remains unmet or unproven.
+Selectors locate source text, not semantic proof. Keep the full quote, id and
+records. Never stamp enforced while partial stands. Adding, removing or
+changing Tested, Gap, Producer or Reason makes the audit stale-requirement:
+independent rejudgment is owed and mechanical reseal must refuse. Partial stays
+in the findings/worklist and contributes zero whole-requirement credit.
+
 Then the polarity pair:
 
 - **positive** must be a genuinely conforming input, not merely "a different error".
@@ -80,14 +88,14 @@ Then the polarity pair:
 | Verdict | Meaning |
 |---------|---------|
 | `enforced` | The tests would fail if the code stopped complying. The only verdict that means "proven". Requires a non-empty `tests` map AND both polarities (or a `{single-polarity}` annotation). |
+| `partial` | Tests enforce only the declared Tested scope; the whole requirement remains unmet. Requires a valid `{partial}` marker, both polarities, tests/units maps, the real gap-context Producer in code, and a current verified mutant/revert per distinct cover. The note quotes Tested and Gap and names Producer. Weak/wrong remain when the scoped assertions fail judgment. |
 | `weak` | Tagged and green, but cannot fail on non-compliance (a floor assertion, a cascade-confounded buffer, a positive that proves only "no error"). **Report it. Do not leave it silently tagged.** |
 | `wrong` | The test asserts something the RFC does not say. The requirement is not covered and the test is misinformation. |
 | `unimplemented` | The tests are fine; the CODE does not do it. This is a `{gap}`, not a test gap. Requires a `code` map and a `{gap}`/`{not-applicable}` annotation. |
 | `not-applicable` | No reachable code path can satisfy or violate the requirement — it binds a document's authors, another role, or a layer Ze does not implement. Requires NO cited test (`tests` empty or omitted, either is the same state), a `no_code_path` reason in prose, and a `{not-applicable}` annotation on the checklist line. |
 
-**The five values are a closed enum and `./le rfc check` enforces it.** A sixth word is a
-parse error, not a novel verdict. `implemented` sat in `rfc/audit/rfc7606.json` for weeks, and no
-code read the field at all.
+**The values are a closed enum and `./le rfc check` enforces it.** An unregistered
+word is a parse error, not a novel verdict.
 
 **`not-applicable` is not a shortcut past `enforced`.** It exists because an obligation on
 *future specification authors* (RFC 7606 §8) can be neither satisfied nor violated by code that
@@ -100,12 +108,12 @@ boundary. The scope rules are in `ai/rules/rfc-compliance.md`.
 
 | Field | When | What it is |
 |-------|------|-----------|
-| `requirement_sha` | always | `requirement_sha(text)` of the checklist line |
+| `requirement_sha` | always | Requirement-aware audit hash: Text alone for non-partial rows; Text plus kind, Tested, Gap, Producer and full Reason for partial rows, normalized for whitespace |
 | `tests` | one entry per tagged test, and empty or omitted on `not-applicable`, which cites none | `{key -> whole-file sha}` for each tagged test |
 | `units` | one entry per `tests` entry, so empty or omitted whenever `tests` is | `{key -> enclosing-unit sha}`. The unit is one top-level Go function (doc comment through closing brace) or the whole file for a `.ci`, a `.et`, or a native interop evidence file |
-| `code` | `unimplemented` | `{key -> enclosing-unit sha}` of the PRODUCING code the note names. Without it the verdict can never go stale |
+| `code` | `unimplemented` or `partial` | `{key -> enclosing-unit sha}` of the producing boundary the note names; partial must include its annotation Producer |
 | `no_code_path` | `not-applicable` | prose stating why no reachable path exists |
-| `upgrade_reason` | changing a `weak`/`wrong` verdict to `enforced` with no unit change | what you re-read and why the earlier judgement was wrong |
+| `upgrade_reason` | changing a `weak`/`wrong`/`partial` verdict to `enforced` with no unit change | what you re-read and why the earlier judgement was wrong |
 
 **The key names a SYMBOL, never a location.** `<path>::<FuncName>` for a Go function, and the
 bare `<path>` when the whole file is the unit (a `.ci`, a `.et`, or a native interop evidence file). A second and later tag inside ONE function takes an
@@ -142,7 +150,7 @@ hand and stamp again: the diff then shows a deleted finding, which the findings 
   A first judgement is stamped without `mode rejudge`.
 - Each entry replaces the recorded one at the same place in the file, with fingerprints
   computed fresh. The other verdicts stay byte-identical.
-- `upgrade_reason` is accepted in this mode alone. It is REQUIRED when a `weak` or `wrong`
+- `upgrade_reason` is accepted in this mode alone. It is REQUIRED when a `weak`, `wrong` or `partial`
   verdict becomes `enforced` while every tagged unit is byte-identical to the recorded one,
   and it is REFUSED on any other move. The stamp applies the same test as `./le rfc check`
   (`upgradeOverUnchangedUnits`), so it refuses at stamp time what the gate refuses at commit.
@@ -153,10 +161,12 @@ hand and stamp again: the diff then shows a deleted finding, which the findings 
 ## Recording a finding never fails the build
 
 `weak` is green. `wrong` and `unimplemented` are green too, provided the RFC's row in
-`docs/features/rfc-status.md` already admits the RFC is not fully met. The red falls on the
-public CLAIM, not on your honesty.
+`docs/features/rfc-status.md` already admits the RFC is not fully met. A `partial`
+finding is green only with its valid matching scope, both tagged polarities and
+current producer-break records for every claim; it never means whole conformance.
+The red falls on unsupported claims, not on honest disclosure.
 
-What IS red: deleting a `weak` or `wrong` verdict, upgrading one to `enforced` with nothing
+What IS red: deleting a `weak`, `wrong` or `partial` verdict, upgrading one to `enforced` with nothing
 changed, and removing any verdict that existed at HEAD. Audit coverage is monotonic per
 requirement id, so a judgement that has been made cannot be un-made by erasing it. If you
 believe a finding was wrong, re-judge it with `mode rejudge` and record `upgrade_reason`.
@@ -211,8 +221,8 @@ in a commit.
   proof (`ai/rules/testing.md`).
 - `weak` and `wrong` are the valuable outputs. A run that returns all `enforced` on first
   pass has probably not read anything.
-- Judge the **annotations** too, not just the tests. `{single-polarity}`, `{gap}` and
-  `{not-applicable}` are arguments, and an unexamined argument is where a lie hides.
+- Judge the **annotations** too, not just the tests. `{single-polarity}`, `{gap}`,
+  `{partial}` and `{not-applicable}` are arguments, and an unexamined argument is where a lie hides.
 - Re-check an annotation's source and evidence rather than accepting its author's claim.
   Report implemented-tested, implemented-unverified, and unimplemented behavior separately.
   Full RFC support is the long-term goal, not an automatic audit acceptance criterion.

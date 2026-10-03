@@ -179,12 +179,12 @@ var escapeReasons = map[string]bool{
 // escapeReasonNames answers them sorted, for a refusal message.
 func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 
-// annotationKinds are the six `{...}` kinds that say something about Ze's
+// annotationKinds are the seven `{...}` kinds that say something about Ze's
 // COVERAGE. SupersededKind is named apart because it says something about the
 // DOCUMENT, and the two registers must never share a slot: had superseded
 // joined this set, marking a requirement would have EVICTED its {gap} and a
 // document's obsolescence would have become a way out of the gated population.
-// The six annotation kinds a checklist line can carry. Named, because
+// The seven annotation kinds a checklist line can carry. Named, because
 // AnnotationSinglePolarity is read in three places -- the parser that demands a
 // polarity beside it, the coverage rule that treats it as complete cover, and
 // the audit schema that lets one test carry an `enforced` verdict -- and a
@@ -249,6 +249,7 @@ func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 const (
 	AnnotationNotApplicable   = "not-applicable"
 	AnnotationGap             = "gap"
+	AnnotationPartial         = "partial"
 	AnnotationSinglePolarity  = "single-polarity"
 	AnnotationLowerLayer      = "lower-layer"
 	AnnotationFeatureDeclined = "feature-declined"
@@ -258,6 +259,7 @@ const (
 var annotationKinds = map[string]bool{
 	AnnotationNotApplicable:   true,
 	AnnotationGap:             true,
+	AnnotationPartial:         true,
 	AnnotationSinglePolarity:  true,
 	AnnotationLowerLayer:      true,
 	AnnotationFeatureDeclined: true,
@@ -419,6 +421,10 @@ type Annotation struct {
 	// rfc/full/<stem>.txt: the kind rests on the DOCUMENT making the feature
 	// optional, which is a fact rather than a judgement.
 	Quote string `json:"quote,omitempty"`
+	// Tested and Gap locate distinct clauses inside the complete parent quote.
+	// Partial tags prove only Tested; every other obligation remains unproven.
+	Tested string `json:"tested,omitempty"`
+	Gap    string `json:"gap,omitempty"`
 	// Producer is the `<path>.go::<Symbol>` a reason names, and
 	// checkLowerLayerProducer and checkFeatureDeclined each hold it against the
 	// tree. {lower-layer} names the function that installs into the layer;

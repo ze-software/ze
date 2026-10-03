@@ -269,6 +269,8 @@ var rfcSatisfaction = []struct {
 		Condition: "{single-polarity} annotation + required tag", Binds: true},
 	{Key: rfcGapBucket, Label: "Declared gap", Short: "Gap",
 		Condition: "{gap} annotation + public ledger disclosure", Binds: true},
+	{Key: rfcPartialBucket, Label: rfcPartialLabel, Short: "Scoped evidence",
+		Condition: "partial annotation; tested clause only, zero whole-requirement credit", Binds: true},
 	{Key: rfcOneSideBucket, Label: "One polarity, unexcused", Short: "Unexcused one side",
 		Condition: "tag without annotation", Binds: true},
 	{Key: rfcMissingBucket, Label: "Missing, unexcused", Short: "Missing",
@@ -292,6 +294,9 @@ var rfcSatisfaction = []struct {
 		Condition: "{rollup} annotation + every named row on the ledger", Binds: true,
 		Derived: true},
 }
+
+const rfcPartialBucket = "partial-scope"
+const rfcPartialLabel = "Partial proof; remaining gap"
 
 // rfcBucketDerived answers whether one bucket key is a Derived bucket of the
 // vocabulary: outside the gated population, so outside every sum over it.
@@ -324,6 +329,8 @@ func rfcAnnotationBucket(kind string) (string, bool) {
 		return rfcNotApplyBucket, true
 	case rfc.AnnotationGap:
 		return rfcGapBucket, true
+	case rfc.AnnotationPartial:
+		return rfcPartialBucket, true
 	case rfc.AnnotationSinglePolarity:
 		return rfcSingleBucket, true
 	case rfc.AnnotationLowerLayer:
@@ -1150,6 +1157,9 @@ var rfcStanding = []struct {
 		Meaning: "one direction is tested, the other is neither tested nor excused, and " +
 			"nothing states which",
 		Rule: "green at zero, RED above it: half a proof with no reason for the other half"},
+	{Label: rfcPartialLabel, Keys: []string{rfcPartialBucket}, Tone: rfcToneBad,
+		Meaning: "scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit",
+		Rule:    "green at zero, RED above it: a tested clause cannot prove the whole requirement"},
 	{Label: "No test at all", Keys: []string{rfcGapBucket, rfcMissingBucket}, Tone: rfcToneBad,
 		Meaning: "no test carries the requirement id, whether or not a gap states why",
 		Rule: "green at zero, RED above it: a binding obligation nothing exercises is a claim " +
@@ -1219,6 +1229,8 @@ func (c rfcLedgerCoverage) Bucket(key string) int {
 		return c.One
 	case rfcGapBucket:
 		return c.GatedGaps
+	case rfcPartialBucket:
+		return c.Partial
 	case rfcMissingBucket:
 		return c.Missing
 	case rfcNotApplyBucket:
@@ -2000,6 +2012,7 @@ const rfcComplianceStyle = `<style>
 .rfc-tape-lower_layer { background: var(--mint-chip); }
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-partial-scope { background: var(--danger-deep); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
 .rfc-swatch.rfc-ok { background: var(--teal-base); }

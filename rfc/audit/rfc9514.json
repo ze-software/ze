@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-03",
   "requirements": {
     "RFC9514-3.1-1": {
       "note": "Forbidden: an SRv6-capable node with no TLV 1038, or with two. TestRFC9514ISISSRv6CapabilitiesSingleInstance positive fails on len(got)!=1 for a node advertising SRv6 Capabilities (absence goes red); negative feeds two native sub-TLVs and fails on len(got)!=1 (a second instance goes red).",
@@ -200,8 +200,11 @@
       "verdict": "enforced"
     },
     "RFC9514-7.2-5": {
-      "note": "Receipt clause: TestRFC9514PeerNodeSIDReservedIgnored subtest reserved flag bits, require.NoError on 0xFF and equality of Weight, PeerAS, PeerBGPID with the 0xE0 case, red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero reserved flag bit in TLV 1251 (the sibling RFC9514-7.2-2 carries a {gap}); that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
-      "requirement_sha": "b4c034f294c24269",
+      "code": {
+        "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "6e83d9c49a0186a9"
+      },
+      "note": "Independent BGPHighJudge 2026-10-02. RFC 9514 Section 7.2: \"Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt.\" Tested selector \"ignored on receipt.\" is supported by TestRFC9514PeerNodeSIDReservedIgnored: well-formed 12-byte TLV values differing only in low five Flags bits (0xe0 versus 0xff) must both decode, preserve Weight/PeerAS/PeerBGPID and retain exact AS 65000. The rejection negative and meaningful-field equality positive cover distinct failures; raw Flags display is not interpretation of reserved bits. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID is registered for 1251 and reached by AttrTLVsToJSON/offline UPDATE decoding; the propagator intentionally performs no semantic TLV interpretation. Gap selector \"MUST be set to 0 when originated\" remains unmet: native EPE publishLocked originates MPLS PeerNode 1101 only, no SRv6 EPE assignment/origination. Offline encoding and exporter masking cannot prove that clause. Existing two native receive revert records retained; partial earns zero whole-requirement proof credit.",
+      "requirement_sha": "e5fefbe264fb1b9a",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
@@ -210,11 +213,14 @@
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
       },
-      "verdict": "weak"
+      "verdict": "partial"
     },
     "RFC9514-7.2-6": {
-      "note": "Receipt clause: TestRFC9514PeerNodeSIDReservedIgnored subtest reserved field, require.NoError on 0xFFFF and assert.Equal(base, set), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved field in TLV 1251 (the sibling RFC9514-7.2-3 carries a {gap}); that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
-      "requirement_sha": "3a6c142d5f35274d",
+      "code": {
+        "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "6e83d9c49a0186a9"
+      },
+      "note": "Independent BGPHighJudge 2026-10-02. RFC 9514 Section 7.2: \"Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt.\" Tested selector \"ignored on receipt.\" is supported by TestRFC9514PeerNodeSIDReservedIgnored: the 12-byte value with Reserved 0xffff is accepted and equals the complete decoded zero-Reserved object, independently detecting rejection and field leakage. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4; it is registered in the operator-facing AttrTLVsToJSON/offline decoder path. Gap selector \"MUST be set to 0 when originated\" remains unmet because no live native SRv6 BGP EPE assignment/origination produces TLV 1251. Neither offline WriteTo zeroes nor export masking establish a live originator. Full quote, existing receive tags and both native receive revert records remain; partial is a finding, not enforced conformance.",
+      "requirement_sha": "fc8121b1658ba7ec",
       "tests": {
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
@@ -223,7 +229,7 @@
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
         "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
       },
-      "verdict": "weak"
+      "verdict": "partial"
     },
     "RFC9514-8-1": {
       "note": "Forbidden: advertising a SID Structure whose four lengths sum above 128. TestRFC9514NativeSIDStructureBoundary accepts 32+32+16+48=128 (require.Equal on the emitted 1252) and require.Error plus Len(commands,3) go red if 129 is accepted or advertised.",

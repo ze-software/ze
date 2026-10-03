@@ -124,13 +124,13 @@ var actions = leaction.New(area,
 		"The author writes verdict, note, code keys with empty values and no_code_path in a " +
 		"pending file OUTSIDE rfc/audit/, shaped like an audit file, because an unstamped verdict " +
 		"there stops every load of the audits. This computes requirement_sha from the row's " +
-		"text, tests and units from the row's tags, and each cited code sha, then merges the " +
+		"text and declared partial scope, tests and units from the row's tags, and each cited code sha, then merges the " +
 		"entries in, creating the file when absent. It refuses, naming the id and writing " +
 		"nothing, an id that already has a verdict, an id that is no row, a word outside the " +
-		"closed vocabulary, 'enforced' over no tag, and 'not-applicable' over a tagged row. " +
+		"closed vocabulary, 'enforced' over no tag or a partial scope, partial without verified producer-break claims, and 'not-applicable' over a tagged row. " +
 		"mode rejudge (default new) is for a verdict a judge has re-made after re-reading the " +
 		"tests: it refuses an id with no verdict, replaces each recorded entry in place with " +
-		"fresh fingerprints, and admits upgrade_reason, which it requires when a weak or wrong " +
+		"fresh fingerprints, and admits upgrade_reason, which it requires when a weak, wrong or partial " +
 		"verdict becomes enforced over byte-identical units and refuses on any other move",
 		Writes: true,
 		Parameters: []leaction.Parameter{

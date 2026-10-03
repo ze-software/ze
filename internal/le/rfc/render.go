@@ -75,6 +75,10 @@ type RenderInput struct {
 // derivation rather than repeating it.
 func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	dispositions map[string]Disposition) (RenderInput, error) {
+	if len(collected.ParseErrors) != 0 {
+		return RenderInput{}, refuseToWrite(collected.ParseErrors,
+			"a summary did not parse; refusing to publish an incomplete requirement population")
+	}
 	in := RenderInput{
 		Tree:         tree,
 		Deriver:      NewDeriver(tree),
@@ -416,6 +420,21 @@ func requirementRow(req Requirement, found []Tag, audited string, in RenderInput
 			tb.Str(", derived: ").Str(req.DerivedMark())
 		}
 		marks = append(marks, tb.String())
+		if req.Annotation.Kind == AnnotationPartial {
+			marks = append(marks, "Parent quote: "+req.Text)
+			marks = append(marks, "Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit.")
+			if audited == VerdictEnforced {
+				marks = append(marks, "**invalid audit: enforced on partial scope**")
+			}
+			if state, held := in.States[req.RID]; held {
+				marks = append(marks, "scope audit: "+state.State)
+			} else {
+				marks = append(marks, "scope audit: unjudged")
+			}
+			if refusals := partialCoverRefusals(req.RID, in.Covers, in.Discrimination); len(refusals) != 0 {
+				marks = append(marks, "scoped tag claims are not all backed by current producer-break records")
+			}
+		}
 	}
 	if req.Superseded != nil {
 		// Both marks render when both are present. They answer different
@@ -429,12 +448,18 @@ func requirementRow(req Requirement, found []Tag, audited string, in RenderInput
 		marks = append(marks, tb.Str("} ").Str(req.Superseded.Reason).String())
 	}
 
+	positive := orDashes(tagSites(found, PolarityPositive, in, reader, index))
+	negative := orDashes(tagSites(found, PolarityNegative, in, reader, index))
+	if req.Annotation != nil && req.Annotation.Kind == AnnotationPartial {
+		positive = "scoped evidence: " + positive
+		negative = "scoped evidence: " + negative
+	}
 	return RequirementRow{
 		RID:      req.RID,
 		Level:    req.Level,
 		Section:  req.Section,
-		Positive: orDashes(tagSites(found, PolarityPositive, in, reader, index)),
-		Negative: orDashes(tagSites(found, PolarityNegative, in, reader, index)),
+		Positive: positive,
+		Negative: negative,
 		Note:     strings.Join(marks, " "),
 	}
 }
