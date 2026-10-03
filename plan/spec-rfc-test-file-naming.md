@@ -620,7 +620,7 @@ Totals in b3ff2855fb: 26 untagged renamed, 13 untagged marked, 6 mismatches rena
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 8, with rounds 7 and 8 authorised by the owner (Thomas, 2026-10-03) and round 9 authorised by the owner (Thomas, 2026-10-03) (round 8 scope: the round 7 fixes in b892cd4e03; round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
+| Rounds | 9, with rounds 7, 8 and 9 authorised by the owner (Thomas, 2026-10-03); round 10 is pending the owner's authorisation (round 9 scope: the round 8 fixes in 981bdeb19f; round 8 scope: the round 7 fixes in b892cd4e03; round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -722,6 +722,15 @@ Recorded with this round: a stale RFC 8050 comment in `internal/mrt/bgp.go` and 
 | R8-3 | NOTE | `judgeRenameTarget` returns early on a `buildSuffixMoves` error | `internal/le/rfc/rename.go` `judgeRenameTarget` | Accepted: both callers surface the error, `refusePair` as a refusal and `repairBlocked` as the check's error |
 
 `TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`. Round 9 is authorised by the owner (Thomas, 2026-10-03).
+
+### Round 9 (scope: the round 8 fixes in 981bdeb19f; authorised by the owner, Thomas, 2026-10-03)
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| R9-1 | ISSUE | `proposeRenames` judged only the target, through `repairBlocked` and `judgeRenameTarget`, while `refusePair` also refuses on the source side (`sourceDiffersFromHead`: untracked, or edited in the working tree), so a misnamed tagged file another session had edited was proposed and then refused the whole batch. Third miss in one class after R7-1 and R8-1: each fix routed one more refusal through a shared predicate and left the rest behind | `internal/le/rfc/rename.go` `proposeRenames`, `refusePair`; `internal/le/rfc/names.go` `repairBlocked` | Fixed by closing the class: every refusal one pair can draw lives in one predicate, `pairRefusals`, which answers a typed `pairRefusal` (unclean path, non-test file, other directory, source state, unreadable source, and the `judgeRenameTarget` target refusals). `refusePair` renders all of it; `proposeRenames` renders its first reason through `pairBlocked` with the shared-target count; `repairBlocked` does the same for a finding after setting the source's working-tree state aside, since a finding judges names. The gates page says so, and that a finding's command is one the rename takes once its source matches HEAD. `TestRenameProposeLeavesOutEditedSource` (committed file edited in the working tree: 0 pairs, 1 left out with the rename's reason), red before the fix, shaped like the reviewer's probe. The three earlier propose tests now commit their fixture, because a pair on an untracked source is one the rename refuses |
+| R9-2 | NOTE | `ProposeReport.Collisions` called every left-out pair a collision, though most reasons are not | `internal/le/rfc/rename.go` `ProposeReport` | Fixed: renamed `LeftOut`, JSON key `left-out`; no reader of the old key exists outside the package's own tests (grep of `internal/`, `cmd/`, `docs/`, `ai/`) |
+
+`TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`. A round 10 review is pending the owner's authorisation.
 
 ## Phase 2 progress
 

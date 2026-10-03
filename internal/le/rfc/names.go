@@ -121,8 +121,8 @@ type nameVerdict struct {
 	// never a Target, because a tag or a marker repairs the file as well, so
 	// `./le rfc rename propose` writes no pair for it.
 	Offer string
-	// Source is the file judged. A rename target is judged with its tags and
-	// its marker (judgeRenameTarget), because the rename moves both with it.
+	// Source is the file judged. pairRefusals judges a rename target with its
+	// tags and the marker it reads from the file, because the rename moves both.
 	Source namedTestFile
 }
 
@@ -450,28 +450,59 @@ func verdictRename(verdict nameVerdict) string {
 	return verdict.Offer
 }
 
-// repairBlocked answers why `./le rfc rename` would refuse a verdict's target,
-// and empty when it would take it, so a finding never names a command that
-// fails. The rename's own refusals come from judgeRenameTarget, the predicate
-// refusePair calls too; a target two files would share is the one refusal a
-// single pair cannot see, so claimants is how many verdicts name the target.
+// repairBlocked answers why `./le rfc rename` would refuse the rename a finding
+// names, and empty when it would take it. The refusals come from pairRefusals,
+// the predicate the rename applies to a pair; a target two files would share is
+// the one refusal a single pair cannot see, so claimants is how many verdicts
+// name the target.
+//
+// A finding judges names, never the working tree, so the source's state there
+// (pairRefusal.SourceState) is set aside: `./le rfc check` reports a name and
+// tag disagreement that holds whether or not another session is editing the
+// file, and the rename refuses an edited source with its own reason. A command
+// a finding names is therefore one the rename takes once its source matches
+// HEAD. proposeRenames writes pairs to run now, so it keeps that refusal.
 func repairBlocked(tree string, verdict nameVerdict, target string, claimants int,
 	judged renameJudgement) (string, error) {
-	refusal, err := judgeRenameTarget(tree, target, verdict.Source, judged)
+	pair := renamePair{Source: verdict.Rel, Target: target}
+	refusal, err := pairRefusals(tree, pair, verdict.Source.TagStems, judged)
 	if err != nil {
 		return "", err
 	}
-	if refusal.Taken {
-		return "the name its repair takes, " + target + ", is taken", nil
+	refusal.SourceState = ""
+	return pairBlocked(refusal, target, claimants), nil
+}
+
+// pairBlocked answers the first reason a pair's refusal, and the count of
+// verdicts naming its target, give for leaving the rename out, and empty when
+// neither refuses it.
+func pairBlocked(refusal pairRefusal, target string, claimants int) string {
+	if refusal.Unclean != "" {
+		return refusal.Unclean + " is not a clean path inside the checkout"
+	}
+	if len(refusal.NotTestFile) > 0 {
+		return refusal.NotTestFile[0] + " is not a _test.go file"
+	}
+	if refusal.OtherDirectory {
+		return "the name its repair takes, " + target + ", leaves its source's directory"
+	}
+	if refusal.SourceState != "" {
+		return "its source " + refusal.SourceState
+	}
+	if refusal.Unreadable {
+		return "its source cannot be read"
+	}
+	if refusal.Target.Taken {
+		return "the name its repair takes, " + target + ", is taken"
 	}
 	if claimants > 1 {
-		return "another file's repair takes the same name, " + target, nil
+		return "another file's repair takes the same name, " + target
 	}
-	if refusal.MovesPlatforms {
-		return "the name its repair takes, " + target + ", changes which platforms build it", nil
+	if refusal.Target.MovesPlatforms {
+		return "the name its repair takes, " + target + ", changes which platforms build it"
 	}
-	if refusal.Misnamed {
-		return "the name its repair takes, " + target + ", fails the test file naming rule", nil
+	if refusal.Target.Misnamed {
+		return "the name its repair takes, " + target + ", fails the test file naming rule"
 	}
-	return "", nil
+	return ""
 }

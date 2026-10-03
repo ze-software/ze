@@ -1260,14 +1260,15 @@ ran. The suffix is judged by
 `go/build` itself: the rename is refused when the source and the target names
 build on different sets of the platforms `go tool dist list` names, so a suffix
 `go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too. `propose` writes a plan of one pair per misnamed file the naming
-rule finds, each target being the rename the finding names. Each target is
-judged by `judgeRenameTarget`, the predicate the rename applies, so a target
-that already exists, moves the build suffix or fails the naming rule is left
-out and named with its reason, as is a target two findings share, and so is a
-file named for another RFC, which has to be read before it moves. No pair in a
-proposed plan is one that refuses its batch. The output
+rule finds, each target being the rename the finding names. Each pair is
+judged by `pairRefusals`, the predicate the rename applies to a pair, so a
+source that is untracked or differs from HEAD, and a target that already
+exists, moves the build suffix or fails the naming rule, is left out and named
+with its reason, as is a target two findings share, and so is a file named for
+another RFC, which has to be read before it moves. No pair in a proposed plan
+is one that refuses its batch. The output
 file is created, never overwritten. Run `./le rfc index-update` after a rename.
-<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, planCitations, proposeRenames, judgeRenameTarget -->
+<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, pairRefusals, planCitations, proposeRenames, judgeRenameTarget -->
 <!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
 <!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->
 
@@ -1322,14 +1323,20 @@ and asks for a hand-chosen topic, `./le rfc rename from <file> to
 than a name that carries the stem twice or a command the rename refuses. An
 untagged file named for its stem alone has no topic to keep, so its finding
 names the `<topic>` form directly. `./le rfc rename propose` leaves out of its plan
-every target the rename would refuse, and a shared one, for the same reason. The finding and `./le rfc rename`
-judge a target through one predicate, `judgeRenameTarget`, which answers a
-taken name, a moved build suffix and a name the naming rule refuses for the
-source's tags and marker, so a command a finding names is one the rename takes.
+every pair the rename would refuse, and a shared target, for the same reason.
+The finding, `propose` and `./le rfc rename` judge a pair through one
+predicate, `pairRefusals`. It answers a path outside the checkout, a pair that
+leaves its package or names a file that is not a `_test.go` file, a source that
+is untracked or differs from HEAD, and, through `judgeRenameTarget`, a taken
+name, a moved build suffix and a name the naming rule refuses for the source's
+tags and marker. A finding judges names, not the working tree, so it sets the
+source's state aside: a name and its tags disagree whoever is editing the file.
+A command a finding names is therefore one the rename takes once its source
+matches HEAD, and `propose`, whose pairs run now, leaves such a source out.
 Two files sharing a target is the one refusal a single pair cannot see, and the
 check counts it across its findings.
-<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, verdictRename, repairBlocked -->
-<!-- source: internal/le/rfc/rename.go -- judgeRenameTarget, refusePair -->
+<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames, verdictRename, repairBlocked, pairBlocked -->
+<!-- source: internal/le/rfc/rename.go -- pairRefusals, judgeRenameTarget, refusePair -->
 <!-- source: internal/le/rfc/check.go -- check -->
 
 ## What the ratchets cannot see

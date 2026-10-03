@@ -184,6 +184,61 @@ type renameJudgement struct {
 	Platforms []goPlatform
 }
 
+// pairRefusal is every reason `./le rfc rename` refuses one pair on its own.
+// Each is a named outcome, so an accepted pair is one whose every field is
+// empty or false rather than an empty reason. Two pairs sharing a path is the
+// one refusal a single pair cannot see (refuseBatchShape).
+type pairRefusal struct {
+	// Unclean is the first path of the pair that is not a clean path inside the
+	// checkout. Nothing else is judged when it is set, because no other check
+	// may read that path.
+	Unclean string
+	// NotTestFile lists each path of the pair that does not end in _test.go.
+	NotTestFile []string
+	// OtherDirectory is set when the target leaves its source's directory.
+	OtherDirectory bool
+	// SourceState is why the source may not move as the working tree holds it
+	// (sourceDiffersFromHead), and empty when it is tracked and equals HEAD.
+	SourceState string
+	// Unreadable is set when the source cannot be read. The target is then not
+	// judged, because the move carries the marker the read would give.
+	Unreadable bool
+	// Target is every reason judgeRenameTarget refuses the target.
+	Target targetRefusal
+}
+
+// pairRefusals is the one predicate for whether `./le rfc rename` takes a pair:
+// refusePair applies it to every pair of a batch, proposeRenames to every pair
+// it would write, and repairBlocked to every rename a finding would name. Each
+// caller renders the outcome; none judges a pair another way. tagStems are the
+// source's tags, which the move carries; the source's marker is read here.
+//
+// The error is judgeRenameTarget's, raised when go/build cannot answer which
+// platforms a name builds on.
+func pairRefusals(tree string, pair renamePair, tagStems map[string]bool, judged renameJudgement) (pairRefusal, error) {
+	var refusal pairRefusal
+	for _, rel := range []string{pair.Source, pair.Target} {
+		if !cleanRepoPath(rel) {
+			refusal.Unclean = rel
+			return refusal, nil
+		}
+		if !strings.HasSuffix(rel, testFileSuffix) {
+			refusal.NotTestFile = append(refusal.NotTestFile, rel)
+		}
+	}
+	refusal.OtherDirectory = path.Dir(pair.Source) != path.Dir(pair.Target)
+	refusal.SourceState = sourceDiffersFromHead(tree, pair.Source)
+	src, readErr := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a cleaned repo-relative path
+	if readErr != nil {
+		refusal.Unreadable = true
+		return refusal, nil //nolint:nilerr // an unreadable source is a refusal the caller renders, not a failure to judge
+	}
+	source := namedTestFile{Rel: pair.Source, TagStems: tagStems, Marker: readNamingMarker(string(src))}
+	target, err := judgeRenameTarget(tree, pair.Target, source, judged)
+	refusal.Target = target
+	return refusal, err
+}
+
 // refusePair answers every reason one pair is refused, each naming its path.
 func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	var out []string
@@ -191,44 +246,39 @@ func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 		var tb textbuf.Buffer
 		out = append(out, tb.Str(rel).Str(": ").Str(why).String())
 	}
-	for _, rel := range []string{pair.Source, pair.Target} {
-		if !cleanRepoPath(rel) {
-			refuse(rel, "not a clean path inside the checkout")
-			return out
-		}
-		if !strings.HasSuffix(rel, testFileSuffix) {
-			refuse(rel, "not a _test.go file")
-		}
+	refusal, err := pairRefusals(tree, pair, judged.TagStems[pair.Source], judged)
+	if refusal.Unclean != "" {
+		refuse(refusal.Unclean, "not a clean path inside the checkout")
+		return out
 	}
-	if path.Dir(pair.Source) != path.Dir(pair.Target) {
+	for _, rel := range refusal.NotTestFile {
+		refuse(rel, "not a _test.go file")
+	}
+	if refusal.OtherDirectory {
 		refuse(pair.Target, "is in another directory than its source; a rename stays in its package")
 	}
-	if why := sourceDiffersFromHead(tree, pair.Source); why != "" {
-		refuse(pair.Source, why)
+	if refusal.SourceState != "" {
+		refuse(pair.Source, refusal.SourceState)
 	}
-	src, err := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a cleaned repo-relative path
-	if err != nil {
+	if refusal.Unreadable {
 		refuse(pair.Source, "cannot be read")
 		return out
 	}
-	source := namedTestFile{Rel: pair.Source, TagStems: judged.TagStems[pair.Source],
-		Marker: readNamingMarker(string(src))}
-	refusal, err := judgeRenameTarget(tree, pair.Target, source, judged)
 	if err != nil {
 		refuse(pair.Target, err.Error())
 		return out
 	}
-	if refusal.MovesPlatforms {
+	if refusal.Target.MovesPlatforms {
 		refuse(pair.Target, "changes the GOOS/GOARCH file-name suffix, so another set of platforms would compile it")
 	}
-	if refusal.Taken {
+	if refusal.Target.Taken {
 		refuse(pair.Target, "already exists")
 	}
-	if refusal.Misnamed {
+	if refusal.Target.Misnamed {
 		var tb textbuf.Buffer
-		why := tb.Str("fails the test file naming rule: ").Str(refusal.Naming.Problem)
-		if refusal.Naming.Target != "" {
-			why.Str("; expected ").Str(refusal.Naming.Target)
+		why := tb.Str("fails the test file naming rule: ").Str(refusal.Target.Naming.Problem)
+		if refusal.Target.Naming.Target != "" {
+			why.Str("; expected ").Str(refusal.Target.Naming.Target)
 		}
 		refuse(pair.Target, why.String())
 	}
@@ -250,11 +300,10 @@ type targetRefusal struct {
 	Naming   nameVerdict
 }
 
-// judgeRenameTarget is the one predicate for whether a target may take a
-// source's place: refusePair applies it to every pair, and repairBlocked to
-// every rename a finding would name, so a finding never suggests a target the
-// rename refuses. The target is judged with the source's tags and marker,
-// because the move carries both.
+// judgeRenameTarget answers whether a target may take a source's place. It is
+// the target half of pairRefusals, the predicate every caller asks, and is
+// called from nowhere else. The target is judged with the source's tags and
+// marker, because the move carries both.
 //
 // The naming rule judges a target only where the check judges it: a file
 // CarrierFor holds as a unit carrier (testFileNameVerdicts). A file the check
@@ -844,7 +893,7 @@ func buildSuffixMoves(source, target string, platforms []goPlatform) (bool, erro
 type ProposeReport struct {
 	Plan       string   `json:"plan"`
 	Pairs      int      `json:"pairs"`
-	Collisions []string `json:"collisions"`
+	LeftOut    []string `json:"left-out"`
 	Mismatches []string `json:"mismatches"`
 }
 
@@ -852,7 +901,7 @@ type ProposeReport struct {
 func (r ProposeReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("wrote ").Int(int64(r.Pairs)).Str(" pair(s) to ").Str(r.Plan).Byte('\n')
-	for _, line := range r.Collisions {
+	for _, line := range r.LeftOut {
 		tb.Str("left out, the rename would refuse it: ").Str(line).Byte('\n')
 	}
 	for _, line := range r.Mismatches {
@@ -865,9 +914,9 @@ func (r ProposeReport) Text() string {
 // rule under the directory `under` (the whole tree when empty), each target the
 // exact rename the finding names.
 //
-// Left out and reported: a target the rename would refuse or that two findings
-// share, judged by repairBlocked through judgeRenameTarget, the predicate
-// refusePair applies, so the plan never holds a pair that refuses its batch;
+// Left out and reported: a pair the rename would refuse, source side and target
+// side, judged by pairRefusals, the predicate refusePair applies, and a target
+// two findings share, so the plan never holds a pair that refuses its batch;
 // and a file already named for ANOTHER stem, whose name and tags disagree and
 // must be read before anything moves. The output is created, never overwritten.
 func proposeRenames(tree, under, output string) (ProposeReport, error) {
@@ -916,14 +965,16 @@ func proposeRenames(tree, under, output string) (ProposeReport, error) {
 	}
 	var body textbuf.Buffer
 	for _, verdict := range candidates {
-		blocked, err := repairBlocked(tree, verdict, verdict.Target, shared[verdict.Target], judged)
+		pair := renamePair{Source: verdict.Rel, Target: verdict.Target}
+		refusal, err := pairRefusals(tree, pair, verdict.Source.TagStems, judged)
 		if err != nil {
 			return ProposeReport{}, err
 		}
+		blocked := pairBlocked(refusal, verdict.Target, shared[verdict.Target])
 		if blocked != "" {
 			var line textbuf.Buffer
 			line.Str(verdict.Rel).Str(" -> ").Str(verdict.Target).Str(": ").Str(blocked)
-			report.Collisions = append(report.Collisions, line.String())
+			report.LeftOut = append(report.LeftOut, line.String())
 			continue
 		}
 		body.Str(verdict.Rel).Byte(' ').Str(verdict.Target).Byte('\n')

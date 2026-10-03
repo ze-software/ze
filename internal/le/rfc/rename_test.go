@@ -414,13 +414,13 @@ func TestRenameProposeWritesOnePairPerFindingAndNamesCollisions(t *testing.T) {
 		return "package " + pkg + "\n\n// RFC requirement: " + selftestRIDSend + " positive -- it sends one.\n" +
 			"func " + function + "() {}\n"
 	}
-	root := checkFixtureTree(t, map[string]string{
+	root := commitFixtureTree(t, map[string]string{
 		selftestTestPath:                        selftestTestSource,
 		selftestProducerPath:                    selftestProducerSource,
 		"internal/other/gadget_test.go":         tagged("other", "TestGadget"),
 		"internal/other/rfc9999_gadget_test.go": "package other\n\n" + namingMarkerText + " the name is taken\n",
 		"internal/good/rfc9999_good_test.go":    tagged("good", "TestGood"),
-	})
+	}, nil)
 	report, err := proposeRenames(root, "", "plan.txt")
 	if err != nil {
 		t.Fatalf("propose: %v", err)
@@ -432,9 +432,9 @@ func TestRenameProposeWritesOnePairPerFindingAndNamesCollisions(t *testing.T) {
 	if report.Pairs != 1 {
 		t.Errorf("the report counts %d pair(s), want 1", report.Pairs)
 	}
-	if len(report.Collisions) != 1 || !strings.Contains(report.Collisions[0], "internal/other/gadget_test.go") ||
-		!strings.Contains(report.Collisions[0], "internal/other/rfc9999_gadget_test.go") {
-		t.Errorf("the collision is not named with its taken target: %v", report.Collisions)
+	if len(report.LeftOut) != 1 || !strings.Contains(report.LeftOut[0], "internal/other/gadget_test.go") ||
+		!strings.Contains(report.LeftOut[0], "internal/other/rfc9999_gadget_test.go") {
+		t.Errorf("the collision is not named with its taken target: %v", report.LeftOut)
 	}
 	if strings.Contains(report.Text(), "good") {
 		t.Errorf("the correctly named file appears in the report:\n%s", report.Text())
@@ -443,7 +443,7 @@ func TestRenameProposeWritesOnePairPerFindingAndNamesCollisions(t *testing.T) {
 		t.Error("propose overwrote an existing plan file")
 	}
 	narrowed, err := proposeRenames(root, "internal/other", "narrow.txt")
-	if err != nil || narrowed.Pairs != 0 || len(narrowed.Collisions) != 1 {
+	if err != nil || narrowed.Pairs != 0 || len(narrowed.LeftOut) != 1 {
 		t.Errorf("under internal/other answered %+v, %v; want no pair and the one collision", narrowed, err)
 	}
 }
@@ -455,12 +455,12 @@ func TestRenameProposeWritesOnePairPerFindingAndNamesCollisions(t *testing.T) {
 func TestRenameProposeReportsTakenBareTarget(t *testing.T) {
 	source := "internal/bare/rfc_rfc9999_test.go"
 	bare := "internal/bare/rfc9999_test.go"
-	root := checkFixtureTree(t, map[string]string{
+	root := commitFixtureTree(t, map[string]string{
 		selftestProducerPath: selftestProducerSource,
 		source: "package bare\n\n// RFC requirement: " + selftestRIDSend + " positive -- it sends one.\n" +
 			"func TestBare() {}\n",
 		bare: "package bare\n\n" + namingMarkerText + " the bare name is taken\n",
-	})
+	}, nil)
 	report, err := proposeRenames(root, "internal/bare", "plan.txt")
 	if err != nil {
 		t.Fatalf("propose: %v", err)
@@ -469,8 +469,8 @@ func TestRenameProposeReportsTakenBareTarget(t *testing.T) {
 		t.Errorf("the plan reads %q, want no pair", got)
 	}
 	want := source + " -> " + bare + ": the name its repair takes, " + bare + ", is taken"
-	if len(report.Collisions) != 1 || report.Collisions[0] != want {
-		t.Errorf("the collisions are %v, want the one taken bare target %q", report.Collisions, want)
+	if len(report.LeftOut) != 1 || report.LeftOut[0] != want {
+		t.Errorf("the collisions are %v, want the one taken bare target %q", report.LeftOut, want)
 	}
 }
 
@@ -482,11 +482,11 @@ func TestRenameProposeReportsTakenBareTarget(t *testing.T) {
 func TestRenameProposeLeavesOutPlatformMovingTarget(t *testing.T) {
 	source := "internal/plat/linux_test.go"
 	target := "internal/plat/rfc9999_linux_test.go"
-	root := checkFixtureTree(t, map[string]string{
+	root := commitFixtureTree(t, map[string]string{
 		selftestProducerPath: selftestProducerSource,
 		source: "package plat\n\n// RFC requirement: " + selftestRIDSend + " positive -- it sends one.\n" +
 			"func TestPlat() {}\n",
-	})
+	}, nil)
 	report, err := proposeRenames(root, "internal/plat", "plan.txt")
 	if err != nil {
 		t.Fatalf("propose: %v", err)
@@ -498,8 +498,40 @@ func TestRenameProposeLeavesOutPlatformMovingTarget(t *testing.T) {
 		t.Errorf("the report counts %d pair(s), want 0", report.Pairs)
 	}
 	want := source + " -> " + target + ": the name its repair takes, " + target + ", changes which platforms build it"
-	if len(report.Collisions) != 1 || report.Collisions[0] != want {
-		t.Errorf("the collisions are %v, want the one platform-moving target %q", report.Collisions, want)
+	if len(report.LeftOut) != 1 || report.LeftOut[0] != want {
+		t.Errorf("the left-out files are %v, want the one platform-moving target %q", report.LeftOut, want)
+	}
+}
+
+// VALIDATES: R9-1 -- propose judges each pair through pairRefusals, the
+// predicate the rename applies to a pair, source side included: a tagged
+// misnamed file committed at HEAD and then edited in the working tree is left
+// out and named with the reason the rename gives, so the plan holds no pair
+// that refuses its batch.
+// PREVENTS: a plan whose one edited source refuses the whole batch.
+func TestRenameProposeLeavesOutEditedSource(t *testing.T) {
+	source := "internal/bare/rfc_rfc9999_test.go"
+	target := "internal/bare/rfc9999_test.go"
+	tagged := "package bare\n\n// RFC requirement: " + selftestRIDSend + " positive -- it sends one.\n" +
+		"func TestBare() {}\n"
+	root := commitFixtureTree(t, map[string]string{
+		selftestProducerPath: selftestProducerSource,
+		"go.mod":             "module example.com/widget\n\ngo 1.27.0\n",
+		source:               tagged,
+	}, map[string]string{source: tagged + "\nfunc TestBareAgain() {}\n"})
+	report, err := proposeRenames(root, "internal/bare", "plan.txt")
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	if got := readRel(t, root, "plan.txt"); got != "" {
+		t.Errorf("the plan reads %q, want no pair", got)
+	}
+	if report.Pairs != 0 {
+		t.Errorf("the report counts %d pair(s), want 0", report.Pairs)
+	}
+	want := source + " -> " + target + ": its source differs from HEAD; commit or leave the edit before moving it"
+	if len(report.LeftOut) != 1 || report.LeftOut[0] != want {
+		t.Errorf("the left-out files are %v, want the one edited source %q", report.LeftOut, want)
 	}
 }
 
