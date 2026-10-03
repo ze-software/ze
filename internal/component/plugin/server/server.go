@@ -595,8 +595,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		go s.runPluginStartup()
 	} else {
 		// No plugins to start -- signal immediately so WaitForPluginStartupComplete
-		// does not block. SetAPIProcessCount always creates the startupComplete
-		// channel, but without runPluginStartup nothing would close it.
+		// does not block. A standalone reactor arms the startupComplete channel
+		// (SetAPIProcessCount) before starting this server, and without
+		// runPluginStartup nothing would close it.
 		s.signalStartupComplete()
 	}
 

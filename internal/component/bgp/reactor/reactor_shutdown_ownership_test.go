@@ -19,11 +19,18 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
-// newBorrowedPluginServer builds and starts a plugin server the way the hub does
-// (cmd/ze/hub/main.go, runHub), hosting the named internal plugins, and returns it
-// once every one of them is spawned. The caller injects it into a borrow-mode
-// reactor, which is the production wiring: pluginserver.NewServer ->
-// registry.SetPluginServer -> registry.GetPluginServer -> Reactor.SetPluginServerAny.
+// newBorrowedPluginServer builds and starts a plugin server before the reactor
+// starts, as the hub does (cmd/ze/hub/main.go, runHub), hosting the named
+// internal plugins, and returns it once every one of them is spawned. The caller
+// injects it into a borrow-mode reactor, which is the production ownership:
+// pluginserver.NewServer -> registry.SetPluginServer -> registry.GetPluginServer
+// -> Reactor.SetPluginServerAny.
+//
+// One difference from the hub: the server's reactor is a reactorAPIAdapter over
+// r, where the hub passes a plugin.Coordinator that forwards to the reactor only
+// once the bgp plugin has called Coordinator.SetReactor. Here the server reaches
+// r from its first signal, so a startup signal can land while r is still in
+// StartWithContext, which is the ordering the startup barrier must survive.
 func newBorrowedPluginServer(t *testing.T, r *Reactor, names ...string) *pluginserver.Server {
 	t.Helper()
 	configs := make([]plugin.PluginConfig, 0, len(names))
@@ -48,6 +55,24 @@ func newBorrowedPluginServer(t *testing.T, r *Reactor, names ...string) *plugins
 		}, 5*time.Second, 10*time.Millisecond, "plugin %s never spawned in the hub's server", name)
 	}
 	return srv
+}
+
+// startBorrowedPeers starts a borrow-mode reactor's peers once the borrowed
+// server has finished plugin startup, which is when the daemon starts them: the
+// bgp plugin registers StartPeers as the coordinator's post-startup callback
+// (internal/component/bgp/plugin/register.go), and that callback runs from
+// SignalPluginStartupComplete, after every plugin's startup handshake. A peer
+// started earlier validates its OPEN against plugin registrations the startup
+// handshake is still writing (Server.PluginsWithPerPeerOpenPolicy reading
+// Process.Registration), an ordering the daemon never produces.
+//
+// The caller MUST have started r with StartWithContext first.
+func startBorrowedPeers(t *testing.T, r *Reactor, srv *pluginserver.Server) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	require.NoError(t, srv.WaitForStartupComplete(ctx), "the borrowed server never finished plugin startup")
+	require.NoError(t, r.StartPeers())
 }
 
 // registerIdleEngine registers an internal plugin whose engine runs until its

@@ -22,7 +22,7 @@ import (
 // rfc9687RIBSnapshot observes the real RIB plugin through its public snapshot
 // bridge. Neither this visitor nor the test can insert or delete RIB entries.
 type rfc9687RIBSnapshot struct {
-	peer bool
+	peer   bool
 	routes int
 }
 
@@ -65,7 +65,7 @@ func TestRFC9687Event29ReleasesTheLivePeersRIB(t *testing.T) {
 	r.SetPluginServer(srv)
 	require.NoError(t, r.StartWithContext(context.Background()))
 	t.Cleanup(func() { stopAndWait(t, r) })
-	require.NoError(t, r.StartPeers())
+	startBorrowedPeers(t, r, srv)
 	require.Eventually(t, func() bool {
 		return peer.currentSession() != nil && peer.SessionState() == fsm.StateActive
 	}, 5*time.Second, time.Millisecond)
@@ -84,7 +84,7 @@ func TestRFC9687Event29ReleasesTheLivePeersRIB(t *testing.T) {
 	}, 5*time.Second, time.Millisecond)
 	update := &message.Update{
 		PathAttributes: []byte{0x40, 1, 1, 0, 0x40, 2, 6, 2, 1, 0, 0, 0xfd, 0xea, 0x40, 3, 4, 192, 0, 2, 1},
-		NLRI: []byte{24, 203, 0, 113, 24, 198, 51, 100},
+		NLRI:           []byte{24, 203, 0, 113, 24, 198, 51, 100},
 	}
 	_, err = client.Write(message.PackTo(update, nil))
 	require.NoError(t, err)

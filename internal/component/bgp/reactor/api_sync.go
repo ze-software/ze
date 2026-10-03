@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md — API process synchronization
+// Design: docs/architecture/api/architecture.md — the reactor's startup barrier
 // Overview: reactor.go — BGP reactor event loop and peer management
 
 package reactor
@@ -51,8 +51,16 @@ type aPISyncState struct {
 	startupCompleteOnce sync.Once
 }
 
-// SetAPIProcessCount sets the number of API processes to wait for.
-// Must be called before WaitForAPIReady.
+// SetAPIProcessCount arms the startup barrier: it sets the number of API
+// processes to wait for and creates the channels WaitForPluginStartupComplete
+// and WaitForAPIReady wait on.
+//
+// It MUST be called before the plugin server that signals the barrier starts,
+// because it writes plain fields that SignalPluginStartupComplete and
+// signalAllReady read from the server's goroutines. It MUST be called before
+// WaitForPluginStartupComplete and WaitForAPIReady. Not safe for concurrent use
+// with any signal method. Only a standalone reactor calls it (startAPIServer);
+// a borrow-mode reactor never waits on the barrier, so it never arms it.
 func (r *Reactor) SetAPIProcessCount(count int) {
 	r.processCount.Store(int32(count))
 	r.readyCount.Store(0)
@@ -79,7 +87,8 @@ func (r *Reactor) SetAPIProcessCount(count int) {
 func (r *Reactor) AddAPIProcessCount(count int) {
 	total := r.processCount.Add(int32(count))
 	// Create apiReady lazily when auto-loaded plugins arrive after SetAPIProcessCount(0).
-	// startupComplete is always created by SetAPIProcessCount, so no lazy creation needed.
+	// startupComplete needs no lazy creation: a standalone reactor arms it in
+	// SetAPIProcessCount, and a borrow-mode reactor never waits on it.
 	if r.apiReady == nil && count > 0 {
 		r.apiReady = make(chan struct{})
 		r.apiReadyOnce = sync.Once{}
@@ -147,7 +156,12 @@ func (r *Reactor) signalAllReady() {
 }
 
 // SignalPluginStartupComplete signals that all plugin phases are done.
-// Called by Server after Phase 1 + Phase 2 complete.
+// Called by Server after Phase 1 + Phase 2 complete, and again after an
+// auto-load reload, where the sync.Once makes the second call a no-op.
+//
+// Safe to call from the server's goroutine once SetAPIProcessCount has run, or
+// at any time when it never runs (borrow mode): with no channel armed the call
+// closes nothing.
 func (r *Reactor) SignalPluginStartupComplete() {
 	r.startupCompleteOnce.Do(func() {
 		if r.startupComplete != nil {

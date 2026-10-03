@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | - |
+| Phase | 2/2 |
 | Handoff | - |
 | Updated | 2026-10-03 |
 
@@ -64,16 +64,19 @@ Goal:
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - named by the `// Design:` header of `api_sync.go` as the page for API process synchronization
   → Constraint: the page carries no statement about startup ordering between the server and the reactor today (grep for `startupComplete`, `SetAPIProcessCount` and `borrow` finds nothing), so the contract this spec owes has no existing home to contradict and must be written
+  → Decision: the page has no "API process synchronization" section at all, so the header pointer dangles. The contract goes to `docs/architecture/api/architecture.md`, which `ai/CODE-TO-DOCS.md` already lists for `api_sync.go`, and the header is repointed there
 - [ ] `docs/architecture/api/process-protocol.md` - the 5-stage startup protocol and "Who stops the plugin server"
   → Decision: whoever constructs the plugin server owns it; the reactor borrows it through `registry.SetPluginServer` and `Reactor.SetPluginServerAny`, and a borrowed server is read, never stopped
   → Constraint: `sendPostStartupToAll` runs after `signalStartupComplete` freezes the command registry; any reordering of the reactor signal must keep that order
 - [ ] `docs/architecture/api/architecture.md` - listed for `api_sync.go` in `ai/CODE-TO-DOCS.md`
+- [ ] `docs/architecture/plugin/rib-storage-design.md` - the `// Design:` page of `rfc7705_live_behavior_test.go` and `rfc9687_rib_release_test.go`
+  → Constraint: the page says nothing about when a test starts peers (grep for `StartPeers`, `borrow` and `lowLiveRouter` finds nothing), so moving those tests' peer start behind server startup leaves it true
 
 ### RFC Summaries (Scope: protocol)
 - N-A: Scope is `plugin`; no RFC behavior changes. The failing tests are tagged for RFC 7705, 7947 and 9687 only because they drive a live reactor.
 
 **Key insights:** (minimal context to resume after compaction)
-- `SetAPIProcessCount` is called on every reactor start, in both modes, after the server already exists in borrow mode.
+- Before the fix, `SetAPIProcessCount` was called on every reactor start, in both modes, after the server already existed in borrow mode. After it, only a standalone start calls it, before its own server starts.
 - In borrow mode the reactor never waits on `startupComplete` (`WaitForPluginStartupComplete` runs only under `!r.externalServer`), so the channel it re-creates there serves no reader.
 - The race is on plain struct fields (`chan`, `sync.Once`), not on the atomics beside them.
 
@@ -122,7 +125,7 @@ Goal:
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin server ↔ BGP reactor | `reactorAPIAdapter` method calls across goroutines | No |
+| Plugin server ↔ BGP reactor | `reactorAPIAdapter` (tests, standalone) or `plugin.Coordinator` (hub) method calls across goroutines | Yes: standalone arms before the server's goroutines exist; borrow mode writes nothing the server reads |
 
 ### Integration Points
 - `reactorAPIAdapter.SignalPluginStartupComplete` (`internal/component/bgp/reactor/reactor_api.go`) - the server's only route into the reactor's startup state
@@ -131,22 +134,23 @@ Goal:
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | to be answered at design |
-| No unintended coupling (components stay isolated) | No | to be answered at design |
-| No duplicated functionality (extends existing, does not recreate) | No | to be answered at design |
-| Zero-copy preserved where applicable (refs, not copies) | No | N-A expected: no buffers involved; confirm at design |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | to be answered at design |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | to be answered at design |
+| No bypassed layers (data flows through the intended path) | Yes | The server still signals through the same adapter methods; only the arming call moved |
+| No unintended coupling (components stay isolated) | Yes | No new import; `reactor.go` and `api_sync.go` only |
+| No duplicated functionality (extends existing, does not recreate) | Yes | One call moved inside the existing `!r.externalServer` block; no new state |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No buffers involved |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | N-A | No command, family or handler added |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | N-A | The change introduces no name |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The production hub path has the same unordered interleaving as the test helper, not only the tests | `newBorrowedPluginServer` comment says it mirrors `cmd/ze/hub/main.go`; the BGP engine runs as a plugin of the already-started server | The defect is test-only and the bucket moves to `plan/` | Read the hub start path and the stage at which the BGP plugin starts its reactor | unvalidated |
-| A-2 | The two rfc7947 tests in the journal row are `TestRFC7947AllAttributesReachClient` and `TestRouteServerTransparencyStopsAtOrdinaryPeer` | They are the only rfc7947 tests that call `lowLiveRouter` | The test table names the wrong tests | Scoped `go test -race -run` over the reactor package | unvalidated |
-| A-3 | The `apiReady` / `apiReadyOnce` pair carries the same race shape in borrow mode | `SetAPIProcessCount` and `AddAPIProcessCount` assign them unguarded while `SignalAPIReady` runs from the server | The fix covers only the startup pair and the next race report names `apiReady` | `-race` run with a config that sets explicit plugins under a borrowed server | unvalidated |
-| A-4 | A signal that arrives before `SetAPIProcessCount` is lost today, because the re-created channel is never closed | `SetAPIProcessCount` overwrites a channel the server may already have closed | No functional consequence in borrow mode (nobody waits), but the contract must say so | Read and test at design | unvalidated |
+| A-1 | The production hub path has the same unordered interleaving as the test helper, not only the tests | `newBorrowedPluginServer` comment says it mirrors `cmd/ze/hub/main.go`; the BGP engine runs as a plugin of the already-started server | The defect is test-only and the bucket moves to `plan/` | Read the hub start path and the stage at which the BGP plugin starts its reactor | partly confirmed: the hub passes a `plugin.Coordinator` (`cmd/ze/hub/main.go`, `NewServer(serverConfig, coordinator)`), and the bgp plugin calls `Coordinator.SetReactor` before `StartWithContext` (`internal/component/bgp/plugin/register.go`), so from that point every server signal reaches the reactor while it starts. Whether a signal can arrive in that window in production depends on the stage barrier and is not shown; the fix removes the write either way |
+| A-2 | The two rfc7947 tests in the journal row are `TestRFC7947AllAttributesReachClient` and `TestRouteServerTransparencyStopsAtOrdinaryPeer` | They are the only rfc7947 tests that call `lowLiveRouter` | The test table names the wrong tests | Scoped `go test -race -run` over the reactor package | confirmed: both red under `-race` in the red run, each report naming `SetAPIProcessCount` at `reactor.go` `startAPIServer` |
+| A-3 | The `apiReady` / `apiReadyOnce` pair carries the same race shape in borrow mode | `SetAPIProcessCount` and `AddAPIProcessCount` assign them unguarded while `SignalAPIReady` runs from the server | The fix covers only the startup pair and the next race report names `apiReady` | `-race` run with a config that sets explicit plugins under a borrowed server | broken for the reactor-start race: with the fix, borrow mode never calls `SetAPIProcessCount`, so the reactor's goroutine writes neither field. The remaining lazy write in `AddAPIProcessCount` is between server goroutines, and the five live tests, which host explicit plugins under a borrowed server, report no race on it under `-race -count=3` |
+| A-4 | A signal that arrives before `SetAPIProcessCount` is lost today, because the re-created channel is never closed | `SetAPIProcessCount` overwrites a channel the server may already have closed | No functional consequence in borrow mode (nobody waits), but the contract must say so | Read and test at design | confirmed by reading: the overwrite replaced a closed channel with an open one and a fresh Once. After the fix no borrow-mode overwrite exists, and the page states that borrow-mode signals close nothing |
+| A-5 | Nothing in borrow mode reads `processCount`, `readyCount`, `apiReady`, `apiReadyOnce`, `startupComplete` or `apiTimeout` outside the signal methods | grep over `internal/component/bgp/reactor` non-test sources | Design A changes a value something reads | Grep every reader | confirmed: the only readers are `api_sync.go` itself; `WaitForPluginStartupComplete` and `WaitForAPIReady` are called only under `!r.externalServer` in `StartWithContext`; `peer.go`'s `SignalAPIReady` is the per-peer barrier and touches none of these fields; the adapter methods in `reactor_api.go` only forward |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -167,54 +171,57 @@ Goal:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Borrowed server started, then reactor `StartWithContext` | → | `SetAPIProcessCount` and `SignalPluginStartupComplete` | `TestRFC7705NoPrependInstalledAndAdvertised` under `-race` (existing, red today); a dedicated startup-ordering test is named at design |
+| Borrowed server started, then reactor `StartWithContext` | → | `Reactor.startAPIServer` arming the barrier, `SignalPluginStartupComplete` | `TestRFC7705NoPrependInstalledAndAdvertised` under `-race` (existing, red before the fix); `TestBorrowModeStartArmsNoStartupBarrier` (new) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | The five tests in the Task table run under `go test -race` | All pass, and the race detector reports nothing |
-| AC-2 | Borrowed server finishes plugin startup before the reactor starts | Reactor start returns, no race, no panic |
-| AC-3 | Reactor starts before the borrowed server signals startup complete | Reactor start returns, the later signal does not race or panic |
-| AC-4 | Standalone reactor with auto-load only config | Start still waits for Phase 1 and Phase 2 before validating |
-| AC-5 | `SignalPluginStartupComplete` called twice (reload) | Second call is a no-op |
-| AC-6 | A reader of the architecture page asks who creates the startup-sync state and when a signal may arrive | The page answers, with a source anchor to the producing function |
+| AC-1 | The five tests in the Task table run under `go test -race -count=3` with the repo feature tags | All pass, and the race detector reports nothing |
+| AC-2 | A borrow-mode reactor starts while a goroutine calls `SignalPluginStartupComplete` and `AddAPIProcessCount(0)` in a loop, before, during and after `StartWithContext` | Red under `-race` without the fix, with the race report naming `SetAPIProcessCount` against `SignalPluginStartupComplete`; green with it. Start returns no error and leaves `startupComplete` nil. The loop's repeated signals also prove a repeated `SignalPluginStartupComplete` is a no-op that never panics |
+| AC-3 | The standalone startup tests (`reactor_startup_test.go`, `api_sync_test.go`) | Green under `-race`: the standalone barrier, its waits, timeouts and immediate-ready paths are unchanged |
+| AC-4 | A reader follows `api_sync.go`'s `// Design:` pointer and asks who arms the barrier, when, and what a borrow-mode signal does | The pointer names `docs/architecture/api/architecture.md`, "The reactor's startup barrier", which answers all three with source anchors to `Reactor.startAPIServer`, `SetAPIProcessCount` and `SignalPluginStartupComplete` |
+| AC-5 | The journal row in `plan/journal/new-caller-assumes-the-old-callers-timing.md` | Names the five tests correctly and is marked fixed |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Operator starts the daemon with BGP configured | hub starts plugin server -> BGP plugin starts reactor -> server signals startup complete | To be named at design: a functional `.ci` start under the race-enabled binary, or the live reactor tests if the design shows they cover the hub path |
+| 1 | Operator starts the daemon with BGP configured | hub starts plugin server -> BGP plugin starts reactor -> server signals startup complete | The five live reactor tests: each starts a real plugin server hosting real internal plugins, injects it into a borrow-mode reactor through `SetPluginServer`, and drives peers over TCP. They reach the reactor through a `reactorAPIAdapter`, not the hub's `Coordinator`, which forwards the same three calls once `SetReactor` has run; the existing gating functional suite covers the hub binary itself |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| The five tests in the Task table, under `-race` | `internal/component/bgp/reactor/` | AC-1 | red today |
-| To be named at design: signal before start, signal after start, double signal | `internal/component/bgp/reactor/api_sync_test.go` or a new file | AC-2, AC-3, AC-5 | |
+| The five tests in the Task table, under `-race -count=3` | `internal/component/bgp/reactor/` | AC-1 | red before the fix, green after |
+| `TestBorrowModeStartArmsNoStartupBarrier` | `internal/component/bgp/reactor/reactor_borrow_startup_barrier_test.go` | AC-2 | red before the fix, green after |
+| `TestAPISync*`, `TestSignalPeerAPIReady*`, `TestStartWithContext*`, `TestStopAfterFailedStartupIsSafe`, `TestExternalServerDerivedFromMode`, `TestReactorBorrowModeErrorsWithoutServer`, `TestReactorStandaloneSelfHosts` | `api_sync_test.go`, `reactor_startup_test.go` | AC-3 | existing, green |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| API process count | 0 and above | to be stated at design | N/A | N/A |
+| API process count | 0 and above | N/A: the fix changes where the count is set, not its range; zero and non-zero are covered by `TestAPISyncNoProcesses` and `TestAPISyncSingleProcess` | N/A | N/A |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| To be named at design | `test/plugin/` | Daemon with BGP starts and reaches peer start | |
+| N-A: no new functional test. The defect is a memory-ordering fault visible only to the race detector, and the shipped binary is not race-enabled; the gating functional suite already starts the daemon with BGP and reaches peer start, and it is owed to the main thread | `test/` | Daemon with BGP starts and reaches peer start | owed |
 
 ### Interop Tests (Scope: protocol)
 N-A: Scope is `plugin` and no wire-visible behavior changes.
 
 ## Files to Modify
-- `internal/component/bgp/reactor/api_sync.go` - the startup-sync state and its initialization
-- `internal/component/bgp/reactor/reactor.go` - the API setup call order in `StartWithContext`
-- `internal/component/plugin/server/server.go` - the inline signal and its comment, if the contract moves creation
-- `docs/architecture/core-design.md` - the startup ordering contract
+- `internal/component/bgp/reactor/api_sync.go` - `// Design:` pointer, the contract on `SetAPIProcessCount` and `SignalPluginStartupComplete`, the stale `AddAPIProcessCount` comment
+- `internal/component/bgp/reactor/reactor.go` - `startAPIServer` arms the barrier only under `!r.externalServer`, before the owned server starts; its doc comment and the `externalServer` field comment
+- `internal/component/plugin/server/server.go` - the inline-signal comment, which claimed the channel is always created
+- `internal/component/bgp/reactor/reactor_shutdown_ownership_test.go` - `newBorrowedPluginServer` comment: it passes a `reactorAPIAdapter`, not the hub's `Coordinator`; new helper `startBorrowedPeers`
+- `internal/component/bgp/reactor/rfc7705_live_behavior_test.go` (`lowLiveRouter`) and `rfc9687_rib_release_test.go` - start peers through `startBorrowedPeers`
+- `docs/architecture/api/architecture.md` - new section "The reactor's startup barrier"
+- `plan/journal/new-caller-assumes-the-old-callers-timing.md` - the row's test names and its fix
 
 ## Files to Create
-- To be decided at design: a startup-ordering test file in `internal/component/bgp/reactor/`
+- `internal/component/bgp/reactor/reactor_borrow_startup_barrier_test.go` - `TestBorrowModeStartArmsNoStartupBarrier`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -229,7 +236,7 @@ N-A: Scope is `plugin` and no wire-visible behavior changes.
 | Pipe completeness | N-A | No command output |
 | Env var registration | N-A | No env var |
 | Doctor check for runtime dependencies | N-A | No new runtime dependency |
-| Prometheus counters/metrics | N-A | No new metric expected; confirm at design |
+| Prometheus counters/metrics | N-A | No new metric; `ze_plugin_startup_seconds` and `ze_api_ready_seconds` are observed only on the standalone path, as before |
 | BGP family surface (new SAFI / capability / attribute) | N-A | No family change |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -242,11 +249,11 @@ N-A: Scope is `plugin` and no wire-visible behavior changes.
 | 5 | Plugin added/changed? | No | - |
 | 6 | Has a user guide page? | No | - |
 | 7 | Wire format changed? | No | - |
-| 8 | Plugin SDK/protocol changed? | To be answered at design | `docs/architecture/api/process-protocol.md` if the startup stage order is restated |
+| 8 | Plugin SDK/protocol changed? | No | The startup stage order is unchanged; `process-protocol.md` needs no edit |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | - |
 | 10 | Test infrastructure changed? | No | - |
 | 11 | Affects daemon comparison? | No | - |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/api/architecture.md`, "The reactor's startup barrier" (core-design.md had no section to amend; the dangling `// Design:` pointer now names this page) |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
@@ -255,14 +262,14 @@ N-A: Scope is `plugin` and no wire-visible behavior changes.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- confirm the five tests red under `-race` and name the ordering tests
-   - Tests: the five tests in the Task table
-   - Files: none changed
+1. **Phase: Wiring (MANDATORY FIRST)** -- write `TestBorrowModeStartArmsNoStartupBarrier`, confirm it and the five tests red under `-race`
+   - Tests: the five tests in the Task table, the new test
+   - Files: the new test file
    - Verify: the race report names `SetAPIProcessCount` and `SignalPluginStartupComplete`
-2. **Phase: Contract and fix** -- to be designed: state the ordering, then make the sync state safe under it
-   - Tests: AC-2 to AC-5 tests
+2. **Phase: Contract and fix** -- move `SetAPIProcessCount` into the standalone block of `startAPIServer`, state the contract in the doc comments and the architecture page, correct the journal row
+   - Tests: AC-1 to AC-3
    - Files: from Files to Modify
-   - Verify: tests fail, implement, tests pass, five tests clean under `-race`
+   - Verify: the new test and the five tests clean under `-race -count=3`; the reactor package under `-race`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -299,15 +306,20 @@ N-A: Scope is `plugin` and no wire-visible behavior changes.
 
 ## Design Insights
 
-- Skeleton: no design yet. The research that fills this section starts from A-1 to A-4.
+- The barrier (`startupComplete`, `apiReady` and their Onces) exists for one reader: a standalone reactor's `StartWithContext`, which waits on it before validating families and starting peers. Borrow mode skips both waits, so arming the barrier there created state nobody read, and it did so on the reactor's goroutine while the borrowed server's goroutines were already reading it.
+- The barrier is armed by its only waiter, at the one point where no signaller exists yet: immediately before the owned server's `StartWithContext`. That gives the ordering the standalone path always had, now stated as the contract, and leaves borrow mode with nothing to order.
+- In borrow mode the server's signals find no channel and close nothing; `SignalPluginStartupComplete`'s nil check already handles it, so no new code path exists.
+- With the barrier fixed, a full `-race` run of the package showed a second race in `TestRFC7705NoPrependInstalledAndAdvertised`: a peer's OPEN validation (`Server.PluginsWithPerPeerOpenPolicy` reading `Process.Registration`) against the startup handshake (`Process.SetRegistration`). The live tests called `StartPeers` straight after reactor start, while the borrowed server was still handshaking. The daemon never does that: the bgp plugin registers `StartPeers` as the coordinator's post-startup callback (`internal/component/bgp/plugin/register.go`), which runs from `SignalPluginStartupComplete`. The tests now start peers through `startBorrowedPeers`, which waits on `Server.WaitForStartupComplete` first, so they keep the reactor-start overlap the barrier fix needs and drop the peer-start ordering production cannot produce.
+- The research was exposed by 5050b3ec88 and 7e69a83522, which added the live borrow-mode tests; the production hub reaches the reactor through a `Coordinator` set before reactor start (A-1).
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| To be decided at design | - | - |
+| A: arm the barrier only where it is awaited, inside the standalone block before the owned server starts | B: guard the barrier fields with a mutex; C: create the barrier once in `New` and never re-create it; D: make borrow mode wait on the barrier | A removes the write that races and the state nobody reads, with one moved call. B adds a lock to protect state with no reader. C still needs `SetAPIProcessCount` to re-arm with the count at start, so the borrow-mode write stays unless it is also moved, which is A. D reintroduces the self-wait deadlock (R-1) |
+| Contract home is `docs/architecture/api/architecture.md` | `core-design.md`, `process-protocol.md` | `ai/CODE-TO-DOCS.md` already maps `api_sync.go` there; `core-design.md` had no section to point at; `process-protocol.md` covers the plugin-side stages, not the reactor's waits |
 
 ## Known Limitations
-- Skeleton: none decided yet.
+- `AddAPIProcessCount` still writes `apiReady` lazily from the server's startup goroutine while `signalAllReady` may read it from a session goroutine. That is a server-internal ordering question, not the reactor-start race; it was not observed under `-race` (A-3) and is not changed here.
 
 ## RFC Documentation (Scope: protocol)
 

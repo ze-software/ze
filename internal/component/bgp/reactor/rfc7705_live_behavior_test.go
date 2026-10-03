@@ -25,10 +25,10 @@ import (
 // lowLivePeer owns one remote connection and its bounded wire capture. Cleanup
 // MUST close the connection and join the reader before releasing the fixture.
 type lowLivePeer struct {
-	peer *Peer
-	remote net.Conn
-	mu sync.Mutex
-	frames [][]byte
+	peer    *Peer
+	remote  net.Conn
+	mu      sync.Mutex
+	frames  [][]byte
 	stopped chan struct{}
 }
 
@@ -50,16 +50,26 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) (*Reactor, []*lowLiv
 	t.Helper()
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	for _, s := range settings {
-		if err := EnsureProcessBinding(s, "bgp-rib", "update state refresh", "update"); err != nil { t.Fatal(err) }
-		if err := EnsureProcessBinding(s, "bgp-rs", "update-received state open-received refresh", "update"); err != nil { t.Fatal(err) }
-		if err := EnsureProcessBinding(s, "bgp-adj-rib-in", "update-received state", "update"); err != nil { t.Fatal(err) }
-		if err := r.AddPeer(s); err != nil { t.Fatal(err) }
+		if err := EnsureProcessBinding(s, "bgp-rib", "update state refresh", "update"); err != nil {
+			t.Fatal(err)
+		}
+		if err := EnsureProcessBinding(s, "bgp-rs", "update-received state open-received refresh", "update"); err != nil {
+			t.Fatal(err)
+		}
+		if err := EnsureProcessBinding(s, "bgp-adj-rib-in", "update-received state", "update"); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.AddPeer(s); err != nil {
+			t.Fatal(err)
+		}
 	}
 	srv := newBorrowedPluginServer(t, r, "bgp-rib", "bgp-adj-rib-in", "bgp-rs")
 	r.SetPluginServer(srv)
-	if err := r.StartWithContext(context.Background()); err != nil { t.Fatal(err) }
+	if err := r.StartWithContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { stopAndWait(t, r) })
-	if err := r.StartPeers(); err != nil { t.Fatal(err) }
+	startBorrowedPeers(t, r, srv)
 	out := make([]*lowLivePeer, 0, len(settings))
 	for _, s := range settings {
 		p := r.peers[s.PeerKey()]
@@ -73,7 +83,9 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) (*Reactor, []*lowLiv
 			_ = server.Close()
 			<-v.stopped
 		})
-		if err := p.acceptConnection(server); err != nil { t.Fatal(err) }
+		if err := p.acceptConnection(server); err != nil {
+			t.Fatal(err)
+		}
 		open := &message.Open{Version: 4, MyAS: uint16(s.PeerAS), HoldTime: 90, BGPIdentifier: 0x0a000001 + uint32(len(out)),
 			OptionalParams: []byte{2, 6, 65, 4, 0, 0, byte(s.PeerAS >> 8), byte(s.PeerAS), 2, 6, 1, 4, 0, 1, 0, 1}}
 		v.send(t, message.PackTo(open, nil))
@@ -91,27 +103,39 @@ func (p *lowLivePeer) readFrames() {
 	defer close(p.stopped)
 	for {
 		frame, err := core4271ReadMessage(p.remote)
-		if err != nil { return }
+		if err != nil {
+			return
+		}
 		p.mu.Lock()
-		if len(p.frames) < 64 { p.frames = append(p.frames, frame) }
+		if len(p.frames) < 64 {
+			p.frames = append(p.frames, frame)
+		}
 		p.mu.Unlock()
 	}
 }
 
 func (p *lowLivePeer) send(t *testing.T, frame []byte) {
 	t.Helper()
-	if err := p.remote.SetWriteDeadline(time.Now().Add(5*time.Second)); err != nil { t.Fatal(err) }
-	if _, err := p.remote.Write(frame); err != nil { t.Fatal(err) }
+	if err := p.remote.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.remote.Write(frame); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func lowEventually(t *testing.T, ready func() bool, what string) {
 	t.Helper()
-	deadline := time.NewTimer(5*time.Second)
+	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 	tick := time.NewTicker(time.Millisecond)
 	defer tick.Stop()
 	for !ready() {
-		select { case <-tick.C: case <-deadline.C: t.Fatalf("timed out waiting for %s", what) }
+		select {
+		case <-tick.C:
+		case <-deadline.C:
+			t.Fatalf("timed out waiting for %s", what)
+		}
 	}
 }
 
@@ -119,10 +143,16 @@ func (p *lowLivePeer) announcement(prefix []byte) []byte {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, frame := range p.frames {
-		if frame[18] != 2 { continue }
+		if frame[18] != 2 {
+			continue
+		}
 		u, err := message.UnpackUpdate(frame[19:])
-		if err != nil { continue }
-		if bytes.Equal(u.NLRI, prefix) { return bytes.Clone(u.PathAttributes) }
+		if err != nil {
+			continue
+		}
+		if bytes.Equal(u.NLRI, prefix) {
+			return bytes.Clone(u.PathAttributes)
+		}
 	}
 	return nil
 }
@@ -131,10 +161,15 @@ func lowInstalledAttributes(peer string, prefix []byte) []byte {
 	var attrs []byte
 	bgprib.RIBDumpBridge.DumpRIB(registry.RIBDumpVisitor{
 		OnPeer: func(address string, _ uint32, _ [4]byte, _ bool) uint16 {
-			if address == peer { return 1 }; return 0
+			if address == peer {
+				return 1
+			}
+			return 0
 		},
 		OnRoute: func(index, afi, safi uint16, bits uint8, nlri, attributes []byte) {
-			if index == 1 && afi == 1 && safi == 1 && bits == prefix[0] && bytes.Equal(nlri, prefix[1:]) { attrs = bytes.Clone(attributes) }
+			if index == 1 && afi == 1 && safi == 1 && bits == prefix[0] && bytes.Equal(nlri, prefix[1:]) {
+				attrs = bytes.Clone(attributes)
+			}
 		},
 	})
 	return attrs
@@ -143,7 +178,9 @@ func lowInstalledAttributes(peer string, prefix []byte) []byte {
 func lowAssertAttribute(t *testing.T, attrs []byte, code attribute.AttributeCode, want []byte) {
 	t.Helper()
 	_, _, value, found := attribute.AttrFind(attrs, code)
-	if !found || !bytes.Equal(value, want) { t.Fatalf("attribute %d = %x present=%v, want %x", code, value, found, want) }
+	if !found || !bytes.Equal(value, want) {
+		t.Fatalf("attribute %d = %x present=%v, want %x", code, value, found, want)
+	}
 }
 
 // TestRFC7705NoPrependInstalledAndAdvertised inspects the running RIB and the
@@ -160,7 +197,7 @@ func TestRFC7705NoPrependInstalledAndAdvertised(t *testing.T) {
 	dest := lowLiveSettings("192.0.2.2", 65000, 65000)
 	_, peers := lowLiveRouter(t, source, dest)
 	for i, path := range [][]byte{{2, 1, 0, 0, 0xfd, 0xea}, {2, 2, 0, 0, 0xfd, 0xea, 0, 0, 0xfd, 0xf2}} {
-		prefix := []byte{24, 203, 0, byte(113+i)}
+		prefix := []byte{24, 203, 0, byte(113 + i)}
 		attrs := []byte{0x40, 1, 1, 0, 0x40, 2, byte(len(path))}
 		attrs = append(attrs, path...)
 		attrs = append(attrs, 0x40, 3, 4, 192, 0, 2, 1)
@@ -179,7 +216,10 @@ func TestRFC7705NoPrependInstalledAndAdvertised(t *testing.T) {
 // RFC requirement: RFC7705-4.2-4 positive -- native and migrating sessions accept and install third-party AS_PATH and LOCAL_PREF unchanged; reflection sends those attributes with ORIGINATOR_ID and CLUSTER_LIST and no eBGP prepend.
 // RFC requirement: RFC7705-4.2-4 negative -- both migration identities obey iBGP split horizon: a route from a non-client is not reflected to another non-client, while a reflector client receives the route with RFC4456 attributes.
 func TestRFC7705MigrationWireSemantics(t *testing.T) {
-	for _, tc := range []struct { name string; remote, migration uint32 }{
+	for _, tc := range []struct {
+		name              string
+		remote, migration uint32
+	}{
 		{"native", 65000, 0}, {"migration-retained", 65000, 65010}, {"migration-legacy", 65010, 65010},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -217,7 +257,9 @@ func TestRFC7705MigrationWireSemantics(t *testing.T) {
 			}
 			id := f.receive(t, buildUpdatePayload(attrs, prefix))
 			update, present := f.r.recentUpdates.Get(id)
-			if !present { t.Fatal("received route not cached") }
+			if !present {
+				t.Fatal("received route not cached")
+			}
 			if err := (&reactorAPIAdapter{r: f.r}).forwardUpdateCore(
 				update, id, []*Peer{f.destination},
 				forwardSourceInfo{resolved: true, isIBGP: true, globalLocalAS: 65000},
@@ -225,7 +267,9 @@ func TestRFC7705MigrationWireSemantics(t *testing.T) {
 				t.Fatal("non-client internal route unexpectedly forwarded")
 			}
 			f.drain(t)
-			if len(f.conn.written()) != 0 { t.Fatal("split horizon leaked an UPDATE") }
+			if len(f.conn.written()) != 0 {
+				t.Fatal("split horizon leaked an UPDATE")
+			}
 		})
 	}
 }

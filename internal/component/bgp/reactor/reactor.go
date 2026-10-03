@@ -460,9 +460,11 @@ type Reactor struct {
 	// externalServer is true when the reactor borrows a hub-owned plugin server
 	// (production, Config.Standalone == false) rather than self-hosting one. It is
 	// derived from the construction mode (!Config.Standalone) in New, NOT inferred
-	// at runtime from r.api. In borrow mode StartWithContext skips plugin-startup
-	// waits, its own signal handler, and inline peer start to avoid deadlock and
-	// duplicate ownership when the reactor runs as a config-driven plugin.
+	// at runtime from r.api. In borrow mode StartWithContext arms no startup
+	// barrier (SetAPIProcessCount) and skips the plugin-startup waits, its own
+	// signal handler, and inline peer start, to avoid deadlock, a race with the
+	// running server's signals, and duplicate ownership when the reactor runs as
+	// a config-driven plugin.
 	externalServer bool
 }
 
@@ -1405,9 +1407,10 @@ func (r *Reactor) startMultiListeners() error {
 // startAPIServer creates or wires the plugin server, event dispatcher,
 // and wires filters and observers. Caller MUST hold r.mu.
 //
-// When r.api is already set (via SetPluginServer), skips server creation
-// and startup -- the hub owns the server lifecycle. Only wires BGP-specific
-// handlers (EventDispatcher, filters, observers).
+// When r.api is already set (via SetPluginServer), skips server creation,
+// the startup barrier (SetAPIProcessCount) and startup -- the hub owns the
+// server lifecycle. Only wires BGP-specific handlers (EventDispatcher,
+// filters, observers).
 func (r *Reactor) startAPIServer() error {
 	// Ownership mode is fixed at construction (externalServer = !Config.Standalone).
 	// Borrow mode (production) requires the hub to have injected its server before
@@ -1464,9 +1467,13 @@ func (r *Reactor) startAPIServer() error {
 	r.orderedEgressSteps = buildOrderedEgressSteps()
 	r.readvertiseEgressFilters = filterapi.ReadvertiseEgressFuncs()
 	r.addPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
-	r.SetAPIProcessCount(len(r.config.Plugins))
 
+	// Arm the startup barrier only where StartWithContext waits on it, and
+	// before the server whose goroutines signal it exists. A borrowed server is
+	// already running and signaling, and borrow mode never waits, so arming it
+	// there would rewrite the barrier under the server's goroutine for no reader.
 	if !r.externalServer {
+		r.SetAPIProcessCount(len(r.config.Plugins))
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			return err
 		}
