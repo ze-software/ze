@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -169,15 +170,15 @@
       "note": "A CoA-Request and a Disconnect-Request whose Acct-Session-Id matches no session get CoA-NAK and Disconnect-NAK 503 with no bus event and no teardown; the same two requests with a matching Acct-Session-Id succeed (CoA-ACK with one event, Disconnect-ACK with one teardown). Both request kinds, both outcomes; the older no-identification negative remains.",
       "requirement_sha": "79cb52981c308285",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "24bcf432ac577a22",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "ff37f19e24dbd668",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "ff37f19e24dbd668",
-        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "6e404eca485fc4e5"
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "24bcf432ac577a22",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "25c2b53f1b101476"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "9e08100ffc3fc18b",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "18fb7991d427fefe",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "48a54bb92cb5b6f7",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "9e08100ffc3fc18b",
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "0004cdb472171249"
       },
       "verdict": "enforced"
@@ -273,7 +274,7 @@
       "requirement_sha": "d0e25464235955d7",
       "tests": {
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "ff37f19e24dbd668",
-        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "6e404eca485fc4e5"
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "25c2b53f1b101476"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "c3e90e6108dc8e8c",
@@ -393,8 +394,8 @@
       "note": "(a) forbidden: answering or acting on a request from a source that is not a configured client. (b) TestRFC5176UntrustedSourceDiscarded asserts no response and zero teardowns from a non-listed source and from an empty allow list, and ACK from a trusted one; TestCoASourceFilterDiscardsWhenNoServerResolved and TestCoASourceFilterAnswersAConfiguredClient repeat the pair.",
       "requirement_sha": "44dfbd3b61d4fef1",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "6e404eca485fc4e5",
-        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "6e404eca485fc4e5",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "25c2b53f1b101476",
+        "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "25c2b53f1b101476",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "8377e24f961fc46a",
         "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "8377e24f961fc46a"
       },

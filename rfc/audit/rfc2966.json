@@ -4,6 +4,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -16,8 +17,8 @@
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
         "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "dd48108ecb3a7768",
         "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "dd48108ecb3a7768",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5affb9956c000248"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
@@ -33,8 +34,8 @@
       "note": "Re-judged 2026-09-30: TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; body byte-identical. Assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; assertion 1 keeps a clear-bit L1 prefix leaking up, so a blanket drop also goes red.",
       "requirement_sha": "e8fe37441b8118e4",
       "tests": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5affb9956c000248"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
       },
       "units": {
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2",
@@ -46,8 +47,8 @@
       "note": "Forbidden behaviour: an L1L2 router advertising back into L2 an L2->L1 inter-area route it learned via L1. TestISISLeakFixpoint round 2 re-injects the leaked-down prefix as an L1 advertisement with UpDown set and fails on hasPrefix(r2.IntoL2, l2Derived); round 1 (negative) requires the same L2 prefix to leak down, so suppressing all leaking goes red too.",
       "requirement_sha": "7b34fbd8c3cd9509",
       "tests": {
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "5affb9956c000248",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "5affb9956c000248"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "65952e292e4f6c83",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "65952e292e4f6c83"
       },
       "units": {
         "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "ddd75c5118817528",
@@ -62,7 +63,7 @@
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
         "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "dd48108ecb3a7768",
         "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero": "dd48108ecb3a7768",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",

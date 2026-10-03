@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -15,8 +16,8 @@
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "d914f47d88bb0d8f",
         "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "d914f47d88bb0d8f",
-        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected": "8224881faa2f1c00",
-        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored": "8224881faa2f1c00",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected": "5a59b4c940fb79ee",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored": "5a59b4c940fb79ee",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "ae06d1fa559aa47c",
@@ -125,13 +126,13 @@
       "note": "Forbidden: an Access-Request with neither NAS-IP-Address nor NAS-Identifier. radius TestAdminAccessRequestIdentifiesTheNAS asserts hasIP || hasID on the wire; authradius TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured asserts a non-empty NAS-Identifier even with nothing configured (red if the request goes out naming no NAS).",
       "requirement_sha": "57dcd4808cf06bba",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "c6f04475dba42f70",
         "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "92f990b7c0dc5556",
+        "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "c6f04475dba42f70",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "a3f1d9fa74292a7a"
       },
       "units": {
-        "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "78b37a87c00c3f3e",
         "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "d14e2840cc684656",
+        "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "78b37a87c00c3f3e",
         "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "97148f41ab5c48f9"
       },
       "verdict": "enforced"
@@ -180,8 +181,8 @@
       "note": "The L2TP half is now proven at authradius handler.go doRADIUS: an Access-Challenge (State + Reply-Message) to PAP and CHAP-MD5 subscriber logins is refused with exactly one answer to PPP, and the same logins with an Access-Accept (Framed-User) are admitted, so the refusal is specific to the Challenge code. The admin PAP half was already enforced (ErrAuthRejected, chain stops).",
       "requirement_sha": "1b4d7075e742011f",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject": "27b57e98237de761",
-        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject": "27b57e98237de761",
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject": "09d2189aaf539a9c",
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject": "09d2189aaf539a9c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "ae06d1fa559aa47c",
         "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "a3f1d9fa74292a7a",
@@ -374,8 +375,8 @@
       "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1693-1696, Section 5.6). Forbidden: honouring an Access-Accept whose Service-Type the NAS does not implement or does not know. On the L2TP LNS, TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection drives both halves of 'unknown or unsupported': Login-User 1 and Callback-Framed-User 4 (defined, not implemented) and 65535 (undefined), each alone in the Accept, and fails if the session comes up; the producer is doRADIUS calling radius.AcceptedServiceType(resp, ServiceTypeFramed) and answering respond(false). TestRFC2865SupportedServiceTypeIsHonored is the conforming input (Framed-User) and fails if a supported Service-Type is refused, ruling out a check that rejects every Accept. Buffers isolated: only Service-Type varies. Records: positive against AcceptedServiceType, negative against doRADIUS, both observed red (panic breaks, which prove reachability; the discriminating assertion is the per-value accept flag).",
       "requirement_sha": "287278e46fbb3424",
       "tests": {
-        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored": "8224881faa2f1c00",
-        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection": "8224881faa2f1c00"
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored": "5a59b4c940fb79ee",
+        "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection": "5a59b4c940fb79ee"
       },
       "units": {
         "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored": "43336354960bea9b",

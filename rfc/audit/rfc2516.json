@@ -1,6 +1,7 @@
 {
   "audited": "2026-09-30",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -211,8 +212,8 @@
         "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "b7c2fae4a50abe95",
         "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
         "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "eb2d9138dff5142c",
-        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "eb2d9138dff5142c"
+        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "681144a1a5017cfe",
+        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "681144a1a5017cfe"
       },
       "units": {
         "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "4af5887b466efb6a",
@@ -259,8 +260,8 @@
       "tests": {
         "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
         "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
-        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "eb2d9138dff5142c",
-        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "eb2d9138dff5142c"
+        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates": "681144a1a5017cfe",
+        "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates": "681144a1a5017cfe"
       },
       "units": {
         "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
@@ -425,8 +426,8 @@
         "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "814632e748815652",
         "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "e5d9acdac4063865",
         "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "e5d9acdac4063865",
-        "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "1abe555a0381b2e0",
-        "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "1abe555a0381b2e0",
+        "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "f841c93be1edb8aa",
+        "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "f841c93be1edb8aa",
         "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "50a2fa5b77fbaf66"
       },
       "units": {

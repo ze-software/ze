@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -24,8 +25,8 @@
       "note": "Forbidden behaviour: a link advertised at 2^24-1 being walked by normal SPF. TestISISSPFMaxLinkMetricExcluded builds A-B at 16777215 and t.Errorf fires if B or C appears in the SPF result; the positive half proves 16777214 is still relaxed (B at 16777214, C at 16777224).",
       "requirement_sha": "0c7c73f938d5fbbb",
       "tests": {
-        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "3882f38cc0f6c69a",
-        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded#2": "3882f38cc0f6c69a"
+        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "8ac1834d7b1eafca",
+        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded#2": "8ac1834d7b1eafca"
       },
       "units": {
         "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "bded38fed2fb216a",
@@ -71,8 +72,8 @@
       "tests": {
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered": "f8fc7ede978a8548",
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered#2": "f8fc7ede978a8548",
-        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "3882f38cc0f6c69a",
-        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "3882f38cc0f6c69a"
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "8ac1834d7b1eafca",
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "8ac1834d7b1eafca"
       },
       "units": {
         "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered": "0d40e6d1b6ee1eca",
@@ -89,8 +90,8 @@
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
         "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5affb9956c000248",
-        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5affb9956c000248"
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
       },
       "units": {
         "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
