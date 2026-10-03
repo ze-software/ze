@@ -287,6 +287,11 @@ type RIBManager struct {
 	// (meta["replay"], sendRoutes).
 	updateHook func(command string, meta map[string]any)
 
+	// purgeRemoveHook, when non-nil, runs in emitPurgedWithdraws at the instant
+	// a route the purge left with no candidate leaves the Loc-RIB, so a test
+	// can land a concurrent election there. Production leaves it nil.
+	purgeRemoveHook func(fam family.Family, pfx netip.Prefix)
+
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and

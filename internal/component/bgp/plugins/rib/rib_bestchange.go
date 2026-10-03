@@ -543,12 +543,12 @@ func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) bool {
 // the departing peer can re-insert records while purge is walking. Purge
 // does NOT acquire r.peerMu itself.
 //
-// Lock order: r.peerMu (outer, caller) -> bgp-rib shard.mu -> locrib
-// shard.mu (via r.locRIB.Remove). Matches checkBestPathChange's ordering
-// after the 2026-04-20 fix that moved bestCandidateNextHopAddr outside
-// sh.mu so sh.mu never sits above r.peerMu.
-//
-// A nil local RIB uses the subprocess sink when configured, otherwise skips mirroring.
+// Lock order: r.peerMu (outer, caller) -> bgp-rib shard.mu. Matches
+// checkBestPathChange's ordering after the 2026-04-20 fix that moved
+// bestCandidateNextHopAddr outside sh.mu so sh.mu never sits above
+// r.peerMu. The Loc-RIB removal of a route left with no candidate happens
+// later, in withdrawIfUnheld, under shard.mu -> locrib shard.mu, the order
+// checkRouteBestChange takes.
 //
 // Cost: one shard.mu.Lock per (family, shard) pair, held across each
 // shard's Iterate. For a 1M-prefix table this is O(1M)
@@ -642,12 +642,18 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 // Withdraw first would tell every consumer, and the Loc-RIB the kernel FIB
 // reads, that the route is gone for the instant before the survivor's Add.
 // Only a route left with no candidate is withdrawn, and only it leaves the
-// Loc-RIB. Cold path, one election per purged route after a peer-down.
+// Loc-RIB (withdrawIfUnheld).
+//
+// Each route is published as soon as its election answers, one batch per
+// route, the way an UPDATE publishes its own election. Holding the family's
+// changes until its last election would delay the first route's change by the
+// whole table, and a later UPDATE's change for that route could reach the
+// consumers first. Cold path, one election per purged route after a
+// peer-down.
 func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeEntry) {
 	r.reconcileFlowSpecs()
 	var keyBuf [cidrKeyOctetsMax]byte
 	for fam, purged := range pending {
-		changes := make([]bestChangeEntry, 0, len(purged))
 		for i := range purged {
 			withdrawn := purged[i]
 			route := withdrawn.NLRI
@@ -668,34 +674,34 @@ func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeE
 				if change.Action == ribevents.BestChangeAdd {
 					change.Action = ribevents.BestChangeUpdate
 				}
-				changes = append(changes, change)
+				publishBestChanges([]bestChangeEntry{change}, fam)
 				continue
 			}
 			// No change can mean an UPDATE that ran between the purge and this
 			// election already re-elected the route and published it.
-			if r.holdsBestPrev(fam, withdrawn.Prefix, route) {
+			if !r.withdrawIfUnheld(fam, withdrawn.Prefix, route) {
 				continue
 			}
-			// The Loc-RIB is prefix-keyed and takes CIDR families only.
-			if withdrawn.Prefix.IsValid() {
-				r.removeLocRIB(fam, withdrawn.Prefix, bgpLocRIBInstance)
-			}
-			changes = append(changes, withdrawn)
-		}
-		if len(changes) > 0 {
-			publishBestChanges(changes, fam)
+			publishBestChanges([]bestChangeEntry{withdrawn}, fam)
 		}
 	}
 }
 
-// holdsBestPrev reports whether a best is recorded for the route: pfx for a
-// CIDR family, otherwise the route key of route, an NLRI without a path
-// identifier. Takes the shard lock, so the caller MUST NOT hold it.
-func (r *RIBManager) holdsBestPrev(fam family.Family, pfx netip.Prefix, route []byte) bool {
-	fs := r.bestPrev.familyShards(fam, false)
-	if fs == nil {
-		return false
-	}
+// withdrawIfUnheld removes the route from the Loc-RIB unless a best is
+// recorded for it, and reports whether it did: pfx for a CIDR family,
+// otherwise the route key of route, an NLRI without a path identifier. The
+// Loc-RIB is prefix-keyed and takes CIDR families only, so a non-CIDR route is
+// only answered for. Takes the shard lock, so the caller MUST NOT hold it.
+//
+// The check and the removal run under ONE hold of the shard lock, the lock
+// checkRouteBestChange records and mirrors a best under. A concurrent election
+// for the route therefore either records its best first, and the route stays,
+// or records it after, and its own mirror puts the route back. Checked under
+// one hold and removed under another, the route could be recorded and
+// mirrored in between, and the removal would then delete a best the bgp-rib
+// still records from the Loc-RIB the kernel FIB reads.
+func (r *RIBManager) withdrawIfUnheld(fam family.Family, pfx netip.Prefix, route []byte) bool {
+	fs := r.bestPrev.familyShards(fam, true)
 	var routeKey []byte
 	var sh *bestPrevShard
 	if pfx.IsValid() {
@@ -705,15 +711,24 @@ func (r *RIBManager) holdsBestPrev(fam family.Family, pfx netip.Prefix, route []
 		var scratch [nlrisplit.PrefixKeyScratchSize]byte
 		key, ok := routeIdentity(fam, route, false, false, scratch[:])
 		if !ok {
-			return false
+			// No key names a record, so none can hold the route.
+			return true
 		}
 		routeKey = key
 		sh = fs.shardForNLRI(routeKey)
 	}
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
-	_, _, held := sh.store.lookup(pfx, routeKey)
-	return held
+	if _, _, held := sh.store.lookup(pfx, routeKey); held {
+		return false
+	}
+	if pfx.IsValid() {
+		if r.purgeRemoveHook != nil {
+			r.purgeRemoveHook(fam, pfx)
+		}
+		r.removeLocRIB(fam, pfx, bgpLocRIBInstance)
+	}
+	return true
 }
 
 // parseNextHopAddr converts raw NEXT_HOP attribute bytes into a netip.Addr.

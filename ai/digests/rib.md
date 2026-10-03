@@ -98,8 +98,11 @@ Received UPDATE → best-path change (all `file:line` in `internal/component/bgp
   deadlocking in-process subscribers that re-enter RIBManager.
 - **Peer down:** unless retained for GR (`retainedPeers`), the peer's `PeerRIB` is released and
   `purgeBestPrevForPeer` (`rib_bestchange.go`) sweeps every shard removing that peer's best
-  records, emitting withdraws and calling `r.locRIB.Remove` so consumers see withdrawals
-  immediately instead of on the next per-prefix UPDATE.
+  records and publishes nothing. After `peerMu` is released, `emitPurgedWithdraws` re-elects
+  each purged route and publishes it at once, one batch per route: a survivor as one Update, a
+  route with no candidate as a Withdraw. `withdrawIfUnheld` checks that no best is recorded and
+  removes the route from the Loc-RIB under one shard-lock hold, so a concurrent UPDATE's best
+  is never removed behind it.
 - **Interner cap:** each reverse table (peers/next-hops/metrics) caps at 65536; saturation logs
   once and the affected prefix is treated as a degraded record (no spurious withdraw). Peer slots
   are reclaimed via `forgetPeer` free-list, so `peers[]` is bounded by concurrent peers, not

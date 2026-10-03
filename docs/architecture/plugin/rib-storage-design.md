@@ -778,7 +778,11 @@ going down drops the records its paths won (`purgeBestPrevForPeer`), and
 `emitPurgedWithdraws` then re-elects each of those routes from the paths that
 remain before it publishes anything: a route with a survivor goes to it in one
 Update and never leaves the Loc-RIB, and only a route left with no candidate is
-withdrawn.
+withdrawn. Each route is published as soon as its election answers, one batch
+per route. The check that no best is recorded for a withdrawn route and its
+removal from the Loc-RIB run under one hold of the bestPrev shard lock
+(`withdrawIfUnheld`), the lock an UPDATE's election records and mirrors under,
+so a best a concurrent UPDATE elects for the route is never removed behind it.
 
 Other non-CIDR families take the same opaque-map backend `FamilyRIB` does, for the
 same reason: its NLRI leads with a label stack and a Route Distinguisher, or
