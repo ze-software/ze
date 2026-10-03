@@ -26,7 +26,7 @@
     {
       "rid": "RFC2131-2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero",
+      "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero",
       "unit-sha": "1151212b175b65fc",
       "claim-sha": "50fcf281aed74a82",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC2131-2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero",
+      "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero",
       "unit-sha": "44654a6b863e90b7",
       "claim-sha": "90952b84ff68b20d",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC2131-2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero",
+      "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero",
       "unit-sha": "44654a6b863e90b7",
       "claim-sha": "d4dcb50408e1a68e",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC2131-3.2-4",
       "polarity": "positive",
-      "unit": "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
+      "unit": "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
       "unit-sha": "1680e32bae82e472",
       "claim-sha": "6e1d7c3cb6ca6422",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC2131-3.2-4",
       "polarity": "negative",
-      "unit": "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
+      "unit": "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
       "unit-sha": "1680e32bae82e472",
       "claim-sha": "cefb4b1bf09107ca",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC2131-3.6-1",
       "polarity": "positive",
-      "unit": "internal/plugins/iface/dhcp/dhcp_multiiface_integration_linux_test.go::TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently",
+      "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go::TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently",
       "unit-sha": "290d66adf9c7d18e",
       "claim-sha": "1128014dc76805d2",
       "route": "revert",

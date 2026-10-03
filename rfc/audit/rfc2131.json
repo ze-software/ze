@@ -8,16 +8,16 @@
       "tests": {
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "8365c04cdfc2a046",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "8365c04cdfc2a046",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "f6a1e532b0d1f5ec",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "f6a1e532b0d1f5ec",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "f6a1e532b0d1f5ec"
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "f6a1e532b0d1f5ec",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "f6a1e532b0d1f5ec",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "f6a1e532b0d1f5ec"
       },
       "units": {
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "6b9a84fbf7912f1b",
         "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "6b9a84fbf7912f1b",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "9e440768315a29d6",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "73d2cc632073310e",
-        "internal/plugins/iface/dhcp/dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "73d2cc632073310e"
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "9e440768315a29d6",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "73d2cc632073310e",
+        "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "73d2cc632073310e"
       },
       "verdict": "enforced"
     },
@@ -38,12 +38,12 @@
       "note": "positive relays a SELECTING REQUEST with giaddr 192.168.1.254 and asserts responseAddr gives 192.168.1.254:67 for the resulting NAK; negative asserts the same NAK with giaddr zero goes to 255.255.255.255:68, not to a relay",
       "requirement_sha": "066d0698cabb7a1d",
       "tests": {
-        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "482103f2b84d410a",
-        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "482103f2b84d410a"
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "482103f2b84d410a",
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "482103f2b84d410a"
       },
       "units": {
-        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "20b652f3498fa673",
-        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "20b652f3498fa673"
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "20b652f3498fa673",
+        "internal/plugins/dhcpserver/rfc2131_nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "20b652f3498fa673"
       },
       "verdict": "enforced"
     },
