@@ -236,6 +236,36 @@ func TestRenameRewritesCitationsAndListsPlainMentions(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-6 -- a record tree the link sweep exempts (a weakened shard, a
+// journal row) keeps the old path byte for byte and is neither listed as a
+// citation nor as a mention, while a policed doc beside them is rewritten.
+// PREVENTS: a rename editing another session's weakened shard, which
+// `./le commit create` refuses to carry, or a journal row past its length cap.
+func TestRenameLeavesUnpolicedRecordsUntouched(t *testing.T) {
+	root := renameFixture(t)
+	records := []string{"test/weakened/x.md", "plan/journal/y.md"}
+	writeFixtureFiles(t, root, map[string]string{records[0]: renameDocBody, records[1]: renameDocBody})
+	commitFixture(t, root, "records")
+
+	report, err := renameFiles(root, renameOne())
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	for _, rel := range records {
+		if got := readRel(t, root, rel); got != renameDocBody {
+			t.Errorf("%s was rewritten:\n%s", rel, got)
+		}
+		for _, listed := range slices.Concat(report.Citations, report.Mentions, report.Stale) {
+			if strings.HasPrefix(listed, rel+":") {
+				t.Errorf("the report lists the record line %s", listed)
+			}
+		}
+	}
+	if got := readRel(t, root, renameDocRel); strings.Contains(got, "`"+selftestTestPath) {
+		t.Errorf("the policed doc was not rewritten:\n%s", got)
+	}
+}
+
 // VALIDATES: AC-7 -- an existing target is refused and nothing is written.
 func TestRenameRefusesExistingTarget(t *testing.T) {
 	root := renameFixture(t)

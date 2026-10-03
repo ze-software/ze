@@ -424,8 +424,12 @@ Three commits for Phases 1 and 3, and one commit per component for Phase 2. No c
 | `internal/plugins/rsvpte/engine_test.go` | `rfc3209_engine_test.go` |
 | `internal/plugins/rsvpte/softstate_rfc2205_test.go` | `rfc2205_softstate_timeout_test.go` |
 | `internal/plugins/rsvpte/softstate_test.go` | `rfc2205_softstate_test.go` |
+| `internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go` | `sflow_v5_flow_sampling_test.go` |
+| `internal/plugins/flowexport/sflow/flow_test.go` | `sflow_v5_flow_test.go` |
 
 Each target stays in its source's directory. Every target was checked absent on 2026-10-03; the rename refuses one that has appeared since.
+
+→ Decision (D-1 recount, 2026-10-03): a fresh whole-tree `propose` with the inner stem dropped writes 439 pairs and leaves out 23 collisions and 6 name/tag mismatches. The 23 are the 21 rows above not yet landed (the ike and tacacs rows landed in e52260d978 and 489a1b53a5) plus the sflow `flow` pair, whose two sources now propose the same `sflow_v5_flow_test.go` and gained the last two rows. Every other hand-chosen row is still needed: each of its pairs still collides on its proposed name.
 
 ### Phase 3 untagged RFC-named files (39)
 
@@ -613,12 +617,16 @@ Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/disc
 | `internal/component/tacacs` | 4 (1 from the collision table) | 489a1b53a5 | none |
 | `internal/component/ike` | 16 (4 from the collision table) | e52260d978 | none |
 | reseal of the verdicts the comment edits shifted | - | 3168d066aa | - |
+| tool fix D-1 to D-3 (inner stem, record trees) | - | this commit | - |
+| re-rename of the three doubled names | 3 | the next commit | none |
 
 Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new. `./le doc check links` stayed at its 12 pre-existing broken references.
 
 → Constraint (Phase 2): a comment edit in another tagged test file shifts its audit verdicts (`./le rfc reseal` re-stamps them), and one INSIDE a tagged unit stales the verdict, so a mention inside a tagged unit is left on the old name.
-→ Constraint (Phase 2): `./le rfc rename` rewrites citations in `test/weakened/<session>.md`, which `./le commit create` refuses to carry for another session and the link sweep exempts as history; those lines were restored to HEAD. It also rewrites journal rows over the 600-character cap, which `./le commit create` then refuses (`row-too-long`).
-→ Constraint (Phase 2): `propose` keeps an inner stem, so `gtsm_rfc5082_linux_test.go` becomes `rfc5082_gtsm_rfc5082_linux_test.go` (155 of the 494 targets). The collision table assumed the inner stem dropped, so most of its pairs no longer collide.
+→ Constraint (Phase 2, fixed by D-2 and D-3): `./le rfc rename` rewrote citations in `test/weakened/<session>.md`, which `./le commit create` refuses to carry for another session and the link sweep exempts as history; those lines were restored to HEAD. It also rewrote journal rows over the 600-character cap, which `./le commit create` then refuses (`row-too-long`).
+→ Constraint (Phase 2, fixed by D-1): `propose` kept an inner stem, so `gtsm_rfc5082_linux_test.go` became `rfc5082_gtsm_rfc5082_linux_test.go` (155 of the 494 targets). Three landed names carried it (`internal/component/gtsm`, `internal/component/iface`, `internal/plugins/dhcpserver`) and are re-renamed by the fixed tool in the commit after the fix.
+→ Decision (D-1, main thread, 2026-10-03): `judgeTestFileName`'s repair topic drops every `_`-delimited spelling of the target stem (`topicForStem`): the stem itself, the legacy `rfc_<stem>`, and for a draft the legacy `rfc_draft_<word>` where the word is one of the draft name's own. The trailing elements `go/build` reads as a GOOS/GOARCH suffix are never removed, judged by `platformsBuilding` over a platform naming no OS and no arch, so no suffix list is copied. A topic left empty names the bare `<stem>_test.go` only when that path is free, and keeps the old topic otherwise. Test: `TestJudgeTestFileNameDropsTheInnerStem`, `TestBuildSuffixTokenFollowsGoBuild`.
+→ Decision (D-2 and D-3, main thread, 2026-10-03): the rename rewrites citations, and lists stale lines and plain mentions, only in a file the link sweep polices. The one declaration moved from `internal/le/doc/check/links.go` (`citationExcludes`, `markdownGlobs`) into the leaf `internal/le/doc/citation/policed.go` (`Excluded`, `CorpusGlobs`, `Policed`), which both the sweep and `planCitations` read; the sweep's behaviour is unchanged and its exclusion test stays in `links_test.go`, now reading `citation.Excluded`. Test: `TestRenameLeavesUnpolicedRecordsUntouched`, `TestPolicedKeepsCorpusFilesUnderRecordTrees`.
 
 ## Checklist
 

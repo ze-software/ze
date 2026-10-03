@@ -396,7 +396,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// fix commit commits. No verdict moved: the change is `./le rfc rename`
 	// alone, which now refuses an evidence file holding anything but one JSON
 	// value, plus a comment on its race-only arm. It judges no record.
-	const want = "d2958187bd87519334b927e4c7d12ccbc8e9f788207c56250aa6daf3f8f58c86"
+	//
+	// Re-sealed 2026-10-03 for the three Phase 2 defects in `./le rfc rename`,
+	// over the bytes that fix commit commits. No verdict moved: a proposed name
+	// drops the inner stem spelling, and the citation rewrite skips the files
+	// the link sweep exempts. Neither judges a record.
+	const want = "2deb21267aaff852eeb57fba26ee457a6a4d71026b53f34b64850d8d06762845"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

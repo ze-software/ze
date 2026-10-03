@@ -15,15 +15,6 @@ import (
 
 var ignoreMarkerRe = regexp.MustCompile(`doc-links:\s*ignore`)
 
-func hasPrefix(token string, prefixes []string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(token, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
 func pathResolves(root, rel string) (bool, error) {
 	path := filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(rel, "/")))
 	if strings.ContainsAny(rel, "*?[") {

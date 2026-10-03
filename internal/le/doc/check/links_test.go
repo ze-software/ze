@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/doc/citation"
 )
 
 func TestDocumentActionsCoverNativeOperations(t *testing.T) {
@@ -295,8 +297,8 @@ func TestRecordTreesAreExcludedFromCitationPolicing(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
-			if got := hasPrefix(tc.path, citationExcludePrefixes); got != tc.excluded {
-				t.Fatalf("hasPrefix(%q) = %v, want %v: %s", tc.path, got, tc.excluded, tc.why)
+			if got := citation.Excluded(tc.path); got != tc.excluded {
+				t.Fatalf("citation.Excluded(%q) = %v, want %v: %s", tc.path, got, tc.excluded, tc.why)
 			}
 		})
 	}

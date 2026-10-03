@@ -9,6 +9,7 @@
 package rfc
 
 import (
+	"errors"
 	"os"
 	"path"
 	"path/filepath"
@@ -120,7 +121,14 @@ type nameVerdict struct {
 // file passes. Part (a) asks that a stem-named file tag that stem or carry a
 // true marker; part (b) asks that a file whose tags cite exactly one stem be
 // named for it. Part (b) is judged first, because its repair is one rename.
-func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, bool) {
+//
+// The repair's topic drops every spelling of the target stem the old name
+// carried (topicForStem), so gtsm_rfc5082_linux_test.go becomes
+// rfc5082_gtsm_linux_test.go rather than naming RFC 5082 twice. A topic that
+// held nothing else names the bare rfcN_test.go only while taken answers false
+// for it; otherwise the old topic is kept whole. taken answers whether a
+// repository-relative path already exists.
+func judgeTestFileName(file namedTestFile, stems map[string]bool, taken func(rel string) bool) (nameVerdict, bool) {
 	dir, base := path.Split(file.Rel)
 	nameStem := stemOfFileName(base, stems)
 	topic := base
@@ -129,7 +137,10 @@ func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, 
 	}
 	if single, ok := singleStem(file.TagStems); ok && single != nameStem {
 		var tb textbuf.Buffer
-		target := dir + stemPrefix(single) + topic
+		target := dir + stemPrefix(single) + topicForStem(topic, single)
+		if bare := dir + stemPrefix(single) + bareTopic; target == bare && topic != bareTopic && taken(bare) {
+			target = dir + stemPrefix(single) + topic
+		}
 		tb.Str("every tag in it cites ").Str(single).Str(", so it is named for that RFC")
 		return nameVerdict{Rel: file.Rel, Problem: tb.String(), Target: target}, true
 	}
@@ -148,6 +159,92 @@ func judgeTestFileName(file namedTestFile, stems map[string]bool) (nameVerdict, 
 		Str("covers, add `").Str(namingMarkerText).Str(" <reason>`, or name it after what ").
 		Str("it covers (./le rfc rename from ").Str(file.Rel).Str(" to ").Str(dir).Str(suggested).Str(")")
 	return nameVerdict{Rel: file.Rel, Problem: tb.String()}, true
+}
+
+// bareTopic is the topic of a file named for its stem alone, rfcN_test.go.
+const bareTopic = "test.go"
+
+// topicForStem answers topic with every `_`-delimited spelling of stem removed.
+// Three spellings count: the stem itself (rfc5082, sflow_v5), the legacy
+// rfc_<stem> (rfc_sflow_v5), and for a draft the legacy rfc_draft_<word>, where
+// word is one of the draft name's own words (rfc_draft_abraitis for
+// draft-abraitis-bgp-version-capability). A topic that holds nothing else
+// answers bareTopic.
+//
+// The GOOS/GOARCH suffix is never touched: the trailing elements go/build
+// reads as a constraint (buildSuffixToken) are kept even where they spell part
+// of the stem, so the rename never changes which platforms compile the file.
+// Every other element is kept as it was, so no underscore is added or lost.
+func topicForStem(topic, stem string) string {
+	body, isTest := strings.CutSuffix(topic, testFileSuffix)
+	if !isTest || body == "" {
+		return topic
+	}
+	tokens := strings.Split(body, "_")
+	free := tokens[:len(tokens)-buildSuffixLength(tokens)]
+	words := strings.Split(strings.TrimSuffix(stemPrefix(stem), "_"), "_")
+	kept := make([]string, 0, len(tokens))
+	for index := 0; index < len(tokens); {
+		width := stemSpellingAt(free, index, words)
+		if width == 0 {
+			kept = append(kept, tokens[index])
+			index++
+			continue
+		}
+		index += width
+	}
+	if len(kept) == 0 {
+		return bareTopic
+	}
+	return strings.Join(kept, "_") + testFileSuffix
+}
+
+// stemSpellingAt answers how many tokens from index spell the stem whose words
+// are given, and zero when none of topicForStem's three spellings opens there.
+func stemSpellingAt(tokens []string, index int, words []string) int {
+	if index >= len(tokens) {
+		return 0
+	}
+	rest := tokens[index:]
+	if len(rest) > len(words) && rest[0] == "rfc" && slices.Equal(rest[1:1+len(words)], words) {
+		return 1 + len(words)
+	}
+	if len(rest) >= len(words) && slices.Equal(rest[:len(words)], words) {
+		return len(words)
+	}
+	if words[0] != "draft" {
+		return 0
+	}
+	if len(rest) >= 3 && rest[0] == "rfc" && rest[1] == "draft" && slices.Contains(words[1:], rest[2]) {
+		return 3
+	}
+	return 0
+}
+
+// buildSuffixLength answers how many trailing tokens go/build reads as a
+// GOOS/GOARCH constraint: zero, one (_linux, _amd64) or two (_linux_amd64).
+func buildSuffixLength(tokens []string) int {
+	length := 0
+	for length < 2 && length < len(tokens) && buildSuffixToken(tokens[len(tokens)-1-length]) {
+		length++
+	}
+	return length
+}
+
+// constraintFreePlatform names no GOOS and no GOARCH, so go/build compiles a
+// file for it exactly when the file name carries no GOOS/GOARCH constraint.
+var constraintFreePlatform = []goPlatform{{OS: "ze_no_os", Arch: "ze_no_arch"}}
+
+// buildSuffixToken reports whether go/build reads token, as the last element
+// of a file name, as a GOOS or GOARCH constraint. go/build's own known-name
+// list answers through platformsBuilding, so no list is copied here. A judging
+// error answers true, the direction that keeps the token where it stands.
+func buildSuffixToken(token string) bool {
+	built, err := platformsBuilding("a_"+token+testFileSuffix, constraintFreePlatform)
+	if err != nil {
+		return true
+	}
+	return !built[0]
 }
 
 // judgeNamingMarker refuses a marker that is empty, that contradicts a tag for
@@ -256,7 +353,7 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 				return readErr
 			}
 			file := namedTestFile{Rel: rel, TagStems: stemsByFile[rel], Marker: readNamingMarker(src)}
-			if verdict, refused := judgeTestFileName(file, stems); refused {
+			if verdict, refused := judgeTestFileName(file, stems, existsIn(tree)); refused {
 				out = append(out, verdict)
 			}
 			return nil
@@ -267,6 +364,16 @@ func testFileNameVerdicts(tree string, carriers []Carrier, tags []Tag, requireme
 	}
 	slices.SortFunc(out, func(a, b nameVerdict) int { return strings.Compare(a.Rel, b.Rel) })
 	return out, nil
+}
+
+// existsIn answers a taken function for judgeTestFileName over the checkout at
+// tree. Any Lstat error but absence answers true, the direction that keeps a
+// rename off a path it cannot see.
+func existsIn(tree string) func(rel string) bool {
+	return func(rel string) bool {
+		_, err := os.Lstat(treePath(tree, rel))
+		return !errors.Is(err, os.ErrNotExist)
+	}
 }
 
 // checkTestFileNames answers one finding per unit test file whose name and RFC

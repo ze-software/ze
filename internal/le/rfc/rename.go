@@ -231,7 +231,7 @@ func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	}
 	file := namedTestFile{Rel: pair.Target, TagStems: judged.TagStems[pair.Source],
 		Marker: readNamingMarker(string(src))}
-	if verdict, refused := judgeTestFileName(file, judged.Stems); refused {
+	if verdict, refused := judgeTestFileName(file, judged.Stems, existsIn(tree)); refused {
 		var tb textbuf.Buffer
 		why := tb.Str("fails the test file naming rule: ").Str(verdict.Problem)
 		if verdict.Target != "" {
@@ -483,9 +483,12 @@ func movedEvidencePath(value string, pairs []renamePair) (string, bool) {
 	return "", false
 }
 
-// planCitations rewrites every citation of a source in a tracked file, through
-// the link sweep's own grammar (citation.Paths), and lists every other
-// line that mentions a source's base name.
+// planCitations rewrites every citation of a source in a tracked file the link
+// sweep polices (citation.Policed), through the sweep's own grammar
+// (citation.Paths), and lists every other line of such a file that mentions a
+// source's base name. A record tree (a journal row, a weakened shard, a spec)
+// is left byte-identical and unlisted, because its path is a fact about the
+// day it was written.
 //
 // A citation the grammar expands from braces (`dir/widget{_test,}.go`) holds no
 // literal source path to replace, so after the rewrite every line that still
@@ -505,6 +508,11 @@ func planCitations(tree string, plan *renamePlan) error {
 	}
 	for _, rel := range files {
 		if isEvidenceFile(rel) {
+			continue
+		}
+		// A record tree keeps the path it was written with, so a file the link
+		// sweep does not police is neither rewritten nor listed.
+		if !citation.Policed(rel) {
 			continue
 		}
 		original, err := os.ReadFile(treePath(tree, rel)) // #nosec G304 -- a tracked file git named

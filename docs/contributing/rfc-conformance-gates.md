@@ -1232,9 +1232,14 @@ path in `rfc/discrimination/`, and every requirement's `tests`, `units` and
 and edits their bytes in place, so a `break`, a note or any other string that
 spells the old path keeps its bytes, and so do the formatting and another
 session's hunks in those files. It rewrites every backtick or link citation of
-the old path in a tracked file, by the link sweep's own grammar (`Paths` in
-`internal/le/doc/citation`), and lists every other line that mentions the
-file's base name, for a reader to judge. A citation the grammar expands from
+the old path in a tracked file the link sweep polices, by the sweep's own
+grammar (`Paths` in `internal/le/doc/citation`), and lists every other line of
+such a file that mentions the file's base name, for a reader to judge. The
+sweep's exemptions decide which files those are (`Policed` in the same
+package): a record tree such as `plan/journal/`, `plan/learned/`, a spec, or
+`test/weakened/` keeps the old path byte for byte and is not listed, because a
+path in a record is a fact about the day it was written. The learned indexes
+and the other live files under those trees stay policed and are rewritten. A citation the grammar expands from
 braces holds no literal path to rewrite, so a line that still cites the old
 path after the rewrite is listed as stale, to be edited by hand. Two such
 citations go unlisted: one inside a moved file, because a moved file is never
@@ -1259,7 +1264,8 @@ rule finds, each target being the rename the finding names. A target that
 already exists or that two findings share is left out and named, and so is a
 file named for another RFC, which has to be read before it moves. The output
 file is created, never overwritten. Run `./le rfc index-update` after a rename.
-<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, proposeRenames -->
+<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, planCitations, proposeRenames -->
+<!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
 <!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->
 
 ## Test file names
@@ -1283,10 +1289,19 @@ judged, so interop carriers, `.ci` files, `internal/le/`, `test/draft/`,
 `testdata/` and `vendor/` are not. Each finding names the exact
 `./le rfc rename` command that repairs it, or the marker to write.
 
+The repair keeps the old name as its topic, less every spelling of the target
+stem it already carried: the stem itself (`gtsm_rfc5082_linux_test.go` becomes
+`rfc5082_gtsm_linux_test.go`), the legacy `rfc_<stem>` (`rfc_sflow_v5`), and for
+a draft the legacy `rfc_draft_<word>` where the word is one of the draft name's
+own (`rfc_draft_abraitis`). The trailing elements `go/build` reads as a
+GOOS/GOARCH suffix are never removed. A topic that held nothing else repairs to
+the bare `<stem>_test.go` when no file has that name, and keeps its old topic
+whole when one does.
+
 `checkTestFileNames` implements the rule and `./le rfc rename` refuses a target
 through it. It is not yet one of `./le rfc check`'s checks: it arms when the
 tree is renamed to pass it (`plan/spec-rfc-test-file-naming.md`).
-<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, checkTestFileNames -->
+<!-- source: internal/le/rfc/names.go -- stemPrefix, stemOfFileName, judgeTestFileName, topicForStem, checkTestFileNames -->
 
 ## What the ratchets cannot see
 
