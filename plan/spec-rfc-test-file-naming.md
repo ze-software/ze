@@ -677,8 +677,16 @@ The two test-only edits need no fixture re-seal, because the fixture digest skip
 | reseal (isis, l2tp) | - | 1c08e1dbf9 | - |
 | `internal/plugins/ospf` | 78 (1 from the collision table) | b980836600 | none |
 | reseal (ospf) | - | 59531a714b | - |
+| `internal/component/bgp/reactor` | 62 (2 from the collision table) | e36b833d2c | none |
+| reseal (bgp reactor) | - | 15b956183b | - |
+| `internal/component/bgp/plugins` | 89 (5 from the collision table) | e8ef205181 | none |
+| reseal (bgp plugins) | - | c58abed1c5 | - |
+| `internal/component/bgp`, the rest (cli, config, fsm, grmarker, message, rib, route, server, wireu) | 25 | 6dbb2272f6 | none |
 
-Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new; it is 94 after 59531a714b, none new. `./le doc check links` stayed at its 12 pre-existing broken references. `internal/component/bgp` (172 proposed pairs, 7 hand rows) is the one component left.
+Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new; it is 94 after 6dbb2272f6, none new. `./le doc check links` stayed at its 12 pre-existing broken references. **Phase 2 is complete:** a whole-tree `./le rfc rename propose` after 6dbb2272f6 writes 0 pairs and leaves out only the 6 name/tag mismatches of the Phase 3 table.
+
+→ Constraint (Phase 2, bgp): three mentions stay on old names because the file is generated or history: `docs/features/test-health.md` and `test/health/latest.json` (`gr_egress_test.go`; `./le test health update` regenerates both) and `plan/learned/HOOK-FRICTION.md`. `internal/component/bgp/reactor/session_test.go` keeps `message/attr_discard_test.go` inside the tagged unit `TestSessionRFC7606AttributeDiscardContinues`; `test/plugin/dynamic-peer-gets-group-role-capability.ci`, `llgr-egress-state-unloaded.ci`, `bgp-rs-relay-aspath-transparency.ci`, `prefixsid-ebgp-egress-boundary.ci` and `test/reload/signal-stop-cease.ci` carry file-scoped tags and keep theirs.
+→ Constraint (Phase 2, bgp): `internal/component/bgp/reactor` is red at HEAD c39f0b9c38 in 10 tests, identically before and after the renames (checked in a `git archive` export of HEAD): two RFC 2545 tests need `fd00::2` on the loopback, three are the retained defect probes of 699f4b296f, five are the startup race journalled in 7f56a16124. `plugins/rib` has one retained probe red (`rfc8277_addpath_comparable_red_test.go`).
 
 → Constraint (Phase 2, second batch): a `.ci` file whose tag is file-scoped is a tagged unit as a whole, so a comment edit anywhere in it stales the verdict. `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` and `test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci` keep naming `reactor_sccrq_mandatory_avp_test.go` and `reactor_sccrq_zero_tid_test.go` in a comment, though both moved in 1f4e1e81f1.
 → Constraint (Phase 2, second batch): a plain mention reported for a moved base name is often a file of the same name in another directory (`config_test.go`, `fsm_test.go`, `packet/checksum_test.go`). Each mention was applied only where its path, or its directory when it gives none, is the moved file's.
