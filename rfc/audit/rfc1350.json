@@ -63,11 +63,11 @@
       "requirement_sha": "d8ce09cd32156ece",
       "tests": {
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "60a1b8ea3f073355",
-        "internal/plugins/tftpserver/socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "902e0bf0222babba"
+        "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "902e0bf0222babba"
       },
       "units": {
         "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "d6258b5c6c294eaf",
-        "internal/plugins/tftpserver/socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "690d3098855724e3"
+        "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "690d3098855724e3"
       },
       "verdict": "enforced"
     },

@@ -81,7 +81,7 @@
     {
       "rid": "RFC1350-4-3",
       "polarity": "positive",
-      "unit": "internal/plugins/tftpserver/socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
+      "unit": "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
       "unit-sha": "6472bc4c39c68dc8",
       "claim-sha": "ed6abab42edd12c3",
       "route": "revert",

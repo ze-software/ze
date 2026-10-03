@@ -7,7 +7,7 @@
 // are privileged) and, for the negative case, CAP_NET_ADMIN. Both are present in
 // the QEMU Alpine VM (see ai/rules/platform-linux.md); otherwise the tests t.Skip.
 //
-// See socket_integration_linux_test.go in ../tftpserver for why the positive
+// See rfc1350_socket_integration_linux_test.go in ../tftpserver for why the positive
 // round-trip binds to "lo": locally-routed traffic ingresses on the loopback
 // device, so only an lo-bound socket can both bind and receive it within one
 // namespace. The OFFER is delivered by unicast to ciaddr:68 (responseAddr), so
