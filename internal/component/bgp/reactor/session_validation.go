@@ -508,7 +508,7 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	// Route-server clients included, as with the RFC 8092 removal above and the
 	// RFC 7606 Section 3.g strip: the discard is the RFC's own receive rule, not
 	// an attribute update RFC 7947 Section 2.2 asks a route server to avoid.
-	wu = discardRepeatedPrefixSIDTLVs(wu)
+	wu = discardRepeatedPrefixSIDTLVs(wu, s.settings.Address)
 
 	// RFC 8277 Section 2.2, applied at this site for the same reason: the label
 	// fields the RIB keeps and the relays copy carry a zero Rsrv.

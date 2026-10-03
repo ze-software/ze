@@ -270,3 +270,35 @@ func TestPrefixSIDFormatterRefusesAnotherAttribute(t *testing.T) {
 	assert.Nil(t, formatter.AppendValue(nil, other),
 		"a NEXT_HOP is not a PREFIX_SID and this formatter must not answer for it")
 }
+
+// TestPrefixSIDTLVSingleOccurrenceByFamily asks the single-occurrence
+// declaration about each TLV type Ze recognizes on labeled unicast and off it.
+// Method: the SRv6 L3 and L2 Service TLVs are single on every family (RFC 9252
+// Section 7 names none), the Label-Index TLV only on IPv4 and IPv6 labeled
+// unicast (RFC 8669 Section 3.1 has it ignored elsewhere), and the Originator
+// SRGB TLV and an unknown type on none. Untagged: the receive tests carry the
+// RFC8669-6-3 verdict; this one pins the table those tests reach through.
+func TestPrefixSIDTLVSingleOccurrenceByFamily(t *testing.T) {
+	families := []struct {
+		name    string
+		afi     AFI
+		safi    SAFI
+		labeled bool
+	}{
+		{"ipv4/mpls-label", AFIIPv4, SAFIMPLSLabel, true},
+		{"ipv6/mpls-label", AFIIPv6, SAFIMPLSLabel, true},
+		{"ipv4/unicast", AFIIPv4, SAFIUnicast, false},
+		{"ipv6/unicast", AFIIPv6, SAFIUnicast, false},
+		{"ipv4/mpls-vpn", AFIIPv4, SAFIVPN, false},
+		{"l2vpn/mpls-label", AFIL2VPN, SAFIMPLSLabel, false},
+	}
+	for _, f := range families {
+		t.Run(f.name, func(t *testing.T) {
+			assert.Equal(t, f.labeled, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, prefixSIDTLVLabelIndex), "Label-Index")
+			assert.True(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, PrefixSIDTLVSRv6L3Service), "SRv6 L3 Service")
+			assert.True(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, PrefixSIDTLVSRv6L2Service), "SRv6 L2 Service")
+			assert.False(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, prefixSIDTLVOriginatorSRGB), "Originator SRGB")
+			assert.False(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, 9), "unknown type 9")
+		})
+	}
+}

@@ -92,28 +92,49 @@ const (
 )
 
 // PrefixSIDTLVSingleOccurrence reports whether Ze recognizes Prefix-SID TLV
-// type tlvType and its specification allows the TLV only once in an attribute.
-// It is the one declaration of that set: the receive path discards every
-// occurrence after the first of a type it answers true for, and keeps every
-// other TLV in received order.
+// type tlvType in an attribute attached to routes of family afi/safi, and its
+// specification allows the TLV only once in that attribute. It is the one
+// declaration of that set: the receive path discards every occurrence after
+// the first of a type it answers true for, and keeps every other TLV in
+// received order.
 //
 // RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service TLV are
-// encountered, all but the first instance MUST be ignored." It says the same
-// of the SRv6 L2 Service TLV. RFC 8669 Section 1 has the Label-Index TLV
-// "advertise the label index for a given prefix": one index per prefix, so a
-// second TLV is a second answer to a question with one answer.
+// encountered, all but the first instance MUST be ignored." and "If multiple
+// instances of the SRv6 L2 Service TLV are encountered, all but the first
+// instance MUST be ignored." Neither sentence names a family, so types 5 and 6
+// are single on every family.
 //
-// The Originator SRGB TLV (type 3) is not in the set. RFC 8669 states no
-// occurrence limit for it, and Section 3.2 makes repetition its encoding:
-// "the SRGB field MAY appear multiple times. If the SRGB field appears
-// multiple times, the SRGB consists of multiple ranges that are concatenated."
-// Discarding a second TLV on a guess would drop ranges the originator sent.
-func PrefixSIDTLVSingleOccurrence(tlvType uint8) bool {
+// RFC 8669 Section 3.1: "The Label-Index TLV MUST be present in the BGP
+// Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes
+// ([RFC8277]).  It MUST be ignored when received for other BGP AFI/SAFI
+// combinations." So the Label-Index TLV (type 1) is recognized, and single,
+// only on IPv4 and IPv6 labeled unicast: RFC 8669 Section 1 has it "advertise
+// the label index for a given prefix", one index per prefix. On any other
+// family Ze does not recognize it, and RFC 8669 Section 3 has an unrecognized
+// TLV "propagated unmodified", so every copy stays.
+//
+// The Originator SRGB TLV (type 3) is not in the set on any family. RFC 8669
+// Section 3.2: "The Originator SRGB TLV MUST NOT be changed during the
+// propagation of the BGP update." RFC 8669 sets it no occurrence limit, and
+// discarding a second copy on a guess would change it.
+func PrefixSIDTLVSingleOccurrence(afi AFI, safi SAFI, tlvType uint8) bool {
 	switch tlvType {
-	case prefixSIDTLVLabelIndex, PrefixSIDTLVSRv6L3Service, PrefixSIDTLVSRv6L2Service:
+	case PrefixSIDTLVSRv6L3Service, PrefixSIDTLVSRv6L2Service:
 		return true
+	case prefixSIDTLVLabelIndex:
+		return prefixSIDLabeledUnicast(afi, safi)
 	}
 	return false
+}
+
+// prefixSIDLabeledUnicast reports whether afi/safi is IPv4 or IPv6 Labeled
+// Unicast (RFC 8277), the only families RFC 8669 Section 3.1 defines the
+// Label-Index TLV for.
+func prefixSIDLabeledUnicast(afi AFI, safi SAFI) bool {
+	if safi != SAFIMPLSLabel {
+		return false
+	}
+	return afi == AFIIPv4 || afi == AFIIPv6
 }
 
 var errEmptyPrefixSIDAttribute = errors.New("prefix-sid: attribute carries no TLV")

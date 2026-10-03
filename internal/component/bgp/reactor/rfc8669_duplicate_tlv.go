@@ -8,6 +8,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -28,9 +29,12 @@ import (
 // RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service TLV are
 // encountered, all but the first instance MUST be ignored."
 //
-// attribute.PrefixSIDTLVSingleOccurrence names the types. A TLV of any other
-// type is kept however often it repeats, because RFC 8669 Section 6 says
-// "unknown TLVs MUST be ignored and propagated unmodified".
+// attribute.PrefixSIDTLVSingleOccurrence names the types, for the family the
+// attribute is attached to: the SRv6 L3 and L2 Service TLVs on every family,
+// the Label-Index TLV on IPv4 and IPv6 labeled unicast only (RFC 8669 Section
+// 3.1). A TLV of any other type, or a Label-Index TLV on another family, is
+// kept however often it repeats, because RFC 8669 Section 6 says "unknown TLVs
+// MUST be ignored and propagated unmodified".
 //
 // It is an ingest step of publishBase: the bytes it returns are the bytes the
 // RIB retains, a route server relays zero-copy, every rebuild copies from and
@@ -55,7 +59,7 @@ import (
 //	| TLV[0]: Type (1) | Length (2) | Value (Length octets)         |
 //	| TLV[1]: Type (1) | Length (2) | Value ...                     |
 //	+---------------------------------------------------------------+
-func discardRepeatedPrefixSIDTLVs(wu *wireu.WireUpdate) *wireu.WireUpdate {
+func discardRepeatedPrefixSIDTLVs(wu *wireu.WireUpdate, peer netip.Addr) *wireu.WireUpdate {
 	payload := wu.Payload()
 	sections, err := wire.ParseUpdateSections(payload)
 	if err != nil {
@@ -68,7 +72,13 @@ func discardRepeatedPrefixSIDTLVs(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	if !found {
 		return wu
 	}
-	kept, discarded := prefixSIDAttrsFirstOnly(attrs, hdrStart, flags, value)
+	afi, safi, ok := prefixSIDRouteFamily(attrs)
+	if !ok {
+		// The RFC 7606 walk refuses an MP_REACH_NLRI too short to name its family
+		// before publishBase runs; without a family no TLV can be judged single.
+		return wu
+	}
+	kept, discarded := prefixSIDAttrsFirstOnly(attrs, hdrStart, flags, value, afi, safi)
 	if !discarded {
 		return wu
 	}
@@ -76,19 +86,41 @@ func discardRepeatedPrefixSIDTLVs(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	rebuilt := wireu.NewWireUpdate(message.RebuildUpdateBody(payload, kept), wu.SourceCtxID())
 	rebuilt.SetSourceID(wu.SourceID())
 	sessionLogger().Debug("RFC 8669 Section 6: discarded repeated Prefix-SID TLVs",
-		"octets-received", len(value))
+		"peer", peer, "octets-received", len(value))
 	return rebuilt
+}
+
+// prefixSIDRouteFamily returns the family of the routes the UPDATE whose
+// attribute section is attrs announces: the AFI and SAFI of its MP_REACH_NLRI
+// (RFC 4760 Section 3), or IPv4 unicast for an UPDATE without one, whose
+// routes travel in the RFC 4271 NLRI field. It returns false for an
+// MP_REACH_NLRI shorter than its AFI and SAFI.
+//
+// An UPDATE carrying both is read by its MP_REACH_NLRI family. The UPDATE has
+// one Prefix-SID for both sets of routes, so one reading must win, and the
+// labeled-unicast routes are the ones RFC 8669 Section 3.1 requires the
+// Label-Index TLV for.
+func prefixSIDRouteFamily(attrs []byte) (attribute.AFI, attribute.SAFI, bool) {
+	_, _, reach, found := attribute.AttrFind(attrs, attribute.AttrMPReachNLRI)
+	if !found {
+		return attribute.AFIIPv4, attribute.SAFIUnicast, true
+	}
+	if len(reach) < 3 {
+		return 0, 0, false
+	}
+	return attribute.AFI(binary.BigEndian.Uint16(reach)), attribute.SAFI(reach[2]), true
 }
 
 // prefixSIDTLVSeen records which Prefix-SID TLV types a walk has met, one bit
 // per type code. It lives on the stack of the walk that owns it.
 type prefixSIDTLVSeen [4]uint64
 
-// keep reports whether the TLV of type tlvType, met next in the walk, stays in
-// the attribute: every TLV of a type outside the single-occurrence set, and
-// the first TLV of a type inside it.
-func (s *prefixSIDTLVSeen) keep(tlvType byte) bool {
-	if !attribute.PrefixSIDTLVSingleOccurrence(tlvType) {
+// keep reports whether the TLV of type tlvType, met next in the walk of an
+// attribute attached to afi/safi routes, stays in the attribute: every TLV of
+// a type outside the single-occurrence set for that family, and the first TLV
+// of a type inside it.
+func (s *prefixSIDTLVSeen) keep(afi attribute.AFI, safi attribute.SAFI, tlvType byte) bool {
+	if !attribute.PrefixSIDTLVSingleOccurrence(afi, safi, tlvType) {
 		return true
 	}
 	word, mask := tlvType>>6, uint64(1)<<(tlvType&63)
@@ -101,7 +133,7 @@ func (s *prefixSIDTLVSeen) keep(tlvType byte) bool {
 
 // prefixSIDAttrsFirstOnly returns a copy of the attribute section attrs in
 // which the Prefix-SID attribute at hdrStart, whose value is value, has lost
-// every repeat of a single-occurrence TLV, and true. When nothing repeats it
+// every repeat of a TLV that is single-occurrence on family afi/safi, and true. When nothing repeats it
 // returns nil and false and allocates nothing: the copy starts at the first
 // repeat. The attribute keeps the peer's flags and header width; only its
 // length changes.
@@ -113,7 +145,7 @@ func (s *prefixSIDTLVSeen) keep(tlvType byte) bool {
 //
 // The loop is bounded by the value length, itself bounded by the message
 // length: each step advances by at least the 3-octet TLV header.
-func prefixSIDAttrsFirstOnly(attrs []byte, hdrStart int, flags attribute.AttributeFlags, value []byte) ([]byte, bool) {
+func prefixSIDAttrsFirstOnly(attrs []byte, hdrStart int, flags attribute.AttributeFlags, value []byte, afi attribute.AFI, safi attribute.SAFI) ([]byte, bool) {
 	headerOctets := 3
 	if flags.IsExtLength() {
 		headerOctets = 4
@@ -128,7 +160,7 @@ func prefixSIDAttrsFirstOnly(attrs []byte, hdrStart int, flags attribute.Attribu
 		if !ok {
 			return nil, false
 		}
-		kept := seen.keep(value[off])
+		kept := seen.keep(afi, safi, value[off])
 		if kept && out != nil {
 			out = append(out, value[off:off+tlvOctets]...)
 		}

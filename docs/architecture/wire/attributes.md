@@ -634,24 +634,41 @@ Sub-Sub-TLVs. Sub-Sub-TLV 1 is the SID Structure (RFC 9252 Section 3.2.1): six
 Ze keeps the attribute value whole and decodes a field where a reader asks for
 one. RFC 8669 Section 3 requires unknown TLVs to be propagated unmodified, and
 RFC 9252 Section 2 requires every Reserved field to be propagated unchanged, so
-a relayed Prefix-SID is byte-identical to the one received, with one exception.
+a relayed Prefix-SID is byte-identical to the one received except in three
+cases:
+
+| Case | What changes | Where |
+|------|--------------|-------|
+| A repeated single-occurrence TLV (RFC 8669 Section 6, RFC 9252 Section 7) | Every copy after the first is discarded at ingest, so every consumer sees the attribute without it | `discardRepeatedPrefixSIDTLVs`, described below |
+| The next hop changes toward a destination (RFC 9252 Section 2) | The SRv6 L3 and L2 Service TLVs are removed and every other TLV is kept; an attribute left with no TLV is removed | `prefixSIDNextHopHandler` |
+| An EBGP destination the operator has not configured for propagation (RFC 8669 Section 8) | The attribute is removed, on every rail that writes an UPDATE | `prefixSIDAllowedTo`, see [SRv6](../../features/srv6.md) |
 
 **A repeated single-occurrence TLV is discarded at ingest.** RFC 8669 Section 6
 requires a receiver to discard every occurrence after the first of a TLV whose
 specification allows one, and RFC 9252 Section 7 says the same of the SRv6 L3
 and L2 Service TLVs. `publishBase` rewrites the received UPDATE when the
-attribute repeats a Label-Index (1), SRv6 L3 Service (5) or SRv6 L2 Service (6)
-TLV, keeping the first of each and every other TLV in received order, so the
-RIB, the relays, every rebuild and the JSON encoder see the first TLV alone. It
-runs for route-server clients too. `PrefixSIDTLVSingleOccurrence` is the one
-declaration of that set. An Originator SRGB TLV (3) is kept however often it
-repeats, because RFC 8669 sets no occurrence limit for it, and so is a TLV ze
-does not know. The walk allocates nothing when nothing repeats, and the
-attribute keeps the peer's flags and length-field width. It runs after the
-RFC 7606 walk, which validates every TLV, the repeats included, so a malformed
-second SRv6 Service TLV is still treat-as-withdraw.
+attribute repeats such a TLV, keeping the first of each and every other TLV in
+received order, so the RIB, the relays, every rebuild and the JSON encoder see
+the first TLV alone. The attributes after code 40 are copied unchanged. It runs
+for route-server clients too.
+
+Which types are single depends on the family the attribute is attached to,
+read from the MP_REACH_NLRI, or IPv4 unicast for an UPDATE without one. The
+SRv6 L3 Service (5) and L2 Service (6) TLVs are single on every family. The
+Label-Index TLV (1) is single only on IPv4 and IPv6 labeled unicast: RFC 8669
+Section 3.1 has it "ignored when received for other BGP AFI/SAFI
+combinations", so on another family ze does not recognize it and propagates
+every copy unmodified, like an unknown TLV. `PrefixSIDTLVSingleOccurrence` is
+the one declaration of that set. An Originator SRGB TLV (3) is kept however
+often it repeats on any family, because RFC 8669 Section 3.2 says it "MUST NOT
+be changed during the propagation of the BGP update" and sets it no occurrence
+limit, and so is a TLV ze does not know. The walk allocates nothing when
+nothing repeats, and the attribute keeps the peer's flags and length-field
+width. It runs after the RFC 7606 walk, which validates every TLV, the repeats
+included, so a malformed second SRv6 Service TLV is still treat-as-withdraw.
 <!-- source: internal/component/bgp/reactor/rfc8669_duplicate_tlv.go -- discardRepeatedPrefixSIDTLVs -->
 <!-- source: internal/core/bgp/attribute/prefixsid_wire.go -- PrefixSIDTLVSingleOccurrence -->
+<!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDNextHopHandler, prefixSIDAllowedTo -->
 
 A malformed TLV is refused: the parse returns an error and no attribute, rather
 than a value filled as far as the bytes allowed.
