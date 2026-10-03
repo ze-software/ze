@@ -270,8 +270,17 @@ Thomas's standing request, October 1, 2026:
 
 > do a git pull --rebase and make sure we do this before first edit on any new sessions
 
-An agent runs the same-branch `git pull --rebase` before its first edit under
-`ai/rules/git-safety.md`, "Pull before the first edit". That standing authorization
-does not authorize a direct `git rebase` or integrating a worktree branch. If the
-pull conflicts, stop and report it; conflict resolution requires the user's
-direction.
+On October 3, 2026 Thomas narrowed it to its purpose: a session never edits on
+top of a branch that is behind its upstream. This checkout is shared and always
+dirty with other sessions' work, so demanding a clean pull blocked every session
+even when origin had nothing new.
+
+Before its first edit an agent runs `git fetch` and `git rev-list --count
+HEAD..@{u}` under `ai/rules/git-safety.md`, "Never edit behind the upstream". A
+count of zero needs no pull, and a dirty tree does not stop it. A failed fetch
+or a missing upstream stops the session, because the check has no answer. Only a
+count above zero owes the same-branch `git pull --rebase --no-autostash`, and
+only then do a dirty tree, a merge or rebase in progress, or a failed pull stop
+the session. That standing authorization does not authorize a direct `git rebase` or
+integrating a worktree branch. If the pull conflicts, stop and report it;
+conflict resolution requires the user's direction.
