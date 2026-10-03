@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC7947-2.2-1": {
       "note": "SHOULD NOT update well-known attributes, and optional recognized and unrecognized attributes SHOULD NOT be updated and SHOULD be passed on. rsTransparencyBody carries only AS_PATH, NEXT_HOP and MED. It has no unrecognized optional attribute, transitive or not, so a route server that dropped an unrecognized non-transitive attribute per RFC 4271 section 5 passes every tagged unit. The tag prose also claims the fixture carries ORIGIN, and it does not.",
@@ -79,17 +79,17 @@
       "verdict": "enforced"
     },
     "RFC7947-x-4": {
-      "note": "The row is now the section 2.1 SHOULD, forward to clients as determined by local policy. TestReactorForwardRSFallback asserts only that a client carrying export filters is moved off the fast path into the skipped list. Nothing asserts that the policy then decides delivery (a denied route not sent). The 'negative' TestReactorForwardRSBasic is compliant no-policy behaviour and violates nothing.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc; the tags moved to TestRFC7947ClientPolicyControlsWire, which closes the earlier weak finding. It runs reactorForwardRS (asserting zero policy-agnostic sends and both clients skipped), then ForwardUpdate through the socket worker with a per-client policy seam, and over two rounds that swap which client accepts it asserts: exactly one policy call per client; the accepting client gets exactly one UPDATE with the exact NLRI; the rejecting client gets exactly one UPDATE with no NLRI and WithdrawnRoutes equal to the prefix. Forwarding regardless of policy, or one client's acceptance leaking to the other, turns it red. The withdrawal on rejection is the owner's decision, which Section 2.1 neither requires nor forbids.",
       "requirement_sha": "857304c8df464c87",
       "tests": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSBasic": "9bdf1a8f4ba34f7d",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSFallback": "9bdf1a8f4ba34f7d"
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "5ff41db46d9f090f",
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "5ff41db46d9f090f"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSBasic": "d876b053f8d11c62",
-        "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSFallback": "57ede75fa9e0392a"
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "c181730ae2650b3c",
+        "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "c181730ae2650b3c"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc7947"

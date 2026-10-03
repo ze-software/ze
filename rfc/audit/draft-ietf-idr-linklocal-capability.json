@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
@@ -46,15 +46,19 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1": {
-      "note": "Forbidden: advertising a route that is left with no IPv6 next hop AFTER the Section 4 procedures run. TestLinkLocalRouteWithNoNextHopIsNotAdvertised asserts assert.Nil on buildRIBRouteUpdate fed a zero netip.Addr, so it proves only that the RIB-replay builder refuses an empty address. The clause 'after completing these procedures' has no assertion: no tagged unit feeds a route whose procedures strip every address (for example a Link-Local-only next hop toward a multihop peer, where the Link-Local must not be included), and the forward rail (forwardUpdateCore) is not driven. A procedure that dropped the Link-Local and still sent an empty next hop leaves both units green.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: advertising a route left with no IPv6 next hop after the Section 4 procedures, instead of treat-as-withdraw. The positive is now real: TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer relays a received 16-octet fe80::1 through forwardUpdateCore under next hop unchanged to an internal and an external peer no connected subnet holds, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI withdrawing 2001:db8:7::/64, so both clauses (not advertised, treat-as-withdraw) are asserted on the general rail. The RIB-rail units remain a zero-address builder check. Weak because the tagged forward-rail control asserts the directly attached external peer is written the Link-Local-only fe80::1. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says 'When the capability has not been negotiated, the procedures in this document do not apply', while Section 3 says 'A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]'. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change.",
       "requirement_sha": "b4a8a2902cdd2961",
       "tests": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "1f41fe0d3b72271c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer#2": "1f41fe0d3b72271c"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "92c01210a50eb8f0",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "6be599755e049d98"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "6be599755e049d98",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "6099070f7ecdcb79",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer#2": "6099070f7ecdcb79"
       },
       "verdict": "weak"
     },
@@ -65,17 +69,21 @@
       "verdict": "not-applicable"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2": {
-      "note": "Forbidden: including any Link-Local next hop toward an internal peer more than one hop away. TestLinkLocalNotIncludedForPeerMoreThanOneHopAway asserts nhMode == nhModeSelfV6 and an empty nhGlobalLL, but only for a peer configured next-hop-self, where ze would append its OWN configured link-local. The third-party case is not asserted: under next-hop unchanged (nhModeNone, the iBGP default) applyFactsNextHop (peer_forward_facts.go) returns without touching the received MP_REACH next hop, so a received Global+Link-Local field forwarded to a multihop internal peer keeps its Link-Local address, and no tagged unit feeds that input.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: including a Link-Local next hop toward an internal peer more than one hop away. The third-party case the earlier weak verdict named is now driven: TestLinkLocalReceivedPairStrippedForMultihopInternalPeer relays the received 32-octet 2001:db8:1::1 + fe80::9 pair through forwardUpdateCore under next hop unchanged and under auto to an internal (AS 65000) peer off every connected subnet and asserts the exact 16-octet Global alone; the control in the same fan-out, an internal peer on the advertiser's subnet, keeps the exact 32-octet pair, which RFC 2545 Section 3 permits without the capability. Restoring the pass-through turns the positive red. The facts-level units still cover the next-hop-self half.",
       "requirement_sha": "0484129d31f8abcf",
       "tests": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway": "8b6df8728f9a616d",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "8b6df8728f9a616d"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "8b6df8728f9a616d",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer": "1f41fe0d3b72271c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer#2": "1f41fe0d3b72271c"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway": "4630c7a31a65cda7",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "cf2dc79a791333e4"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "cf2dc79a791333e4",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer": "e6331a483e87aad9",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer#2": "e6331a483e87aad9"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3": {
       "note": "Re-judged 2026-10-01 (BGP c20 judge, R58(a)). The c19 hole is closed at its producer: refuseLinkLocalCapabilityWithoutAddress (llnh.go), run by both OnConfigVerify (commit) and OnConfigure (startup, FatalOnConfigError in register.go), refuses a peer, a group member or a dynamic-group template whose capability 77 is enabled (llnhEnabledFor, the same answer extractLLNHCapabilities advertises from) with no session link-local on the peer or its group; ResolveBGPTree merges the group's session leaves into the peer, so the group case matches what the reactor's applyLinkLocal reads. So every configuration that can negotiate 77 carries the address linkScope.linkLocalNextHop appends. New units, both through the real LoadConfig + ToPluginMap lowering: negative TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress (standalone and group-inherited capability refused, error names peer1 and session link-local, the section entry refuses too); positive TestLinkLocalCapabilityAcceptedWithLinkLocalAddress (leaf on peer, group, member: accepted and the capability still declared). Both recorded red under the producer break. The wire half stays proven both polarities on the announce rail (directly connected originated route: [global, fe80::1]; route through another router: 16-octet global) and on the forward facts (next-hop self, local ip auto, unchanged), each with an observed-red record. Functional: test/plugin/llnh-refuses-without-link-local.ci (ze boot exits 1 with the refusal) passes. Residual note: the wire units do not negotiate capability 77 itself; linkLocalNextHop does not read the capability, so the same producer answers with and without it.",
@@ -101,56 +109,60 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4": {
-      "note": "Forbidden: announcing to an internal peer a route left with no IPv6 next hop after the internal-peer procedures. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer asserts assert.Nil on buildRIBRouteUpdate's internal rail for a zero netip.Addr only. 'After evaluating the above procedures' is not an input: no unit feeds a route whose Link-Local is removed toward a multihop internal peer and then leaves nothing, and the forward rail is not driven. The '(Treat-as-withdraw.)' clause, a withdrawal of a previously announced route, has no assertion.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to an internal peer a route the internal-peer procedures leave with no IPv6 next hop, rather than treat-as-withdraw. TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (internal=true branch) relays a Link-Local-only fe80::1 to an internal peer more than one hop away, where the Link-Local MUST NOT be included and nothing remains, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix, so 'after evaluating the above procedures' is an input and the withdrawal is asserted. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer announces the same route with a Global next hop and LOCAL_PREF (RIB rail, cross-rail but conformant). The RIB-rail positive alone is still only a zero-address builder check.",
       "requirement_sha": "85d358b2f23809f2",
       "tests": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "1f41fe0d3b72271c"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "e7c0912e3ea5374e",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "69a8c4e0c2796a81"
-      },
-      "verdict": "weak"
-    },
-    "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5": {
-      "note": "Forbidden: a reflector advertising a link-local-only route to a client off the original advertiser's segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore with a 16-octet fe80::1 next hop and asserts assert.NotContains(got, off-segment client); delivering to it turns the test red. The same function (negative tag) asserts the on-segment client does receive the link-local-only next hop, so the refusal is keyed on the segment.",
-      "requirement_sha": "01dd2f11bbcb64db",
-      "tests": {
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "a8caf0b26c61ea23",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "a8caf0b26c61ea23"
-      },
-      "units": {
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "7feb6579d8c4f4b2",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "7feb6579d8c4f4b2"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "69a8c4e0c2796a81",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "6099070f7ecdcb79"
       },
       "verdict": "enforced"
     },
+    "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5": {
+      "note": "Re-judged 2026-10-04 after f93a30fbfc (downgraded from enforced). Forbidden: an RR advertising a Link-Local-only route to a client off the original advertiser's segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore and asserts the off-segment client is written no MP_REACH next hop (assert.Empty, which does not distinguish the withdrawal from nothing; the withdrawal is proven by the untagged TestReflectedLinkLocalOnlyRouteWithdrawnFromClientOffTheSegment). The refusal side would go red. Weak because the only tagged control asserts the on-segment client receives the Link-Local-only next hop. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says 'When the capability has not been negotiated, the procedures in this document do not apply', while Section 3 says 'A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]'. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change.",
+      "requirement_sha": "01dd2f11bbcb64db",
+      "tests": {
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "8b18e25788739de1",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "8b18e25788739de1"
+      },
+      "units": {
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "74758ae76571fa16",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "74758ae76571fa16"
+      },
+      "verdict": "weak"
+    },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6": {
-      "note": "Forbidden: for an off-segment client, sending the link-local-only route neither rewritten nor withheld. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives 2001:db8:1::254 and not a link-local-only field (rewrite arm) and that the client without rewrite receives nothing (ineligible arm); passing the link-local through to either turns it red. The negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld shows a Global next hop is untouched.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: for an off-segment client, sending the Link-Local-only route neither rewritten nor ineligible. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives exactly 2001:db8:1::254 and not a Link-Local-only field, and the client without rewrite is written no MP_REACH next hop (now the withdrawal under the owner's decision; assert.Empty does not distinguish withdrawal from nothing, which the sentence does not require). Negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld: a Global next hop reaches the same off-segment client unchanged. No assertion delivers a Link-Local-only next hop, so the capability-77 fixture gap does not touch this pair.",
       "requirement_sha": "3878bc1d729469f9",
       "tests": {
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "a8caf0b26c61ea23",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "a8caf0b26c61ea23"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "8b18e25788739de1",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "8b18e25788739de1"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "657bbc397ffff782",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "817c76108060c4ec"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "3d6a23de00e3561b"
       },
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7": {
-      "note": "Forbidden: announcing to a one-hop external peer a route with no next hop, and not treating it as a withdrawal. TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer asserts assert.Nil on buildRIBRouteUpdate's external rail for a zero netip.Addr, which proves the builder builds nothing. The '(treat-as-withdraw)' clause has no assertion: no unit announces the route with a next hop first and then checks that losing it sends a withdrawal. Only the RIB-replay rail is driven; the forward rail is not.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to a one-hop external peer a route with no next hop included, rather than treat-as-withdraw. TestNextHopSelfWithheldRouteServerWithdraws requires the fixture reached nhSelfWithheld (next-hop self configured, no address of this speaker, so third-party is disabled and nothing remains) and asserts on the route-server rail no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix; the client is on-link, so no other gate explains the refusal. Both rails share egressNextHopWithheld and each calls mods.SetWithdraw on any refusal, and the general-rail withdrawal is proven by the 4-1 unit. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer (RIB rail, cross-rail, conformant). The RIB-rail positive alone is a zero-address builder check.",
       "requirement_sha": "559ca70e99101ad3",
       "tests": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "1f41fe0d3b72271c"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "65c510d00af439fa",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "2c78d9232aa3cd34"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "2c78d9232aa3cd34",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "29764c066a3d4a77"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8": {
       "note": "Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author's overlay disabling only the forward_rs.go call (strip && false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.",
@@ -174,15 +186,21 @@
       "verdict": "enforced"
     },
     "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9": {
-      "note": "Forbidden: advertising to a multihop external peer a route that carries no Global IPv6 next hop, typically one whose next hop is Link-Local only. TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer feeds a ZERO next hop to buildRIBRouteUpdate and asserts nil, which is the no-next-hop-at-all rule of 4-1/4-7; its facts half (no Link-Local appended under next-hop-self) is not connected to the builder call. No tagged unit offers a Link-Local-only (fe80::) next hop toward a multihop external peer, which is the input the sentence forbids.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: advertising to a multihop external peer a route with no Global IPv6 next hop, rather than treat-as-withdraw. The input the earlier weak verdict asked for is now driven on both rails: TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (forwardUpdateCore) and TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient (reactorForwardRS) relay a Link-Local-only fe80::1 under next hop unchanged (the owner's ruling) to an external peer off every connected subnet and assert no MP_REACH next hop and the exact MP_UNREACH_NLRI. The refusal is enforced. Weak because the tagged route-server control asserts the attached external client is written the Link-Local-only next hop. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says 'When the capability has not been negotiated, the procedures in this document do not apply', while Section 3 says 'A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]'. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change. The RIB-rail negative (Global next hop advertised) is conformant.",
       "requirement_sha": "95e549321443334b",
       "tests": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "fbbc388ab95f6372",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient": "1f41fe0d3b72271c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient#2": "1f41fe0d3b72271c",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "1f41fe0d3b72271c"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer": "08a22c0a0b2832ed",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "d626a5e598bf0051"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoGlobalNextHopIsNotAdvertisedToAMultihopExternalPeer": "d626a5e598bf0051",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient": "881c4c550aa33df6",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient#2": "881c4c550aa33df6",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "6099070f7ecdcb79"
       },
       "verdict": "weak"
     },

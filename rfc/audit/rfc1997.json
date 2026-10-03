@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-27",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC1997-Encoding-1": {
       "note": "(a) a COMMUNITIES value that is not a whole set of four-octet values, e.g. 6 octets, silently truncated to one community; (b) TestCommunitiesParseRejectsNonMultipleOf4 require.ErrorIs ErrInvalidLength on 6 octets goes red. Positive TestCommunitiesParse asserts the exact two four-octet communities decoded from 8 octets.",
@@ -15,12 +15,12 @@
       "verdict": "enforced"
     },
     "RFC1997-Well-1": {
-      "note": "First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_EXPORT route advertised to an external peer. TestWellKnownNoExportRefusesExternalPeer asserts AllowsEgressTo(false) is false; TestForwardNoExportSkipsExternalPeerOnly asserts NotContains the eBGP address on the forward rail; wellknown-no-export-egress.ci covers the daemon wire. Negatives: the same route still reaches an internal peer (TestWellKnownNoExportAllowsInternalPeer, Contains iBGP), so a speaker that advertises to nobody goes red. Enforced.",
+      "note": "Re-judged 2026-10-04 after f93a30fbfc. Ze configures no confederation, so the AS boundary is the boundary the sentence's own parenthesis defines. Forbidden: a received NO_EXPORT route advertised to an external peer. TestForwardNoExportSkipsExternalPeerOnly asserts the external peer is not among the destinations ANNOUNCED a prefix (wkForward now counts only written NLRI, since a refused destination is written the withdrawal) while the internal peer is; TestWellKnownNoExportRefusesExternalPeer pins the predicate; wellknown-no-export-egress.ci covers the daemon wire. Negatives: an ordinary community reaches the external peer, NO_EXPORT reaches the internal peer, and TestForwardNoExportStillWithdrawsFromExternalPeer asserts the external peer gets the exact withdrawn prefixes (the UPDATE's own and the refused announcement, the owner's withdraw-at-every-gate decision) with the NO_EXPORT announcement absent from its NLRI. Withdrawing is not advertising, so the change keeps the letter.",
       "requirement_sha": "58d22b491a5fae2c",
       "tests": {
-        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "13c5ebffb9631cf5",
-        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "13c5ebffb9631cf5",
-        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "13c5ebffb9631cf5",
+        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "063ac3ac101da6f3",
+        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "063ac3ac101da6f3",
+        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "063ac3ac101da6f3",
         "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
         "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "f04334a58fd00e7c",
@@ -31,7 +31,7 @@
       },
       "units": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "beb2711142d7872a",
-        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "54a0341db126a505",
+        "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "49ff3d1d602d3c98",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "858b88657ee735a1",
         "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "3226720fb2478e07",
         "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "91be597450cbc865",
