@@ -37,7 +37,7 @@
     {
       "rid": "RFC2866-3-3",
       "polarity": "positive",
-      "unit": "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier",
+      "unit": "internal/component/radius/rfc2866_acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier",
       "unit-sha": "aca4bc1c1288d4bb",
       "claim-sha": "9c5c843baead279e",
       "route": "revert",

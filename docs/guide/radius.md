@@ -352,7 +352,7 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:
 Run them with `./le test integration interop-radius`, or one at a time with
 `RADIUS_INTEROP_SCENARIO=<name>`. They need Docker and no kernel module.
 
-Unit coverage lives in `internal/component/radius/{config,authenticator,aaa,chap,doctor}_test.go`.
+Unit coverage lives in `internal/component/radius/{rfc2865_config,rfc2865_authenticator,aaa,chap,doctor}_test.go`.
 The `auth-method` enum is pinned against the schema by
 `internal/component/config/rfc7950_radius_auth_method_enum_test.go`.
 

@@ -103,7 +103,7 @@
     {
       "rid": "RFC2865-2.5-1",
       "polarity": "positive",
-      "unit": "internal/component/radius/client_test.go::TestClientRetransmit",
+      "unit": "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit",
       "unit-sha": "c402521b2f865c3c",
       "claim-sha": "608208e6ea9ad0cf",
       "route": "revert",
@@ -400,7 +400,7 @@
     {
       "rid": "RFC2865-4.1-4",
       "polarity": "positive",
-      "unit": "internal/component/radius/authenticator_test.go::TestRadiusAdminChapAttributes",
+      "unit": "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusAdminChapAttributes",
       "unit-sha": "38b580feb3dfeb4f",
       "claim-sha": "5c2fd114fabd19ca",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC2865-4.2-1",
       "polarity": "positive",
-      "unit": "internal/component/radius/client_test.go::TestClientAuthenticatorVerify",
+      "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
       "unit-sha": "50cc8dd965fedcfb",
       "claim-sha": "c2b67845c2f97046",
       "route": "revert",
@@ -477,7 +477,7 @@
     {
       "rid": "RFC2865-4.2-1",
       "polarity": "negative",
-      "unit": "internal/component/radius/client_test.go::TestClientAuthenticatorVerify",
+      "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
       "unit-sha": "50cc8dd965fedcfb",
       "claim-sha": "032161a3dbd75058",
       "route": "revert",

@@ -44,11 +44,11 @@
       "note": "TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort drives a real retransmit through Client.Exchange (first datagram unanswered), asserts the attribute octets unchanged first, then byte-compares the Identifier, all 16 Request Authenticator octets and the source addr:port of every retransmit against the first. A client that re-encoded with a new ID or authenticator, or opened a new socket, goes red. The {single-polarity: positive} annotation holds: a same-ID MUST has no inbound input to refuse. TestClientRetransmit remains a floor assertion.",
       "requirement_sha": "5c737904eded8aeb",
       "tests": {
-        "internal/component/radius/client_test.go::TestClientRetransmit": "adb68f6dd9fd6bc5",
+        "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "adb68f6dd9fd6bc5",
         "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "4d524a15dfa67b83"
       },
       "units": {
-        "internal/component/radius/client_test.go::TestClientRetransmit": "d4a339688c942372",
+        "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "d4a339688c942372",
         "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "b289415e37c4c5ad"
       },
       "verdict": "enforced"
@@ -167,12 +167,12 @@
       "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts >= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.",
       "requirement_sha": "a38aa7d3cc34b4fd",
       "tests": {
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "adb68f6dd9fd6bc5",
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "adb68f6dd9fd6bc5"
+        "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "adb68f6dd9fd6bc5",
+        "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "adb68f6dd9fd6bc5"
       },
       "units": {
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "1df35557f2a6d0d8",
-        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "1df35557f2a6d0d8"
+        "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "1df35557f2a6d0d8",
+        "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "1df35557f2a6d0d8"
       },
       "verdict": "enforced"
     },
@@ -310,14 +310,14 @@
       "note": "Forbidden: a User-Password cipher not chained as MD5(S+RA) then MD5(S+c(i-1)). TestEncodeUserPasswordMultiBlock compares a 2-block ciphertext with one the test builds from the RFC recipe (red if block 2 is keyed on RA), TestEncodeUserPassword reverses block 1 with MD5(S+RA); the negatives assert the ciphertext changes with the secret and with the Request Authenticator.",
       "requirement_sha": "813e6f1b4c8c3531",
       "tests": {
-        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
-        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
         "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret": "9e5b9d00bb0a5c97",
         "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret#2": "9e5b9d00bb0a5c97"
       },
       "units": {
-        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
-        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
         "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret": "4b863d59b24dcb66",
         "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret#2": "4b863d59b24dcb66"
       },
@@ -327,15 +327,15 @@
       "note": "Forbidden: a password not null-padded to a multiple of 16, or longer than 128. TestEncodeUserPassword asserts len%16 == 0 and the decoded pad octets are 0; TestEncodeUserPasswordEmpty asserts 16; TestEncodeUserPasswordMultiBlock asserts 32 and the chain over the null-padded plaintext; TestRFC2865UserPasswordClamp asserts 128 for a 130-octet input. Single-polarity marker on the row.",
       "requirement_sha": "ad3cd6cd6e5d0f77",
       "tests": {
-        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
-        "internal/component/radius/attr_test.go::TestEncodeUserPasswordEmpty": "e76b99b8ec888664",
-        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordEmpty": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
         "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "9e5b9d00bb0a5c97"
       },
       "units": {
-        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
-        "internal/component/radius/attr_test.go::TestEncodeUserPasswordEmpty": "17f49d94fe53f13f",
-        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordEmpty": "17f49d94fe53f13f",
+        "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
         "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "6312def790eeb3e5"
       },
       "verdict": "enforced"
@@ -358,14 +358,14 @@
       "requirement_sha": "b7a324d0806e58ab",
       "tests": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "a9761b3871efeaf7",
-        "internal/component/radius/authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "6555a5ee0756e17c",
-        "internal/component/radius/config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "71b1f7958ca13a1b",
+        "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "6555a5ee0756e17c",
+        "internal/component/radius/rfc2865_config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "71b1f7958ca13a1b",
         "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "a3f1d9fa74292a7a"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "539351a3158b44d1",
-        "internal/component/radius/authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "69d87dcd0d82a4ce",
-        "internal/component/radius/config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "f0443cd162a54321",
+        "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "69d87dcd0d82a4ce",
+        "internal/component/radius/rfc2865_config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "f0443cd162a54321",
         "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "8316f2355177ac64"
       },
       "verdict": "enforced"

@@ -147,14 +147,14 @@
       "note": "split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes",
       "requirement_sha": "e07517d46669d836",
       "tests": {
-        "internal/component/radius/eap_test.go::TestEAPMessageConcatenatesOnTheWayIn": "2f94d35bf256e7de",
-        "internal/component/radius/eap_test.go::TestEAPMessageKeepsTheRunConsecutive": "2f94d35bf256e7de",
-        "internal/component/radius/eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit": "2f94d35bf256e7de"
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageConcatenatesOnTheWayIn": "2f94d35bf256e7de",
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageKeepsTheRunConsecutive": "2f94d35bf256e7de",
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit": "2f94d35bf256e7de"
       },
       "units": {
-        "internal/component/radius/eap_test.go::TestEAPMessageConcatenatesOnTheWayIn": "bc72c4ca2267b0bb",
-        "internal/component/radius/eap_test.go::TestEAPMessageKeepsTheRunConsecutive": "a85e4224b11ea5b9",
-        "internal/component/radius/eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit": "328a8929be61fd08"
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageConcatenatesOnTheWayIn": "bc72c4ca2267b0bb",
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageKeepsTheRunConsecutive": "a85e4224b11ea5b9",
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit": "328a8929be61fd08"
       },
       "verdict": "enforced"
     },
@@ -163,11 +163,11 @@
       "requirement_sha": "edb670188ff13459",
       "tests": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket": "a9761b3871efeaf7",
-        "internal/component/radius/eap_test.go::TestEAPMessageRefusesASecondRun": "2f94d35bf256e7de"
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageRefusesASecondRun": "2f94d35bf256e7de"
       },
       "units": {
         "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket": "f281f233d932bece",
-        "internal/component/radius/eap_test.go::TestEAPMessageRefusesASecondRun": "87f178769252c1bd"
+        "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageRefusesASecondRun": "87f178769252c1bd"
       },
       "verdict": "enforced"
     },

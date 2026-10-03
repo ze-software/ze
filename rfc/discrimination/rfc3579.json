@@ -266,7 +266,7 @@
     {
       "rid": "RFC3579-3.1-1",
       "polarity": "positive",
-      "unit": "internal/component/radius/eap_test.go::TestEAPMessageConcatenatesOnTheWayIn",
+      "unit": "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageConcatenatesOnTheWayIn",
       "unit-sha": "9002d438391a2107",
       "claim-sha": "96190e5f1698f1c6",
       "route": "revert",
@@ -277,7 +277,7 @@
     {
       "rid": "RFC3579-3.1-1",
       "polarity": "negative",
-      "unit": "internal/component/radius/eap_test.go::TestEAPMessageKeepsTheRunConsecutive",
+      "unit": "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageKeepsTheRunConsecutive",
       "unit-sha": "d78d840d0a8bf01e",
       "claim-sha": "b79c3ae87b515fd2",
       "route": "revert",
@@ -288,7 +288,7 @@
     {
       "rid": "RFC3579-3.1-1",
       "polarity": "positive",
-      "unit": "internal/component/radius/eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit",
+      "unit": "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageSplitsAtTheAttributeLimit",
       "unit-sha": "ebbc13e50afe1f8f",
       "claim-sha": "a302e4716c27bc6c",
       "route": "revert",
@@ -310,7 +310,7 @@
     {
       "rid": "RFC3579-3.1-2",
       "polarity": "negative",
-      "unit": "internal/component/radius/eap_test.go::TestEAPMessageRefusesASecondRun",
+      "unit": "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageRefusesASecondRun",
       "unit-sha": "5ac4dbf515fa160e",
       "claim-sha": "ecd92d8f7572d497",
       "route": "revert",
