@@ -156,6 +156,18 @@
       "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2866-4.1-1",
+      "polarity": "positive",
+      "unit": "test/l2tp/radius-acct-wire.ci",
+      "unit-sha": "40ed11d70b2923ce",
+      "claim-sha": "8156e80885b14e7e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
+      "producer-sha": "253e901268d65011",
+      "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=OK: Accounting-Start Framed-IP-Address matches the IPCP-negotiated address 10.99.7.10"
+    },
+    {
       "rid": "RFC2866-4.1-4",
       "polarity": "positive",
       "unit": "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest",
