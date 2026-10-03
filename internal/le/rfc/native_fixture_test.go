@@ -426,7 +426,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// naming rule refuses for the source's tags asks for a hand-chosen topic.
 	// Only the wording of naming findings moved; no record, audit or ledger
 	// verdict moved.
-	const want = "facc89b47f854cd8c86d1cd5daa7d4fe8173e4310dfef21e06b54b8be0ffbc94"
+	//
+	// Re-sealed 2026-10-03 for review round 8 of the naming rule, over the bytes
+	// that fix commit commits. `./le rfc rename propose` now judges each target
+	// through judgeRenameTarget, by way of repairBlocked, so a plan never holds
+	// a pair whose moved build suffix or naming refusal refuses the batch. Only
+	// the propose report moved; no record, audit or ledger verdict moved.
+	const want = "60568cffc162c3ce01839b32e2eb5d54c38cba55e3934e81d2b944a9e2feaa17"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

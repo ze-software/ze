@@ -1260,11 +1260,14 @@ ran. The suffix is judged by
 `go/build` itself: the rename is refused when the source and the target names
 build on different sets of the platforms `go tool dist list` names, so a suffix
 `go/build` knows and no port carries, such as `_sparc` or `_zos`, counts too. `propose` writes a plan of one pair per misnamed file the naming
-rule finds, each target being the rename the finding names. A target that
-already exists or that two findings share is left out and named, and so is a
-file named for another RFC, which has to be read before it moves. The output
+rule finds, each target being the rename the finding names. Each target is
+judged by `judgeRenameTarget`, the predicate the rename applies, so a target
+that already exists, moves the build suffix or fails the naming rule is left
+out and named with its reason, as is a target two findings share, and so is a
+file named for another RFC, which has to be read before it moves. No pair in a
+proposed plan is one that refuses its batch. The output
 file is created, never overwritten. Run `./le rfc index-update` after a rename.
-<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, planCitations, proposeRenames -->
+<!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, planCitations, proposeRenames, judgeRenameTarget -->
 <!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
 <!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->
 
@@ -1318,8 +1321,8 @@ and asks for a hand-chosen topic, `./le rfc rename from <file> to
 <dir>/<prefix><topic>_test.go`, with no prefix for the untagged file, rather
 than a name that carries the stem twice or a command the rename refuses. An
 untagged file named for its stem alone has no topic to keep, so its finding
-names the `<topic>` form directly. `./le rfc rename propose` leaves a taken or shared
-target out of its plan for the same reason. The finding and `./le rfc rename`
+names the `<topic>` form directly. `./le rfc rename propose` leaves out of its plan
+every target the rename would refuse, and a shared one, for the same reason. The finding and `./le rfc rename`
 judge a target through one predicate, `judgeRenameTarget`, which answers a
 taken name, a moved build suffix and a name the naming rule refuses for the
 source's tags and marker, so a command a finding names is one the rename takes.

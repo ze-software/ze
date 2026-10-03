@@ -853,7 +853,7 @@ func (r ProposeReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("wrote ").Int(int64(r.Pairs)).Str(" pair(s) to ").Str(r.Plan).Byte('\n')
 	for _, line := range r.Collisions {
-		tb.Str("left out, target taken: ").Str(line).Byte('\n')
+		tb.Str("left out, the rename would refuse it: ").Str(line).Byte('\n')
 	}
 	for _, line := range r.Mismatches {
 		tb.Str("left out, named for another RFC (read it before renaming): ").Str(line).Byte('\n')
@@ -865,10 +865,11 @@ func (r ProposeReport) Text() string {
 // rule under the directory `under` (the whole tree when empty), each target the
 // exact rename the finding names.
 //
-// Left out and reported: a target that exists or that two findings share, which
-// takes a hand-chosen topic, and a file already named for ANOTHER stem, whose
-// name and tags disagree and must be read before anything moves. The output is
-// created, never overwritten.
+// Left out and reported: a target the rename would refuse or that two findings
+// share, judged by repairBlocked through judgeRenameTarget, the predicate
+// refusePair applies, so the plan never holds a pair that refuses its batch;
+// and a file already named for ANOTHER stem, whose name and tags disagree and
+// must be read before anything moves. The output is created, never overwritten.
 func proposeRenames(tree, under, output string) (ProposeReport, error) {
 	if under != "" && !cleanRepoPath(under) {
 		return ProposeReport{}, errors.New("rfc rename propose: under must be a clean directory inside the checkout")
@@ -904,11 +905,25 @@ func proposeRenames(tree, under, output string) (ProposeReport, error) {
 		candidates = append(candidates, verdict)
 		shared[verdict.Target]++
 	}
+	// TagStems stays unset: each verdict carries its own source's tags. The
+	// platforms are listed only when a candidate needs judging, because listing
+	// them runs the toolchain.
+	judged := renameJudgement{Stems: stems, Carriers: table}
+	if len(candidates) > 0 {
+		if judged.Platforms, err = goPlatforms(); err != nil {
+			return ProposeReport{}, err
+		}
+	}
 	var body textbuf.Buffer
 	for _, verdict := range candidates {
-		_, statErr := os.Lstat(treePath(tree, verdict.Target))
-		if statErr == nil || shared[verdict.Target] > 1 {
-			report.Collisions = append(report.Collisions, verdict.Rel+" -> "+verdict.Target)
+		blocked, err := repairBlocked(tree, verdict, verdict.Target, shared[verdict.Target], judged)
+		if err != nil {
+			return ProposeReport{}, err
+		}
+		if blocked != "" {
+			var line textbuf.Buffer
+			line.Str(verdict.Rel).Str(" -> ").Str(verdict.Target).Str(": ").Str(blocked)
+			report.Collisions = append(report.Collisions, line.String())
 			continue
 		}
 		body.Str(verdict.Rel).Byte(' ').Str(verdict.Target).Byte('\n')

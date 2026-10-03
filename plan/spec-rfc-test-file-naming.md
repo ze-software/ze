@@ -620,7 +620,7 @@ Totals in b3ff2855fb: 26 untagged renamed, 13 untagged marked, 6 mismatches rena
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 7, with rounds 7 and 8 authorised by the owner (Thomas, 2026-10-03) (round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
+| Rounds | 8, with rounds 7 and 8 authorised by the owner (Thomas, 2026-10-03) and round 9 authorised by the owner (Thomas, 2026-10-03) (round 8 scope: the round 7 fixes in b892cd4e03; round 7 scope: the round 6 fixes to b3ff2855fb; round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce; round 5 scope: 71b1772696; round 6 scope: b3ff2855fb, Phase 3) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -708,10 +708,20 @@ The two test-only edits need no fixture re-seal, because the fixture digest skip
 | # | Severity | Finding | Location | Disposition |
 |---|----------|---------|----------|-------------|
 | R7-1 | ISSUE | The rename part (a) offers could name an exact `./le rfc rename` command the rename refuses: `repairBlocked` checked taken, shared and build suffix, while `refusePair` also judged the target with the naming rule. An untagged `rfc5881_rfc7311_test.go` was offered `rfc7311_test.go`, named for RFC 7311 with no tag for it | `internal/le/rfc/names.go` `repairBlocked`, `internal/le/rfc/rename.go` `refusePair` | Fixed: one predicate, `judgeRenameTarget`, answers a taken target, a moved build suffix and a target the naming rule refuses for the source's tags and marker; `refusePair` and `repairBlocked` both call it, and `nameVerdict.Source` carries the judged file's tags and marker. Case "untagged named for a second stem" in `TestCheckTestFileNamesNeverSuggestsARefusedTarget`, red before the fix (reviewer probe reproduced). "Test file names" in `docs/contributing/rfc-conformance-gates.md` names the predicate |
-| R7-2 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
-| R7-3 | - | Not in the brief handed to the fixing agent | - | Left for the main thread |
+| R7-2 | NOTE | The new RFC8050-x-4 tag on `TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype` claims no more than the body checks: with no OPEN, `AddPathFor` returns the subtype-derived mode, and an overlay making `IsAddPathBGP4MPSubtype` return false turns it red | `internal/mrt/rfc8050_addpath_nlri_test.go` | Accepted. The stale `bgp.go` comment and the false `TestIsAddPathHelpers` claim concern the OPEN path: journal row in `plan/journal/comment-describes-superseded-behaviour.md` (b892cd4e03) |
+| R7-3 | NOTE | Lint over `internal/le/rfc` reports 7 findings, none in `names.go` or `names_test.go` | `internal/le/rfc` | Accepted: pre-existing, outside this spec |
 
 Recorded with this round: a stale RFC 8050 comment in `internal/mrt/bgp.go` and a false negative claim in `TestIsAddPathHelpers`, found by the RFC8050-x-4 re-judge 2fbc610996, one row in `plan/journal/comment-describes-superseded-behaviour.md`. `TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`.
+
+### Round 8 (scope: the round 7 fixes in b892cd4e03; authorised by the owner, Thomas, 2026-10-03, with round 7)
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| R8-1 | ISSUE | `proposeRenames` kept its own copy of the taken check (`os.Lstat` on the target) and never judged a moved GOOS/GOARCH suffix or a naming refusal, so propose wrote a pair `planRename` refuses, and one refused pair refuses the whole batch: a tagged `internal/plat/linux_test.go` was proposed `rfc9999_linux_test.go`, which builds on Linux alone | `internal/le/rfc/rename.go` `proposeRenames` | Fixed: the `Lstat` copy is deleted, and each candidate goes through `repairBlocked`, which calls `judgeRenameTarget` with the stems, the carrier table and the platforms, plus propose's own shared-target count; any refusal is left out and named in `Collisions` with its reason. `TestRenameProposeLeavesOutPlatformMovingTarget` (0 pairs, 1 collision), red before the fix (reviewer probe reproduced); `TestRenameProposeReportsTakenBareTarget` now asserts the reason too. "Test file names" in `docs/contributing/rfc-conformance-gates.md` corrected |
+| R8-2 | NOTE | `refusePair` now refuses on an unreadable source before it judges the target, so a pair whose source cannot be read carries no target refusal | `internal/le/rfc/rename.go` `refusePair` | Accepted: it fails closed, the pair is refused either way |
+| R8-3 | NOTE | `judgeRenameTarget` returns early on a `buildSuffixMoves` error | `internal/le/rfc/rename.go` `judgeRenameTarget` | Accepted: both callers surface the error, `refusePair` as a refusal and `repairBlocked` as the check's error |
+
+`TestNativeImplementationFixture` is re-sealed over the bytes this fix commit carries for `internal/le/rfc`. Round 9 is authorised by the owner (Thomas, 2026-10-03).
 
 ## Phase 2 progress
 

@@ -468,8 +468,38 @@ func TestRenameProposeReportsTakenBareTarget(t *testing.T) {
 	if got := readRel(t, root, "plan.txt"); got != "" {
 		t.Errorf("the plan reads %q, want no pair", got)
 	}
-	if len(report.Collisions) != 1 || report.Collisions[0] != source+" -> "+bare {
-		t.Errorf("the collisions are %v, want the one taken bare target %s", report.Collisions, bare)
+	want := source + " -> " + bare + ": the name its repair takes, " + bare + ", is taken"
+	if len(report.Collisions) != 1 || report.Collisions[0] != want {
+		t.Errorf("the collisions are %v, want the one taken bare target %q", report.Collisions, want)
+	}
+}
+
+// VALIDATES: R8-1 -- propose judges each target through judgeRenameTarget, the
+// predicate the rename applies, so it never writes a pair the rename refuses:
+// linux_test.go builds everywhere, and its repair rfc9999_linux_test.go would
+// build on Linux alone.
+// PREVENTS: a plan whose one platform-moving pair refuses the whole batch.
+func TestRenameProposeLeavesOutPlatformMovingTarget(t *testing.T) {
+	source := "internal/plat/linux_test.go"
+	target := "internal/plat/rfc9999_linux_test.go"
+	root := checkFixtureTree(t, map[string]string{
+		selftestProducerPath: selftestProducerSource,
+		source: "package plat\n\n// RFC requirement: " + selftestRIDSend + " positive -- it sends one.\n" +
+			"func TestPlat() {}\n",
+	})
+	report, err := proposeRenames(root, "internal/plat", "plan.txt")
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	if got := readRel(t, root, "plan.txt"); got != "" {
+		t.Errorf("the plan reads %q, want no pair", got)
+	}
+	if report.Pairs != 0 {
+		t.Errorf("the report counts %d pair(s), want 0", report.Pairs)
+	}
+	want := source + " -> " + target + ": the name its repair takes, " + target + ", changes which platforms build it"
+	if len(report.Collisions) != 1 || report.Collisions[0] != want {
+		t.Errorf("the collisions are %v, want the one platform-moving target %q", report.Collisions, want)
 	}
 }
 
