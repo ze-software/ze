@@ -202,7 +202,7 @@
     {
       "rid": "RFC8277-2.4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rib/vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE",
       "unit-sha": "8e8405f69d4eace5",
       "claim-sha": "436406a089bf8130",
       "route": "revert",
