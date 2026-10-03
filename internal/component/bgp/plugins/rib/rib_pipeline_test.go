@@ -1468,11 +1468,11 @@ func BenchmarkShowLargeTable(b *testing.B) {
 
 	newRIB := func() *RIBManager {
 		r := &RIBManager{
-			bgpPeers:     make(map[netip.Addr]*storage.PeerRIB),
-			ribOut:       make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
-			ribInPool:    make(map[redistevents.ProtocolID]map[string]*storage.PeerRIB),
-			peerUp:       make(map[netip.Addr]bool),
-			peerMeta:     make(map[netip.Addr]*peerMetadata),
+			bgpPeers:  make(map[netip.Addr]*storage.PeerRIB),
+			ribOut:    make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
+			ribInPool: make(map[redistevents.ProtocolID]map[string]*storage.PeerRIB),
+			peerUp:    make(map[netip.Addr]bool),
+			peerMeta:  make(map[netip.Addr]*peerMetadata),
 		}
 		r.maximumPaths.Store(1)
 		return r

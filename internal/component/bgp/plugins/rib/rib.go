@@ -945,12 +945,12 @@ func (r *RIBManager) handleSent(event *Event) {
 					key := ribOutKey{Prefix: pfx.Masked(), PathID: pathID}
 					old, existed := r.ribOut[peerAddr][fam][key]
 					stored := ribOutEntry{
-						MsgID:        msgID,
-						AttrHandle:   attrHandle,
-						ConfigStatic: configStatic,
-						AddPath:      event.AddPath[fam] || pathID != 0 || sentNLRIHasPathID(nlriVal),
-						NextHop:      op.NextHop,
-						SourcePeer:   sourcePeer,
+						MsgID:           msgID,
+						AttrHandle:      attrHandle,
+						ConfigStatic:    configStatic,
+						AddPath:         event.AddPath[fam] || pathID != 0 || sentNLRIHasPathID(nlriVal),
+						NextHop:         op.NextHop,
+						SourcePeer:      sourcePeer,
 						SourceMessageID: uint64(sourceMessageID),
 					}
 					if existed {

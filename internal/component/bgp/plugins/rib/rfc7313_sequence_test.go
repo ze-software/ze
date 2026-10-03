@@ -114,7 +114,7 @@ func requireBracketedReadvertisement(t *testing.T, sequence []string) {
 	require.Equal(t, eorr, sequence[len(sequence)-1], "the EoRR must follow the last re-advertised route")
 
 	var routes []refreshRouteIdentity
-	for _, item := range sequence[1:len(sequence)-1] {
+	for _, item := range sequence[1 : len(sequence)-1] {
 		command, ok := strings.CutPrefix(item, "route ")
 		require.True(t, ok, "only route delivery belongs between the markers: %q", item)
 		routes = append(routes, consumedRefreshRoutes(t, consumeRefreshCommand(t, command))...)

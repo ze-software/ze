@@ -11,8 +11,8 @@ import (
 	"net/netip"
 	"sort"
 
-	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"

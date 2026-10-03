@@ -14,8 +14,8 @@ import (
 
 func TestLLGRSentLifecycleOwnership(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		fam family.Family
+		name         string
+		fam          family.Family
 		wire, stored []byte
 	}{
 		{"ipv4", family.IPv4Unicast, []byte{24, 192, 0, 2}, []byte{24, 192, 0, 2}},
@@ -38,14 +38,18 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 					peer.Release()
 					for _, families := range r.ribOut {
 						for _, routes := range families {
-							for _, entry := range routes { entry.release() }
+							for _, entry := range routes {
+								entry.release()
+							}
 						}
 					}
 				})
 				peer.SetAddPath(tc.fam, true)
 				in := append([]byte{0, 0, 0, 7}, tc.stored...)
 				attrs := nativeSentAttrs()
-				if operation == "no-llgr" { attrs = appendAttr(attrs, 8, 0xc0, []byte{255, 255, 0, 7}) }
+				if operation == "no-llgr" {
+					attrs = appendAttr(attrs, 8, 0xc0, []byte{255, 255, 0, 7})
+				}
 				peer.Insert(tc.fam, attrs, in)
 				peer.ModifyFamilyEntry(tc.fam, in, func(e *storage.RouteEntry) { e.MsgID = 91 })
 				// Egress identifier zero is unrelated to ingress identifier seven.
@@ -57,9 +61,13 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				other.RouteMeta["source-peer"] = "192.0.2.11"
 				r.handleSent(other)
 				key, ok := ribOutRouteKey(tc.fam, out, true)
-				if !ok { t.Fatal("key rejected") }
+				if !ok {
+					t.Fatal("key rejected")
+				}
 				original := r.ribOut[control][tc.fam][key].AttrHandle
-				if _, _, err := r.markStaleCommand([]string{source.String(), "0"}); err != nil { t.Fatal(err) }
+				if _, _, err := r.markStaleCommand([]string{source.String(), "0"}); err != nil {
+					t.Fatal(err)
+				}
 				// A refreshed path of the same prefix and source is a different
 				// owner even though ingress and egress path identifiers differ.
 				freshIn := append([]byte{0, 0, 0, 8}, tc.stored...)
@@ -70,44 +78,79 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				fresh.RouteMeta["source-message-id"] = float64(92)
 				r.handleSent(fresh)
 				if operation != "no-llgr" {
-					if _, _, err := r.attachCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0006"}); err != nil { t.Fatal(err) }
+					if _, _, err := r.attachCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0006"}); err != nil {
+						t.Fatal(err)
+					}
 					entry := r.ribOut[dest][tc.fam][key]
 					wire, err := pool.RibOut.Get(entry.AttrHandle)
-					if err != nil { t.Fatal(err) }
+					if err != nil {
+						t.Fatal(err)
+					}
 					it := attribute.NewAttrIterator(wire)
 					found := false
-					for code, _, value, ok := it.Next(); ok; code, _, value, ok = it.Next() { if code == attribute.AttrCommunity && containsCommunity(value, []byte{255, 255, 0, 6}) { found = true } }
-					if !found || entry.StaleLevel != 2 { t.Fatal("sent owned attributes did not enter LLGR") }
+					for code, _, value, ok := it.Next(); ok; code, _, value, ok = it.Next() {
+						if code == attribute.AttrCommunity && containsCommunity(value, []byte{255, 255, 0, 6}) {
+							found = true
+						}
+					}
+					if !found || entry.StaleLevel != 2 {
+						t.Fatal("sent owned attributes did not enter LLGR")
+					}
 					wantAttrs := appendAttr(bytes.Clone(attrs), 8, 0xc0, []byte{255, 255, 0, 6})
-					if !bytes.Equal(wire, wantAttrs) { t.Fatal("decoration changed unrelated wire attributes") }
+					if !bytes.Equal(wire, wantAttrs) {
+						t.Fatal("decoration changed unrelated wire attributes")
+					}
 					unchanged, err := pool.RibOut.Get(original)
-					if err != nil || !bytes.Equal(unchanged, attrs) { t.Fatal("mutation damaged shared attributes") }
+					if err != nil || !bytes.Equal(unchanged, attrs) {
+						t.Fatal("mutation damaged shared attributes")
+					}
 					// A stale replay snapshot must not roll back current attrs.
 					event.RouteMeta["replay"] = true
 					r.handleSent(event)
 					delete(event.RouteMeta, "replay")
-					if r.ribOut[dest][tc.fam][key].AttrHandle != entry.AttrHandle { t.Fatal("replay rolled back locally decorated attrs") }
+					if r.ribOut[dest][tc.fam][key].AttrHandle != entry.AttrHandle {
+						t.Fatal("replay rolled back locally decorated attrs")
+					}
 				}
 				removedHandle := r.ribOut[dest][tc.fam][key].AttrHandle
 				switch operation {
-				case "purge": _, _, _ = r.purgeStaleCommand([]string{source.String(), tc.fam.String()})
-				case "no-llgr": _, _, _ = r.deleteWithCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0007"})
-				case "expiry": r.autoExpireStale(source, r.grState[source])
-				case "release": r.retainRoutes(source.String(), nil); r.releaseRoutes(source.String())
+				case "purge":
+					_, _, _ = r.purgeStaleCommand([]string{source.String(), tc.fam.String()})
+				case "no-llgr":
+					_, _, _ = r.deleteWithCommunityCommand([]string{source.String(), tc.fam.String(), "ffff0007"})
+				case "expiry":
+					r.autoExpireStale(source, r.grState[source])
+				case "release":
+					r.retainRoutes(source.String(), nil)
+					r.releaseRoutes(source.String())
 				}
-				if _, remains := r.ribOut[dest][tc.fam][key]; remains { t.Fatal("purged received ownership survived in sent inventory") }
+				if _, remains := r.ribOut[dest][tc.fam][key]; remains {
+					t.Fatal("purged received ownership survived in sent inventory")
+				}
 				wantSurvivors := 1
-				if operation == "release" { wantSurvivors = 0 }
-				if len(r.ribOut[dest][tc.fam]) != wantSurvivors { t.Fatal("purge removed another path's refreshed ownership") }
-				if operation != "no-llgr" {
-					if _, err := pool.RibOut.Get(removedHandle); err == nil { t.Fatal("purged decorated attribute reference leaked") }
+				if operation == "release" {
+					wantSurvivors = 0
 				}
-				if len(r.ribOut[control][tc.fam]) != 1 { t.Fatal("purge removed another source's advertisement") }
-				if wire, err := pool.RibOut.Get(original); err != nil || !bytes.Equal(wire, attrs) { t.Fatal("purge released another destination's shared attributes") }
+				if len(r.ribOut[dest][tc.fam]) != wantSurvivors {
+					t.Fatal("purge removed another path's refreshed ownership")
+				}
+				if operation != "no-llgr" {
+					if _, err := pool.RibOut.Get(removedHandle); err == nil {
+						t.Fatal("purged decorated attribute reference leaked")
+					}
+				}
+				if len(r.ribOut[control][tc.fam]) != 1 {
+					t.Fatal("purge removed another source's advertisement")
+				}
+				if wire, err := pool.RibOut.Get(original); err != nil || !bytes.Equal(wire, attrs) {
+					t.Fatal("purge released another destination's shared attributes")
+				}
 				// Late replay feedback is not authority to recreate removed ownership.
 				event.RouteMeta["replay"] = true
 				r.handleSent(event)
-				if _, remains := r.ribOut[dest][tc.fam][key]; remains { t.Fatal("late replay resurrected purged ownership") }
+				if _, remains := r.ribOut[dest][tc.fam][key]; remains {
+					t.Fatal("late replay resurrected purged ownership")
+				}
 			})
 		}
 	}

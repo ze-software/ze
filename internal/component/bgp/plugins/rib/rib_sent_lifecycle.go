@@ -16,7 +16,7 @@ import (
 // sentLifecycleWrite owns encoded command bytes, never borrowed pool storage.
 // The collecting caller MUST hold peerMu; it MUST dispatch after releasing it.
 type sentLifecycleWrite struct {
-	peer string
+	peer    string
 	command string
 }
 
@@ -24,7 +24,7 @@ type sentLifecycleWrite struct {
 // ADD-PATH identifiers. A generation may advertise several paths for one prefix;
 // their attributes and lifecycle are identical until one is freshly replaced.
 type receivedOwner struct {
-	key ribOutKey
+	key     ribOutKey
 	message uint64
 }
 
@@ -47,9 +47,14 @@ func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected famil
 	sourcePeer := source.String()
 	for _, destinations := range r.ribOut {
 		for fam, routes := range destinations {
-			if selected != (family.Family{}) && fam != selected { continue }
+			if selected != (family.Family{}) && fam != selected {
+				continue
+			}
 			for _, entry := range routes {
-				if entry.SourcePeer == sourcePeer { families[fam] = true; break }
+				if entry.SourcePeer == sourcePeer {
+					families[fam] = true
+					break
+				}
 			}
 		}
 	}
@@ -60,21 +65,29 @@ func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected famil
 			addPath := received.IsAddPath(fam)
 			received.IterateFamily(fam, func(raw []byte, entry storage.RouteEntry) bool {
 				owner, ok := receivedOwnerKey(fam, raw, addPath, entry.MsgID)
-				if ok { owners[owner] = entry.StaleLevel }
+				if ok {
+					owners[owner] = entry.StaleLevel
+				}
 				return true
 			})
 		}
 		for destination, destinations := range r.ribOut {
 			routes := destinations[fam]
 			for key, entry := range routes {
-				if entry.SourcePeer != sourcePeer { continue }
+				if entry.SourcePeer != sourcePeer {
+					continue
+				}
 				identity := key
 				identity.PathID = 0
 				if fam.SAFI == family.SAFIMPLSLabel {
 					_, cidr, err := nlrisplit.ExtractLabels([]byte(entry.NativeNLRI), entry.AddPath)
-					if err != nil { continue }
+					if err != nil {
+						continue
+					}
 					owner, ok := receivedOwnerKey(fam, cidr, entry.AddPath, entry.SourceMessageID)
-					if !ok { continue }
+					if !ok {
+						continue
+					}
 					identity = owner.key
 				}
 				level, present := owners[receivedOwner{key: identity, message: entry.SourceMessageID}]
@@ -88,13 +101,21 @@ func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected famil
 					writes = append(writes, sentLifecycleWrite{peer: destination.String(), command: command})
 					continue
 				}
-				if len(community) == 0 || level < storage.DepreferenceThreshold { continue }
-				if !attachSentCommunity(&entry, community) { continue }
+				if len(community) == 0 || level < storage.DepreferenceThreshold {
+					continue
+				}
+				if !attachSentCommunity(&entry, community) {
+					continue
+				}
 				entry.StaleLevel = level
 				routes[key] = entry
 			}
-			if len(routes) == 0 { delete(destinations, fam) }
-			if len(destinations) == 0 { delete(r.ribOut, destination) }
+			if len(routes) == 0 {
+				delete(destinations, fam)
+			}
+			if len(destinations) == 0 {
+				delete(r.ribOut, destination)
+			}
 		}
 	}
 	return writes
@@ -104,24 +125,36 @@ func (r *RIBManager) reconcileSentSourceLocked(source netip.Addr, selected famil
 // attribute blob. It MUST never modify bytes returned by pool.RibOut.Get.
 func attachSentCommunity(entry *ribOutEntry, community []byte) bool {
 	wire, err := pool.RibOut.Get(entry.AttrHandle)
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 	var replacement []byte
 	found := false
 	for offset := 0; offset < len(wire); {
-		if len(wire)-offset < 3 { return false }
+		if len(wire)-offset < 3 {
+			return false
+		}
 		header := 3
 		length := int(wire[offset+2])
 		if wire[offset]&0x10 != 0 {
-			if len(wire)-offset < 4 { return false }
+			if len(wire)-offset < 4 {
+				return false
+			}
 			header = 4
 			length = int(binary.BigEndian.Uint16(wire[offset+2:]))
 		}
-		end := offset+header+length
-		if end > len(wire) { return false }
+		end := offset + header + length
+		if end > len(wire) {
+			return false
+		}
 		if wire[offset+1] == byte(attribute.AttrCommunity) {
-			value := wire[offset+header:end]
-			if containsCommunity(value, community) { return true }
-			if len(value)+len(community) > 65535 { return false }
+			value := wire[offset+header : end]
+			if containsCommunity(value, community) {
+				return true
+			}
+			if len(value)+len(community) > 65535 {
+				return false
+			}
 			newLength := len(value) + len(community)
 			replacement = make([]byte, 0, len(wire)+len(community)+1)
 			replacement = append(replacement, wire[:offset]...)
@@ -145,7 +178,9 @@ func attachSentCommunity(entry *ribOutEntry, community []byte) bool {
 		replacement = appendAttr(replacement, byte(attribute.AttrCommunity), 0xc0, community)
 	}
 	handle, err := pool.RibOut.Intern(replacement)
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 	entry.release()
 	entry.AttrHandle = handle
 	return true

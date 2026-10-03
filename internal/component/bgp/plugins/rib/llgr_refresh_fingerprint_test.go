@@ -63,10 +63,10 @@ func TestLLGRRefreshReplacesMutatedAttributes(t *testing.T) {
 func TestLLGRRefreshFingerprintStorageModes(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		fam family.Family
+		name    string
+		fam     family.Family
 		addPath bool
-		nlri []byte
+		nlri    []byte
 	}{
 		{"direct", family.IPv4Unicast, false, []byte{24, 10, 0, 0}},
 		{"add-path", family.IPv4Unicast, true, []byte{0, 0, 0, 7, 24, 10, 0, 0}},
