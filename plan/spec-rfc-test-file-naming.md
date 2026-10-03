@@ -555,7 +555,7 @@ Each target stays in its source's directory. Every target was checked absent on 
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 2 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b) |
+| Rounds | 2 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -584,6 +584,21 @@ Verdict 0 BLOCKER, 1 ISSUE, 5 NOTE. Every round 1 finding was confirmed closed a
 | N-5 | NOTE | The verification-debt row for 150892523b cited lines 26 and 382; only line 26 matches the gate | `plan/verification-debt/1d41415e.md` | Row text corrected to line 26; its status is untouched, the owner's confirmation is still owed |
 
 The commit gate's false positive on `rename_test.go` (the file-scope literal `renameTestSource` spelled a tag) is removed by respelling the literal as a concatenation, and recorded in `plan/journal/guard-blocks-its-own-authors-repair.md`.
+
+### Round 3 (scope: 14d6771780 and the callers of `evidenceStrings` and `rewriteEvidencePaths`)
+
+Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/discrimination/` and `rfc/audit/` parse and rewrite reversibly, and the fixture passes at f9ca905e00. The Phase 1 review loop is closed.
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| N-1 | NOTE | `TestRenameRefusesTruncatedEvidenceJSON` does not discriminate the open-object/array arm (the unit case `TestEvidenceStringsRefusesAllButOneValue` does), and its comment claims more than it shows | `internal/le/rfc/rename_test.go` | Accepted |
+| N-2 | NOTE | The `start < written` half of the escape check is driven by no test; it is reachable only with a path holding U+FFFD | `internal/le/rfc/rename.go` `rewriteEvidencePaths` | Accepted |
+| N-3 | NOTE | `auditDiff` never consults `RFC-approved:` trailers, so `./le commit audit base X` over 14d6771780 reports `rename_test.go` WEAKENED for good | `internal/le/test/weakened/audit.go` `auditDiff` | Recorded: `plan/journal/check-cannot-see-the-change-it-looks-for.md` |
+
+## Phase 2 progress
+
+| Component | Pairs | SHA | Deferred |
+|-----------|-------|-----|----------|
 
 ## Checklist
 
