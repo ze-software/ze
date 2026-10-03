@@ -2,6 +2,28 @@
   "rfc": "rfc7752",
   "records": [
     {
+      "rid": "RFC7752-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations",
+      "unit-sha": "01524d57327e0fc4",
+      "claim-sha": "f0569d317e1de969",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_validation.go::forwardUpdateCore",
+      "producer-sha": "94e9f063dee533cd",
+      "break": "body of forwardUpdateCore replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations",
+      "unit-sha": "01524d57327e0fc4",
+      "claim-sha": "d7e302f26d940426",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_validation.go::forwardUpdateCore",
+      "producer-sha": "94e9f063dee533cd",
+      "break": "body of forwardUpdateCore replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7752-3.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder",
@@ -101,6 +123,28 @@
       "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7752-3.2-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach",
+      "unit-sha": "b10d0144f8cedce1",
+      "claim-sha": "6c26d8a25b0c1b7e",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "f7e58ddbd5e3ea57",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-3.2-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach",
+      "unit-sha": "b10d0144f8cedce1",
+      "claim-sha": "36a42097cfe51664",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "f7e58ddbd5e3ea57",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7752-3.3.2.3-1",
       "polarity": "negative",
       "unit": "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder",
@@ -121,6 +165,28 @@
       "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
       "producer-sha": "6829bc06b1cfd284",
       "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-6.2.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive",
+      "unit-sha": "a6de82ab13ac3f2a",
+      "claim-sha": "12608ff8d8215d10",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "29b57c597e6fde4a",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7752-6.2.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive",
+      "unit-sha": "a6de82ab13ac3f2a",
+      "claim-sha": "2e49b646c5333dea",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "29b57c597e6fde4a",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

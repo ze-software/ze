@@ -46,6 +46,94 @@
       "break": "body of parseAddPathFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7911-5-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+      "unit-sha": "0965fb06b75a29bf",
+      "claim-sha": "d888fb3681a86823",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+      "unit-sha": "0965fb06b75a29bf",
+      "claim-sha": "70be58a87aed3265",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+      "unit-sha": "0965fb06b75a29bf",
+      "claim-sha": "93cbae52c0f1539e",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-2",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+      "unit-sha": "0965fb06b75a29bf",
+      "claim-sha": "371849fb36ab9dc6",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "435cb0c5ff9c51ce",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily",
+      "unit-sha": "89c6826f189380b1",
+      "claim-sha": "72acc89b76e3b050",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "f7e58ddbd5e3ea57",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily",
+      "unit-sha": "89c6826f189380b1",
+      "claim-sha": "b5a0378cf7ac9f59",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "f7e58ddbd5e3ea57",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily",
+      "unit-sha": "89c6826f189380b1",
+      "claim-sha": "26befab957d1dbfb",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "f7e58ddbd5e3ea57",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily",
+      "unit-sha": "89c6826f189380b1",
+      "claim-sha": "3116415d75a2931f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+      "producer-sha": "f7e58ddbd5e3ea57",
+      "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7911-5-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/reactor_b_rfc7911_test.go::TestRFC7911AddPathStateAppliesPerFamily",
@@ -66,6 +154,17 @@
       "producer": "internal/core/bgp/context/context.go::AddPathFor",
       "producer-sha": "f0cc512f6675e24a",
       "break": "body of AddPathFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7911-5-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath",
+      "unit-sha": "d72d27defeacc1e7",
+      "claim-sha": "f0c22d1b2242465b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::enforceRFC7606",
+      "producer-sha": "29b57c597e6fde4a",
+      "break": "body of enforceRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

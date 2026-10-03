@@ -165,6 +165,94 @@
       "producer": "internal/component/bgp/reactor/session_aigp.go::aigpOriginAllowed",
       "producer-sha": "a17dfda7e5a5daf6",
       "break": "body of aigpOriginAllowed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+      "unit-sha": "742ccf7216d402a1",
+      "claim-sha": "c8e434a3b12758db",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+      "producer-sha": "906ad89f15437162",
+      "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+      "unit-sha": "742ccf7216d402a1",
+      "claim-sha": "2de132b0aeb652ad",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+      "producer-sha": "906ad89f15437162",
+      "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
+      "unit-sha": "20f3f530e4c3faf8",
+      "claim-sha": "bf4b3b181e29c6f0",
+      "route": "revert",
+      "producer": "internal/core/rib/igpcost/igpcost.go::Resolve",
+      "producer-sha": "d5fcc9eab526a261",
+      "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
+      "unit-sha": "20f3f530e4c3faf8",
+      "claim-sha": "0c60e4072529b0a3",
+      "route": "revert",
+      "producer": "internal/core/rib/igpcost/igpcost.go::Resolve",
+      "producer-sha": "d5fcc9eab526a261",
+      "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+      "unit-sha": "742ccf7216d402a1",
+      "claim-sha": "405da642cdc0088a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+      "producer-sha": "906ad89f15437162",
+      "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+      "unit-sha": "742ccf7216d402a1",
+      "claim-sha": "e4656eee6432960b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+      "producer-sha": "906ad89f15437162",
+      "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
+      "unit-sha": "20f3f530e4c3faf8",
+      "claim-sha": "3980317c92afce04",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/aigp_readvertise.go::readvertiseAIGP",
+      "producer-sha": "da7463db7c0c6930",
+      "break": "body of readvertiseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.4.3-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
+      "unit-sha": "20f3f530e4c3faf8",
+      "claim-sha": "276c1ca4966832b7",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/aigp_readvertise.go::readvertiseAIGP",
+      "producer-sha": "da7463db7c0c6930",
+      "break": "body of readvertiseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

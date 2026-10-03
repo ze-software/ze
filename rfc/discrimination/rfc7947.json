@@ -2,6 +2,28 @@
   "rfc": "rfc7947",
   "records": [
     {
+      "rid": "RFC7947-2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient",
+      "unit-sha": "e6f0312e03f46925",
+      "claim-sha": "2abbe24000eb9d92",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::publishBase",
+      "producer-sha": "62822939dd1d4147",
+      "break": "body of publishBase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7947-2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947AllAttributesReachClient",
+      "unit-sha": "e6f0312e03f46925",
+      "claim-sha": "4be58309aa5b1f04",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_validation.go::publishBase",
+      "producer-sha": "62822939dd1d4147",
+      "break": "body of publishBase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7947-2.2.2.2-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS",
@@ -22,6 +44,28 @@
       "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
       "producer-sha": "7eaf23f9a5dc95c3",
       "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7947-x-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire",
+      "unit-sha": "77c0b570fd5ca16a",
+      "claim-sha": "f2b799099cfb4672",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+      "producer-sha": "a7c94874d6a3be22",
+      "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7947-x-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire",
+      "unit-sha": "77c0b570fd5ca16a",
+      "claim-sha": "9cd6b72a26c24149",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+      "producer-sha": "a7c94874d6a3be22",
+      "break": "body of runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
