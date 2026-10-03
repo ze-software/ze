@@ -13,7 +13,7 @@
 # is no live interop fixture. The teardown semantics -- a PathTear tearing the
 # path state block, releasing the admission reservation, and removing the kernel
 # label entry -- are unit-tested directly against the engine in
-# internal/plugins/rsvpte/engine_test.go (TestEnginePathTearReleases), with the
+# internal/plugins/rsvpte/rfc3209_engine_test.go (TestEnginePathTearReleases), with the
 # admission release floor covered by
 # internal/plugins/rsvpte/admission_test.go (TestRSVPAdmissionReleaseFloor,
 # TestRSVPAdmissionReserveAndRelease). This functional test covers the

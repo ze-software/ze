@@ -18,7 +18,7 @@
 # directly in internal/plugins/rsvpte/admission_test.go
 # (TestRSVPAdmissionDenied, TestRSVPAdmissionExactLimit,
 #  TestRSVPAdmissionReserveAndRelease) and the engine-level PathErr in
-# internal/plugins/rsvpte/engine_test.go (TestEngineAdmissionDeniedPathErr).
+# internal/plugins/rsvpte/rfc3209_engine_test.go (TestEngineAdmissionDeniedPathErr).
 # This functional test covers the always-available half: config -> admission
 # state visible via show.
 

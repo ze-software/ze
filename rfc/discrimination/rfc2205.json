@@ -4,7 +4,7 @@
     {
       "rid": "RFC2205-2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvSentToPreviousHop",
       "unit-sha": "8a7757e0c626ee39",
       "claim-sha": "8e26b296cb084e1b",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC2205-2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvWithoutPathStateNotRelayed",
       "unit-sha": "cf4263238d348774",
       "claim-sha": "60020cfea356a405",
       "route": "mutant",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC2205-2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvFollowsEachSendersReversePath",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvFollowsEachSendersReversePath",
       "unit-sha": "65f1b21ade8f60cc",
       "claim-sha": "346b0bb96352b658",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC2205-2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath",
       "unit-sha": "63be4d48db9221f7",
       "claim-sha": "1aa49eec444244ef",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC2205-2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvDeliveredToSender",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvDeliveredToSender",
       "unit-sha": "a256f0497df2bbd5",
       "claim-sha": "1ac02bbaf8ea0096",
       "route": "mutant",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC2205-2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvForUnknownSenderIgnored",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvForUnknownSenderIgnored",
       "unit-sha": "92a733e03a06cd9c",
       "claim-sha": "cc23df61e4ed3dc5",
       "route": "mutant",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC2205-2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathCarriesSenderTemplate",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathCarriesSenderTemplate",
       "unit-sha": "4456cee795cbe9bf",
       "claim-sha": "1c26c68040b2519f",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC2205-2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathWithoutSenderTemplateDropped",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathWithoutSenderTemplateDropped",
       "unit-sha": "0248d2c253d46f29",
       "claim-sha": "9d49134fa66f001b",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC2205-2-4",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathCarriesSenderTSpec",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathCarriesSenderTSpec",
       "unit-sha": "d7fe1f2cbc8bfa39",
       "claim-sha": "10d16971e312c68d",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC2205-2-4",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/path_rfc2205_test.go::TestRFC2205PathWithoutSenderTSpecRefused",
+      "unit": "internal/plugins/rsvpte/rfc2205_path_test.go::TestRFC2205PathWithoutSenderTSpecRefused",
       "unit-sha": "b76bf436c2f60764",
       "claim-sha": "1c6627fd60ff57bf",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC2205-2-7",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearWithoutStateNotRelayed",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearWithoutStateNotRelayed",
       "unit-sha": "5eef1a596ab82f07",
       "claim-sha": "9c476a3f4793e164",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC2205-2-7",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205TransitPathTearRelayedWithoutDelay",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205TransitPathTearRelayedWithoutDelay",
       "unit-sha": "99dc89cf50da44bd",
       "claim-sha": "34ec5e01b6bba024",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout",
       "unit-sha": "53fd609b6dd22785",
       "claim-sha": "b39fb6f1f2ba5d61",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshRecursEachTick",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick",
       "unit-sha": "85ba3211c35efafd",
       "claim-sha": "d06f5b0aeabd612b",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept",
       "unit-sha": "36255c244387ffdf",
       "claim-sha": "ae7046285dabd8c2",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedResvStateKept",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept",
       "unit-sha": "c46a6876dc6d1ac0",
       "claim-sha": "a6cfe48556582a70",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout",
       "unit-sha": "739cdca06e554339",
       "claim-sha": "c2169ac3e0847046",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB",
       "unit-sha": "3f6c62b571d655d1",
       "claim-sha": "eb1f2ccdee807c29",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC2205-2.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv",
       "unit-sha": "c34f561a1aa2dffe",
       "claim-sha": "f8063d341d05959a",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC2205-3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized",
+      "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205KnownClassesRecognized",
       "unit-sha": "226bed5f5c805774",
       "claim-sha": "6b8d76a263f6fd22",
       "route": "mutant",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC2205-3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized",
+      "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205UnlistedClassNotRecognized",
       "unit-sha": "3330d06eb7b28f34",
       "claim-sha": "baa71aec27197567",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC2205-3-12",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop",
+      "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearNotAddressedHopByHop",
       "unit-sha": "d48c84a2d7c99e0a",
       "claim-sha": "4c2c2d6e471f1ac1",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC2205-3-12",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath",
+      "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearRoutedLikePath",
       "unit-sha": "8aba045342540808",
       "claim-sha": "377cc00a0546200c",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "RFC2205-3-12",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearRouteEqualsPathRoute",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearRouteEqualsPathRoute",
       "unit-sha": "67ca0fda736af90f",
       "claim-sha": "275693a2d56f7dd8",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC2205-3-14",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation",
       "unit-sha": "0d7bbb0da6e4f7e1",
       "claim-sha": "a01ca6eb62bd586b",
       "route": "mutant",
@@ -323,7 +323,7 @@
     {
       "rid": "RFC2205-3-14",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation",
+      "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearReleasesReservation",
       "unit-sha": "03bd53c41adb8ed6",
       "claim-sha": "3d4417448bb82300",
       "route": "mutant",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC2205-3-14",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout",
       "unit-sha": "53fd609b6dd22785",
       "claim-sha": "75bfa5463ad27d73",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC2205-3-14",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept",
       "unit-sha": "36255c244387ffdf",
       "claim-sha": "09d27d2d222c1303",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "RFC2205-3-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesAreSenderAndSession",
+      "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesAreSenderAndSession",
       "unit-sha": "2373fa1a8a4d333d",
       "claim-sha": "6cb55cf48e3450e9",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "RFC2205-3-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesNeverHopAddresses",
+      "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesNeverHopAddresses",
       "unit-sha": "dde02f02b70e50f9",
       "claim-sha": "a86e08d48b195e68",
       "route": "revert",
@@ -433,7 +433,7 @@
     {
       "rid": "RFC2205-3.1.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205NonzeroChecksumStillVerified",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205NonzeroChecksumStillVerified",
       "unit-sha": "74cb235b346c6924",
       "claim-sha": "1d6a2c77e71337fb",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "RFC2205-3.1.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted",
       "unit-sha": "40b1e39424c99598",
       "claim-sha": "e16e60cb74edfd73",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC2205-3.1.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected",
+      "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected",
       "unit-sha": "722ae0911696900e",
       "claim-sha": "c06d8841f154e3ee",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC2205-3.1.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects",
+      "unit": "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects",
       "unit-sha": "956b0ad147c36473",
       "claim-sha": "74d5168f7c34934e",
       "route": "mutant",
@@ -477,7 +477,7 @@
     {
       "rid": "RFC2205-3.1.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects",
+      "unit": "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects",
       "unit-sha": "956b0ad147c36473",
       "claim-sha": "eccd631aa31fe876",
       "route": "mutant",
@@ -488,7 +488,7 @@
     {
       "rid": "RFC2205-3.1.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted",
+      "unit": "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithTimeValuesAccepted",
       "unit-sha": "dd19448bdc089542",
       "claim-sha": "77bca7252d90efd2",
       "route": "revert",
@@ -499,7 +499,7 @@
     {
       "rid": "RFC2205-3.1.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped",
+      "unit": "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped",
       "unit-sha": "cbf236a5c155d101",
       "claim-sha": "2caeada0f9cebe81",
       "route": "revert",
@@ -510,7 +510,7 @@
     {
       "rid": "RFC2205-3.1.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205MalformedMessageLoggedLocally",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205MalformedMessageLoggedLocally",
       "unit-sha": "86952fb4cb052093",
       "claim-sha": "186310cf606045d5",
       "route": "revert",
@@ -521,7 +521,7 @@
     {
       "rid": "RFC2205-3.1.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205WellFormedMessageNotLogged",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205WellFormedMessageNotLogged",
       "unit-sha": "526ec2483b98d0b3",
       "claim-sha": "f3c577a30667cac2",
       "route": "revert",
@@ -532,7 +532,7 @@
     {
       "rid": "RFC2205-3.1.5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearAddressedFromSenderToSession",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearAddressedFromSenderToSession",
       "unit-sha": "19bdba6210426ee8",
       "claim-sha": "e34270b2377b08bb",
       "route": "revert",
@@ -543,7 +543,7 @@
     {
       "rid": "RFC2205-3.1.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier",
       "unit-sha": "040778c21c82562f",
       "claim-sha": "c8fbf15c10b6df3e",
       "route": "revert",
@@ -554,7 +554,7 @@
     {
       "rid": "RFC2205-3.1.6-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearScopeNotObeyed",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearScopeNotObeyed",
       "unit-sha": "cfd92c13338cfe39",
       "claim-sha": "37cfeec609b806c4",
       "route": "revert",
@@ -565,7 +565,7 @@
     {
       "rid": "RFC2205-3.1.6-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearWithScopeTearsDown",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearWithScopeTearsDown",
       "unit-sha": "d8bf00c7dee7622d",
       "claim-sha": "d7a3a33d7ca7d097",
       "route": "revert",
@@ -587,7 +587,7 @@
     {
       "rid": "RFC2205-3.10-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassPathRejectedWithError",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError",
       "unit-sha": "46d123f503834320",
       "claim-sha": "49936c6bb2884a77",
       "route": "revert",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC2205-3.10-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassResvRejectedWithError",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError",
       "unit-sha": "3885a9efcb9c91fa",
       "claim-sha": "b838944b8dc017cc",
       "route": "revert",
@@ -653,7 +653,7 @@
     {
       "rid": "RFC2205-4-4",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused",
+      "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205MissingRequiredObjectRefused",
       "unit-sha": "4f0d3714ec04eacd",
       "claim-sha": "d64f4bc3eb37c311",
       "route": "revert",
@@ -664,7 +664,7 @@
     {
       "rid": "RFC2205-4-4",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified",
+      "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205WellFormedMessageVerified",
       "unit-sha": "b4cfb3ac7da4376d",
       "claim-sha": "0f92b5b3b618027c",
       "route": "revert",
@@ -697,7 +697,7 @@
     {
       "rid": "RFC2205-x-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier",
+      "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier",
       "unit-sha": "df0d17034b9076ea",
       "claim-sha": "b897041a0c2e0575",
       "route": "revert",
@@ -708,7 +708,7 @@
     {
       "rid": "RFC2205-x-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier",
+      "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier",
       "unit-sha": "3dd4e2cb4fb1d9b7",
       "claim-sha": "5c04e83e89a63687",
       "route": "revert",
@@ -719,7 +719,7 @@
     {
       "rid": "RFC2205-x-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
+      "unit": "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage",
       "unit-sha": "faf598686f36e2c5",
       "claim-sha": "a59e8056ba8f6084",
       "route": "revert",

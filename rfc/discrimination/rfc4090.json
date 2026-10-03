@@ -70,7 +70,7 @@
     {
       "rid": "RFC4090-4.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090OneToOneRequestInPath",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090OneToOneRequestInPath",
       "unit-sha": "bdb5795d3d8b6657",
       "claim-sha": "adc228c85c73225c",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC4090-4.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RequestNeverNamesOtherMethod",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RequestNeverNamesOtherMethod",
       "unit-sha": "27e55f6bc62a5937",
       "claim-sha": "3b1f319d0cafc895",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC4090-4.1-3",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitInsertsNoFastReroute",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute",
       "unit-sha": "e1ed953e79755fc7",
       "claim-sha": "d3d5a83057ca0218",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC4090-4.1-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged",
       "unit-sha": "0830c097d99fdcc0",
       "claim-sha": "7424c5ac764254cd",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC4090-4.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass",
       "unit-sha": "8706baf341f7ce46",
       "claim-sha": "097575b8eb64d07d",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC4090-4.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090DetourPathErrAsUnknownClass",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourPathErrAsUnknownClass",
       "unit-sha": "a86c573a26b13abb",
       "claim-sha": "c006e24b95f6bc03",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC4090-4.3-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired",
       "unit-sha": "cbe1c3f3a0246445",
       "claim-sha": "c7607e9a5d2d6780",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC4090-4.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090RepairSetsInUseAndAvailable",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RepairSetsInUseAndAvailable",
       "unit-sha": "bef03c21bab4e90e",
       "claim-sha": "262aca8182d7959b",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC4090-4.4-3",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeBitClearWhenNodeProtectionNotProvided",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitClearWhenNodeProtectionNotProvided",
       "unit-sha": "3f77f8353157d85f",
       "claim-sha": "f2c23fc6f789f8b1",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC4090-4.4-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtectionProvided",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitSetWhenNodeProtectionProvided",
       "unit-sha": "218132caedb16f92",
       "claim-sha": "111cbace709eb740",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC4090-4.4-6",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090BandwidthBitNeverClaimed",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed",
       "unit-sha": "7701ebd41f237023",
       "claim-sha": "6e4295507b5a3898",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC4090-4.4-6",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090BandwidthBitNeverClaimed",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed",
       "unit-sha": "7701ebd41f237023",
       "claim-sha": "802a7a7292edb070",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC4090-4.4-6",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair",
       "unit-sha": "046cff0dbfd71071",
       "claim-sha": "c2501ecabef530c7",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "RFC4090-4.4-7",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
       "unit-sha": "3d749d857f3285b0",
       "claim-sha": "fd4730f5692f9ba6",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC4090-4.4-7",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear",
       "unit-sha": "b63e25a65c3aba80",
       "claim-sha": "c4abcc2f31f01722",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "RFC4090-5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndRefreshWithoutProtection",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRefreshWithoutProtection",
       "unit-sha": "63767e041ce3026a",
       "claim-sha": "9d3a5451e7abc315",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC4090-5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndStoresFastRerouteForRefresh",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndStoresFastRerouteForRefresh",
       "unit-sha": "1078d2ad1d0caa2d",
       "claim-sha": "2bca9c90a21f9811",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC4090-5-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired",
       "unit-sha": "4c1794b0210b015c",
       "claim-sha": "1dcad4505cc3b074",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "RFC4090-5-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording",
       "unit-sha": "da3e4ef8e5bd9807",
       "claim-sha": "04829bb198b58cea",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "RFC4090-5-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags",
       "unit-sha": "e641c8c469c0f5fd",
       "claim-sha": "799a0b9561297642",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "RFC4090-5-3",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags",
       "unit-sha": "e641c8c469c0f5fd",
       "claim-sha": "e1f61ff998197475",
       "route": "revert",
@@ -389,7 +389,7 @@
     {
       "rid": "RFC4090-5-4",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject",
       "unit-sha": "e795b086f837521b",
       "claim-sha": "cb703727c1533c3c",
       "route": "revert",
@@ -400,7 +400,7 @@
     {
       "rid": "RFC4090-5-4",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject",
       "unit-sha": "e795b086f837521b",
       "claim-sha": "96c383053c40fc62",
       "route": "revert",
@@ -411,7 +411,7 @@
     {
       "rid": "RFC4090-6-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090EgressDoesNotActAsPLR",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR",
       "unit-sha": "1d8ca671348cba21",
       "claim-sha": "4ecb7eb501588969",
       "route": "revert",
@@ -422,7 +422,7 @@
     {
       "rid": "RFC4090-6-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090FastRerouteAloneRequestsProtection",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection",
       "unit-sha": "43e36d2f201e576c",
       "claim-sha": "b20ed197799ccf93",
       "route": "revert",
@@ -433,7 +433,7 @@
     {
       "rid": "RFC4090-6-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090FastRerouteAloneRequestsProtection",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection",
       "unit-sha": "43e36d2f201e576c",
       "claim-sha": "e35c87fbda4aafb6",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "RFC4090-6-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NoProtectionRequestArmsNothing",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NoProtectionRequestArmsNothing",
       "unit-sha": "30cebc273dff4755",
       "claim-sha": "07818a1e6da8cdf4",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC4090-6-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitInsertsNoFastReroute",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute",
       "unit-sha": "e1ed953e79755fc7",
       "claim-sha": "c395aea7647481c4",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC4090-6-3",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090FlagsClearUntilBypassEstablished",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished",
       "unit-sha": "6eba7e53d0277bc4",
       "claim-sha": "43f1b5e7be30d836",
       "route": "revert",
@@ -477,7 +477,7 @@
     {
       "rid": "RFC4090-6-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090FlagsSetOnceBypassEstablished",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished",
       "unit-sha": "71f176a0724b0112",
       "claim-sha": "1ae8fc6484c9498f",
       "route": "revert",
@@ -488,7 +488,7 @@
     {
       "rid": "RFC4090-6-4",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090FlagsClearUntilBypassEstablished",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished",
       "unit-sha": "6eba7e53d0277bc4",
       "claim-sha": "e53a34bdf787774b",
       "route": "revert",
@@ -499,7 +499,7 @@
     {
       "rid": "RFC4090-6-4",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090FlagsSetOnceBypassEstablished",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished",
       "unit-sha": "71f176a0724b0112",
       "claim-sha": "9e3677d97ef3e404",
       "route": "revert",
@@ -510,7 +510,7 @@
     {
       "rid": "RFC4090-6-5",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090InUseOnlyWhileRedirecting",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting",
       "unit-sha": "454ddaf7e32f4245",
       "claim-sha": "00ccaa23d2cf44cb",
       "route": "revert",
@@ -521,7 +521,7 @@
     {
       "rid": "RFC4090-6-5",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090InUseOnlyWhileRedirecting",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting",
       "unit-sha": "454ddaf7e32f4245",
       "claim-sha": "e68a4789d2259e68",
       "route": "revert",
@@ -532,7 +532,7 @@
     {
       "rid": "RFC4090-6-6",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitClearWithoutNodeBypass",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitClearWithoutNodeBypass",
       "unit-sha": "657030b5119e9cdf",
       "claim-sha": "0734eb6c801cac7b",
       "route": "revert",
@@ -543,7 +543,7 @@
     {
       "rid": "RFC4090-6-6",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
       "unit-sha": "3d749d857f3285b0",
       "claim-sha": "9e3abfdbc55768da",
       "route": "revert",
@@ -554,7 +554,7 @@
     {
       "rid": "RFC4090-6-7",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090BandwidthBitNeverClaimed",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed",
       "unit-sha": "7701ebd41f237023",
       "claim-sha": "35c0a971788ede35",
       "route": "revert",
@@ -565,7 +565,7 @@
     {
       "rid": "RFC4090-6-7",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090BandwidthDesiredWithoutBackup",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthDesiredWithoutBackup",
       "unit-sha": "1be84061d56ea2c0",
       "claim-sha": "9eb3163568cbd682",
       "route": "revert",
@@ -576,7 +576,7 @@
     {
       "rid": "RFC4090-6-7",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/plr_flags_rfc4090_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair",
       "unit-sha": "046cff0dbfd71071",
       "claim-sha": "3dfca2424c515b98",
       "route": "revert",
@@ -587,7 +587,7 @@
     {
       "rid": "RFC4090-6.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090BypassDestinationIsMergePoint",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint",
       "unit-sha": "ea8bb78609e1179e",
       "claim-sha": "fb3c2747774e39e7",
       "route": "mutant",
@@ -598,7 +598,7 @@
     {
       "rid": "RFC4090-6.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090BypassDestinationIsMergePoint",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint",
       "unit-sha": "ea8bb78609e1179e",
       "claim-sha": "4a8cf4df7be0a4e6",
       "route": "mutant",
@@ -609,7 +609,7 @@
     {
       "rid": "RFC4090-6.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
       "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "3752eb3e16a0dde0",
       "route": "revert",
@@ -620,7 +620,7 @@
     {
       "rid": "RFC4090-6.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
       "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "e39e6588cc951f05",
       "route": "revert",
@@ -631,7 +631,7 @@
     {
       "rid": "RFC4090-6.4-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
       "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "f2a58d9f6b70f1b1",
       "route": "revert",
@@ -642,7 +642,7 @@
     {
       "rid": "RFC4090-6.4.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090FailureSwitchesToBackup",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup",
       "unit-sha": "e2f4652889077a57",
       "claim-sha": "67b71aace308886d",
       "route": "revert",
@@ -653,7 +653,7 @@
     {
       "rid": "RFC4090-6.4.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090FailureSwitchesToBackup",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup",
       "unit-sha": "e2f4652889077a57",
       "claim-sha": "c839ee0ee20ecf61",
       "route": "revert",
@@ -697,7 +697,7 @@
     {
       "rid": "RFC4090-6.5-3",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndRevertsGlobally",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally",
       "unit-sha": "1720c9e501a85003",
       "claim-sha": "fba709b8567c4037",
       "route": "revert",
@@ -708,7 +708,7 @@
     {
       "rid": "RFC4090-6.5-3",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitDoesNotReoptimize",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize",
       "unit-sha": "8a1b11a9cd7bdba7",
       "claim-sha": "0e44859b7d91f494",
       "route": "revert",
@@ -719,7 +719,7 @@
     {
       "rid": "RFC4090-6.5.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090HeadEndRevertsGlobally",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally",
       "unit-sha": "1720c9e501a85003",
       "claim-sha": "de44cb91a2912220",
       "route": "revert",
@@ -730,7 +730,7 @@
     {
       "rid": "RFC4090-6.5.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090TransitDoesNotReoptimize",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize",
       "unit-sha": "8a1b11a9cd7bdba7",
       "claim-sha": "9ede3067f462b9a2",
       "route": "revert",
@@ -741,7 +741,7 @@
     {
       "rid": "RFC4090-7.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
       "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "bf339163a2e69801",
       "route": "revert",
@@ -752,7 +752,7 @@
     {
       "rid": "RFC4090-7.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
       "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "70efdb772d06c7dd",
       "route": "revert",
@@ -763,7 +763,7 @@
     {
       "rid": "RFC4090-7.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
       "unit-sha": "f89d9a1ee04764f9",
       "claim-sha": "ee71347b4c3be82d",
       "route": "revert",
@@ -774,7 +774,7 @@
     {
       "rid": "RFC4090-7.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
       "unit-sha": "f89d9a1ee04764f9",
       "claim-sha": "71637b8fb5964675",
       "route": "revert",
@@ -785,7 +785,7 @@
     {
       "rid": "RFC4090-7.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090StateExpiresWithoutRefresh",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh",
       "unit-sha": "ffb2ec4f11ec6d69",
       "claim-sha": "d938a8caa16da02a",
       "route": "revert",
@@ -796,7 +796,7 @@
     {
       "rid": "RFC4090-7.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090StateExpiresWithoutRefresh",
+      "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh",
       "unit-sha": "ffb2ec4f11ec6d69",
       "claim-sha": "9b21cf74b92bdcf9",
       "route": "revert",

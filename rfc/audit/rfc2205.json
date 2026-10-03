@@ -5,16 +5,16 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ResvFollowsEachSendersReversePath: two senders of one session through two PHOPs each get their RESV at their own PHOP, and a transit relays the RESV on to the ingress. Negative TestRFC2205ResvNeverTakesAnotherSendersPath asserts neither sender's reservation leaves on the other's hop. Both records observed red (sendResv, handlePathEgress).",
       "requirement_sha": "f80c0f879b7ce0e8",
       "tests": {
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "40d8aa6c3fe9e9e4",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "40d8aa6c3fe9e9e4",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvSentToPreviousHop": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "000cc4a0cba6d650",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "386549d96c428b6c",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "3a5c193bb8fb5ba8"
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvSentToPreviousHop": "000cc4a0cba6d650",
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "386549d96c428b6c",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "3a5c193bb8fb5ba8"
       },
       "verdict": "enforced"
     },
@@ -22,22 +22,22 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Refresh: TestRFC2205RefreshRecursEachTick (three refreshPaths ticks, three PATHs) and TestRefreshResendsPathAndResv (RESV re-sent). Deletion: TestRFC2205PathStateDeletedAtCleanupTimeout (PSB) and TestRFC2205ResvStateDeletedAtCleanupTimeout (transit RSB dropped with ResvTear, ingress RSB dropped Up->PathSent, PSB kept). Negatives keep refreshed PSB and RSB. D-1 producer read: cleanupTick withdraws expiredRSBs through removeReservation.",
       "requirement_sha": "e4233a90dbb58ca4",
       "tests": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshRecursEachTick": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedResvStateKept": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
-        "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72"
       },
       "units": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshRecursEachTick": "aea4787bb44f10ca",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedResvStateKept": "897a037ed4f46fe3",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "6d507556c9aa57c8",
-        "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
-        "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick": "aea4787bb44f10ca",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept": "897a037ed4f46fe3",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "6d507556c9aa57c8",
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
+        "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50"
       },
       "verdict": "enforced"
     },
@@ -48,15 +48,15 @@
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "8d0e9940256c124f",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "8d0e9940256c124f",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized": "12691630c6e2e34c",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized": "12691630c6e2e34c"
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205KnownClassesRecognized": "12691630c6e2e34c",
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205UnlistedClassNotRecognized": "12691630c6e2e34c"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized": "73c1403f82248f17",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "98be3b3f9ca2881a",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "30892bfebd817b46",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized": "e97155f0e98847e3",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized": "a73323d3f842bdb5"
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205KnownClassesRecognized": "e97155f0e98847e3",
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205UnlistedClassNotRecognized": "a73323d3f842bdb5"
       },
       "verdict": "enforced"
     },
@@ -64,14 +64,14 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). TestRFC2205PathTearRouteEqualsPathRoute compares the whole PathRoute of the relayed and the ingress-originated PathTear with the PATH's, closing both earlier gaps. Negative TestRFC2205PathTearNotAddressedHopByHop: a PathTear sent hop-by-hop through Send would not follow the PATH route, which is this rule.",
       "requirement_sha": "e7dad8019d5d3a1a",
       "tests": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearNotAddressedHopByHop": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearRoutedLikePath": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop": "164b45c9ab729d40",
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "f9f764c4d6262d2b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "2e38252c51d5670a"
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearNotAddressedHopByHop": "164b45c9ab729d40",
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearRoutedLikePath": "f9f764c4d6262d2b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "2e38252c51d5670a"
       },
       "verdict": "enforced"
     },
@@ -79,16 +79,16 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). PathTear clause: TestRFC2205PathTearReleasesReservation / ...ForOtherLSPLeavesReservation. Timeout clause: TestRFC2205PathStateDeletedAtCleanupTimeout asserts the reservation bandwidth released with the expired path state; TestRFC2205RefreshedPathStateKept keeps it for refreshed state.",
       "requirement_sha": "0e06fd2ac4e170be",
       "tests": {
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "40d8aa6c3fe9e9e4",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "40d8aa6c3fe9e9e4",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearReleasesReservation": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "665d3697793570cb",
-        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "8d7eefd41232cad2",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198"
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "665d3697793570cb",
+        "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearReleasesReservation": "8d7eefd41232cad2",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198"
       },
       "verdict": "enforced"
     },
@@ -96,12 +96,12 @@
       "note": "Forbidden: a PATH whose IP source is not the sender, or whose IP destination is not the session DestAddress. TestRFC2205PathIPAddressesAreSenderAndSession requires Source == sender and Destination == tunnel endpoint for an originated and a relayed PATH; TestRFC2205PathIPAddressesNeverHopAddresses requires neither to be a hop address.",
       "requirement_sha": "bac5412ce5766f0f",
       "tests": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesAreSenderAndSession": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesNeverHopAddresses": "2bbb0ce4611ada21"
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesAreSenderAndSession": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesNeverHopAddresses": "2bbb0ce4611ada21"
       },
       "units": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesAreSenderAndSession": "c62fedf19e356788",
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesNeverHopAddresses": "1e98a39b5e330057"
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesAreSenderAndSession": "c62fedf19e356788",
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesNeverHopAddresses": "1e98a39b5e330057"
       },
       "verdict": "enforced"
     },
@@ -109,12 +109,12 @@
       "note": "Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame's L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.",
       "requirement_sha": "dfbe94e25bacd954",
       "tests": {
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "900cfdf5bd3d05c0",
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "900cfdf5bd3d05c0",
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
       },
       "units": {
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "6eb7111ae6cccc8a",
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "6eb7111ae6cccc8a",
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
       },
       "verdict": "enforced"
     },
@@ -122,10 +122,10 @@
       "note": "Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.",
       "requirement_sha": "d8ae5db17fd64df1",
       "tests": {
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
       },
       "units": {
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
       },
       "verdict": "enforced"
     },
@@ -133,10 +133,10 @@
       "note": "Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame's L2 destination is link 0's peer while the endpoint's ordinary route uses link 1, as the Send control on link 1 shows.",
       "requirement_sha": "c1f96d0a085f7ad7",
       "tests": {
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
       },
       "units": {
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
       },
       "verdict": "enforced"
     },
@@ -172,12 +172,12 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ZeroChecksumMeansNoneTransmitted: an all-zero checksum over a body that would fail verification is accepted at handlePacket (PSB installed, PATH relayed). Negative TestRFC2205NonzeroChecksumStillVerified bounds the rule: a nonzero failing checksum is dropped. Records break the whole DecodeMessage; a targeted mutant of the zero test would be sharper.",
       "requirement_sha": "dccf5db3adc1e14d",
       "tests": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205NonzeroChecksumStillVerified": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205NonzeroChecksumStillVerified": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205NonzeroChecksumStillVerified": "1298ba3cc53f8e79",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "0c999bcd2f086616"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205NonzeroChecksumStillVerified": "1298ba3cc53f8e79",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "0c999bcd2f086616"
       },
       "verdict": "enforced"
     },
@@ -185,11 +185,11 @@
       "note": "Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag's prose ('Decode does not enforce %4') is stale.",
       "requirement_sha": "0a63901cb0272261",
       "tests": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "2bbb0ce4611ada21",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "edeb000ca6bd1f57"
       },
       "units": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "036bf95de3773f12",
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "036bf95de3773f12",
         "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "9239315417834dc1"
       },
       "verdict": "enforced"
@@ -198,22 +198,22 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Verify clause: TestDecodeMandatoryObjects and the engine TIME_VALUES pair. Not-in-ERROR_SPEC and logged-locally clauses: TestRFC2205MalformedMessageLoggedLocally asserts a WARN \"decode failed\" record naming the source and the error, nothing sent, no state; TestRFC2205WellFormedMessageNotLogged asserts no WARN for a conforming PATH.",
       "requirement_sha": "827c7b4c298934f8",
       "tests": {
-        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "bb9f9aad959fe57d",
-        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "bb9f9aad959fe57d",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "bb9f9aad959fe57d",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "bb9f9aad959fe57d",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "bb9f9aad959fe57d",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205MalformedMessageLoggedLocally": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205WellFormedMessageNotLogged": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects#2": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205MalformedMessageLoggedLocally": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205WellFormedMessageNotLogged": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "6dd9835e18cbfe05",
-        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "6dd9835e18cbfe05",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "826c82ac19e88536",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "26830ea5d812e3d0",
-        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "26830ea5d812e3d0",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205MalformedMessageLoggedLocally": "cef863a47011e53c",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205WellFormedMessageNotLogged": "172983c9f991e2a2"
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects": "6dd9835e18cbfe05",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects#2": "6dd9835e18cbfe05",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "826c82ac19e88536",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "26830ea5d812e3d0",
+        "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "26830ea5d812e3d0",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205MalformedMessageLoggedLocally": "cef863a47011e53c",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205WellFormedMessageNotLogged": "172983c9f991e2a2"
       },
       "verdict": "enforced"
     },
@@ -221,12 +221,12 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: relayed and ingress-originated PathTear both carry IP dst = session endpoint and IP src = sender address. Negative TestRFC2205PathTearSourceNotTakenFromCarrier: a PathTear arriving from another source is still relayed from the sender address, not the carrier or the router ID.",
       "requirement_sha": "7c04ce0cc83b6997",
       "tests": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "ec522cff91b5b0fe",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "99cf45305f2b058f"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "ec522cff91b5b0fe",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "99cf45305f2b058f"
       },
       "verdict": "enforced"
     },
@@ -234,12 +234,12 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: a ResvTear with a SCOPE naming the sender tears the RSB, keeps the PSB, draws no ResvErr and goes upstream. Negative TestRFC2205ResvTearScopeNotObeyed: a SCOPE that lists only another sender does not narrow the tear, so a node obeying SCOPE goes red.",
       "requirement_sha": "154bc86ed27cb1da",
       "tests": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearScopeNotObeyed": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearWithScopeTearsDown": "7bc063943de30e7b"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearScopeNotObeyed": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearWithScopeTearsDown": "7bc063943de30e7b"
       },
       "units": {
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearScopeNotObeyed": "169c2655f44a2387",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvTearWithScopeTearsDown": "5115db009055e8d4"
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearScopeNotObeyed": "169c2655f44a2387",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearWithScopeTearsDown": "5115db009055e8d4"
       },
       "verdict": "enforced"
     },
@@ -248,8 +248,8 @@
       "requirement_sha": "58eecccad889ff58",
       "tests": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "52858b98606905a5",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassPathRejectedWithError": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassResvRejectedWithError": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError": "7bc063943de30e7b",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "edeb000ca6bd1f57",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "edeb000ca6bd1f57",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "edeb000ca6bd1f57",
@@ -258,8 +258,8 @@
       },
       "units": {
         "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "0f8c51d8d33e47cf",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassPathRejectedWithError": "c5e50ec83f76f827",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205UnknownClassResvRejectedWithError": "72a956a13c23a779",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError": "c5e50ec83f76f827",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError": "72a956a13c23a779",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "2b333a752e99d39c",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "2b333a752e99d39c",
         "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "2b333a752e99d39c",
@@ -274,16 +274,16 @@
       "tests": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted": "8cea1a3ca4572fd1",
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused": "8cea1a3ca4572fd1",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "12691630c6e2e34c",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "12691630c6e2e34c",
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205MissingRequiredObjectRefused": "12691630c6e2e34c",
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205WellFormedMessageVerified": "12691630c6e2e34c",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "f41b8974aa28db4d",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "f41b8974aa28db4d"
       },
       "units": {
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted": "807d41ecd40846b5",
         "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused": "50245a4f974498e7",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "a3c4af8ec1c20b2a",
-        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "8190f845d9165b4e",
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205MissingRequiredObjectRefused": "a3c4af8ec1c20b2a",
+        "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205WellFormedMessageVerified": "8190f845d9165b4e",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "6cb7cfbd88cd0ef8",
         "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "6cb7cfbd88cd0ef8"
       },
@@ -293,14 +293,14 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestIntegrationRSVPPathCarriage proves SendPath writes Router Alert. Negatives: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier for Path/PathTear and TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier for both the originated and the relayed ResvConf going through SendPath, closing the vacuous ResvConf arm.",
       "requirement_sha": "8c881c623b5c8b2f",
       "tests": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "2bbb0ce4611ada21",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "7bc063943de30e7b",
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "7bc063943de30e7b",
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
       },
       "units": {
-        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "98b1652f6e16c28a",
-        "internal/plugins/rsvpte/softstate_rfc2205_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "592efa2f38d0e4d7",
-        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+        "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "98b1652f6e16c28a",
+        "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvConfNeverLeavesWithoutRouterAlertCarrier": "592efa2f38d0e4d7",
+        "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
       },
       "verdict": "enforced"
     }

@@ -15,7 +15,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels",
+      "unit": "internal/plugins/rsvpte/rfc3032_fsm_test.go::TestLSPTableAllocateSkipsReservedLabels",
       "unit-sha": "51b0c1c73004db41",
       "claim-sha": "eb2e5101e0b1d329",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032ImplicitNullBypassLabelNotStacked",
+      "unit": "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032ImplicitNullBypassLabelNotStacked",
       "unit-sha": "904dcf3056919bca",
       "claim-sha": "8cf19f3ef21f190f",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032ImplicitNullResvProgramsPop",
+      "unit": "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032ImplicitNullResvProgramsPop",
       "unit-sha": "f4d4872a4bc25b84",
       "claim-sha": "be767757d866435d",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032IngressNeverPushesImplicitNull",
+      "unit": "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032IngressNeverPushesImplicitNull",
       "unit-sha": "c9f97b784fa81738",
       "claim-sha": "4ecc92ab124b0dcd",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032IngressPushesOrdinaryLabel",
+      "unit": "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032IngressPushesOrdinaryLabel",
       "unit-sha": "e38f05752daf11b9",
       "claim-sha": "8077ca9700600652",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/implicit_null_rfc3032_test.go::TestRFC3032OrdinaryResvLabelSwapped",
+      "unit": "internal/plugins/rsvpte/rfc3032_implicit_null_test.go::TestRFC3032OrdinaryResvLabelSwapped",
       "unit-sha": "fee624627b559db5",
       "claim-sha": "6fe024fdd303d0b2",
       "route": "revert",

@@ -1,8 +1,8 @@
 // Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- ze-to-ze RSVP-TE signaling interop
 // Related: engine.go -- the engine under test; transport.go -- the Transport seam
-// Related: engine_test.go -- reuses fakeFIB and the single-engine harness
+// Related: rfc3209_engine_test.go -- reuses fakeFIB and the single-engine harness
 //
-// engine_test.go drives ONE engine with hand-built PATH/RESV packets. These cases
+// rfc3209_engine_test.go drives ONE engine with hand-built PATH/RESV packets. These cases
 // wire TWO or THREE real engines through an in-memory fabric, so each engine's OWN
 // encoded bytes (buildPath via sendPath, buildResv/buildPathErr inside the
 // handlers) are delivered to the peer's DecodeMessage. Nothing in the exchange is
@@ -139,7 +139,7 @@ func (fab *fabric) pump(t *testing.T, nodes map[netip.Addr]*engine) {
 
 // fabricEngine constructs an engine attached to fab at self, with a fresh LSP
 // table, admission controller (no interfaces -> admission skipped, as in
-// TestEngineEgressPathToResv) and a recording fakeFIB (defined in engine_test.go).
+// TestEngineEgressPathToResv) and a recording fakeFIB (defined in rfc3209_engine_test.go).
 func fabricEngine(t *testing.T, fab *fabric, self netip.Addr) (*engine, *fakeFIB) {
 	t.Helper()
 	fib := &fakeFIB{}

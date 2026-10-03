@@ -5,12 +5,12 @@
       "note": "Forbidden: LABEL or RECORD_ROUTE placed before its FILTER_SPEC or after a subsequent one. TestRFC3209ResvLabelFollowsFilterSpec asserts objs[filter+1]==LABEL and objs[filter+2]==RECORD_ROUTE; TestRFC3209LabelFollowsFilterSpec asserts exactly one FILTER_SPEC and label==filter+1; TestRFC3209ResvNeverCarriesSenderTemplate asserts no LABEL/RRO precedes the FILTER_SPEC. buildResv emits one sender per RESV, so both clauses are pinned.",
       "requirement_sha": "59ea364af5b04729",
       "tests": {
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209LabelFollowsFilterSpec": "76ac04cc7023e893",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "76ac04cc7023e893",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvLabelFollowsFilterSpec": "8d0e9940256c124f",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "8d0e9940256c124f"
       },
       "units": {
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209LabelFollowsFilterSpec": "8f3cd37e5ca169e4",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "8f3cd37e5ca169e4",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvLabelFollowsFilterSpec": "4b9d16843d37fdc5",
         "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "258636afb352f8d7"
       },
@@ -20,16 +20,16 @@
       "note": "Rejudged 2026-09-29 (routing child). Sender obligation now driven through the ingress: TestRFC3209IngressPathCarriesLabelRequest (setupTunnel PATH carries LABEL_REQUEST, L3PID 0x0800) and TestRFC3209IngressPathNeverWithoutLabelRequest (originated PATH, two refreshes and the make-before-break PATH all carry it). The older receiver-rule negative TestRFC3209NoLabelWithoutLabelRequest stays tagged and proves a neighbouring rule.",
       "requirement_sha": "f9b13de724c061e3",
       "tests": {
-        "internal/plugins/rsvpte/build_test.go::TestBuildPathRoundTrip": "6afc32e8dc23d780",
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209NoLabelWithoutLabelRequest": "76ac04cc7023e893",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209IngressPathCarriesLabelRequest": "0fabf3da631549e2",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip": "6afc32e8dc23d780",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest": "76ac04cc7023e893",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathCarriesLabelRequest": "0fabf3da631549e2",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/build_test.go::TestBuildPathRoundTrip": "d818651c66d28eb8",
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209NoLabelWithoutLabelRequest": "30f3a68794f08c36",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209IngressPathCarriesLabelRequest": "1c6e33bdcdc7214f",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "f488b946adf71057"
+        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip": "d818651c66d28eb8",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest": "30f3a68794f08c36",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathCarriesLabelRequest": "1c6e33bdcdc7214f",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "f488b946adf71057"
       },
       "verdict": "enforced"
     },
@@ -50,10 +50,10 @@
       "note": "Forbidden: a relayed PATH whose LABEL_REQUEST L3PID is not the received one. TestRFC3209TransitCopiesL3PID sends L3PID 0x86DD and asserts fwd.LabelRequest.L3PID==0x86DD, red if the transit substitutes its local default 0x0800 (register.go, reroute.go). Single polarity is declared on the row.",
       "requirement_sha": "5e5750d13b594624",
       "tests": {
-        "internal/plugins/rsvpte/engine_rfc3209_test.go::TestRFC3209TransitCopiesL3PID": "7730d9f9be4d0cf0"
+        "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitCopiesL3PID": "7730d9f9be4d0cf0"
       },
       "units": {
-        "internal/plugins/rsvpte/engine_rfc3209_test.go::TestRFC3209TransitCopiesL3PID": "f2c7cf6258ca700e"
+        "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitCopiesL3PID": "f2c7cf6258ca700e"
       },
       "verdict": "enforced"
     },
@@ -74,14 +74,14 @@
       "note": "Closure rejudge 2026-10-02: TestEngineTransitForwarding changed only in its positive claim, which named nextHopFromERO (gone) and now names the current producer, routing.go resolveExplicitPath, which skips the leading local subobjects and, when the next node is in the second abstract node, returns the ERO from that subobject on; the body still asserts the PATH is relayed to the egress with a one-hop ERO beginning at the egress. Positive re-recorded on resolveExplicitPath (observed red). Negatives TestRFC3209TransitNotAdjacentToSecondSubobject (no route to the strict second subobject: no next hop, nothing forwarded, no state, PathErr 24/2) and TestEngineTransitNoUsableERONextHop, both recorded on resolveExplicitPath.",
       "requirement_sha": "7976a5da38c3aa56",
       "tests": {
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding": "bd58ca6db1f33b46",
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitNoUsableERONextHop": "bd58ca6db1f33b46",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitForwarding": "bd58ca6db1f33b46",
+        "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitNoUsableERONextHop": "bd58ca6db1f33b46",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitForwarding": "624e2801cc93c4b0",
-        "internal/plugins/rsvpte/engine_test.go::TestEngineTransitNoUsableERONextHop": "f03ea0cc31a7bc4c",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "9f827990467756ac"
+        "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitForwarding": "624e2801cc93c4b0",
+        "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitNoUsableERONextHop": "f03ea0cc31a7bc4c",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "9f827990467756ac"
       },
       "verdict": "enforced"
     },
@@ -89,14 +89,14 @@
       "note": "Rejudged 2026-09-29 (routing child). The missing input is now covered: TestRFC3209TransitRefusesForeignFirstSubobject sends a first subobject 10.0.0.77/32 that does not contain this node; the transit forwards nothing, keeps no state, and answers PathErr 24/4 to the previous hop, which a blind pop would fail. Positive TestRFC3209TransitEvaluatesFirstEROSubobject.",
       "requirement_sha": "107ed2c2ce2eeb45",
       "tests": {
-        "internal/plugins/rsvpte/engine_rfc3209_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject": "7730d9f9be4d0cf0",
-        "internal/plugins/rsvpte/engine_rfc3209_test.go::TestRFC3209TransitNoFirstEROSubobject": "7730d9f9be4d0cf0",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209TransitRefusesForeignFirstSubobject": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject": "7730d9f9be4d0cf0",
+        "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitNoFirstEROSubobject": "7730d9f9be4d0cf0",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitRefusesForeignFirstSubobject": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/engine_rfc3209_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject": "62355c2cea2a8d37",
-        "internal/plugins/rsvpte/engine_rfc3209_test.go::TestRFC3209TransitNoFirstEROSubobject": "857f108072430e5c",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209TransitRefusesForeignFirstSubobject": "15d073a739a271da"
+        "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject": "62355c2cea2a8d37",
+        "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitNoFirstEROSubobject": "857f108072430e5c",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitRefusesForeignFirstSubobject": "15d073a739a271da"
       },
       "verdict": "enforced"
     },
@@ -117,16 +117,16 @@
       "note": "Rejudged 2026-09-29 (routing child). Now proven at the engine, not the helper: TestRFC3209EngineRecordsOwnAddress drives a transit through handlePacket and reads the RRO head of the relayed PATH and the relayed RESV as the router's own 10.0.0.5, rest in order; TestRFC3209EngineNeverRecordsNeighborAddress asserts the head is neither the next hop nor the previous hop.",
       "requirement_sha": "37ed2660d3aa7ced",
       "tests": {
-        "internal/plugins/rsvpte/rro_rfc3209_test.go::TestRFC3209RRONewSubobjectIsOwnAddress": "f8c53eadd34f4781",
-        "internal/plugins/rsvpte/rro_rfc3209_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress": "f8c53eadd34f4781",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209EngineNeverRecordsNeighborAddress": "0fabf3da631549e2",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209EngineRecordsOwnAddress": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONewSubobjectIsOwnAddress": "f8c53eadd34f4781",
+        "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress": "f8c53eadd34f4781",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineNeverRecordsNeighborAddress": "0fabf3da631549e2",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineRecordsOwnAddress": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/rro_rfc3209_test.go::TestRFC3209RRONewSubobjectIsOwnAddress": "3ee645a7ef29792e",
-        "internal/plugins/rsvpte/rro_rfc3209_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress": "c6f54b3d941ff8ff",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209EngineNeverRecordsNeighborAddress": "96d99808e84b5d4c",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209EngineRecordsOwnAddress": "68b9243382024f44"
+        "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONewSubobjectIsOwnAddress": "3ee645a7ef29792e",
+        "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress": "c6f54b3d941ff8ff",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineNeverRecordsNeighborAddress": "96d99808e84b5d4c",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineRecordsOwnAddress": "68b9243382024f44"
       },
       "verdict": "enforced"
     },
@@ -134,16 +134,16 @@
       "note": "Rejudged 2026-09-29 (routing child). Path direction now covered: TestRFC3209PathRRODroppedWhenTooBig (32 subobjects in, PATH forwarded without RRO, path state installed) and TestRFC3209PathRROKeptWhenItFits (31 in, 32 out headed by this router); the Resv direction was already covered. 'Too big' is realised as maxRecordRouteHops (32), the bound that keeps the RRO inside the fixed encode buffer (wire.go); that threshold is a model choice, not the message size.",
       "requirement_sha": "b6d911eff3bb1ee2",
       "tests": {
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209RRODroppedWhenTooBig": "76ac04cc7023e893",
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209RROKeptWhenItFits": "76ac04cc7023e893",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209PathRRODroppedWhenTooBig": "0fabf3da631549e2",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209PathRROKeptWhenItFits": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RRODroppedWhenTooBig": "76ac04cc7023e893",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RROKeptWhenItFits": "76ac04cc7023e893",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRRODroppedWhenTooBig": "0fabf3da631549e2",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRROKeptWhenItFits": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209RRODroppedWhenTooBig": "cc53b143b444aa34",
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209RROKeptWhenItFits": "d641f5955ff44350",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209PathRRODroppedWhenTooBig": "ae106bae9844b7a6",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209PathRROKeptWhenItFits": "f60dcfc7edca29ae"
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RRODroppedWhenTooBig": "cc53b143b444aa34",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RROKeptWhenItFits": "d641f5955ff44350",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRRODroppedWhenTooBig": "ae106bae9844b7a6",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRROKeptWhenItFits": "f60dcfc7edca29ae"
       },
       "verdict": "enforced"
     },
@@ -151,12 +151,12 @@
       "note": "Judged 2026-09-29 (routing child, continuation judge). Row widened to the verbatim trigger plus ban; the tests already drive the trigger. TestRFC3209PathRROWithdrawal: after a Path without an RRO, the next relayed RESV and a sendResv refresh carry no RRO, at transit and egress. Negative TestRFC3209PathRROForwarded keeps the RRO while the PATH requests it, so an always-drop implementation goes red.",
       "requirement_sha": "32e6efd65d1bbacf",
       "tests": {
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209PathRROForwarded": "76ac04cc7023e893",
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209PathRROWithdrawal": "76ac04cc7023e893"
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROForwarded": "76ac04cc7023e893",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROWithdrawal": "76ac04cc7023e893"
       },
       "units": {
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209PathRROForwarded": "3e9445edcb531d72",
-        "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209PathRROWithdrawal": "bb4106d8c7d19da7"
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROForwarded": "3e9445edcb531d72",
+        "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROWithdrawal": "bb4106d8c7d19da7"
       },
       "verdict": "enforced"
     },
@@ -212,16 +212,16 @@
       "note": "Rejudged 2026-09-29 (routing child). TestRFC3209ReroutePathKeepsSessionNewLSPID reads the emitted make-before-break PATH: SESSION equal to the original and to the PSB, same sender, new LSP_ID. TestRFC3209RerouteNeverReusesLSPID: two successive reroutes give three distinct LSP_IDs under one SESSION.",
       "requirement_sha": "b48e92e4fb027dcd",
       "tests": {
-        "internal/plugins/rsvpte/admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare": "c02141cf63f6e3dc",
-        "internal/plugins/rsvpte/reroute_test.go::TestEngineMakeBeforeBreak": "3340fedb85bbe0d5",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209RerouteNeverReusesLSPID": "0fabf3da631549e2",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209ReroutePathKeepsSessionNewLSPID": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare": "c02141cf63f6e3dc",
+        "internal/plugins/rsvpte/rfc3209_reroute_test.go::TestEngineMakeBeforeBreak": "3340fedb85bbe0d5",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209RerouteNeverReusesLSPID": "0fabf3da631549e2",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209ReroutePathKeepsSessionNewLSPID": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare": "e4a3259ae8e9dac4",
-        "internal/plugins/rsvpte/reroute_test.go::TestEngineMakeBeforeBreak": "0a8c5c93663955e2",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209RerouteNeverReusesLSPID": "ba3595a39287ef9c",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209ReroutePathKeepsSessionNewLSPID": "06f27f490237feed"
+        "internal/plugins/rsvpte/rfc3209_admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare": "e4a3259ae8e9dac4",
+        "internal/plugins/rsvpte/rfc3209_reroute_test.go::TestEngineMakeBeforeBreak": "0a8c5c93663955e2",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209RerouteNeverReusesLSPID": "ba3595a39287ef9c",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209ReroutePathKeepsSessionNewLSPID": "06f27f490237feed"
       },
       "verdict": "enforced"
     },
@@ -229,12 +229,12 @@
       "note": "Rejudged 2026-09-29 (routing child). Single-polarity row, now driven at the engine: TestRFC3209EgressResvStyleIsSharedExplicit has an egress receive a PATH through handlePacket and reads the STYLE of the RESV it sends as the literal 0x12.",
       "requirement_sha": "5c909aad02e9253a",
       "tests": {
-        "internal/plugins/rsvpte/build_test.go::TestBuildResvRoundTrip": "6afc32e8dc23d780",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "0fabf3da631549e2"
+        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip": "6afc32e8dc23d780",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "0fabf3da631549e2"
       },
       "units": {
-        "internal/plugins/rsvpte/build_test.go::TestBuildResvRoundTrip": "8eacced533e97ba3",
-        "internal/plugins/rsvpte/signaling_rfc3209_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "8e5999082c236449"
+        "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip": "8eacced533e97ba3",
+        "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "8e5999082c236449"
       },
       "verdict": "enforced"
     }
