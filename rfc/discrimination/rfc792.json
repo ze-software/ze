@@ -26,7 +26,7 @@
     {
       "rid": "RFC792-Echo-1",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "9f60a61ed426eb52",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC792-Echo-2",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "3137d39e4d5cbebb",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC792-Echo-3",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "3cb0d3f779c3c86a",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC792-Echo-3",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "f55f2df666dff946",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC792-Echo-5",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "83c6d63bb2edcd12",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC792-Echo-5",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress",
       "unit-sha": "efa25999ee39b21c",
       "claim-sha": "ee899a517029aab3",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC792-Echo-6",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
       "unit-sha": "64d39e2e6c392099",
       "claim-sha": "c10d881795750b8f",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC792-Echo-6",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress",
+      "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress",
       "unit-sha": "efa25999ee39b21c",
       "claim-sha": "d10a659c6ac66562",
       "route": "revert",

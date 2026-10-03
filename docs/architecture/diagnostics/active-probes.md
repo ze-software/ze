@@ -35,7 +35,7 @@ discards packets whose TTL is exhausted or whose DF bit prevents fragmentation
 at the outgoing MTU; `ip_rcv_core` and `ip_options_compile` reject unprocessable
 headers. Linux generates the resulting ICMP errors.
 
-`internal/plugins/vrrp/gateway_icmp_integration_linux_test.go` exercises this
+`internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go` exercises this
 boundary with Ethernet packet injection in an isolated namespace. It captures
 both the forwarding path and the return path, with valid controls for each
 discard condition, and checks reserved fields in emitted errors. RFC 1191

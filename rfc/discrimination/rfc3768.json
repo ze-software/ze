@@ -70,7 +70,7 @@
     {
       "rid": "RFC3768-5.3.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2OwnerRunsAtPriority255",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255",
       "unit-sha": "d355922cb09f901d",
       "claim-sha": "fb5fd9b287835a67",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC3768-5.3.4-1",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2OwnerRunsAtPriority255",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255",
       "unit-sha": "d355922cb09f901d",
       "claim-sha": "583b1dcd7158e5f1",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC3768-5.3.4-2",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2BoundaryPriority",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority",
       "unit-sha": "991e925b9c345e92",
       "claim-sha": "6d63332055425031",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC3768-5.3.4-2",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2BoundaryPriority",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority",
       "unit-sha": "991e925b9c345e92",
       "claim-sha": "301d5bcf5d4cdf95",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC3768-6.4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
       "unit-sha": "8b6c988c2bef4706",
       "claim-sha": "5041d89365ad6a66",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC3768-6.4.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
       "unit-sha": "8b6c988c2bef4706",
       "claim-sha": "d2a64b97eb5f9e13",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC3768-6.4.2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
       "unit-sha": "8b6c988c2bef4706",
       "claim-sha": "e62699fb8c704426",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC3768-6.4.2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
       "unit-sha": "8b6c988c2bef4706",
       "claim-sha": "ed94491db266de53",
       "route": "revert",
@@ -444,7 +444,7 @@
     {
       "rid": "RFC3768-6.4.3-5",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown",
       "unit-sha": "a0efabf03a130b6a",
       "claim-sha": "00708f398a71a29a",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC3768-6.4.3-5",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown",
       "unit-sha": "a0efabf03a130b6a",
       "claim-sha": "c2c03e2b121e7b31",
       "route": "revert",
@@ -543,7 +543,7 @@
     {
       "rid": "RFC3768-6.4.3-8",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2MasterYieldsToAHigherPriority",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority",
       "unit-sha": "a994a81545c0ab2b",
       "claim-sha": "6d19d9e7a861e36b",
       "route": "revert",
@@ -554,7 +554,7 @@
     {
       "rid": "RFC3768-6.4.3-8",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/v2_group_test.go::TestV2MasterYieldsToAHigherPriority",
+      "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority",
       "unit-sha": "a994a81545c0ab2b",
       "claim-sha": "432fee2e6babdc3c",
       "route": "revert",
@@ -631,7 +631,7 @@
     {
       "rid": "RFC3768-7.1-4",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface",
+      "unit": "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface",
       "unit-sha": "c3ba12015001440f",
       "claim-sha": "aa9a0f45f3198c1a",
       "route": "revert",
@@ -642,7 +642,7 @@
     {
       "rid": "RFC3768-7.1-4",
       "polarity": "negative",
-      "unit": "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface",
+      "unit": "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface",
       "unit-sha": "c3ba12015001440f",
       "claim-sha": "4ea4d2e18b988d13",
       "route": "revert",

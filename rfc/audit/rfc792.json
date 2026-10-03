@@ -11,12 +11,12 @@
       "tests": {
         "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "e4aad773ce5cac19",
         "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "e4aad773ce5cac19",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
       },
       "units": {
         "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "c5846996807f5493",
         "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "c5846996807f5493",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
       },
       "verdict": "enforced"
     },
@@ -25,11 +25,11 @@
       "requirement_sha": "2923f8d76b399c94",
       "tests": {
         "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "e4aad773ce5cac19",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
       },
       "units": {
         "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "d5b109231b5c7514",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
       },
       "verdict": "enforced"
     },
@@ -38,13 +38,13 @@
       "requirement_sha": "a0f5ea4063259908",
       "tests": {
         "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "e4aad773ce5cac19",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "6fa365d5d54aea79"
       },
       "units": {
         "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "6fab4edc6e7812e1",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "2e14d56234529006"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "2e14d56234529006"
       },
       "verdict": "enforced"
     },
@@ -63,12 +63,12 @@
       "note": "Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze's AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.",
       "requirement_sha": "2638c1cf3ce02daf",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
       },
       "verdict": "enforced"
     },
@@ -76,12 +76,12 @@
       "note": "Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request's source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.",
       "requirement_sha": "36d67f4bacdd017c",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
       },
       "verdict": "enforced"
     },
@@ -89,12 +89,12 @@
       "note": "First verdict 2026-09-27 (QF-2). Forbidden: forwarding a datagram whose TTL is zero. TestGatewayICMPTTLDiscard asserts gatewayForwarded(..., zero, false) and (..., one, false), red if either leaves the routed exit; the control asserts TTL two is forwarded unchanged, a distinct assertion. Enforced.",
       "requirement_sha": "8fb4c5bab4c20a06",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "6fa365d5d54aea79",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "25918ed447ea1bea",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "25918ed447ea1bea"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard": "25918ed447ea1bea",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPTTLDiscard#2": "25918ed447ea1bea"
       },
       "verdict": "enforced"
     },
@@ -102,12 +102,12 @@
       "note": "Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the 'may return' clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule's own boundary).",
       "requirement_sha": "811fdb70a802cd4f",
       "tests": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "6fa365d5d54aea79",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "6fa365d5d54aea79"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "6fa365d5d54aea79",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "6fa365d5d54aea79"
       },
       "units": {
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "555d09675e8ddeff",
-        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "555d09675e8ddeff"
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "555d09675e8ddeff",
+        "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "555d09675e8ddeff"
       },
       "verdict": "enforced"
     }

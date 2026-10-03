@@ -65,14 +65,14 @@
       "tests": {
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "a9cea999ab08a8a1",
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2OwnerRunsAtPriority255": "8b5d8c7a41e8e18e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "8b5d8c7a41e8e18e"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "8b5d8c7a41e8e18e",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "8b5d8c7a41e8e18e"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "47246169c047d639",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2OwnerRunsAtPriority255": "e1b5fe735db9c117",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "e1b5fe735db9c117"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "e1b5fe735db9c117",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "e1b5fe735db9c117"
       },
       "verdict": "enforced"
     },
@@ -82,14 +82,14 @@
       "tests": {
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "a9cea999ab08a8a1",
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BoundaryPriority": "8b5d8c7a41e8e18e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BoundaryPriority#2": "8b5d8c7a41e8e18e"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "8b5d8c7a41e8e18e",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "8b5d8c7a41e8e18e"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BoundaryPriority": "4a24b4547d5df7e0",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BoundaryPriority#2": "4a24b4547d5df7e0"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "4a24b4547d5df7e0",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "4a24b4547d5df7e0"
       },
       "verdict": "enforced"
     },
@@ -116,14 +116,14 @@
       "tests": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
         "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
         "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
       },
       "verdict": "enforced"
     },
@@ -150,14 +150,14 @@
       "tests": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "b7108f927f669585",
         "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "b7108f927f669585",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
       },
       "units": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
         "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
       },
       "verdict": "enforced"
     },
@@ -321,15 +321,15 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168",
         "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "b7108f927f669585",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown": "8b5d8c7a41e8e18e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown#2": "8b5d8c7a41e8e18e"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown": "8b5d8c7a41e8e18e",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown#2": "8b5d8c7a41e8e18e"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
         "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "7f46ec0e2b96d243",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown": "061672695ca574c9",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterShutdown#2": "061672695ca574c9"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown": "061672695ca574c9",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown#2": "061672695ca574c9"
       },
       "verdict": "enforced"
     },
@@ -376,8 +376,8 @@
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a878e0cdb3eac07e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "8b5d8c7a41e8e18e",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "8b5d8c7a41e8e18e"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "8b5d8c7a41e8e18e",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "8b5d8c7a41e8e18e"
       },
       "units": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
@@ -385,8 +385,8 @@
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "4d178cb352853a19",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "4d178cb352853a19",
         "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a472093b66ff5214",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "f3702054888a3750",
-        "internal/plugins/vrrp/v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "f3702054888a3750"
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "f3702054888a3750",
+        "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "f3702054888a3750"
       },
       "verdict": "enforced"
     },
@@ -458,8 +458,8 @@
         "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "b7108f927f669585",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e",
-        "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "62a79cca13e6ae8c",
-        "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "62a79cca13e6ae8c",
+        "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "62a79cca13e6ae8c",
+        "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "62a79cca13e6ae8c",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "c2435b5ed03adf55",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "c2435b5ed03adf55"
       },
@@ -468,8 +468,8 @@
         "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "f8d21be29af8eccc",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
-        "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "73d8dd4733b2b97e",
-        "internal/plugins/vrrp/rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "73d8dd4733b2b97e",
+        "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface": "73d8dd4733b2b97e",
+        "internal/plugins/vrrp/rfc3768_rx_interface_test.go::TestRxVRIDCheckedOnTheReceivingInterface#2": "73d8dd4733b2b97e",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "6fa56b37b31d61ca",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "6fa56b37b31d61ca"
       },

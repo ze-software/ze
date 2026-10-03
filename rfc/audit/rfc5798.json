@@ -141,14 +141,14 @@
       "tests": {
         "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a9cea999ab08a8a1",
         "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a9cea999ab08a8a1",
-        "internal/plugins/vrrp/transport/linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "d3f0dd36f08d18c3",
-        "internal/plugins/vrrp/tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "b5407d538ad7522d"
+        "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "d3f0dd36f08d18c3",
+        "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "b5407d538ad7522d"
       },
       "units": {
         "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a29abb886acdd502",
         "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a29abb886acdd502",
-        "internal/plugins/vrrp/transport/linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "c9b473ae41cf7f2f",
-        "internal/plugins/vrrp/tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "91e98dff7acc9deb"
+        "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "c9b473ae41cf7f2f",
+        "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "91e98dff7acc9deb"
       },
       "verdict": "enforced"
     },

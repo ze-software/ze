@@ -235,7 +235,7 @@
     {
       "rid": "RFC5798-5.2.9-1",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/transport/linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal",
+      "unit": "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal",
       "unit-sha": "7d64c7dd6ea853a8",
       "claim-sha": "7b8cea25764e385e",
       "route": "revert",
@@ -246,7 +246,7 @@
     {
       "rid": "RFC5798-5.2.9-1",
       "polarity": "positive",
-      "unit": "internal/plugins/vrrp/tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal",
+      "unit": "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal",
       "unit-sha": "76067edb2e5cf162",
       "claim-sha": "042d12fe6061f9df",
       "route": "revert",

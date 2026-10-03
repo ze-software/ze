@@ -32,14 +32,14 @@
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
       "verdict": "enforced"
     },
@@ -60,14 +60,14 @@
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "19a4c15f930f948e",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
       "verdict": "enforced"
     },
@@ -77,14 +77,14 @@
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
       "verdict": "enforced"
     },
@@ -124,14 +124,14 @@
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "22bea7e98f350d61",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "22bea7e98f350d61"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
-        "internal/plugins/vrrp/rx_discard_rfc9568_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero": "5a7167ebc11033f3",
+        "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero#2": "5a7167ebc11033f3"
       },
       "verdict": "enforced"
     },
@@ -540,12 +540,12 @@
       "note": "Clause by clause, TestInstanceV3OwnerConflictLoggedAndProcessed (instance.go noteOwnerConflict, called from onPacket). SHOULD verify the local router is not the owner: a v3 owner (IsOwner, Priority 255) receiving a Priority-255 advert records packet.ReasonOwnerConflict, while a v3 non-owner receiving the same advert records nothing, so an owner check that never fires or always fires goes red. Log the event: the owner's first advert writes the owner-conflict log line and the non-owner writes none. Subject to rate-limiting: a second advert 30 s later adds no line and a third 61 s after the first adds one, so an unlimited or never-repeating log goes red. The erratum's correction, keep processing: every owner advert still reaches the FSM as AdvertReceived. MAY indicate via network management: permissive; the counter is asserted at the recordRxError seam only, not on the show/telemetry surface. Discrimination: revert of noteOwnerConflict (positive) and of onPacket (negative) both red. DF-VRRP-5 re-read 2026-09-27: onPacket's only later edit is the syncSourceLocked call after the owner check, which neither counts, logs nor drops, so each clause above keeps its red. RA-VRRP strict re-read 2026-09-27 (independent): agrees enforced. SHOULD verify: owner counts ReasonOwnerConflict on each of three adverts, non-owner counts nothing. Log subject to rate-limiting: log lines 1, 1, 2 at t=0, 30 s, 61 s, non-owner none. Erratum's keep-processing: drainAdvertReceived true for every owner advert. MAY indicate via network management is permissive and binds nothing.",
       "requirement_sha": "3547447a1660853f",
       "tests": {
-        "internal/plugins/vrrp/owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed": "226bc64029ceeca5",
-        "internal/plugins/vrrp/owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed#2": "226bc64029ceeca5"
+        "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed": "226bc64029ceeca5",
+        "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed#2": "226bc64029ceeca5"
       },
       "units": {
-        "internal/plugins/vrrp/owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed": "c7132949cfa30a80",
-        "internal/plugins/vrrp/owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed#2": "c7132949cfa30a80"
+        "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed": "c7132949cfa30a80",
+        "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed#2": "c7132949cfa30a80"
       },
       "verdict": "enforced"
     },
@@ -585,16 +585,16 @@
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e",
-        "internal/plugins/vrrp/rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "fb0368c267914fe0",
-        "internal/plugins/vrrp/rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "fb0368c267914fe0",
+        "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "fb0368c267914fe0",
+        "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "fb0368c267914fe0",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "c2435b5ed03adf55",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "c2435b5ed03adf55"
       },
       "units": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
-        "internal/plugins/vrrp/rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "d49039a1711debf0",
-        "internal/plugins/vrrp/rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "d49039a1711debf0",
+        "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "d49039a1711debf0",
+        "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "d49039a1711debf0",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "6fa56b37b31d61ca",
         "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "6fa56b37b31d61ca"
       },

@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/vrrp/vrrp-macvlan-vmac-dataplane.md -- the non-owner's ARP answers and the Backup's virtual-MAC traffic
 // Related: dataplane_linux.go -- applyDataplaneSysctls, the recipe under test
-// Related: gateway_icmp_integration_linux_test.go -- the wire and capture helpers
+// Related: rfc792_gateway_icmp_integration_linux_test.go -- the wire and capture helpers
 package vrrp
 
 import (
