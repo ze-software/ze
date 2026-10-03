@@ -13,6 +13,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -291,24 +292,24 @@
       "note": "Re-judged 2026-10-01 (BGP c15 judge). The c14 gap is closed: TestRFC4271ForwardExportASPathEditsSkipInternalPeers drives the general forward rail (forwardUpdateCore -> forwardUpdateSection) with the policy-chain egress step answering 'as-path-prepend 2' and 'remove-private strip'; the internal destination (AS 65000) and the RFC 7705 migration-internal destination (AS 64999 = MigrationAS) are sent the received AS_PATH [64512 64496] byte for byte, while the external control in the same fan-out is sent [65000 65000 65000 64512 64496] and [65000 64496]. Judge overlay (forwardUpdateSection passes false instead of !facts.isEBGP, judge j15-ov-fwd.log) reddens all four internal and migration-internal assertions, so the forward rail is now discriminated. With the c14 units (exportFilterForBody/runEgressPolicyChain guard, migration-aware verdict, policy dry-run agreement, announce rail reactor_wire, batch IBGP verbatim) every rail that edits AS_PATH toward an internal peer has a unit that reddens when it does. Judge re-recorded the two producer-changed revert records of TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer on forwardUpdateSection. rfc4271_test.go and reactor_batch_test.go tags still carry no record (reach unproven by record, semantic by c13/c14 overlays).",
       "requirement_sha": "0cfcf537b0aafcec",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
-        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
-        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "9a11af33ccbe070c",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "9a11af33ccbe070c",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "94aa07ebd53dcc5b"
       },
       "units": {
-        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
-        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "3bda13eecdff18dc",
-        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "d2f77b2acbc479db",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath": "cf1b7a86f8549355",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers": "c7e558adc71200ee",
         "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "39061cf70b2cf754",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "3bda13eecdff18dc",
+        "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "3bda13eecdff18dc",
+        "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "ca93d29a312a1f89",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "4aa30092bdda3e75"
       },
@@ -386,9 +387,9 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed": "94aa07ebd53dcc5b",
-        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire": "caf2e4019ba86690",
-        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint": "caf2e4019ba86690",
-        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute": "caf2e4019ba86690"
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire": "a20135c7e51980b9",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint": "a20135c7e51980b9",
+        "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute": "a20135c7e51980b9"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled": "e883fd90a83729ef",
@@ -643,16 +644,16 @@
       "requirement_sha": "bd0d71516e86fc07",
       "tests": {
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "94aa07ebd53dcc5b",
-        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
+        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "ab53111fff0e5b7d",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "0a127f4f78abb98f",
-        "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa"
       },
       "verdict": "enforced"
@@ -721,8 +722,8 @@
       "note": "Revised by RFC 7606. 'If an optional attribute is recognized, then the value MUST be checked': RFC 4271's own optional attributes, MED (3 octets -> exact withdrawal, 4 kept) and AGGREGATOR (bad length -> discarded, prefix kept, the 'attribute MUST be discarded' clause), are both covered, plus COMMUNITIES and EXTENDED COMMUNITIES (withdraw per 7606 7.8/7.14) with valid values kept byte for byte. Observed-red records on validateCommunityAttr both polarities. ORIGINATOR_ID and CLUSTER_LIST value checks belong to the RFC 4456 / RFC 7606 per-attribute rows, not this generic RFC 4271 row.",
       "requirement_sha": "4345f16d2e0de799",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
-        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
         "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
         "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
@@ -738,14 +739,14 @@
       "note": "Revised by RFC 7606 Section 3(g): a duplicate MP_REACH_NLRI or MP_UNREACH_NLRI draws NOTIFICATION Malformed Attribute List; any other duplicate is discarded after the first. TestRFC4271UpdateMalformedAttributeList: duplicate MP_REACH_NLRI -> NOTIFICATION 3/1 read off the socket; duplicate COMMUNITY -> no NOTIFICATION, exactly one COMMUNITY left (negative). 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): the MP_UNREACH clause is now tagged: TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire reads 3/1 off the wire for a duplicate MP_UNREACH_NLRI, and its fixture (ORIGIN, empty AS_PATH, two well-formed MP_UNREACH, no NLRI) records no other error, so only the duplicate check produces the reset (RFC7606-3.g-1 mutant B evidence). Dropping the mpUnreachCount operand now turns a tagged unit red. ValidateUpdateRFC7606AddPath breaks observed red for all three units.",
       "requirement_sha": "3539db1d6a53507b",
       "tests": {
-        "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4",
         "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
-        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b",
+        "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
       },
       "units": {
-        "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa",
         "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
-        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
+        "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d",
+        "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa"
       },
       "verdict": "enforced"
     },
@@ -798,8 +799,8 @@
       "note": "Revised by RFC 7606 3(c) to treat-as-withdraw unless the attribute's specification mandates other flag handling. Flag conflicts are decided by one table (AttributeCode.FlagsConflict via validateAttributeFlags). Tagged units now cover ORIGIN (well-known), MED, AGGREGATOR and ATOMIC_AGGREGATE with conflicting Optional/Transitive bits: exact withdraw-only payload, session Established; the same attributes with specified flags keep the prefix and the value byte for byte. AGGREGATOR flags go to withdraw because RFC 7606 7.7 mandates attribute discard only for its length conditions, not for flags. Observed-red records on validateAttributeFlags both polarities.",
       "requirement_sha": "138f66b7cb2afca7",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
-        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
         "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
         "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
@@ -817,8 +818,8 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "f2b979b76233652e",
         "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "f2b979b76233652e",
-        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "aa6f044edd716924",
-        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "aa6f044edd716924",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
+        "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
         "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
         "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
       },
@@ -927,8 +928,8 @@
       "tests": {
         "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "c1c4f47a8a24ad7f",
         "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "c1c4f47a8a24ad7f",
-        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "372e002f8af791e2",
-        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "372e002f8af791e2"
+        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "ba785114f38bbc8d",
+        "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "ba785114f38bbc8d"
       },
       "units": {
         "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "91506adb72012cab",
@@ -1415,8 +1416,8 @@
       "note": "Re-judged 2026-10-01 (BGP c17 judge). Forbidden: an IBGP readvertisement carrying a LOCAL_PREF other than the degree of preference the import policy computed. NEW TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers runs an external route through the source's real runIngressPolicyChain (filter seam answers local-preference 200) and forwards the chain's payload on the general rail: the internal destination is sent exactly 000000C8 and the external one none; the same route with no import policy is sent 00000064, so a constant (100 or 200) cannot pass both cases. Records: + on runIngressPolicyChain, - on applyFactsLocalPref, both observed red; author semantic overlay (applyFactsLocalPref overwrites any base LOCAL_PREF toward internal peers with 100) reddens the + case, c17-ov-lp.log. The HEAD - tag on TestRFC4271LocalPrefOmittedForExternalPeers was removed (D-15): its assertion is RFC4271-5.1.5-2's rule, which the unit keeps. HEAD + TestRFC4271LocalPrefIncludedForInternalPeers stays supplementary (default 100 on the announce rail, no record). Bound: the general forward rail is proven; the route-server rail and the rib plugin's readvertisement are not driven by this unit (5.1.5-5 shares that composition).",
       "requirement_sha": "a1b8e0c8297d0ee1",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "2c05f550a8d63561",
-        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "2c05f550a8d63561",
+        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "23ee81037daaa1b7",
+        "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "23ee81037daaa1b7",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b"
       },
       "units": {
@@ -1551,7 +1552,7 @@
       "note": "Re-judged 2026-10-01 (BGP c15 judge). Both c14 gaps on the general rail closed: TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers forwards one route from an internal non-client source on forwardUpdateCore -> forwardUpdateSection to an internal non-client (sent nothing), an external peer (sent the route) and an internal route-reflector client DESTINATION (sent the route: the RR exception with a client destination). Absence is judged after the two controls of the same fan-out arrive plus a 500 ms window, not a bare sleep. Revert record on forwardUpdateSection; the author's overlay turning the !srcInfo.isRRClient && !facts.rrClient refusal into if false reddens the non-client assertion (c15-ov-sh). The route-server rail keeps TestRFC4271NoIBGPToIBGPRedistribution (absence after a fixed 50 ms sleep, no in-fan-out control; its partner TestRFC4271IBGPRedistributionAllowedForReflectorClient shows the same dispatch within 2 s) and TestRFC4271IBGPRedistributionAllowedForReflectorClient: a residual timing weakness on that rail only, and neither RS unit has a record.",
       "requirement_sha": "406f1f4d7c98a952",
       "tests": {
-        "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "f0a1c3da5aa3beae",
+        "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "7966eca9efe6b2cb",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "94aa07ebd53dcc5b",
         "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "94aa07ebd53dcc5b"
       },

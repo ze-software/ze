@@ -2,6 +2,7 @@
   "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -16,7 +17,7 @@
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "9ff7a7a5b87adb14",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "9ff7a7a5b87adb14",
         "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "9ff7a7a5b87adb14",
-        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "033d8bd0a41bf38a",
+        "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "a2d2325a92ac9eda",
         "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882AuthenticatedOrIBGPProfileDoesNotWarn": "513acfb597ea8807",
         "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPPeerWithoutProfileWarns": "513acfb597ea8807",
         "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPUnauthenticatedProfileWarns": "513acfb597ea8807",
@@ -99,9 +100,9 @@
         "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "6c36255755c3721b",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "1febb5fea3470596",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "1febb5fea3470596",
+        "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "27db35785fbd8a98",
         "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession": "7c98451d91f3d951",
         "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions": "7c98451d91f3d951",
-        "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "27db35785fbd8a98",
         "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "7309aa741867a1b8",
         "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "4959bdf283761598"
       },
@@ -110,9 +111,9 @@
         "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "c1d4099a9b45ab9f",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "29e3843d4f16deb0",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "295d24b9f8d7d852",
+        "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "b3b18c6e78ffeaca",
         "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession": "465ba47e82c32302",
         "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions": "f5478815bdaf154e",
-        "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "b3b18c6e78ffeaca",
         "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "10b4fc48ccff5b70",
         "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "0104c72905069302"
       },
