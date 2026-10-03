@@ -397,8 +397,8 @@ tests instead.
 | `TestShaperRecordsPPPoESession` | `internal/component/l2tp/plugins/shaper/shaper_test.go` | AC-5: `s.sessions` is populated on the PPPoE path | |
 | `TestCoSSessionDownRestoresStaticProfile` | `internal/plugins/cos/handler_test.go` | AC-18 | |
 | `TestCoAUnappliedAnswersNAK` | `internal/component/l2tp/plugins/authradius/coa_test.go` | AC-4 | |
-| `TestIKERekeyCarriesEstablishedAtAdvancesCreatedAt` | `internal/component/ike/engine/rekey_test.go` | AC-9 on the initiator path | |
-| `TestIKERekeyBothDirectionsAgreeOnTimestamps` | `internal/component/ike/engine/rekey_test.go` | AC-9: `applyIKERekeyResponse` and `respondIKERekey` produce identical field semantics | |
+| `TestIKERekeyCarriesEstablishedAtAdvancesCreatedAt` | `internal/component/ike/engine/rfc7296_rekey_collision_test.go` | AC-9 on the initiator path | |
+| `TestIKERekeyBothDirectionsAgreeOnTimestamps` | `internal/component/ike/engine/rfc7296_rekey_collision_test.go` | AC-9: `applyIKERekeyResponse` and `respondIKERekey` produce identical field semantics | |
 | `TestFlowExportReloadPreservesSysUpTime` | `internal/plugins/flowexport/exporter_test.go` | AC-10 including FIRST_SWITCHED continuity | |
 | `TestParsePollSleepMicroseconds` | `internal/component/vpp/config_test.go` | AC-13 | |
 | `TestCheckVPPVersionRejectsUnsupportedRange` | `internal/component/doctor/checks_linux_test.go` | AC-14 | |

@@ -6,7 +6,7 @@
 // therefore left ze with no record over a policy the kernel still held, and the next
 // peer's InstallPolicy claimed that selector and upserted over a live tunnel.
 //
-// It runs where the entry point does. policy_owner_test.go drives the helper on every OS;
+// It runs where the entry point does. rfc3948_policy_owner_test.go drives the helper on every OS;
 // driving the helper alone would leave the wiring between the two unproven, which is the
 // exact shape ai/rules/evidence.md names.
 //

@@ -8,6 +8,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -16,7 +17,7 @@
       "note": "IKE Child SA install asserts Mode==tunnel on both SAs and the OSPFv3 installer asserts Mode==transport on every SA, so both modes are proven; single-polarity annotated",
       "requirement_sha": "db38daf7ff5cee61",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "02ddf9e8a20bddfb",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "976d07eeb9539b2b"
       },
       "units": {
@@ -40,7 +41,7 @@
       "note": "TestChildSAInstallsInDataplane asserts every installed policy is tunnel mode; single-polarity annotated",
       "requirement_sha": "c83d3cb5958ed0e8",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -51,7 +52,7 @@
       "note": "every IKE peer SA is asserted modeTunnel; OSPFv3 transport SAs fall under the security-gateway-acting-as-host exception; single-polarity annotated",
       "requirement_sha": "95378853d65e42a9",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -62,7 +63,7 @@
       "note": "inbound and outbound SA of one IKE pair both asserted modeTunnel, so the pair is same-mode; single-polarity annotated",
       "requirement_sha": "0b810163c97a99f9",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -123,7 +124,7 @@
       "note": "Child SA install asserts two PROTECT policies reach the SPD; single-polarity annotated",
       "requirement_sha": "b61c14781b5c08a0",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
@@ -243,7 +244,7 @@
       "note": "Judged at the whole stack (R21). Transport: installChildSA now sets the inbound SAParams.Sel from childPolicyParams(child, SADirIn) (src=TSr, dst=TSi, proto, sport/dport, direction checked with asymmetric ports 179/any in TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors), mapped to x->sel by xfrmStateFromParams. Tunnel: the inbound require-policy carries the same five. Kernel probes in rfc4301_sad_selector_linux_test.go (user+net namespace, real XFRM) assert delivery inside and exact +1 on XfrmInNoPols (tunnel: outside by source, port, protocol) or XfrmInStateMismatch (transport: port, protocol) with no delivery. Judge re-observed red under two overlays: transport Sel block disabled -> port 6000 delivered, counters 0; inbound tunnel policy widened -> all three outside cases delivered, NoPols 0. The multi-pair 'or values' half is the gap RFC4301-4.4.2-2. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged.",
       "requirement_sha": "e3911738ce979efb",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "02ddf9e8a20bddfb",
         "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "d0849a2d44763916",
         "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "d0849a2d44763916",
         "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "d0849a2d44763916",
@@ -445,14 +446,14 @@
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeAdmitsAPeerBeneathIt": "294ef9f35b63988d",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeRefusesAPeerOutsideIt": "294ef9f35b63988d",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeStillBindsTheCertificate": "294ef9f35b63988d",
-        "internal/component/ike/ipsec/validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "fec7a6a06940adde"
+        "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "fec7a6a06940adde"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadKeyIDStaysExact": "e1e1151e33a3ae32",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeAdmitsAPeerBeneathIt": "e1df0fc2d0c487a6",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeRefusesAPeerOutsideIt": "e994ea6ac9f8ee38",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeStillBindsTheCertificate": "1d5adccb24ea5368",
-        "internal/component/ike/ipsec/validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "f5ba874391fde80c"
+        "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "f5ba874391fde80c"
       },
       "verdict": "enforced"
     },
@@ -462,12 +463,12 @@
       "tests": {
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeAdmitsAnAddressInsideIt": "294ef9f35b63988d",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeRefusesWhatIsOutsideIt": "294ef9f35b63988d",
-        "internal/component/ike/ipsec/validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "fec7a6a06940adde"
+        "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "fec7a6a06940adde"
       },
       "units": {
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeAdmitsAnAddressInsideIt": "c179422e9bcc51cc",
         "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeRefusesWhatIsOutsideIt": "297172d1afe3608e",
-        "internal/component/ike/ipsec/validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "f5ba874391fde80c"
+        "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "f5ba874391fde80c"
       },
       "verdict": "enforced"
     },
@@ -501,7 +502,7 @@
       "note": "automated half: createFirstChildSA installs IKE-keyed SAs; manual half: OSPFv3 installs static SPI+key SAs; single-polarity annotated",
       "requirement_sha": "7ace33c19c76dd42",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "02ddf9e8a20bddfb",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "976d07eeb9539b2b"
       },
       "units": {

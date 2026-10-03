@@ -10,6 +10,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -35,11 +36,11 @@
       "note": "initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
       "requirement_sha": "b883c2b9ab5dc7a6",
       "tests": {
-        "internal/component/ike/engine/responder_test.go::TestRespondIKERekey": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey": "0bd066ff172d78f8",
         "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "e032382b6fba7977"
       },
       "units": {
-        "internal/component/ike/engine/responder_test.go::TestRespondIKERekey": "478f1638e9e680a0",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey": "478f1638e9e680a0",
         "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "0e9663c6ad3e960d"
       },
       "verdict": "enforced"
@@ -48,14 +49,14 @@
       "note": "Positive: TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors decrypts ze's initiateChildRekey request at the peer: exactly one SA, one Ni, one TSi and one TSr with selectors, KEi present with pfs enable and absent with pfs disable (the optional clause both ways). Negative (receive side): TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused removes SA, Ni, TSi or TSr one at a time from a peer request: each refused with errMalformedRequest and INVALID_SYNTAX, nothing installed; the complete request is answered. TestRekeyWithoutTrafficSelectorsIsRefused (moved from 2.9-1) adds the no-TS request refusal and its answered twin.",
       "requirement_sha": "f415c51b9c64aa9c",
       "tests": {
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "8d0e2e1789602a48",
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "8d0e2e1789602a48",
-        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "305ef154a3e0df0a",
-        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "305ef154a3e0df0a"
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "bd9484104305f061",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "bd9484104305f061"
       },
       "units": {
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "43c584f708ebe373",
-        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "43c584f708ebe373",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "43c584f708ebe373",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "43c584f708ebe373",
         "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "ee81b9ef3c8adf28",
         "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "2bf3982de7281d49"
       },
@@ -65,13 +66,13 @@
       "note": "TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow: ze's respondChildRekey response announces TSi/TSr equal to the installed scope, and ze as rekey initiator installs an answer narrowed to 10.1.0.0/25 from a /24 proposal (the may-be-a-subset clause). TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused (moved from 2.9-1): a response without TS payloads is refused and installs nothing, the same fixture with both payloads installs their scope.",
       "requirement_sha": "0b07c2440da39c79",
       "tests": {
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0b7e3c55d84c210a",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0b7e3c55d84c210a",
-        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "305ef154a3e0df0a"
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "bd9484104305f061"
       },
       "units": {
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0351b3fc440f5796",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0351b3fc440f5796",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0351b3fc440f5796",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0351b3fc440f5796",
         "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "01ade9a5b3f7ad04"
       },
       "verdict": "enforced"
@@ -325,18 +326,18 @@
       "note": "INVALID_IKE_SPI answer copies SPIs, Message ID and exchange type with Response flag, per request; answered over the arrival socket framing; .ci covers arrival socket",
       "requirement_sha": "43bc91a35bea0d27",
       "tests": {
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "46d06959b3cb4475",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "46d06959b3cb4475",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "46d06959b3cb4475",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "46d06959b3cb4475",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
         "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
         "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
       },
       "units": {
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "e44152a2c3d1b0ca",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "e44152a2c3d1b0ca",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "e44152a2c3d1b0ca",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "e44152a2c3d1b0ca",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
         "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
         "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
       },
@@ -346,14 +347,14 @@
       "note": "answer holds exactly one INVALID_IKE_SPI Notify with empty SPI and data",
       "requirement_sha": "3588193f7dd78275",
       "tests": {
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
         "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
         "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
       },
       "units": {
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
-        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
+        "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
         "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
         "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
       },
@@ -461,7 +462,7 @@
       "note": "Re-judged 2026-10-01 under R46: judged on its positive. TestChildSANATTEncapPorts: with NATDetected, createFirstChildSA installs both the inbound and the outbound ESP SA with UDPEncap on 4500/4500, so Ze uses UDP encapsulation for ESP once a NAT is detected. No receive-side refusal is legitimate: plain ESP must still be accepted (RFC7296-2.23-10, AcceptBothESPForms), so the no-NAT antecedent guard TestChildSANoNATNoEncap stays supplementary (BFD 6.1-3 precedent). Rekeyed SAs: newRekeyedChild copies NATDetected and UDPEncap from the old child, and the untagged TestRekeyKeepsBothESPFormAcceptance (rekey_test.go) asserts UDPEncap on both rekeyed SAs under NAT; that proof sits outside this verdict's fingerprint (traceability gap, not a proof gap). Both tagged units hold observed-red revert records on installChildSA.",
       "requirement_sha": "bb6afe31983215b2",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "02ddf9e8a20bddfb",
         "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "e032382b6fba7977"
       },
       "units": {
@@ -494,16 +495,16 @@
       "tests": {
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
       },
       "units": {
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "509eab17a198ace1",
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "d108e4bf9d530bf8",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "14022f6655ade6d8",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "c2ae70dc848cc41d"
       },
@@ -515,16 +516,16 @@
       "tests": {
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
       },
       "units": {
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "509eab17a198ace1",
         "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "d108e4bf9d530bf8",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
-        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
+        "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "14022f6655ade6d8",
         "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "c2ae70dc848cc41d"
       },
@@ -552,18 +553,18 @@
       "note": "Re-judged 2026-09-30. Unprotected-message clause unchanged: TestRteUnownedEstablishedSATrustsNothing (cleartext Delete/CREATE_CHILD_SA refused, authenticated Delete still ends the SA) and the two responder IKE_SA_INIT units. Routing-information clause now asserted with real loopback ICMP (linux, unprivileged, ran and passed, not skipped): the IKE socket sets IP_RECVERR and the queued Port Unreachable is consumed by the transport's real error-queue path (records: panic in drainErrorQueue + and deliverQueuedError - observed red, so the ICMP path runs in each unit). Negative TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing: a Port Unreachable from the peer's own address:port while a probe waits, plus a Fragmentation Needed routed into handleSizeRefusal (the engine's only ICMP consumer): SA stays Established, probe stays outstanding with no sa-failed answer, nothing reaches Refusals, later authenticated answer settles it. Positive TestRFC7296ICMPUnreachableDoesNotFailTheSA: after a queued Port Unreachable the SA's next request reaches the peer and the peer's authenticated answer settles the probe as fits. Limit: the assertion covers today's consumers (Refusals channel, handleSizeRefusal); a new ICMP consumer outside them would need its own test.",
       "requirement_sha": "cf7c5c842e6cd8d6",
       "tests": {
-        "internal/component/ike/engine/responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "0bd066ff172d78f8",
-        "internal/component/ike/engine/responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "0bd066ff172d78f8",
         "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "a5c7c1939e14d357",
         "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "a5c7c1939e14d357",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "0bd066ff172d78f8",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "f133fd37f92cb793",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "f133fd37f92cb793"
       },
       "units": {
-        "internal/component/ike/engine/responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "39587d1dcc28ebea",
-        "internal/component/ike/engine/responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "77ceeb12989e7f95",
         "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "f628b3ef4dbe7263",
         "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "536657035470c4c7",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "39587d1dcc28ebea",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "77ceeb12989e7f95",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "d23db3dc53605f85",
         "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "d23db3dc53605f85"
       },
@@ -573,11 +574,11 @@
       "note": "Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.",
       "requirement_sha": "7a75a12e3c5c39ca",
       "tests": {
-        "internal/component/ike/engine/responder_test.go::TestInitiatorEmitsInitialContact": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact": "0bd066ff172d78f8",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "e032382b6fba7977"
       },
       "units": {
-        "internal/component/ike/engine/responder_test.go::TestInitiatorEmitsInitialContact": "f259e9f58519674e",
+        "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact": "f259e9f58519674e",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "9e6df4d49da9fbcb"
       },
       "verdict": "enforced"
@@ -662,16 +663,16 @@
         "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops#2": "60305fa0579f053d",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296IKESPIPairIdentifiesTheIKESA": "a7568870aefb0c20",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296UnknownIKESPIPairMapsToNoSA": "a7568870aefb0c20",
-        "internal/component/ike/wire/header_test.go::TestDecodeTruncatedHeader": "ca60d932fbc393ad",
-        "internal/component/ike/wire/header_test.go::TestHeaderRoundtrip": "ca60d932fbc393ad"
+        "internal/component/ike/wire/rfc7296_header_test.go::TestDecodeTruncatedHeader": "ca60d932fbc393ad",
+        "internal/component/ike/wire/rfc7296_header_test.go::TestHeaderRoundtrip": "ca60d932fbc393ad"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops": "996852d0bfed79eb",
         "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops#2": "996852d0bfed79eb",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296IKESPIPairIdentifiesTheIKESA": "fc725779f8e1d608",
         "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296UnknownIKESPIPairMapsToNoSA": "8e863293ec140266",
-        "internal/component/ike/wire/header_test.go::TestDecodeTruncatedHeader": "5033372fa93a1158",
-        "internal/component/ike/wire/header_test.go::TestHeaderRoundtrip": "29cbad6e5625175d"
+        "internal/component/ike/wire/rfc7296_header_test.go::TestDecodeTruncatedHeader": "5033372fa93a1158",
+        "internal/component/ike/wire/rfc7296_header_test.go::TestHeaderRoundtrip": "29cbad6e5625175d"
       },
       "verdict": "enforced"
     },
@@ -679,16 +680,16 @@
       "note": "NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN",
       "requirement_sha": "1641f0dba643a5b2",
       "tests": {
-        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationFirstMatch": "a6de5fb37ffc1f6e",
-        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
+        "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "a6de5fb37ffc1f6e",
+        "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
         "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "1b13f2045a7cde2a",
         "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "1b13f2045a7cde2a"
       },
       "units": {
-        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",
-        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationNoMatch": "fd3e619539d52379",
+        "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",
+        "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "fd3e619539d52379",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "a7b63ca86fb81625",
         "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "a7b63ca86fb81625",
         "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "af3bf92a86a8c0e8",
@@ -700,11 +701,11 @@
       "note": "no lifetime transform or attribute reaches the wire (TestLifetimesNotNegotiatedOnWire); lifetime state derives from the local value (TestSALifetimeTime)",
       "requirement_sha": "a8e4d60828a97692",
       "tests": {
-        "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "8d0e2e1789602a48",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime": "8d0e2e1789602a48",
         "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "e032382b6fba7977"
       },
       "units": {
-        "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "7a4b514516a21d66",
+        "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime": "7a4b514516a21d66",
         "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "615b681d343b1fc5"
       },
       "verdict": "enforced"
@@ -713,14 +714,14 @@
       "note": "narrowChildSelectors answers a disjoint proposal with TS_UNACCEPTABLE and records no pairs, and accepts an overlapping one narrowed (TestTSUnacceptableIsSentWhenNothingIsAcceptable); the rekey initiator installs an answer inside its proposal and refuses a wider one (TestChildRekeyInitiatorInstallsTheAnsweredSelectors). The two TS-presence units formerly tagged here moved to RFC7296-1.3.3-3 and 1.3.3-4.",
       "requirement_sha": "c05dbf88d2b667b3",
       "tests": {
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "0b7e3c55d84c210a",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "0b7e3c55d84c210a",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "0b7e3c55d84c210a",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "24cf973ee458ee3d",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "24cf973ee458ee3d"
       },
       "units": {
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9ca0c928a277a969",
-        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "9ca0c928a277a969",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9ca0c928a277a969",
+        "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "9ca0c928a277a969",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
         "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2"
       },

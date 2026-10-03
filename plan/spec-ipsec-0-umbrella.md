@@ -377,9 +377,9 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 | `TestParseIKEGroup` | `internal/component/ike/ipsec/config_test.go` | IKE group with proposals, DPD, lifetime | |
 | `TestParseESPGroup` | `internal/component/ike/ipsec/config_test.go` | ESP group with proposals, PFS, lifetime | |
 | `TestParseSiteToSitePeer` | `internal/component/ike/ipsec/config_test.go` | Peer with X.509 auth, XFRM bind | |
-| `TestIKEv2EncodeHeader` | `internal/component/ike/wire/header_test.go` | IKEv2 header encode/decode roundtrip | |
+| `TestIKEv2EncodeHeader` | `internal/component/ike/wire/rfc7296_header_test.go` | IKEv2 header encode/decode roundtrip | |
 | `TestIKEv2EncodePayloads` | `internal/component/ike/wire/payload_test.go` | All payload types encode/decode | |
-| `TestIKEv2ProposalNegotiation` | `internal/component/ike/crypto/proposal_test.go` | Proposal selection from remote offers | |
+| `TestIKEv2ProposalNegotiation` | `internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go` | Proposal selection from remote offers | |
 | `TestIKEv2SKEYSEED` | `internal/component/ike/crypto/keys_test.go` | SKEYSEED and SK_* key hierarchy derivation | |
 | `TestIKEv2FSMInitiator` | `internal/component/ike/engine/fsm_test.go` | State transitions for initiator IKE_SA_INIT + IKE_AUTH | |
 | `TestIKEv2EAPExchange` | `internal/component/ike/engine/eap_test.go` | EAP exchange within IKE_AUTH | |

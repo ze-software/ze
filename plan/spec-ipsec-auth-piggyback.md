@@ -336,7 +336,7 @@ this planning reconciliation.
 | `TestPiggybackResponderKeepsIKESAAlive` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-1 | |
 | `TestPiggybackResponseCarriesAuthPayloads` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-2 and AC-3 | |
 | `TestPiggybackInstallsNoChildSA` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-4 | |
-| `TestOwnerLoopRunsWithoutChildSA` | `internal/component/ike/engine/established_test.go` | AC-5 | |
+| `TestOwnerLoopRunsWithoutChildSA` | `internal/component/ike/engine/rfc7296_established_test.go` | AC-5 | |
 | `TestPiggybackResponseIsCached` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-6 | |
 | `TestCreateChildSAAttachesFirstChild` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-7 | |
 | `TestAttachedChildSAUsesConfiguredSelectors` | `internal/component/ike/engine/rfc7296_piggyback_test.go` | AC-8 | |
@@ -468,7 +468,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
 1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
    - Tests: every row of the Wiring Test table
    - Files: `internal/component/ike/engine/rfc7296_piggyback_test.go`,
-     `internal/component/ike/engine/established_test.go`
+     `internal/component/ike/engine/rfc7296_established_test.go`
    - Verify: each test fails, and each failure names the gap it covers
 2. **Phase: Owner loop tolerance (G-2)**
    - Tests: `TestOwnerLoopRunsWithoutChildSA`, AC-5

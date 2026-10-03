@@ -3,7 +3,7 @@
 // Section 4 names the one exchange every implementation must be able to perform: four
 // messages, IKE_SA_INIT then IKE_AUTH, establishing two SAs, one for IKE and one for ESP
 // or AH. The POSITIVE half of that obligation is proven by
-// TestResponderHandshakePSKEndToEnd (responder_test.go), which drives all four messages
+// TestResponderHandshakePSKEndToEnd (rfc7296_responder_test.go), which drives all four messages
 // between a real initiator and a real responder and asserts both SAs. This file carries
 // the negative half: the establishment is caused by the four messages, and a prefix of
 // them establishes nothing.

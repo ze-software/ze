@@ -10,7 +10,7 @@
 //
 // These tests drive that identity from the ENTRY POINTS that produce it,
 // createFirstChildSA and the CREATE_CHILD_SA rekey path, rather than from the
-// dataplane registry that consumes it (dataplane/policy_owner_test.go owns that
+// dataplane registry that consumes it (dataplane/rfc3948_policy_owner_test.go owns that
 // half). The distinction is load-bearing: a registry test compares whatever it is
 // handed, so with both owners empty it compares "" against "" and passes while
 // the guard admits every takeover it exists to refuse.
@@ -363,7 +363,7 @@ func TestSecondPeerCannotTakeOverAnotherPeersPolicySelector(t *testing.T) {
 // an inbound install over a foreign selector is refused, so the function returns
 // before an outbound install exists to fail -- so no foreign record is in reach
 // here. That half is exercised where the state needing it is reachable, in
-// dataplane/policy_owner_test.go's TestPolicyOwnerRefusesAForeignDeleteBeforeTheKernel.
+// dataplane/rfc3948_policy_owner_test.go's TestPolicyOwnerRefusesAForeignDeleteBeforeTheKernel.
 func TestRefusedOutboundInstallRollsBackOnlyItsOwnPolicy(t *testing.T) {
 	dp := newOwnedDP()
 	log := slogutil.DiscardLogger()

@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- Child SA rekey
-// Related: rekey_test.go -- TestRekeyWithoutTrafficSelectorsIsRefused
-// Related: child_rekey_initiator_answer_test.go -- TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused
+// Related: rfc7296_rekey_collision_test.go -- TestRekeyWithoutTrafficSelectorsIsRefused
+// Related: rfc7296_child_rekey_initiator_answer_test.go -- TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused
 // VALIDATES: the payloads of a CREATE_CHILD_SA exchange that rekeys a Child SA
 // (RFC 7296 Section 1.3.3): what ze sends in the request and in the response, and what
 // ze refuses when the peer leaves a payload out.

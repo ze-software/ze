@@ -73,7 +73,7 @@ func TestPayloadNotifyWithSPI(t *testing.T) {
 //
 // It carries no conformance tag, deliberately. RFC7296-2.21.2-3 already
 // has a positive and a negative carrier in
-// internal/component/ike/engine/notify_error_test.go, so a third would add a
+// internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go, so a third would add a
 // claim to the public ledger without adding a proven requirement to it, and a
 // tag owes a recorded discrimination break of its own. This guard earns its
 // place by being STRICTER than the ledger asks, not by appearing on it.

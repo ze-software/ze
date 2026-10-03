@@ -333,7 +333,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestChildSAAcceptsBothESPForms` | `internal/component/ike/engine/child_test.go` | An installed Child SA declares both forms permitted | |
-| `TestRekeyInheritsBothFormAcceptance` | `internal/component/ike/engine/rekey_test.go` | A rekey does not narrow the SA back to one form (`rekey.go`) | |
+| `TestRekeyInheritsBothFormAcceptance` | `internal/component/ike/engine/rfc7296_rekey_collision_test.go` | A rekey does not narrow the SA back to one form (`rekey.go`) | |
 | `TestVPPRejectsDualFormWhenUnsupported` | `internal/component/ike/dataplane/vpp_test.go` | The VPP backend fails closed rather than reporting success | |
 
 ### Boundary Tests (numeric inputs)

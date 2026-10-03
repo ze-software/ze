@@ -115,7 +115,7 @@ func installTestChild(t *testing.T, d *spdDP, child *ChildSA) {
 // testPolicyOwner is the configured peer name every Child SA in this file belongs to.
 // One PeerSession serves one peer, so every child a single session installs shares it;
 // the two-owner collision is a dataplane concern and is proven there
-// (dataplane/policy_owner_test.go).
+// (dataplane/rfc3948_policy_owner_test.go).
 const testPolicyOwner = "site-a"
 
 // testChildOnSelector builds a Child SA carrying the ordinary site-to-site selector,

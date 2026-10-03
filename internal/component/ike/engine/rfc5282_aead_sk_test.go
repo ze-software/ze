@@ -38,7 +38,7 @@ const (
 // both established SAs. The pair shares one SK hierarchy, so the initiator's send key is
 // the responder's receive key.
 //
-// It repeats establishPSK (responder_test.go) rather than parameterising it, because the
+// It repeats establishPSK (rfc7296_responder_test.go) rather than parameterising it, because the
 // group is the one thing the two differ by and establishPSK is the fixture a dozen other
 // tests already run: several sessions share this checkout, and a shape change there is a
 // change to their fixture rather than to this file.

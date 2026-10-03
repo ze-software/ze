@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,8 +10,8 @@
       "note": "Every path that sets an SPI Ze puts in an ESP header is covered both ways. Own SPI: TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded, sixth returned after exactly 6 reads). Peer SPI Ze sends on: initiator IKE_AUTH (TestRFC3948OutboundESPSPIIsNeverZero, SAr2 SPI 0 not established, no ESP state), responder SAi2 (TestResponderRefusesPeerSPIZero / TestResponderUsesPeerSPI), rekey request (TestChildRekeyRequestRefusesPeerSPIZero / UsesPeerSPI) and rekey response (TestChildRekeyResponseRefusesPeerSPIZero / UsesPeerSPI): SPI 0 refused with no Child SA and no ESP state, 0x0a0b0c0d installed as the outbound SPI. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions.",
       "requirement_sha": "96eb64607ceba544",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "3c602227a7107a32",
-        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "02ddf9e8a20bddfb",
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "02ddf9e8a20bddfb",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero": "90be745644c57513",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero#2": "90be745644c57513",
         "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero": "90be745644c57513",
@@ -42,7 +43,7 @@
       "note": "Forbidden behaviour: UDP-encapsulated ESP whose source or destination port differs from the ports IKE traffic uses, which is the NAT-translated case (Section 5.2 shows IKE reaching the server as <Y,4500>). TestChildSANATTEncapPorts asserts both encap ports equal the constant transport.NATTPort (4500), which is what the code does, not what the RFC says: installChildSA (child.go) takes the peer's real IKE port only on the MOBIKE path (udpRemotePort) and otherwise falls back to 4500, so a peer whose IKE arrives from a translated port Y gets ESP on 4500 and the test stays green. The {single-polarity} marker's claim that no path produces a non-4500 port is also false for the MOBIKE path.",
       "requirement_sha": "34792a4c5764f8b4",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360"
@@ -70,10 +71,10 @@
       "note": "Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.",
       "requirement_sha": "e03b3988d738b573",
       "tests": {
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "d713aac66480f95a"
+        "internal/component/ike/transport/rfc3948_keepalive_test.go::TestNATKeepalive": "d713aac66480f95a"
       },
       "units": {
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
+        "internal/component/ike/transport/rfc3948_keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
       },
       "verdict": "enforced"
     },
@@ -81,7 +82,7 @@
       "note": "Forbidden behaviour: tunnel-mode decapsulation that takes none of the three actions, here accepting an inner packet whose source lies outside the policy's defined space. Ze takes option 1 through the kernel, so the proof is the selector Ze installs: TestChildInboundPolicyDefinesTheValidInnerSourceSpace asserts the inbound policy is SPActionProtect with Src == the negotiated remote selector 10.2.0.0/24, and the child_test.go unit asserts inPol.Src == NegotiatedTSr; a wider or wrong source selector goes red (discrimination record on childPolicyParams). Options 2 and 3 are alternatives the RFC leaves to local policy. Single-polarity marker present.",
       "requirement_sha": "5cc3af212139b3f1",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "02ddf9e8a20bddfb",
         "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "5680d85ad80fc850"
       },
       "units": {
@@ -111,7 +112,7 @@
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected": "5d3f2966bcedeea9",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT": "5d3f2966bcedeea9",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT": "5d3f2966bcedeea9",
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "d713aac66480f95a",
+        "internal/component/ike/transport/rfc3948_keepalive_test.go::TestNATKeepalive": "d713aac66480f95a",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "2c1dae638cc540d2",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "2c1dae638cc540d2"
       },
@@ -120,7 +121,7 @@
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeKeepaliveWhenNATDetected": "f0e85ce81a7d1d4e",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT": "1dc4fec68dce7cbe",
         "internal/component/ike/engine/rfc3948_keepalive_need_test.go::TestRFC3948NoKeepaliveWithoutDetectedNAT": "4da9d6250fe0f55c",
-        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470",
+        "internal/component/ike/transport/rfc3948_keepalive_test.go::TestNATKeepalive": "a170321f204d8470",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948KeepaliveIdleWindowNeverExceedsM": "02f299727c51f363",
         "internal/component/ike/transport/rfc3948_keepalive_window_test.go::TestRFC3948UnsetKeepaliveIntervalFallsBackToM": "0f102284c2310616"
       },
@@ -139,15 +140,15 @@
       "note": "Ze disallows the conflicting connection (policyOwners.claim, dataplane/policy_owner.go): a transport-mode claim is refused when a DIFFERENT owner holds a transport-mode selector that overlaps it (same dir/if_id, overlapping prefixes, protocol any-or-equal, masked ports agreeing). Owner is the configured peer name and a peer holds one live IKE SA (a second client on one peer config replaces the first), so two concurrent clients behind one NAT are two owners. Negative TestRFC3948TransportConflictingConnectionIsDisallowed: second client's overlapping transport claim (any vs tcp/80, tcp/80 vs any, inbound tcp-any vs tcp/80) at one NAT address refused with TransportSelectorConflictError naming both, no record kept; red at HEAD by reading (identical-key check only). Positive TestRFC3948TransportDisjointConnectionsAreAdmitted: disjoint descriptions (tcp/80 vs tcp/443, tcp vs udp) admitted, same client's overlap admitted. Supplementary: TestPolicyOwnerRefusesASecondPeerOnOneSelector (identical selector refused) and TestPolicyOwnerSeparatesDistinctSelectors (tunnel-mode identity bounded by selector), prose now narrowed to what they assert. Pass 2: TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted admits clients at a different NAT address with overlapping descriptions both directions; judge forced prefixesOverlap to true (go test -overlay) and both subtests went red. Tunnel mode not being compared is not exercised and is not the obligation. Records are whole-body panic breaks of claim.",
       "requirement_sha": "fd1e619290abf417",
       "tests": {
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "81c0ba611fffe9f3",
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "81c0ba611fffe9f3",
+        "internal/component/ike/dataplane/rfc3948_policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "81c0ba611fffe9f3",
+        "internal/component/ike/dataplane/rfc3948_policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "81c0ba611fffe9f3",
         "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted": "d254630fc537ebb4",
         "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportConflictingConnectionIsDisallowed": "d254630fc537ebb4",
         "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportDisjointConnectionsAreAdmitted": "d254630fc537ebb4"
       },
       "units": {
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "686f1eed84057d8e",
-        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "9001cc1bf9b56c6f",
+        "internal/component/ike/dataplane/rfc3948_policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "686f1eed84057d8e",
+        "internal/component/ike/dataplane/rfc3948_policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "9001cc1bf9b56c6f",
         "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted": "f233dad440704d31",
         "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportConflictingConnectionIsDisallowed": "fd18651adff48d5a",
         "internal/component/ike/dataplane/rfc3948_transport_conflict_test.go::TestRFC3948TransportDisjointConnectionsAreAdmitted": "25e726fc63d847e7"

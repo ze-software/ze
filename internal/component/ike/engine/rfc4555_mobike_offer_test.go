@@ -1,6 +1,6 @@
 // Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- MOBIKE negotiation in IKE_AUTH
 // Related: mobike_test.go -- the single-IKE_AUTH negotiation and the offer's empty data
-// Related: auth_test.go -- testSAWithGCMKeys and the EAP-mode IKE_AUTH request
+// Related: rfc7427_auth_test.go -- testSAWithGCMKeys and the EAP-mode IKE_AUTH request
 //
 // VALIDATES: RFC 4555 Section 3.2, the offer sits in the IKE_AUTH message carrying the
 // SA payload when EAP spreads IKE_AUTH over several exchanges.

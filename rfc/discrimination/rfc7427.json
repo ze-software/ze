@@ -4,7 +4,7 @@
     {
       "rid": "RFC7427-3-4",
       "polarity": "positive",
-      "unit": "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14",
+      "unit": "internal/component/ike/engine/rfc7427_auth_test.go::TestAuthX509UsesMethod14",
       "unit-sha": "20c22b548e125c0e",
       "claim-sha": "211ed16e6810b816",
       "route": "revert",

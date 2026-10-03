@@ -1,5 +1,5 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- encrypted MOBIKE exchanges.
-// Related: responder_test.go, rfc7296_retransmit_test.go -- PSK and UDP fixtures.
+// Related: rfc7296_responder_test.go, rfc7296_retransmit_test.go -- PSK and UDP fixtures.
 package engine
 
 import (

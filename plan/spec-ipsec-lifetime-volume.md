@@ -158,9 +158,9 @@ range, and carry those bounds into the schema and boundary tests.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLifetimeStateSoftBytes` | `internal/component/ike/engine/rekey_test.go` | byte soft-expiry triggers | |
-| `TestLifetimeStateSoftPackets` | `internal/component/ike/engine/rekey_test.go` | packet soft-expiry triggers | |
-| `TestLifetimeFirstLimitWins` | `internal/component/ike/engine/rekey_test.go` | earliest of time/byte/packet triggers | |
+| `TestLifetimeStateSoftBytes` | `internal/component/ike/engine/rfc7296_rekey_collision_test.go` | byte soft-expiry triggers | |
+| `TestLifetimeStateSoftPackets` | `internal/component/ike/engine/rfc7296_rekey_collision_test.go` | packet soft-expiry triggers | |
+| `TestLifetimeFirstLimitWins` | `internal/component/ike/engine/rfc7296_rekey_collision_test.go` | earliest of time/byte/packet triggers | |
 | `TestESPGroupVolumeParse` | `internal/component/ike/ipsec/config_test.go` | uint64 life-bytes/packets parsed, no truncation | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)

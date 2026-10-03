@@ -405,7 +405,7 @@ with no proof of life". That is a change in a documented config leaf's meaning
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (fill during design) | `internal/component/ike/engine/dpd_test.go` | (fill during design) | |
+| (fill during design) | `internal/component/ike/engine/rfc7296_dpd_liveness_test.go` | (fill during design) | |
 
 **Known constraint on the test plan.** Any new test must carry
 `RFC requirement: RFC7296-2.4-2` in both polarities: one asserting the probe is
