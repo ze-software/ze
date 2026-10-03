@@ -104,20 +104,24 @@ kernel: `CONFIG_PPP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP`, and
 `CONFIG_L2TP_V3`. The shared runtime proof kernel also keeps `CONFIG_PPPOE`
 built in for PPPoE evidence. The pinned upstream gokrazy kernel is not assumed
 to provide these options.
-Build the repo-local kernel before building an appliance intended to terminate
-L2TP subscribers:
+Build the repo-local runtime kernel when these capabilities are required:
 
 ```bash
 ze appliance kernel --target runtime --arch amd64
-ze appliance build edge-01
 ```
 
 Select the QEMU builder or arm64 explicitly when needed:
 
 ```bash
 ze appliance kernel --target runtime --arch arm64 --builder qemu
-ze appliance build edge-arm64
 ```
+These commands build the kernel artifact; they do not select it for
+`ze appliance build`, which retains the pinned upstream kernel. A custom kernel
+package is selected explicitly through `ze.gok.kernel-package` when using
+`./le build gokrazy` with a repository-local `--parent_dir`. The deployment
+proof below resolves and supplies its package through that explicit route.
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
+<!-- source: internal/le/test/deployment/gokrazyimage.go -- buildGokrazyImage -->
 
 `ze appliance kernel` calls the Go driver in
 `internal/appliance/kernelbuilder`. The driver reads
@@ -389,15 +393,13 @@ builds in one checkout use separate prepared instances.
 <!-- source: internal/appliance/kernelargs.go -- resolveBuildParentDir -->
 <!-- source: internal/appliance/instance/prepare.go -- Prepare -->
 
-Build a verified local runtime kernel before the image when required:
-
-```
-ze appliance kernel --target runtime --arch amd64
-ze appliance build edge-01
-```
-
-The kernel replacement is written into the prepared copy only, so nothing in
-the source tree needs to be reverted.
+Kernel selection is explicit, not inferred from a previous kernel build.
+`ze appliance build` keeps the pinned `github.com/rtr7/kernel`.
+For a custom kernel package, `./le build gokrazy` reads
+`ze.gok.kernel-package` and passes it to instance preparation. Only that
+explicit replacement is written into the prepared copy; it does not change
+the checked-in pin or later builds that omit the setting.
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- prepareArgs -->
 <!-- source: internal/appliance/instance/prepare.go -- replaceKernel -->
 
 

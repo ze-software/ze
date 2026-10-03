@@ -51,6 +51,17 @@ Default nftables logging requires built-in `CONFIG_NF_LOG_SYSLOG` as well as
 The runtime manifest and compiled floor require both symbols.
 <!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
 
+TCP-MD5 sessions require built-in `CONFIG_TCP_MD5SIG`. The runtime fragment
+requests it and the runtime manifest verifies the emitted value. Ze configures
+the socket through `setTCPMD5Sig`; a kernel without this feature refuses that
+socket option with `ENOPROTOOPT`, before a signed connection can start. Linux
+7.2 selects its built-in `CRYPTO_LIB_MD5` and `CRYPTO_LIB_UTILS` dependencies
+from `TCP_MD5SIG`; enabling the separate `CRYPTO_MD5` module is not the fix.
+<!-- source: internal/core/network/md5_linux.go -- setTCPMD5Sig -->
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_TCP_MD5SIG -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_TCP_MD5SIG -->
+
+
 ## Decisions
 
 - The registry is open. Adding a profile is adding two files, not editing a
