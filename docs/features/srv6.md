@@ -11,9 +11,11 @@
 <!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
 
 Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252),
-extracts SRv6 SIDs, validates them, and programs ingress encapsulation into the
-FIB. Static route configuration and `update text` can also advertise an explicit
-Service SID. Ze does not allocate local SIDs or install egress endpoint behaviors.
+extracts SRv6 SIDs, validates them, and programs Linux ingress encapsulation.
+The VPP backend does not yet install the SR policy required for its steering
+request. Static route configuration and `update text` can also advertise an
+explicit Service SID. Ze does not allocate local SIDs or install egress endpoint
+behaviors.
 
 | Feature | Description |
 |---------|-------------|
@@ -26,9 +28,9 @@ Service SID. Ze does not allocate local SIDs or install egress endpoint behavior
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
-| Propagation | PrefixSID preserved on zero-copy forward; when the next-hop changes only the SRv6 Service TLVs (types 5 and 6) are removed and every other TLV (Label-Index, Originator SRGB, unknown types) is kept byte for byte, the attribute leaving only when no TLV remains; stripped whole at the SR domain boundary |
+| Propagation | Label-Index Reserved and Flags are cleared on every transmission, including relay. Originator SRGB and unknown TLVs remain byte-identical. A next-hop change removes only the SRv6 Service TLVs (types 5 and 6), with the whole attribute leaving if no TLV remains; the SR domain boundary strips it whole |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
-| VPP FIB | SR steering policy via GoVPP `sr_steering_add_del` |
+| VPP FIB | Incomplete: `sr_steering_add_del` is issued, but the required SR policy and local binding SID are not installed |
 
 ## Configuration
 
@@ -59,9 +61,11 @@ part of the same SR domain, and leave both unset on every other EBGP neighbor.
 Set neither on an IBGP peer: the section governs propagation to other ASes, so
 it does not reach a peer in this one.
 
-No additional configuration is needed for IBGP sessions or for FIB programming.
-When an SRv6 SID is present on a best-path route and the SID is resolvable,
-the FIB backend programs the encapsulation automatically.
+No additional configuration is needed for IBGP sessions or for Linux FIB
+programming. When an SRv6 SID is present on a best-path route and the SID is
+resolvable, the Linux backend programs the encapsulation automatically. VPP
+steering alone does not provide that encapsulation; its policy-installation
+defect remains open.
 
 ### Explicit Service SID advertisement
 
@@ -153,12 +157,20 @@ Route selected for a destination peer
   |
   v
 prefixSIDAllowedTo(isIBGP, propagate-srv6-prefix-sid)
-  |  true  -> attr 40 goes out unchanged
+  |  true  -> attr 40 is retained, with Label-Index transmit fields cleared
   |  false -> attr 40 is removed for this peer alone
   v
 Forward rails:     applyFactsPrefixSID records an attribute suppression
 Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 ```
+
+The final session writers clear the Label-Index Reserved octet and both Flags
+octets in their private outgoing buffer after export policy (RFC 8669 Section
+3.1). This applies to forwarded routes as well as originated routes, without an
+extra buffer or a change to the borrowed received UPDATE. The Section 3.2
+unchanged-propagation rule applies specifically to Originator SRGB: its bytes
+are never normalized on relay.
+<!-- source: internal/component/bgp/reactor/session_prefix_sid.go -- clearTransmittedLabelIndex -->
 
 <!-- source: internal/component/bgp/reactor/forward_prefix_sid.go -- prefixSIDAllowedTo -->
 
