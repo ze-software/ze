@@ -1,5 +1,8 @@
 {
   "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7752-3.1-1": {
@@ -81,8 +84,8 @@
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "58d7f6ee712871b3",
         "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "58d7f6ee712871b3",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "ac9195f646a95bc1",
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "600df28992081178",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "600df28992081178"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "dd48177406bb8a3d",
@@ -109,7 +112,7 @@
       "note": "{single-polarity: positive} carried on the row: the ordering duty is the sender's. Forbidden: node descriptor sub-TLVs out of ascending type order. TestRFC7752NodeDescriptorSubTLVsAscending fails unless NodeDescriptor.WriteTo emits exactly 512, 513, 514, 515, 516, 517 in that order. The native exporter builds its node descriptors through ls.NodeDescriptor (ls_export exportNodeID), so the asserted encoder is the one production uses.",
       "requirement_sha": "decf334123c17969",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "600df28992081178"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "2be55b191351f5b7"
@@ -120,7 +123,7 @@
       "note": "rejudge 2026-09-30: new isis units drive the real widening in bgpls_export.go linkAttribute (IS-IS sub-TLV 18, 3 octets, into TLV 1092): 0a0b0c -> 000a0b0c (+) and ffffff -> 00ffffff (-). Judge break (copy into v[0:3]) turns both red; revert records observed red. Marker removed; nlri/ls TestRFC7752TEDefaultMetricZeroPadded keeps its positive tag.",
       "requirement_sha": "c0fcdb0b34ec6863",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "ac9195f646a95bc1",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "600df28992081178",
         "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "9e2e5fbb0bf50c3f",
         "internal/plugins/isis/bgpls_export_rfc7752_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "9e2e5fbb0bf50c3f"
       },

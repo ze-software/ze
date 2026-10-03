@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-01",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -88,7 +89,7 @@
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "3b372d5656a15e2d",
         "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "3b372d5656a15e2d",
         "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "67323a140596dd23",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "76924e9679dfc095",
         "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760CorrectMPReachRaisesNoPeerDown": "c7a9a0b59e5e3b02",
         "internal/component/bgp/reactor/rfc4760_peer_down_link_test.go::TestRFC4760IncorrectMPReachRaisesThePeerDownThatClearsTheRIB": "c7a9a0b59e5e3b02",
         "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes": "1abec3c0a7939e9c",

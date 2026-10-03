@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -9,7 +10,7 @@
       "note": "The positive now drives runSession, the function startSessionForAdj runs on the connection ze dialed (ze is always the active LSR), with a silent peer: the first PDU on the wire must be ze's Initialization, carrying ze's LDP Identifier in the header and the peer's as receiver. It fails if runSession stops sending the Initialization, sends something else first, or waits for the peer (observed red with runSession broken). The negative is a consequence guard rather than a violating input: a session that never sent its own Initialization does not go operational on the peer's. The passive-role clause of the same RFC sentence is outside this row and recorded as a gap on RFC5036-2.5.1-3.",
       "requirement_sha": "400b56f09eddd61f",
       "tests": {
-        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleInitiatesNegotiation": "aba0f6ca177acb29",
+        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleInitiatesNegotiation": "ae9e641bab4b2401",
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "e896d95bc2804911"
       },
       "units": {
@@ -36,7 +37,7 @@
       "requirement_sha": "8dacd29a7ef3b171",
       "tests": {
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "e896d95bc2804911",
-        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "b287aaf3bd7ef063"
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime": "c0aa8fdb104978d5"
       },
       "units": {
         "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "49d1690fd38aa1b4",
@@ -48,8 +49,8 @@
       "note": "Positive: through runSession in the active role, an acceptable peer Initialization (KeepAlive Time 30) is answered by a KeepAlive as the next PDU, and the peer's own KeepAlive then makes the session operational (awaitOperational; RFC 5036 2.5.4 OPENSENT -> OPENREC -> OPERATIONAL since the c29 R4 fix). Negative: nothing follows ze's Initialization for 300ms while the peer has sent none (the pre-fix unconditional establishment KeepAlive fails here, observed red against HEAD register.go), and an unacceptable Initialization (KeepAlive Time 0) draws a Notification, never a KeepAlive, and no operational state. The recorded break for the negative is rejectInit; the silence half was confirmed red by the judge with HEAD runSession overlaid. Re-judged 2026-10-02 (c29 judge): only the positive's tail changed, from an immediate operational check to the peer KeepAlive plus the same operational assertion.",
       "requirement_sha": "7c64d8cbb5db8332",
       "tests": {
-        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive": "aba0f6ca177acb29",
-        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit": "aba0f6ca177acb29"
+        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive": "ae9e641bab4b2401",
+        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit": "ae9e641bab4b2401"
       },
       "units": {
         "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive": "50dc4121e6675f34",
@@ -61,8 +62,8 @@
       "note": "Positive: through runSession, an Initialization with KeepAlive Time 0 draws Session Rejected/Bad KeepAlive Time (0x80000018, a Session Rejected parameters code of RFC 5036 section 3.9) naming the Initialization's id and type, then end of file on the peer end, and no operational state. The second case (Protocol Version 2) draws Bad Protocol Version, which section 3.5.1.2.1 names rather than a Session Rejected code; it proves the close, not this row's status code. Negative: an acceptable Initialization draws a KeepAlive and the connection stays open for a periodic KeepAlive. Only KeepAlive Time and Protocol Version are refusable today; Max PDU Length and advertisement-mode refusals are never owed by ze's acceptance rules.",
       "requirement_sha": "6a8dd9720a00bf0a",
       "tests": {
-        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleAcceptableInitKeepsConnection": "aba0f6ca177acb29",
-        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed": "aba0f6ca177acb29"
+        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleAcceptableInitKeepsConnection": "ae9e641bab4b2401",
+        "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed": "ae9e641bab4b2401"
       },
       "units": {
         "internal/plugins/ldp/establishment_rfc5036_test.go::TestRFC5036ActiveRoleAcceptableInitKeepsConnection": "8ad5eff96f3a0127",
@@ -244,8 +245,8 @@
       "note": "TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection reads the Initialization ze sends and checks D=0 with PVLim 0; TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection gives EncodeInit a limit of 7 and checks 0 reaches the wire beside D=0 and 7 beside D=1.",
       "requirement_sha": "4f722a9ee8016940",
       "tests": {
-        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "b287aaf3bd7ef063",
-        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection": "b287aaf3bd7ef063"
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "c0aa8fdb104978d5",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection": "c0aa8fdb104978d5"
       },
       "units": {
         "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "af529b72d5feed7b",

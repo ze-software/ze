@@ -1,13 +1,14 @@
 {
   "audited": "2026-10-02",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8050-4.1-1": {
       "note": "rejudge 2026-10-02 (c33 judge): + TestRFC8050AddPathRIBEntryFollowsFigure1 compares WriteRIBEntries add-path output with the literal Figure 1 octets (Peer Index 00 03, Originated Time 5f 5e 10 00, Path Identifier 01 02 03 04, Attribute Length 00 04, attributes) and reads the same octets through DecodeRIBRecord under all four AFI/SAFI-specific add-path subtypes 8-11; - TestRIBRecordRoundTrip (base subtype 2 reads no Path Identifier). Literal octets, not a symmetric round trip, so a misplaced or mis-sized field on either side goes red. Judge break: decodeRIBEntries reading only the low 16 bits of the Path Identifier turns the new unit red in all four subtypes while HEAD TestRIBRecordAddPathRoundTrip stays green. Does not depend on add-path NLRI parsing (the RIB prefix sits in the record header, no Path ID).",
       "requirement_sha": "0e4e298f95ef5404",
       "tests": {
-        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "a3cf168d6cde55bd",
-        "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "a3cf168d6cde55bd",
-        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "69f4bce65648ccd5"
+        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "fb2e8a7edf55af3c",
+        "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "fb2e8a7edf55af3c",
+        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "9b52224532bd0e0b"
       },
       "units": {
         "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "8e03d227ce4c4eb5",
@@ -20,8 +21,8 @@
       "note": "Forbidden behaviour: reading RIB_GENERIC_ADDPATH (subtype 12) RIB Entries as redefined (a Path Identifier in each entry), or losing the Path Identifier that belongs in the raw NLRI. TestRIBGenericAddPathRoundTrip hand-builds the bytes the RFC describes (Path ID 42 at the head of the NLRI blob, then an entry with Peer Index, Originated Time, Attribute Length, attributes and no Path ID) and requires rec.NLRI == nlri and Entries[0].Attributes == attrs; a decoder that read a 4-octet Path ID from the entry would take 0x0004 plus attribute bytes as the path id and misparse the attribute length, so the attribute comparison or the decode goes red. The negative TestRIBGenericRoundTrip requires the base subtype 6 NLRI to decode verbatim. Ze writes no subtype 12 record (internal/mrt/encode.go writes none; internal/mrt/decode.go is the only producer), so the decode path is the whole surface.",
       "requirement_sha": "6872cc51eafebe46",
       "tests": {
-        "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "a3cf168d6cde55bd",
-        "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "a3cf168d6cde55bd"
+        "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "fb2e8a7edf55af3c",
+        "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "fb2e8a7edf55af3c"
       },
       "units": {
         "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "9e0cd914d419a246",
@@ -46,8 +47,8 @@
       "note": "rejudge 2026-10-02 (c33 judge): {single-polarity: positive} (Figure 1 has no alternative encoding to refuse). TestRFC8050AddPathRIBEntryFollowsFigure1 pins the 32-bit field in network order by literal octets 01 02 03 04 on write and value 0x01020304 on read; four distinct octets and a value above 0xFFFF expose a 16-bit width or a reversed order. Judge break: a 16-bit read of the field turns it red, HEAD TestRIBRecordAddPathRoundTrip (PathID 1 and 2) stays green, which was the earlier gap.",
       "requirement_sha": "9e616d9919bd82c6",
       "tests": {
-        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "a3cf168d6cde55bd",
-        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "69f4bce65648ccd5"
+        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "fb2e8a7edf55af3c",
+        "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "9b52224532bd0e0b"
       },
       "units": {
         "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "8e03d227ce4c4eb5",

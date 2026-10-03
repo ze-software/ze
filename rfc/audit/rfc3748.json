@@ -2,6 +2,7 @@
   "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -164,8 +165,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData": "e00c0c2b74158a14",
@@ -224,8 +225,8 @@
       "requirement_sha": "5aa99365ea6145f5",
       "tests": {
         "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP": "c21a5491f2e72d68",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP": "8ee29aaf0b5ed24d",
@@ -238,8 +239,8 @@
       "note": "Forbidden: a peer Response whose Identifier differs from the outstanding Request's. TestRFC3748ResponseEchoesRequestIdentifier fails on resp.Identifier != requests[i].Identifier for every Response of a full MS-CHAPv2 flight, and on an unusual Identifier 0xC3 not echoed (catches a peer that counts or uses a constant).",
       "requirement_sha": "6b9af45edc5d0c78",
       "tests": {
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "f71417d9cb1b1eb2",
@@ -251,8 +252,8 @@
       "note": "Clauses: the Response Type matches the Request; or it is a Nak for an unacceptable Type. Clause 1: resp.Type != requests[i].Type fails over the flight. Clause 2 and the forbidden case (answering an unacceptable Type with a non-Nak): a Type-99 Request fails on res.Err, no Response, Response.Type != TypeNAK, or Type-Data != [MS-CHAPv2].",
       "requirement_sha": "523536c2d5fae6d1",
       "tests": {
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "cbef4f28c94dea38",
@@ -337,8 +338,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses": "bb1d3b2d7c7bbaff",
@@ -352,8 +353,8 @@
       "note": "Forbidden: the waiting peer silently discarding the Success or the Failure. Success: peerFinal.Done false or an all-zero MSK fails. Failure: peerFinal.Err nil or Done true fails. Both packets of the quoted 'either of them' are covered.",
       "requirement_sha": "99bd5133405b5922",
       "tests": {
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "9421790d202148f2",
@@ -395,8 +396,8 @@
       "note": "Forbidden: a Request of Type 3 or 254. Every Request of a full MS-CHAPv2 flight fails on req.Type == TypeNAK or TypeExpandedEAP; a Nak Response, the input a faulty authenticator would echo, must draw a Failure (out.Code != CodeFailure fails).",
       "requirement_sha": "cf5ebfb8755ad9b5",
       "tests": {
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "abe47a370e35f92a",
@@ -500,8 +501,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "cc381412c65e41bb",
@@ -551,8 +552,8 @@
       "tests": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "8ca42a58d78f22be",
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "8ca42a58d78f22be",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "9c177c3a434afad0",
-        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "9c177c3a434afad0"
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "08e46d8cbdf7058a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "08e46d8cbdf7058a"
       },
       "units": {
         "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "c20da329926c37cc",

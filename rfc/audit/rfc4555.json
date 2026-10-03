@@ -1,13 +1,14 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC4555-3.7-1": {
       "note": "Forbidden: answering an INFORMATIONAL request that carries COOKIE2 without the notification, or with altered data. internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds requires, for 8- and 64-octet cookies, that the decrypted response holds only COOKIE2 with byte-identical data (mbOnlyNotify). With no COOKIE2 it requires an empty response. internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket asserts bytes.Equal(echo, cookie) through the owner handoff, and asserts that a replay returns the identical cached response.",
       "requirement_sha": "f3a7513c231a38cf",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeOwnerDispatchRepliesFromArrivalSocket": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "0340f8e160dcb516",
@@ -20,9 +21,9 @@
       "note": "Forbidden: accepting a COOKIE2 response whose value differs from, or omits, the one sent. internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration drives the real startMobikeRequest producer. In the different and missing modes it requires out.reestablish, and it fails if f.dp.count != 0 (migration). In the match mode it requires migration (mbCheckMigration). internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2 repeats the mismatch after a path change.",
       "requirement_sha": "7e2fcf44380b4dc0",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration#2": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "7f908ffe868fa052",
@@ -35,9 +36,9 @@
       "note": "Forbidden: keeping the IKE_SA after a COOKIE2 mismatch. internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration, in the different and missing modes, requires f.local.State == StateDead and out.reestablish, and requires cleanup to remove both Child SPIs. In the match mode it requires no reestablish and a next request on the live SA. internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2 also requires teardown after a path change.",
       "requirement_sha": "811cfbeb274f9fa2",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration#2": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "7f908ffe868fa052",
@@ -50,8 +51,8 @@
       "note": "Forbidden: a host not behind a NAT moving its IKE peer address to the source of an authenticated INFORMATIONAL that carries no UPDATE_SA_ADDRESSES. internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint sends such a probe from a new address and requires the next self-initiated DPD to arrive at the old endpoint (mbReceive(t, oldTr)) and no Child migration (dp.count == 0). The negative tag asserts the response still reaches the probing path. That is a conformance check rather than a violating input, and the tag prose names it as such.",
       "requirement_sha": "960359ff6b91b7ea",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "7ef3fb7a36fc076e",
@@ -63,8 +64,8 @@
       "note": "Forbidden: a response that omits NAT_DETECTION_SOURCE_IP or NAT_DETECTION_DESTINATION_IP when the request carried them. internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint (natDetection=true) requires exactly the two notifications, with hashes over the observed response tuple, so an omitted or reversed hash goes red. With natDetection=false it requires an empty response, so no hashes are sent unsolicited.",
       "requirement_sha": "9308189a10df97b2",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "7ef3fb7a36fc076e",
@@ -76,10 +77,10 @@
       "note": "Forbidden: an address-updating message sent without NO_NATS_ALLOWED when NAT is prohibited. Ze sends two kinds, the first IKE_AUTH and the INFORMATIONAL carrying UPDATE_SA_ADDRESSES and NO_ADDITIONAL_ADDRESSES. It never sends ADDITIONAL_IP4/IP6 (startMobikeRequest, mobike.go). First IKE_AUTH: mbAuthHandshake under policy prohibit (from internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy) requires NO_NATS_ALLOWED with the actual tuple, and internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple covers the retransmission. The INFORMATIONAL update is covered by TestMobikeConfiguredNATPolicy (notification == nil goes red) and by internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange (Linux only) for original and replacement updates. Negative: allow and default policies send none.",
       "requirement_sha": "802c48f032448ae2",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthRetransmitKeepsProtectedTuple": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeConfiguredNATPolicy#2": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "89141dce87d91dd5",
@@ -93,8 +94,8 @@
       "note": "Forbidden: sending MOBIKE_SUPPORTED with non-empty data, or acting on (for example rejecting) received data. mbAuthOfferEmpty in internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation requires zero-length data, protocol 0 and no SPI on both generated IKE_AUTH offers. The request-extension-data and response-extension-data cases inject non-empty data in each direction and require that negotiation still enables COOKIE2 echo (mbOnlyNotify), which goes red if the data were not ignored.",
       "requirement_sha": "03bd59316a2d1e31",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",
@@ -106,9 +107,9 @@
       "note": "Length: mbCookieLength in TestMobikeCookie2ResponseControlsMigration fails on a generated cookie outside 8..64, TestMobikeCookie2EchoBounds rejects received 7- and 65-octet cookies. Unpredictable: TestRFC4555Cookie2IsTheRandomSourceOutput replaces crypto/rand.Reader per startMobikeRequest call with two differently seeded streams and asserts each real MOBIKE request's COOKIE2 equals the first 32 octets of its own stream, so a counter, timestamp, SA-derived value or fixed-seed PRNG goes red. The record is a whole-producer panic (reach); discrimination read from the equality assertion.",
       "requirement_sha": "022904be7182b837",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "b46b98ab9899ea69",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "4eb03203bd6f160f",
         "internal/component/ike/engine/rfc4555_cookie2_test.go::TestRFC4555Cookie2IsTheRandomSourceOutput": "e76bce0c9dc48d84"
       },
       "units": {
@@ -123,10 +124,10 @@
       "note": "Re-judged 2026-09-30 (independent judge). Clause: the MOBIKE_SUPPORTED offer is in IKE_AUTH, and with several IKE_AUTH exchanges in the message carrying the SA payload. rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA drives an EAP initiator: the first IKE_AUTH request (SA, no AUTH) decrypted off the wire carries MOBIKE_SUPPORTED, the later buildEAPResponse request carries neither SA nor the offer, and the peer's answer then enables MOBIKE. TestRFC4555NoOwnOfferNoMOBIKE is the negative for THIS row: an initiator whose own IKE_AUTH carried no offer (never built, or no migrating dataplane, checked off the wire) does not enable MOBIKE on the peer's offer (acceptMobikeOffer gates on mobike.offered). Revert records observed red on mobike.go::mobikeAuthOffer and ::acceptMobikeOffer. Single-exchange placement for both roles stays on TestMobikeAuthNegotiation. The responder's multi-exchange case is not driven end to end; its only offer site is buildAuthResponse (responder.go), the SA-carrying final response, after the SA payload unconditionally, the same builder TestMobikeAuthNegotiation asserts.",
       "requirement_sha": "02c2f816be600836",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "b46b98ab9899ea69",
-        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA": "01a1839717ac348e",
-        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555NoOwnOfferNoMOBIKE": "01a1839717ac348e"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "4eb03203bd6f160f",
+        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA": "bccb3b1b8ac7882b",
+        "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555NoOwnOfferNoMOBIKE": "bccb3b1b8ac7882b"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",
@@ -140,8 +141,8 @@
       "note": "Forbidden: a MOBIKE plus NAT-T implementation staying on port 500 for IKE_AUTH when no NAT is detected. internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation (through mbAuthHandshake) binds only NAT-T sockets, targets the port-500 stand-in at respTr-1, fails if ini.NATDetected, and requires the IKE_AUTH to arrive on respTr (mbReceive) with the non-ESP marker. Without the float the packet reaches no listener and the test goes red. Negative: internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE shows that with no NAT-T support the condition does not hold and no MOBIKE offer is made.",
       "requirement_sha": "025d761c12606c0c",
       "tests": {
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "b46b98ab9899ea69",
-        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "b46b98ab9899ea69"
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "4eb03203bd6f160f",
+        "internal/component/ike/engine/mobike_test.go::TestMobikeAuthWithoutNATTSocketKeepsBaseIKE": "4eb03203bd6f160f"
       },
       "units": {
         "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",

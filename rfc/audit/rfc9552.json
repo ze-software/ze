@@ -2,6 +2,7 @@
   "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -40,7 +41,7 @@
       "note": "Re-judged 2026-10-02 (BGP c24 judge). Both halves are now proven on the propagation rail: TestRFC9552UnknownTypesPropagateOnAForwardedUpdate drives forwardUpdateCore to an internal peer and asserts the Node NLRI (unassigned sub-TLV 700) after the MP_REACH next hop and the BGP-LS Attribute value (unassigned TLV 65000, unexpected Link TLV 1088) leave byte-identical. The negative is an R1(b) genuine negative: TestRFC9552UnknownTypesSurviveARewrittenUpdate forces a re-encode toward an external peer (AS_PATH asserted re-encoded with 65000 prepended) and asserts both halves still byte-identical. Judge overlay probe (attrEmitter.keep flipping the last octet of a kept MP_REACH_NLRI) turned both units red on the NLRI assertion; the author's probe (attrEmitter.keep dropping attribute 29) turned both red on the attribute. The HEAD framing-refusal negative was moved to RFC9552-8.2.2-10 under R1 (D-15). TestRFC7752UnknownTLVPreservedAndPropagated (ls) stays as the decoder-level positive.",
       "requirement_sha": "91e96caf09e207c3",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "ac9195f646a95bc1",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "600df28992081178",
         "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesPropagateOnAForwardedUpdate": "e441bb5b027f16f3",
         "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesSurviveARewrittenUpdate": "e441bb5b027f16f3"
       },
@@ -166,7 +167,7 @@
       "note": "single-polarity positive per row annotation; asserts the exact ascending sub-TLV sequence 512..517 from NodeDescriptor.WriteTo",
       "requirement_sha": "1b082a856151b73f",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "600df28992081178"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "2be55b191351f5b7"
@@ -362,7 +363,7 @@
       "note": "single-polarity positive per row annotation; TE Default Metric always 4 octets with zero high-order octets for narrow metrics",
       "requirement_sha": "2cf617d2e6ae56bb",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "ac9195f646a95bc1"
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "600df28992081178"
       },
       "units": {
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "de1034561975ce60"

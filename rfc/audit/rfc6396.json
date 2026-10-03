@@ -1,5 +1,9 @@
 {
   "audited": "2026-10-02",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC6396-1-1": {
@@ -19,7 +23,7 @@
       "note": "Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.",
       "requirement_sha": "bc7aa97ad7fbe9e2",
       "tests": {
-        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "6ed6559cf54841e4"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "1aea1dbe6eeaa629"
       },
       "units": {
         "internal/plugins/mrt/rfc6396_dump_test.go::TestRibSubtype": "afc6c2958382fedb"
@@ -30,7 +34,7 @@
       "note": "Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.",
       "requirement_sha": "47bf8b0aa4c0f0a7",
       "tests": {
-        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "e61180c0b2ad8e39"
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "fb2e8a7edf55af3c"
       },
       "units": {
         "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "c68177d749e81a44"
@@ -41,7 +45,7 @@
       "note": "Independent MRTJudge 2026-10-02. RFC6396 section 4.3.1: The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. TestRFC6396ViewNameUTF8 positively pins nonempty ASCII and multibyte UTF-8 literal octets and byte length on encode and independent decode; negative inputs isolate illegal leading byte, overlong form, surrogate, out-of-range code point and truncated sequence, requiring encoder error/zero count/untouched buffer and decoder error. Removing either utf8 validation fails the relevant negative assertions. TestRFC6396DumpProducerEmitsNoViewName reaches writeTableDumpV2/writePeerIndexTable and compares exact full PIT body, so invalid production name insertion cannot hide behind the old vacuous empty-string test. Retained empty-name tagged test is supplementary. Native records for both codec polarities and actual producer are present; their panic breaks prove reachability only, while the inspected assertions establish this verdict.",
       "requirement_sha": "cf8b44fb065cbe2f",
       "tests": {
-        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "e61180c0b2ad8e39",
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "fb2e8a7edf55af3c",
         "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "31a4363d23e23836",
         "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "31a4363d23e23836",
         "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName": "aa0a92dcef65f518"
@@ -58,7 +62,7 @@
       "note": "Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.",
       "requirement_sha": "a14ee59763ac83fc",
       "tests": {
-        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "6ed6559cf54841e4"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "1aea1dbe6eeaa629"
       },
       "units": {
         "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "80a64893da21da06"
@@ -73,7 +77,7 @@
         "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396TwoByteSessionRouteDumpsFourByteASPath": "0ecb81c80cd0b439",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "ef5cdafe1b9e158d",
         "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "ef5cdafe1b9e158d",
-        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "6ed6559cf54841e4"
+        "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "1aea1dbe6eeaa629"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go::TestRFC6396FourByteSessionRouteDumpsASPathUnchanged": "97f95516d8e9b6cf",

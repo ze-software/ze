@@ -1,21 +1,24 @@
 {
   "audited": "2026-09-29",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC2759-x-1": {
       "note": "Sender: the Response Value ze's peer emits has 8 zero Reserved octets (td[21:29]). Receiver: each of the 8 Reserved octets set to 1, each on a fresh copy of the authenticator at the Challenge, is refused through mschapv2Method.Process, so a check of the first octet only goes red.",
       "requirement_sha": "19a1b76c694f295d",
       "tests": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "55d5252092ae8516",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "023dc89d6ebe0a7b",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "023dc89d6ebe0a7b"
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
       },
       "units": {
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b",
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
       },
       "verdict": "enforced"
     },
@@ -23,16 +26,16 @@
       "note": "Positive: ntPasswordHash(\"clientPass\") equals the Section 9.2 PasswordHash vector and the MD4 of the exact 9.2 unicode octets. Negative: ntPasswordHash(\"\u00e9\") is the MD4 of E9 00, not of the UTF-8 C3 A9, exercising the producer. The 0-to-256-unicode-char label is a parameter type with no behaviour to assert.",
       "requirement_sha": "69da8fa59cbe7e91",
       "tests": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "55d5252092ae8516",
         "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash": "e9ded5ee76d0ba58",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash#2": "e9ded5ee76d0ba58",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "023dc89d6ebe0a7b",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "023dc89d6ebe0a7b"
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash#2": "e9ded5ee76d0ba58"
       },
       "units": {
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash": "454f054bac0ff10a",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash#2": "454f054bac0ff10a",
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector": "969273ecc59765df",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "969273ecc59765df"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PasswordHashVector#2": "969273ecc59765df",
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash": "454f054bac0ff10a",
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestNtPasswordHash#2": "454f054bac0ff10a"
       },
       "verdict": "enforced"
     },
@@ -40,8 +43,8 @@
       "note": "Positive: a wrong password draws an MS-CHAPv2 Failure whose E= is 691 and R= is 0 (both fields read), and the peer's answer draws EAP-Failure (the disconnect). Negative: a verified NT-Response ends in EAP-Success, so the Failure is the verdict, not a constant.",
       "requirement_sha": "aff45259ce2b526f",
       "tests": {
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry": "023dc89d6ebe0a7b",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry#2": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759FailureInvitesNoRetry#2": "55d5252092ae8516",
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorAcceptsMatchingNTResponse": "6fbd0fd95c351d96",
         "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759AuthenticatorRefusesWithErrorCode691": "6fbd0fd95c351d96"
       },
@@ -57,16 +60,16 @@
       "note": "Sender: the Flags octet ze's peer emits is 0 (td[53]). Receiver: Flags 1 on a fresh authenticator copy is refused through Process.",
       "requirement_sha": "20cb4974db9bb488",
       "tests": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "55d5252092ae8516",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "023dc89d6ebe0a7b",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "023dc89d6ebe0a7b"
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
       },
       "units": {
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b",
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
       },
       "verdict": "enforced"
     },
@@ -74,16 +77,16 @@
       "note": "The layout ze's peer emits is read field by field: Value-Size 49, octets 0-15 equal the peer's Peer-Challenge, octets 24-47 the NT-Response over the authenticator's real Start challenge, Name after the 49 octets. Negative: Value-Size 48 and 50 each refused on a fresh copy.",
       "requirement_sha": "3fde78ac00f0df11",
       "tests": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "55d5252092ae8516",
         "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "023dc89d6ebe0a7b",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "023dc89d6ebe0a7b"
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
       },
       "units": {
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b",
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
       },
       "verdict": "enforced"
     },
@@ -91,16 +94,16 @@
       "note": "Real path both roles: with Name DOMAIN\\user the peer sends the full Name and an NT-Response equal to the one over the bare 'user', and the authenticator accepts it; the same Response with the NT-Response computed over the domain-qualified Name is refused through Process. Removing stripDomain from either side goes red.",
       "requirement_sha": "02f4794e4a13dbac",
       "tests": {
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "55d5252092ae8516",
         "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "e9ded5ee76d0ba58",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "e9ded5ee76d0ba58",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "023dc89d6ebe0a7b",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "023dc89d6ebe0a7b"
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "e9ded5ee76d0ba58"
       },
       "units": {
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "51422ef2bf7858ab",
-        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "51422ef2bf7858ab",
         "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName": "47d95975b41d25ae",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "47d95975b41d25ae"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName#2": "47d95975b41d25ae",
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix": "51422ef2bf7858ab",
+        "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix#2": "51422ef2bf7858ab"
       },
       "verdict": "enforced"
     },
@@ -145,12 +148,12 @@
       "note": "Row re-levelled MUST->SHOULD (only keyword in the span is SHOULD; correction 2026-09-28 in rfc/corrections/rfc2759.md). Single-polarity positive: with crypto/rand.Reader substituted, the Challenge from mschapv2Method.Start carries Value-Size 16 and exactly the substituted octets, so a math/rand or time-seeded source goes red.",
       "requirement_sha": "8771a5d9ef574e84",
       "tests": {
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "f08fabdb1765636f",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "023dc89d6ebe0a7b"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "55d5252092ae8516",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "f08fabdb1765636f"
       },
       "units": {
-        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "2436afafa1bfacc8",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "b7e87708d2bae5f7"
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "b7e87708d2bae5f7",
+        "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "2436afafa1bfacc8"
       },
       "verdict": "enforced"
     },
@@ -159,7 +162,7 @@
       "requirement_sha": "b35159574d13d7a6",
       "tests": {
         "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "93404fe1a5065a94",
-        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "023dc89d6ebe0a7b",
+        "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "55d5252092ae8516",
         "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "c59064ad278415f3"
       },
       "units": {

@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7432-10-1": {
       "note": "row now quotes 'the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address', an obligation on the sender. types_test.go::TestEVPNIPAddressLength only decodes: 0/32/128 accepted, other lengths rejected. No unit re-encodes a MAC/IP route with an IPv4 or IPv6 address and asserts the length octet the encoder writes is 32 or 128, so an encoder writing the octet count (4 or 16) stays green",
@@ -18,10 +19,10 @@
       "note": "origination_test.go and bgp_routes_evpn_test.go: IMET with target:65000:100 emits the exact RT bytes; IMET with no extended community, or only a Route Origin (subtype 0x03), is refused",
       "requirement_sha": "1864bf9889184620",
       "tests": {
-        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "8d34438c7e721009",
-        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETRefusesMissingRouteTarget": "8d34438c7e721009",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "a75044c30fe875f6",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "a75044c30fe875f6"
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "8605ce648899c68f",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETRefusesMissingRouteTarget": "8605ce648899c68f",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "4621c06037bf4489",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "4621c06037bf4489"
       },
       "units": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "c11ee926c057d7b0",

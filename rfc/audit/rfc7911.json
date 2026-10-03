@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7911-2-1": {
       "note": "Tags moved to the advertising side (reactor buildFwdBody, both zero-copy and re-encode branches). Negative biases toward the violation: two sources both chose Path Identifier 1 for 10.0.0.0/24 and the two paths still leave toward one neighbor with different identifiers, read from the destination frames. Positive: one path re-advertised twice leaves under the same ze identifier, so (Prefix, Path Identifier) names that one path across UPDATEs. Receive-side storage tag (TestPeerRIB_AddPath) removed; {single-polarity} marker removed.",
@@ -18,10 +19,10 @@
       "note": "Re-judged after the 2-1 tags were added to the doc comments of the two forward_path_id_test.go units; bodies unchanged. Negative TestForwardPathIDStableAcrossUpdates requires the emitted identifier differ from the received 0xDEADBEEF; positive TestForwardPathIDsDifferForCollidingSources requires a ze-generated identifier per source path. Other gen/churn units unchanged.",
       "requirement_sha": "442640073668ac08",
       "tests": {
-        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame": "f3dfecee2242a333",
-        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt": "f3dfecee2242a333",
-        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDWithdrawCarriesTheAnnouncedValue": "f3dfecee2242a333",
-        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDsFreedOnRelayedWithdraw": "f3dfecee2242a333",
+        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDKeepsTheSourceOfARebuiltFrame": "675387040bfcf8dd",
+        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDKeptWhenOneUpdateWithdrawsAndAnnouncesIt": "675387040bfcf8dd",
+        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDWithdrawCarriesTheAnnouncedValue": "675387040bfcf8dd",
+        "internal/component/bgp/reactor/forward_path_id_churn_test.go::TestForwardPathIDsFreedOnRelayedWithdraw": "675387040bfcf8dd",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDBoundaryReceivedValues": "cbf13b4b5c120df7",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDDiffersForTwoSourcePeers": "cbf13b4b5c120df7",
         "internal/component/bgp/reactor/forward_path_id_gen_test.go::TestForwardPathIDIdenticalForEveryDestination": "cbf13b4b5c120df7",

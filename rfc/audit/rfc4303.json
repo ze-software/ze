@@ -2,6 +2,7 @@
   "audited": "2026-09-30",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -49,8 +50,8 @@
       "note": "Re-read 2026-09-29 after RFC3948-2.1-1 tag lines were added above six units of rfc4303_peer_spi_test.go; no assertion changed. Every producer of an SPI Ze sends is now proven, both polarities. Ze's own SPI (SAi2/SAr2/rekey inbound): TestGenerateESPSPISkipsTheReservedZero scripts three zero draws and pins the first non-zero, discriminated by the spi != 0 mutant. The peer's SPI Ze sends on (rfc4303_peer_spi_test.go): initiator SAr2, responder SAi2, rekey request, rekey response each refuse 0 (no establish, no Child SA, no ESP state) through the real encrypted exchange, and each positive pins the exact peer SPI 0x0a0b0c0d on the outbound state; the same edited message on both sides isolates the SPI. Initiator negative also catches removal of the createFirstChildSA refusal (it asserts initiatorFirstChildSA fails with no ESP state). Responder negative's outSPI^1 break is the silent-substitution defect the initiator had; deleting either redundant refusal alone leaves it green, removing both reddens it. OSPF: TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295. Caveats, not gaps: TestGenerateESPSPI (100 random draws, P(0)~2^-32) cannot fail on its own, and TestIPsecSPIBoundary's 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule; both are redundant with the discriminating tests above.",
       "requirement_sha": "c418a1e1b70a05e8",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "3c602227a7107a32",
-        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "02ddf9e8a20bddfb",
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "02ddf9e8a20bddfb",
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero": "a9f7e73ec596693c",
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI": "a9f7e73ec596693c",
         "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero": "a9f7e73ec596693c",
@@ -135,7 +136,7 @@
       "note": "Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).",
       "requirement_sha": "9cdd473899bd3f27",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "171cce460fcbce06"
@@ -146,7 +147,7 @@
       "note": "Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin > 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.",
       "requirement_sha": "16584ecb77b304f8",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "3c602227a7107a32",
+        "internal/component/ike/engine/child_test.go::TestChildSAReplayRequiresIntegrity": "02ddf9e8a20bddfb",
         "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowCarriesIntegrity": "01b10f93731e39a0",
         "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused": "01b10f93731e39a0"
       },
@@ -161,7 +162,7 @@
       "note": "Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.",
       "requirement_sha": "9f0c722acb1267d6",
       "tests": {
-        "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "3c602227a7107a32"
+        "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "02ddf9e8a20bddfb"
       },
       "units": {
         "internal/component/ike/engine/child_test.go::TestChildSAReplayWindowDefault": "171cce460fcbce06"

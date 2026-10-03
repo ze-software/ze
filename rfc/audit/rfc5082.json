@@ -1,5 +1,6 @@
 {
   "audited": "2026-10-03",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5082-3-2": {
       "note": "Re-read 2026-09-27 against the \u00a76.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.",
@@ -45,8 +46,8 @@
       "requirement_sha": "bd0ad5653d46a163",
       "tests": {
         "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "020e378ebd5b0863",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "58c73a28cf4589b4",
-        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "58c73a28cf4589b4"
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "dc6c6456da36476d",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "dc6c6456da36476d"
       },
       "units": {
         "internal/component/gtsm/rfc5082_gtsm_rfc5082_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "06231ae097a3e15c",

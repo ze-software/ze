@@ -3,6 +3,7 @@
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -11,16 +12,16 @@
       "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). D-8 fixed: tlsClientConfig answers every certificate_request through GetClientCertificate (answerCertificateRequest, peer.go), so the peer no longer drops to an empty certificate_list when the request names another CA. Positive: TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames reads the TLS 1.2 peer flight off the wire after a certificate_request naming a CA other than the peer certificate's issuer: a certificate message whose first entry is the configured DER, and a certificate_verify (red before the fix, record on answerCertificateRequest); TestRFC5216PeerFlightAnswersTheCertificateRequest keeps the exact compliant flight. Negative (R1 a, non-compliant form on the wire): TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate configures a TRUSTED client cert, empties the peer's answer after the TLS client starts, asserts the empty certificate_list and absent certificate_verify on the wire, and the authenticator sends no EAP-Success, does not succeed or complete its handshake, and refuses with an error that is not a certificate verification failure. Privacy (Section 2.1.4) is not implemented, so the unless-clause never applies. Every tagged unit carries an observed-red record.",
       "requirement_sha": "93cfbce29401fdaf",
       "tests": {
+        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "95ff448a085f9fb0",
         "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "24154b07f453f130",
         "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
-        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "95ff448a085f9fb0",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "17b33557ac5ec62f",
         "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "0bd9dc5fe4a89761"
       },
       "units": {
+        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "c18bebd2e0f28023",
         "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
         "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "c18bebd2e0f28023",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
         "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "f8a0c918ccde8362"
       },
@@ -155,8 +156,8 @@
       "note": "Forbidden: the server answering the peer's alert with anything but EAP-Failure, or later than the next packet. TestRFC5216ServerRepliesEAPFailureToPeerAlert fatals if no Failure is sent, errors on any Success, and errors unless failureAt == alertAt+1. Negative: TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate errors if a mutually authenticated conversation draws any Failure.",
       "requirement_sha": "82aa7318bed7b2aa",
       "tests": {
-        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "62aa13fd49a71dab",
-        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "62aa13fd49a71dab"
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2d2ff094ce07cd34",
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "2d2ff094ce07cd34"
       },
       "units": {
         "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2dd0fc2cca5c3428",
@@ -184,7 +185,7 @@
         "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc",
         "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "e222ad1f56734ddc",
         "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure": "17b33557ac5ec62f",
-        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "62aa13fd49a71dab"
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "2d2ff094ce07cd34"
       },
       "units": {
         "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99",
@@ -199,8 +200,8 @@
       "note": "Forbidden: the packet before EAP-Success is not an EAP-TLS Request carrying change_cipher_spec then the Finished handshake record, or a rejected peer receives that flight. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess fatals on a non-Request/non-TLS packet or a bare ACK there, errors unless record types are [change_cipher_spec, handshake], and requires equal non-zero MSKs. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any change_cipher_spec record sent to a rejected peer.",
       "requirement_sha": "9697324aefd997fd",
       "tests": {
-        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "6bc974f99c7a9efb",
-        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "6bc974f99c7a9efb"
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "60bd713e09c87b21",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
       },
       "units": {
         "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
@@ -225,8 +226,8 @@
       "note": "Forbidden: the peer answering the server's closing flight with anything but a no-data EAP-TLS Response. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless bareEAPTLSResponse(peerSent[successAt-1]). Negative: TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse errors if a peer refusing the server sends the no-data Response as its last packet.",
       "requirement_sha": "009b12e84674488f",
       "tests": {
-        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "6bc974f99c7a9efb",
-        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "6bc974f99c7a9efb"
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "60bd713e09c87b21",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
       },
       "units": {
         "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "4bc306464590658a",
@@ -238,8 +239,8 @@
       "note": "Forbidden: the server answering the peer's no-data Response with anything but EAP-Success. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless serverSent[successAt].Code == CodeSuccess directly after that Response. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any Success to a rejected peer.",
       "requirement_sha": "c1f354ff6707f33a",
       "tests": {
-        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "6bc974f99c7a9efb",
-        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "6bc974f99c7a9efb"
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "60bd713e09c87b21",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
       },
       "units": {
         "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
@@ -346,13 +347,13 @@
       "note": "Unchanged after comment-only edits. Single-polarity positive (row marker): with the literal label 'client EAP encryption' and the 128-octet export read from the TLS session, the authenticator MSK equals octets 0-63 and the EMSK 64-127 (TLS 1.2); MSKs identical on both ends. Recorded.",
       "requirement_sha": "d3491a145ec72315",
       "tests": {
-        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
-        "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "3990b6e26fb0e890"
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+        "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "676e9b7c88aca2a8"
       },
       "units": {
-        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
         "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "e482c403b597818e"
       },
       "verdict": "enforced"
@@ -361,12 +362,12 @@
       "note": "Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): TestRFC5216BothRolesInstallAVersionFloor reads the peer tls.Config tlsClientConfig builds, MinVersion TLS 1.2; the handshake unit asserts the negotiated version >= TLS 1.0. Recorded.",
       "requirement_sha": "3f2b411fe539e697",
       "tests": {
-        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
-        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130"
       },
       "units": {
-        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a"
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae"
       },
       "verdict": "enforced"
     },
@@ -374,12 +375,12 @@
       "note": "Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): the tls.Config newTLSMethod installs carries MinVersion TLS 1.2; the handshake unit asserts the authenticator's negotiated version >= TLS 1.0. Recorded.",
       "requirement_sha": "017cf68000dadaf9",
       "tests": {
-        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
-        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e"
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "5138149787127b3e",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130"
       },
       "units": {
-        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a"
+        "internal/core/eap/rfc5216_clause_test.go::TestRFC5216BothRolesInstallAVersionFloor": "82bff1fc3fc5db6a",
+        "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae"
       },
       "verdict": "enforced"
     },

@@ -588,7 +588,7 @@ func TestRFC6793UnreadableASPathRefusesReconciliation(t *testing.T) {
 // every reader parses as 4-byte and so mis-decodes into wrong AS numbers.
 //
 // The MRT-side test for this clause, TestDumpV2RIBEntryASPathIs4Byte
-// (internal/plugins/mrt/rfc6396_dump_test.go), hands the dump visitor an AS_PATH it
+// (internal/plugins/mrt/dump_test.go), hands the dump visitor an AS_PATH it
 // built 4-byte itself and asserts it comes back 4-byte, so it measures the
 // encoder's transparency rather than this widening.
 //

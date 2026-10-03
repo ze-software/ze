@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -98,7 +99,7 @@
       "requirement_sha": "3f738c50ccd28c69",
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_SingleFamily": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "a3ee5fac7a4f45e2",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC9494LLSTExpiryDeletesTheFamilysStaleRoutes": "bed1ab02f030c632",
         "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLSTExpiryAfterReestablish": "53201cebd4f22233"
       },
       "units": {

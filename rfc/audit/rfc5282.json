@@ -1,12 +1,13 @@
 {
   "audited": "2026-09-30",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5282-3-1": {
       "note": "Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).",
       "requirement_sha": "6a210d63f3f55d0c",
       "tests": {
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "a8ceaafea2f09fa7",
@@ -18,8 +19,8 @@
       "note": "Forbidden: an IV other than eight octets. Sender: TestRFC5282AEADSendIVIsEightOctets opens ze's LastSentMsg with the first 8 octets as IV and asserts gotIVOctets == 8. Receiver: TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets expectRefused for 7 and 9. The IV length is the shared ikeIVOctets for GCM and CCM.",
       "requirement_sha": "07347e83ecb9a22a",
       "tests": {
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "fad3704e7ae63953",
@@ -31,8 +32,8 @@
       "note": "Forbidden: an IV repeated under one key. Red: TestRFC5282AEADSendIVIsUniquePerKey fatals on any repeat over 512 builds under one SA; TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage fatals when two byte-identical builds share an IV.",
       "requirement_sha": "f8e332e8d86a0bbb",
       "tests": {
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "8ff94d6c52a66b8d",
@@ -44,8 +45,8 @@
       "note": "Forbidden: not supporting the 16 octet AES GCM ICV. Red: TestRFC5282AEADSendICVIsSixteenOctets asserts len(raw)==prefix+IV+plaintext+16 and expectOneDelete on the receiver; TestRFC5282AEADReceiveRefusesADamagedICV proves the 16 octets are verified (flipped and stripped ICV refused).",
       "requirement_sha": "6b42be71dc5d4e4a",
       "tests": {
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "299d5307ac8d8ffa",
@@ -97,8 +98,8 @@
       "requirement_sha": "03cc06d5f60350ec",
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV": "d2a8fe0dab3c6a2d",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV": "6f9211c6d381e9af",
@@ -111,8 +112,8 @@
       "note": "Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go's AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.",
       "requirement_sha": "473cdde6936eb057",
       "tests": {
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "b369b23219eda929",
@@ -151,8 +152,8 @@
       "requirement_sha": "2e7176e219811541",
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader": "d2a8fe0dab3c6a2d",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader": "0cf23504f4f4af34",
@@ -166,8 +167,8 @@
       "requirement_sha": "98a21f9c2c7029d6",
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext": "d2a8fe0dab3c6a2d",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext": "b1956e7d7d76f026",
@@ -212,7 +213,7 @@
       "tests": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "7023705f0a1c4b4b",
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute": "d2a8fe0dab3c6a2d",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "0b39a6806fb65453"
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "2d69d15f1cde2ecb"
       },
       "units": {
         "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "76d2719bc0f4ac46",
@@ -227,8 +228,8 @@
       "tests": {
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPOfferWithIntegrityIsRefused": "d2a8fe0dab3c6a2d",
         "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPSelectionCarriesNoIntegrityAlgorithm": "d2a8fe0dab3c6a2d",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "0b39a6806fb65453",
-        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "2d69d15f1cde2ecb",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "2d69d15f1cde2ecb",
         "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderRefusesAnAEADChildSAOfferWithIntegrity": "47518a83342144a4",
         "internal/component/ike/engine/rfc5282_responder_esp_test.go::TestRFC5282ResponderSelectsNoIntegrityForAnAEADChildSA": "47518a83342144a4"
       },

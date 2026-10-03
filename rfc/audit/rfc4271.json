@@ -11,6 +11,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -923,8 +924,8 @@
       "note": "Re-judged 2026-10-01 (BGP c12 judge). The trigger (receipt of an OPEN) now reaches the examination in a tagged unit: TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection hands a second connection to Reactor.acceptOrReject, which tracks it as pending until its OPEN, then writes a complete OPEN on it; handlePendingCollision examines the session held in OpenConfirm. Both outcomes of the examination are asserted on the wire: remote Identifier 10.0.0.3 above local 10.0.0.2 -> Cease 6/7 on the OpenConfirm connection; 10.0.0.1 below -> 6/7 on the new connection, pending cleared, OpenConfirm session kept. Negative TestRFC4271ReceivedOpenWithNoOpenConfirmConnection: with no connection in OpenConfirm (session Established) an OPEN with Identifier 255.255.255.255, which would win an OpenConfirm comparison, does not close the existing session; the new connection gets 6/7 and Established stays. Records on session.go::detectCollision observed red both polarities. HEAD units in collision_test.go (direct detectCollision calls) stay supplementary. Ze holds at most one OpenConfirm connection per peer, so 'all' is that one.",
       "requirement_sha": "773b4d24b325a53b",
       "tests": {
-        "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "0a5ac870c994131b",
-        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "0a5ac870c994131b",
+        "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "c1c4f47a8a24ad7f",
+        "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "c1c4f47a8a24ad7f",
         "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "372e002f8af791e2",
         "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "372e002f8af791e2"
       },
@@ -1135,7 +1136,7 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "3893958fa17fe9dc",
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "b774dd428519cc2c"
+        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "f225cfa65db52a63",
@@ -1150,7 +1151,7 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection": "3893958fa17fe9dc",
         "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "b774dd428519cc2c",
+        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
       "units": {
@@ -1302,7 +1303,7 @@
         "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStop": "0988faa50fd3224e",
         "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection": "33aaf37273eacf0d",
         "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a",
-        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "b774dd428519cc2c",
+        "internal/component/bgp/reactor/shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
         "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
       },
       "units": {

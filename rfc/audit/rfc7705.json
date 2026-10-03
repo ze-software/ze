@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-29",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7705-3.3-1": {
       "note": "Forbidden: a Section 3.3 mechanism settable on neither a neighbor nor a neighbor group. TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup drives PeersFromConfigTree: the group's local (65010) and replace-as reach the inheriting peer (assert.Equal LocalAS, assert.True LocalASReplaceAS), and no-prepend set on a peer reaches that peer (assert.True LocalASNoPrepend); each of the three mechanisms goes red if it cannot be configured on the basis the test uses. Negative: the group options do not reach the peer outside the group or override the peer's own leaf-list.",
@@ -44,8 +45,8 @@
       "note": "Forbidden: appending the globally configured ASN toward a Replace Old AS eBGP neighbor. TestLocalASReplaceASSendsOnlyTheLocalAS asserts the replace-as destinations receive exactly [65010 65002] (assert.Equal), red if 65000 appears; TestLocalASOptionsProduceDifferentASPaths adds assert.NotContains 65000. Negative: the no-option destination receives [65010 65000 65002].",
       "requirement_sha": "fd8589f9d7dfdfe9",
       "tests": {
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "4f0b9f702a78801e",
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "4f0b9f702a78801e"
+        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "bba32d8498654d0c",
+        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "bba32d8498654d0c"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "3d1b9a340c5c4f1e",
@@ -57,8 +58,8 @@
       "note": "Forbidden: toward a Replace Old AS eBGP neighbor, appending anything other than the Local AS value, or omitting it. TestLocalASReplaceASSendsOnlyTheLocalAS asserts exact equality with [65010 65002], red on a missing 65010 or any extra ASN. Negative: the no-option destination's [65010 65000 65002].",
       "requirement_sha": "b4bdabac4c17815a",
       "tests": {
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "4f0b9f702a78801e",
-        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "4f0b9f702a78801e"
+        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "bba32d8498654d0c",
+        "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS#2": "bba32d8498654d0c"
       },
       "units": {
         "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS": "3d1b9a340c5c4f1e",
@@ -85,8 +86,8 @@
       "tests": {
         "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "d715a5b49c437051",
         "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "d715a5b49c437051",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN": "4e9d34dbf686a042",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "4e9d34dbf686a042"
+        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN": "d6180a68148ebe31",
+        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "d6180a68148ebe31"
       },
       "units": {
         "internal/component/bgp/reactor/reactor_b_rfc7705_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "003a1f67dbd4d0ea",
@@ -100,8 +101,8 @@
       "note": "Forbidden: sending an OPEN whose My Autonomous System is neither the global nor the locally configured ASN. TestMigrationOpenCarriesResolvedASN reads the OPEN buildOpen produces and asserts My AS and the Four-octet AS capability equal the global ASN before a Bad Peer AS and the locally configured ASN after it (assert.Equal MyAS, ASN4, capability ASN), red on any other AS. Negative: without migration configured the local AS is sent whatever the fallback flag holds.",
       "requirement_sha": "8e37aa0e967dc55b",
       "tests": {
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "4e9d34dbf686a042",
-        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "4e9d34dbf686a042"
+        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "d6180a68148ebe31",
+        "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN#2": "d6180a68148ebe31"
       },
       "units": {
         "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN": "c42b9fa1f72a9f86",
