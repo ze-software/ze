@@ -2,6 +2,7 @@
 
 // Design: docs/architecture/diagnostics/active-probes.md -- the Don't Fragment mode
 // Design: docs/architecture/diagnostics/path-mtu.md -- the show mtu run
+// Design: docs/functional-tests.md -- a clamped path built by the test itself
 // Related: register_clamped_path_linux.go -- the two fixture names
 // Related: plugin_fixture_ping_df.go -- the observer the ping tests run inside the daemon
 // Related: plugin_fixture_show_mtu.go -- the observers the show mtu tests run inside the daemon
@@ -34,6 +35,24 @@
 // namespace before the command, for a test whose daemon needs a peer to talk
 // to.
 //
+// `ipv6` adds an IPv6 plane to the same topology: a Global /64 on each link
+// (2001:db8:99:1::/64 near, 2001:db8:99:2::/64 far), a fixed Link-Local
+// address on every veth end (fe80::99:1:1 on sr0, fe80::99:1:2 on rs0,
+// fe80::99:2:2 on rf0, fe80::99:2:1 on fr0), the routes both ways through the
+// router, and IPv6 forwarding in it. Every address is added NODAD, so it is
+// usable the moment the link is up rather than tentative for a second.
+//
+// `peer <namespace> <script>` and `peer-after <file> <namespace> <script>` run
+// `le test peer <script>` inside `sender`, `router` or `far`: the first before
+// the command, the second after it, once `<file>` exists. That is how a sender
+// waits for a receiver's session: the receiver's script declares
+// `option=established-file:path=<file>`, which the peer writes on the daemon's
+// first UPDATE. With a peer declared, the peers decide the verdict. The fixture
+// waits for every one of them, a peer that exits non-zero is the fixture's
+// error, the command is stopped once they are all done, and a command that
+// exits first is an error, because a receiver whose daemon died can never see
+// what it asserts.
+//
 // Everything the shell script this replaces did with iproute2 and libcap is a
 // netlink message or a syscall here, so the test needs no `ip`, no `capsh` and
 // no `sh` in the guest. The namespaces are deleted when the command exits,
@@ -50,9 +69,11 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -82,6 +103,21 @@ const (
 	// clampedFarHost is the far address the ping and show mtu observers probe.
 	clampedFarHost = "10.99.2.1/32"
 
+	// The IPv6 plane `ipv6` adds: one Global /64 per link, and a fixed
+	// Link-Local address on each veth end so a test can name it.
+	clampedSenderAddr6    = "2001:db8:99:1::1/64"
+	clampedSenderLL       = "fe80::99:1:1/64"
+	clampedRouterNearIP6  = "2001:db8:99:1::2"
+	clampedRouterNearCID6 = "2001:db8:99:1::2/64"
+	clampedRouterNearLL   = "fe80::99:1:2/64"
+	clampedRouterFarIP6   = "2001:db8:99:2::2"
+	clampedRouterFarCID6  = "2001:db8:99:2::2/64"
+	clampedRouterFarLL    = "fe80::99:2:2/64"
+	clampedFarAddr6       = "2001:db8:99:2::1/64"
+	clampedFarLL          = "fe80::99:2:1/64"
+	clampedSenderNet6     = "2001:db8:99:1::/64"
+	clampedFarNet6        = "2001:db8:99:2::/64"
+
 	// clampedPingGroupRange admits every group to the datagram ICMP socket
 	// inside the sender namespace, where the range is per namespace.
 	clampedPingGroupRange = "0 65535"
@@ -89,13 +125,29 @@ const (
 	// dataplane; only the IKE negotiation is wanted from it.
 	clampedFarDaemonEnv = "ze_test_ike_dataplane=noop"
 
+	// clampedPeerWait bounds how long a `peer-after` waits for its file. The
+	// runner's own test timeout still ends the whole run first when it is
+	// shorter.
+	clampedPeerWait = 60 * time.Second
+	// clampedPeerPoll is how often that wait looks for the file.
+	clampedPeerPoll = 100 * time.Millisecond
+
 	procSysIPForward      = "/proc/sys/net/ipv4/ip_forward"
+	procSysIPv6Forward    = "/proc/sys/net/ipv6/conf/all/forwarding"
 	procSysPingGroupRange = "/proc/sys/net/ipv4/ping_group_range"
+
+	// netnsArgPeer is the fixture keyword that declares a peer run.
+	netnsArgPeer = "peer"
+	// lePeerVerb is the `le test` verb that runs a peer script.
+	lePeerVerb = "peer"
 )
 
 // clampedFarAddrs are the far namespace's addresses: the probed host, a second
 // IKE responder and the `show mtu` reference address.
 var clampedFarAddrs = []string{"10.99.2.1/24", "10.99.2.3/24", "10.99.2.9/24"}
+
+// clampedNamespaces are the role names `peer` and `peer-after` accept.
+var clampedNamespaces = []string{"sender", "router", "far"}
 
 // netnsRunPlan is what the fixture arguments ask for.
 type netnsRunPlan struct {
@@ -109,15 +161,33 @@ type netnsRunPlan struct {
 	// farDaemons are configuration files each started as `ze start <conf>`
 	// in the far namespace before the command.
 	farDaemons []string
+	// peers are the `le test peer` runs, in the order the arguments named
+	// them. Any peer makes the peers, not the command, decide the verdict.
+	peers []netnsPeer
+	// ipv6 adds the IPv6 plane to the clamped path.
+	ipv6 bool
 	// withoutNetRaw drops CAP_NET_RAW from the command's bounding set.
 	withoutNetRaw bool
 	// command is the argv run in the sender namespace.
 	command []string
 }
 
+// netnsPeer is one `le test peer <script>` the fixture runs in a namespace.
+type netnsPeer struct {
+	// namespace is `sender`, `router` or `far`.
+	namespace string
+	// script is the peer's expectation file, the .ci's own tmpfs file.
+	script string
+	// after names the file that MUST exist before the peer starts. Empty
+	// starts the peer before the command.
+	after string
+}
+
 // parseNetnsRunArgs reads `netns <prefix> [route-mtu <octets>]
-// [far-daemon <conf>]... [without-net-raw] run <argv...>`. Every keyword
-// precedes its value, and `run` takes the rest of the line.
+// [far-daemon <conf>]... [ipv6] [peer <namespace> <script>]...
+// [peer-after <file> <namespace> <script>]... [without-net-raw] run
+// <argv...>`. Every keyword precedes its value, and `run` takes the rest of
+// the line.
 func parseNetnsRunArgs(args []string) (*netnsRunPlan, error) {
 	plan := &netnsRunPlan{}
 	for index := 0; index < len(args); index++ {
@@ -144,13 +214,35 @@ func parseNetnsRunArgs(args []string) (*netnsRunPlan, error) {
 			}
 			index++
 			plan.farDaemons = append(plan.farDaemons, args[index])
+		case "ipv6":
+			plan.ipv6 = true
+		case netnsArgPeer:
+			if index+2 >= len(args) {
+				return nil, errors.New("peer takes a namespace and a script")
+			}
+			peer, err := newNetnsPeer(args[index+1], args[index+2], "")
+			if err != nil {
+				return nil, err
+			}
+			plan.peers = append(plan.peers, peer)
+			index += 2
+		case "peer-after":
+			if index+3 >= len(args) {
+				return nil, errors.New("peer-after takes a file, a namespace and a script")
+			}
+			peer, err := newNetnsPeer(args[index+2], args[index+3], args[index+1])
+			if err != nil {
+				return nil, err
+			}
+			plan.peers = append(plan.peers, peer)
+			index += 3
 		case "without-net-raw":
 			plan.withoutNetRaw = true
 		case "run":
 			plan.command = args[index+1:]
 			index = len(args)
 		default:
-			return nil, fmt.Errorf("unknown argument %q; expected netns, route-mtu, far-daemon, without-net-raw or run", args[index])
+			return nil, fmt.Errorf("unknown argument %q; expected netns, route-mtu, far-daemon, ipv6, peer, peer-after, without-net-raw or run", args[index])
 		}
 	}
 	if plan.prefix == "" {
@@ -160,6 +252,15 @@ func parseNetnsRunArgs(args []string) (*netnsRunPlan, error) {
 		return nil, errors.New("run <argv...> is required")
 	}
 	return plan, nil
+}
+
+// newNetnsPeer refuses a namespace the clamped path does not build, at parse
+// time, so a typo fails before any namespace exists.
+func newNetnsPeer(namespace, script, after string) (netnsPeer, error) {
+	if slices.Contains(clampedNamespaces, namespace) {
+		return netnsPeer{namespace: namespace, script: script, after: after}, nil
+	}
+	return netnsPeer{}, fmt.Errorf("peer namespace %q; expected sender, router or far", namespace)
 }
 
 // netnsSay writes one line to stderr, where the runner reads the fixture's
@@ -243,6 +344,28 @@ func (n *testNetns) configureLink(name string, mtu int, addrs ...string) error {
 	}
 	if err := n.handle.LinkSetUp(link); err != nil {
 		return fmt.Errorf("bring %s up in %s: %w", name, n.name, err)
+	}
+	return nil
+}
+
+// addAddrsNoDAD adds IPv6 addresses to a link with IFA_F_NODAD. Duplicate
+// Address Detection would hold each one tentative, unusable as a source or a
+// bind address, for about a second after it is added, and the veth has no
+// other host on it to collide with.
+func (n *testNetns) addAddrsNoDAD(name string, addrs ...string) error {
+	link, err := n.handle.LinkByName(name)
+	if err != nil {
+		return fmt.Errorf("find %s in %s: %w", name, n.name, err)
+	}
+	for _, addr := range addrs {
+		parsed, err := netlink.ParseAddr(addr)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", addr, err)
+		}
+		parsed.Flags = unix.IFA_F_NODAD
+		if err := n.handle.AddrAdd(link, parsed); err != nil {
+			return fmt.Errorf("add %s to %s in %s: %w", addr, name, n.name, err)
+		}
 	}
 	return nil
 }
@@ -357,12 +480,57 @@ func (p *clampedPath) wire(plan *netnsRunPlan, orig netns.NsHandle) error {
 	if err := p.router.writeSysctl(orig, procSysIPForward, "1"); err != nil {
 		return err
 	}
+	if plan.ipv6 {
+		if err := p.wireIPv6(orig); err != nil {
+			return err
+		}
+	}
 	if plan.withoutNetRaw {
 		if err := p.sender.writeSysctl(orig, procSysPingGroupRange, clampedPingGroupRange); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// wireIPv6 adds the IPv6 plane once the links are up: the Global and the
+// Link-Local address of each veth end, the route each edge needs to the other
+// edge's /64, and forwarding in the router. The calling thread MUST be locked,
+// and it returns in `orig`.
+func (p *clampedPath) wireIPv6(orig netns.NsHandle) error {
+	if err := p.sender.addAddrsNoDAD(clampedSenderLink, clampedSenderAddr6, clampedSenderLL); err != nil {
+		return err
+	}
+	if err := p.router.addAddrsNoDAD(clampedRouterNear, clampedRouterNearCID6, clampedRouterNearLL); err != nil {
+		return err
+	}
+	if err := p.router.addAddrsNoDAD(clampedRouterFar, clampedRouterFarCID6, clampedRouterFarLL); err != nil {
+		return err
+	}
+	if err := p.far.addAddrsNoDAD(clampedFarLink, clampedFarAddr6, clampedFarLL); err != nil {
+		return err
+	}
+	if err := p.sender.addRoute(clampedFarNet6, clampedRouterNearIP6, clampedSenderLink, 0); err != nil {
+		return err
+	}
+	if err := p.far.addRoute(clampedSenderNet6, clampedRouterFarIP6, clampedFarLink, 0); err != nil {
+		return err
+	}
+	return p.router.writeSysctl(orig, procSysIPv6Forward, "1")
+}
+
+// namespace answers the namespace a `peer` role names. The parser accepted
+// only the three roles, so another name is a fixture defect.
+func (p *clampedPath) namespace(role string) (*testNetns, error) {
+	switch role {
+	case "sender":
+		return p.sender, nil
+	case "router":
+		return p.router, nil
+	case "far":
+		return p.far, nil
+	}
+	return nil, fmt.Errorf("BUG: peer namespace %q passed the parser", role)
 }
 
 // remove deletes whichever namespaces were created.
@@ -402,7 +570,10 @@ func clampedPathDriver(ctx context.Context, args []string) error {
 	}
 	defer stopFarDaemons(farDaemons)
 
-	return runInNetns(ctx, plan, path.sender, orig)
+	if len(plan.peers) == 0 {
+		return runInNetns(ctx, plan, path.sender, orig)
+	}
+	return runWithPeers(ctx, plan, path, orig)
 }
 
 // isolatedNetnsDriver is `plugin/isolated-netns`: one namespace with loopback
@@ -414,6 +585,9 @@ func isolatedNetnsDriver(ctx context.Context, args []string) error {
 	}
 	if plan.routeMTU != 0 || len(plan.farDaemons) != 0 {
 		return errors.New("isolated-netns takes neither route-mtu nor far-daemon")
+	}
+	if plan.ipv6 || len(plan.peers) != 0 {
+		return errors.New("isolated-netns takes neither ipv6 nor peer: it has no link to carry either")
 	}
 	runtime.LockOSThread()
 	orig, err := netns.Get()
@@ -475,44 +649,209 @@ func stopFarDaemons(daemons []*exec.Cmd) {
 	}
 }
 
-// runInNetns starts the plan's command inside `ns`, on the locked calling
-// thread, and waits for it. With withoutNetRaw the bounding set loses
-// CAP_NET_RAW first, and the child's CapEff is read back before the run is
-// allowed to count. The thread returns to `orig` once the child has started,
-// and the context kills the child when the runner tears the test down.
-func runInNetns(ctx context.Context, plan *netnsRunPlan, ns *testNetns, orig netns.NsHandle) error {
+// startInNetns starts argv inside `ns`, forked from the locked calling thread
+// so the child inherits the namespace, and returns the thread to `orig`. The
+// child dies with this process (Pdeathsig) and with the context.
+func startInNetns(ctx context.Context, argv []string, ns *testNetns, orig netns.NsHandle) (*exec.Cmd, error) {
 	if err := netns.Set(ns.ns); err != nil {
-		return fmt.Errorf("enter %s: %w", ns.name, err)
+		return nil, fmt.Errorf("enter %s: %w", ns.name, err)
 	}
-	if plan.withoutNetRaw {
-		// PR_CAPBSET_DROP is per thread and irreversible; the command below is
-		// forked from this thread and inherits the reduced bounding set.
-		if err := unix.Prctl(unix.PR_CAPBSET_DROP, unix.CAP_NET_RAW, 0, 0, 0); err != nil {
-			return fmt.Errorf("drop CAP_NET_RAW from the bounding set: %w", err)
-		}
-	}
-	command := exec.CommandContext(ctx, plan.command[0], plan.command[1:]...) //nolint:gosec // test fixture; the argv is the .ci's own line
+	command := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // test fixture; the argv is the .ci's own line
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	command.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
 	startErr := command.Start()
 	if err := netns.Set(orig); err != nil {
-		return fmt.Errorf("return from %s: %w", ns.name, err)
+		if startErr == nil {
+			command.Process.Kill() //nolint:errcheck // the thread is lost; the child goes with it
+			command.Wait()         //nolint:errcheck // reaped only
+		}
+		return nil, fmt.Errorf("return from %s: %w", ns.name, err)
 	}
 	if startErr != nil {
-		return fmt.Errorf("start %s in %s: %w", strings.Join(plan.command, " "), ns.name, startErr)
+		return nil, fmt.Errorf("start %s in %s: %w", strings.Join(argv, " "), ns.name, startErr)
+	}
+	return command, nil
+}
+
+// startCommand starts the plan's command in `ns`. With withoutNetRaw the
+// bounding set loses CAP_NET_RAW first, and the child's CapEff is read back
+// before the run is allowed to count.
+func startCommand(ctx context.Context, plan *netnsRunPlan, ns *testNetns, orig netns.NsHandle) (*exec.Cmd, error) {
+	if plan.withoutNetRaw {
+		// PR_CAPBSET_DROP is per thread and irreversible; the command below is
+		// forked from this thread and inherits the reduced bounding set, and so
+		// does every `peer-after` started after it.
+		if err := unix.Prctl(unix.PR_CAPBSET_DROP, unix.CAP_NET_RAW, 0, 0, 0); err != nil {
+			return nil, fmt.Errorf("drop CAP_NET_RAW from the bounding set: %w", err)
+		}
+	}
+	command, err := startInNetns(ctx, plan.command, ns, orig)
+	if err != nil {
+		return nil, err
 	}
 	if plan.withoutNetRaw {
 		if err := confirmNetRawDropped(command.Process.Pid); err != nil {
 			command.Process.Kill() //nolint:errcheck // the child is refused whatever it is doing
 			command.Wait()         //nolint:errcheck // reaped only
-			return err
+			return nil, err
 		}
+	}
+	return command, nil
+}
+
+// runInNetns starts the plan's command inside `ns`, on the locked calling
+// thread, and waits for it. The context kills the child when the runner tears
+// the test down.
+func runInNetns(ctx context.Context, plan *netnsRunPlan, ns *testNetns, orig netns.NsHandle) error {
+	command, err := startCommand(ctx, plan, ns, orig)
+	if err != nil {
+		return err
 	}
 	if err := command.Wait(); err != nil {
 		return fmt.Errorf("%s in %s: %w", strings.Join(plan.command, " "), ns.name, err)
 	}
 	return nil
+}
+
+// processExit is one watched child's end.
+type processExit struct {
+	label   string
+	err     error
+	command bool
+}
+
+// watchedProcesses reaps the children of a peer run. Each child gets one
+// goroutine for its lifetime, which waits on it and sends one processExit to
+// a channel sized for every child, so no sender ever blocks. The owner MUST
+// call stop before it returns, which kills every child and drains every
+// outstanding exit, so no goroutine outlives the run. Not safe for concurrent
+// use: only the fixture's locked thread calls it.
+type watchedProcesses struct {
+	exits   chan processExit
+	started []*exec.Cmd
+	pending int
+}
+
+// watch hands a started child to its waiter goroutine.
+func (w *watchedProcesses) watch(child *exec.Cmd, label string, command bool) {
+	w.started = append(w.started, child)
+	w.pending++
+	go reapWatchedProcess(child, label, command, w.exits)
+}
+
+// reapWatchedProcess is the waiter goroutine: it ends when the child does.
+func reapWatchedProcess(child *exec.Cmd, label string, command bool, exits chan<- processExit) {
+	exits <- processExit{label: label, err: child.Wait(), command: command}
+}
+
+// stop kills every child and drains every exit still owed. It MUST be called
+// once the run is decided.
+func (w *watchedProcesses) stop() {
+	for _, child := range w.started {
+		child.Process.Kill() //nolint:errcheck // a child that already exited is fine
+	}
+	for w.pending > 0 {
+		<-w.exits
+		w.pending--
+	}
+}
+
+// runWithPeers is the run when the plan names a peer: the peers that start
+// before the command, the command, then each `peer-after` once its file
+// exists, in the order the arguments named them. It returns when every peer
+// has exited zero, or at the first failure: a peer that exits non-zero, a
+// command that exits while a peer is still owed, a file that never appears.
+func runWithPeers(ctx context.Context, plan *netnsRunPlan, path *clampedPath, orig netns.NsHandle) error {
+	watched := &watchedProcesses{exits: make(chan processExit, len(plan.peers)+1)}
+	defer watched.stop()
+
+	var deferred []netnsPeer
+	for _, peer := range plan.peers {
+		if peer.after != "" {
+			deferred = append(deferred, peer)
+			continue
+		}
+		if err := startPeer(ctx, peer, path, orig, watched); err != nil {
+			return err
+		}
+	}
+	command, err := startCommand(ctx, plan, path.sender, orig)
+	if err != nil {
+		return err
+	}
+	watched.watch(command, strings.Join(plan.command, " "), true)
+
+	peersOwed := len(plan.peers)
+	poll := time.NewTicker(clampedPeerPoll)
+	defer poll.Stop()
+	waitEnd := time.Now().Add(clampedPeerWait)
+	for peersOwed > 0 {
+		if len(deferred) > 0 {
+			ready, err := peerFileExists(deferred[0].after)
+			if err != nil {
+				return err
+			}
+			if ready {
+				if err := startPeer(ctx, deferred[0], path, orig, watched); err != nil {
+					return err
+				}
+				deferred = deferred[1:]
+				waitEnd = time.Now().Add(clampedPeerWait)
+				continue
+			}
+			if time.Now().After(waitEnd) {
+				return fmt.Errorf("peer-after %s: the file did not appear within %s", deferred[0].after, clampedPeerWait)
+			}
+		}
+		select {
+		case exit := <-watched.exits:
+			watched.pending--
+			if exit.command && exit.err != nil {
+				return fmt.Errorf("%s exited while %d peer(s) were still owed: %w", exit.label, peersOwed, exit.err)
+			}
+			if exit.command {
+				return fmt.Errorf("%s exited zero while %d peer(s) were still owed", exit.label, peersOwed)
+			}
+			if exit.err != nil {
+				return fmt.Errorf("%s: %w", exit.label, exit.err)
+			}
+			netnsSay("PEER-PASSED: ", exit.label)
+			peersOwed--
+		case <-poll.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+// startPeer starts `le test peer <script>` in the peer's namespace and hands
+// it to the watcher.
+func startPeer(ctx context.Context, peer netnsPeer, path *clampedPath, orig netns.NsHandle, watched *watchedProcesses) error {
+	ns, err := path.namespace(peer.namespace)
+	if err != nil {
+		return err
+	}
+	child, err := startInNetns(ctx, []string{"le", "test", lePeerVerb, peer.script}, ns, orig)
+	if err != nil {
+		return err
+	}
+	watched.watch(child, "peer "+peer.namespace+" "+peer.script, false)
+	return nil
+}
+
+// peerFileExists answers whether a `peer-after` file has been written. Only a
+// missing file is "not yet"; any other stat error is reported.
+func peerFileExists(name string) (bool, error) {
+	_, err := os.Stat(name)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, fmt.Errorf("peer-after %s: %w", name, err)
 }
 
 // confirmNetRawDropped reads the child's CapEff after its exec and reports the

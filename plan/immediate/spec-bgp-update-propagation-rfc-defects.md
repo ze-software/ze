@@ -138,6 +138,7 @@ shape rather than send half of it.
 | relay 4-2 test | 32-octet pair to a multihop internal peer carries the Global alone (red by reverting egressNextHopGlobalHalf) |
 | per-gate withdraw tests | each gate class sends a withdrawal of the announced NLRI |
 | buildWithdrawalPayload merge tests | source withdrawals kept beside the converted announcement |
+| `test/plugin/linklocal-only-multihop-withdraw.ci` (QEMU, `needs-linux:caps=net-admin`) | 4-4/4-9 end to end on the RS rail over a real routed IPv6 hop: an on-link sender relays a Global then a Link-Local-only generation through Ze (`next-hop unchanged`, capability 77 on both sessions) to an external peer one router away, which receives the Global, then a withdrawal, then a control route, never fe80::9. Fixture: `plugin/clamped-path` grew `ipv6`, `peer` and `peer-after` (owner, 2026-10-03: "Extend the netns fixture") |
 
 ## Owner decisions
 
@@ -186,6 +187,7 @@ shape rather than send half of it.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | UPDATE from peer A, re-advertised to peer B | → | forward path and egress filters | [to fill in design: `.ci`] |
+| D6: Link-Local-only UPDATE from an on-link peer, relayed to a multihop peer | → | `egressNextHopWithheld`, `egressNextHopLinkLocalOnlyOffLink`, `buildWithdrawalPayload` (RS rail) | `test/plugin/linklocal-only-multihop-withdraw.ci` |
 
 ## Acceptance Criteria
 

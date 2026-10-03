@@ -597,7 +597,8 @@ capability bits the probe tests.
 
 A `.ci` that needs a path with a known MTU runs the daemon through the
 compiled fixture `le test fixture plugin/clamped-path netns <prefix> [route-mtu
-<octets>] [far-daemon <conf>]... [without-net-raw] run <argv...>`
+<octets>] [far-daemon <conf>]... [ipv6] [peer <namespace> <script>]...
+[peer-after <file> <namespace> <script>]... [without-net-raw] run <argv...>`
 (`internal/test/fixture/plugin_fixture_clamped_path_linux.go`). The fixture
 builds three named network namespaces (`<prefix>-s`, `-r`, `-f`: sender,
 router, far) joined by two veth pairs over netlink, the router's far link set
@@ -626,6 +627,28 @@ marked `option=needs-linux:caps=net-admin,net-raw` (the doctor one
 `caps=net-admin`), so their home is the QEMU guest.
 <!-- source: internal/test/fixture/plugin_fixture_clamped_path_linux.go -- clampedPathDriver, isolatedNetnsDriver, runInNetns, confirmNetRawDropped -->
 <!-- source: internal/test/fixture/plugin_fixture_ping_df.go -- pingDoNotFragment -->
+
+The same fixture carries a BGP relay over a real routed hop. `ipv6` adds an
+IPv6 plane: `2001:db8:99:1::/64` on the near link, `2001:db8:99:2::/64` on the
+far one, a fixed Link-Local address on each veth end (`fe80::99:1:1` on the
+sender's `sr0`, `fe80::99:1:2` and `fe80::99:2:2` on the router,
+`fe80::99:2:1` on the far `fr0`), the routes both ways, and IPv6 forwarding in
+the router, every address added NODAD so it is usable at once. `peer
+<namespace> <script>` runs `le test peer <script>` in `sender`, `router` or
+`far` before the command; `peer-after <file> <namespace> <script>` runs it
+after the command, once `<file>` exists, which is how a sender waits for a
+receiver whose script declares `option=established-file:path=<file>` (written
+on the daemon's first UPDATE, its End-of-RIB). With any peer declared, the
+peers decide the verdict: the fixture waits for each, prints `PEER-PASSED:
+peer <namespace> <script>` as each exits zero, fails on the first non-zero
+exit, fails when the command exits while a peer is still owed, and then stops
+the command. `test/plugin/linklocal-only-multihop-withdraw.ci` uses it: an
+injector in the router namespace, on Ze's link, relays a route twice through
+Ze (route server, `next-hop unchanged`) to a receiver in the far namespace,
+one router away; the receiver asserts the Global generation, then a withdrawal
+of the Link-Local-only one, then a control route
+(draft-ietf-idr-linklocal-capability Section 4).
+<!-- source: internal/test/fixture/plugin_fixture_clamped_path_linux.go -- parseNetnsRunArgs, wireIPv6, runWithPeers -->
 
 The six `show mtu` tests use the same fixture, each with its own namespace
 prefix and config names because the runner writes every test's `tmpfs=`

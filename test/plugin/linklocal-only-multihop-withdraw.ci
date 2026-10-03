@@ -1,0 +1,143 @@
+# Test: a Link-Local-only next hop never crosses a routed hop; the route is withdrawn
+# Spec: spec-bgp-update-propagation-rfc-defects -- D6
+# VALIDATES: draft-ietf-idr-linklocal-capability Section 4 over a real routed
+#            IPv6 path. An on-link sender relays 2001:db8:5701::/48 twice
+#            through Ze (route server, next-hop unchanged) to an external peer
+#            one router away. Generation 1 carries the Global 2001:db8:9::9 and
+#            the far peer receives it unchanged. Generation 2 carries fe80::9
+#            alone, which Ze may not send to a peer more than one hop away, so
+#            the far peer receives a WITHDRAWAL of the prefix, then a control
+#            prefix sent after it on the same session, and never fe80::9.
+# PREVENTS: a Link-Local next hop leaking past the link it is valid on, and a
+#           withhold that sends nothing, leaving the far peer forwarding on the
+#           previous generation.
+#
+# The draft, of a peer more than one hop away: "the BGP speaker MUST NOT include
+# a Link-Local IPv6 next hop." When that leaves no next hop: "the BGP route MUST
+# not be advertised to its peer. Instead, treat-as-withdraw (Section 2 of
+# [RFC7606]) is used."
+#
+#   inject (router ns, 2001:db8:99:1::2) -- on-link -- ze (sender ns, 2001:db8:99:1::1)
+#   ze -- sr0 -- router -- rf0 -- receive (far ns, 2001:db8:99:2::1)
+#
+# The compiled fixture `plugin/clamped-path` builds the three namespaces with
+# their IPv6 plane (`ipv6`), runs the receiving peer in the far namespace, then
+# Ze in the sender namespace, then the injecting peer in the router namespace
+# once the receiver's session is up (`peer-after far.up`, the file the receiver
+# writes on Ze's first UPDATE, its End-of-RIB). The receiver's exit is the
+# verdict. Ze's link scope reads the sender namespace's own interfaces: the
+# injector shares 2001:db8:99:1::/64 with it, the receiver shares no subnet, so
+# the multihop gate (egressNextHopLinkLocalOnlyOffLink, forward_next_hop.go) is
+# the only one that can withhold generation 2: both sessions negotiate the
+# Link-Local Next Hop capability (77), which keeps the capability gate quiet.
+#
+# Building the namespaces needs CAP_NET_ADMIN, so the test runs in the QEMU
+# guest as root (`./le test qemu all-tests`) and skips in the unprivileged
+# merge gate.
+
+option=needs-linux:caps=net-admin
+
+# The sender: Ze dials it on the near link. Each UPDATE is ORIGIN IGP,
+# AS_PATH [65004], and one MP_REACH_NLRI for IPv6 unicast with a 16-octet Next
+# Hop field and one /48:
+#   800E1C 0002 01 10 <next hop> 00 30 <prefix>
+tmpfs=inject.peer:terminator=EOF_INJECT
+option=asn:value=65004
+option=bind:value=2001:db8:99:1::2
+# Ze's handshake KEEPALIVE: the session is up.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+# Generation 1: 2001:db8:5701::/48, Next Hop 2001:db8:9::9 (Global).
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEC800E1C0002011020010DB8000900000000000000000009003020010DB85701
+# Generation 2: the same prefix, Next Hop fe80::9 ONLY. This is the subject.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEC800E1C00020110FE800000000000000000000000000009003020010DB85701
+# Control: 2001:db8:5702::/48, Next Hop 2001:db8:9::9, after the subject.
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEC800E1C0002011020010DB8000900000000000000000009003020010DB85702
+EOF_INJECT
+
+# The receiver, one router away. Each expectation is ordered by seq, so a
+# second announcement of 5701 where the withdrawal belongs is a mismatch, not
+# an extra frame. The control after it proves generation 2 went through the
+# same rail first, so its absence as an announcement is evidence.
+tmpfs=receive.peer:terminator=EOF_RECEIVE
+option=asn:value=65003
+option=bind:value=2001:db8:99:2::1
+option=established-file:path=far.up
+# Generation 1 arrives with its Global next hop unchanged and 16 octets long:
+#   0002 01 10 2001:db8:9::9 00 30 2001:db8:5701::/48
+expect=bgp:conn=1:seq=1:contains=0002011020010DB8000900000000000000000009003020010DB85701
+# Generation 2 arrives as an MP_UNREACH_NLRI withdrawal of the same /48:
+#   0002 01 30 2001:db8:5701::/48
+expect=bgp:conn=1:seq=2:contains=0002013020010DB85701
+# The control prefix, announced after the withdrawal.
+expect=bgp:conn=1:seq=3:contains=0002011020010DB8000900000000000000000009003020010DB85702
+# fe80::9 never reaches this peer, in any frame.
+reject=bgp:conn=1:pattern=FE800000000000000000000000000009
+EOF_RECEIVE
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs;
+	}
+}
+bgp {
+	peer inject {
+		connection {
+			remote { ip 2001:db8:99:1::2; }
+			local  { ip 2001:db8:99:1::1; accept false; }
+		}
+		session {
+			asn { local 65001; remote 65004; }
+			router-id 10.99.1.1;
+			# The sender namespace's own Link-Local on sr0 (the fixture's ipv6).
+			link-local fe80::99:1:1;
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				link-local-nexthop
+			}
+		}
+		behavior {
+			rs-fast-path enable;
+		}
+		# The injector starts after the receiver is up, so Ze's first dial is
+		# refused and the retry is what connects.
+		timer { connect-retry 2; }
+	}
+	peer receive {
+		connection {
+			remote { ip 2001:db8:99:2::1; }
+			local  { ip 2001:db8:99:1::1; accept false; }
+			# One router between: an external session's default of one hop
+			# would die there.
+			ttl {
+				set 2;
+			}
+		}
+		session {
+			asn { local 65001; remote 65003; }
+			router-id 10.99.1.1;
+			link-local fe80::99:1:1;
+			# The received next hop stays in place, which is the mode the
+			# multihop gate exists for. A rewrite would hide the Link-Local.
+			next-hop unchanged;
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				link-local-nexthop
+			}
+		}
+		behavior {
+			rs-fast-path enable;
+		}
+		timer { connect-retry 2; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/clamped-path netns zell$PORT ipv6 peer far receive.peer peer-after far.up router inject.peer run ze start ze.conf:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=PEER-PASSED: peer far receive.peer
+reject=stderr:pattern=panic recovered

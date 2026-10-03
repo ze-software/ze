@@ -10,6 +10,7 @@
 // Related: test/plugin/ping-do-not-fragment-unprivileged.ci -- the run without CAP_NET_RAW
 // Related: test/plugin/doctor-icmp-probe-missing.ci -- the isolated namespace
 // Related: test/plugin/show-mtu-host.ci -- the first of the five show mtu runs
+// Related: test/plugin/linklocal-only-multihop-withdraw.ci -- the IPv6 plane and the in-namespace peers
 
 package fixture
 
