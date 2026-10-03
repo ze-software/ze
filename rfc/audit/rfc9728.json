@@ -150,16 +150,16 @@
       "note": "Re-judged 2026-09-30. Beyond the HEAD version tags: TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites (ze_mcp) probes the listener startMCPServer opens with loadMCPTLSConfig, ECDSA and RSA certs, with the same tlsprobe assertions as RFC7858-8-1: recommended ECDHE AES-128-GCM selected with null compression and renegotiation_info, every forbidden suite alone never selected, DEFLATE alone refused. Records: loadMCPTLSConfig revert both polarities observed red.",
       "requirement_sha": "0a736695367efbe1",
       "tests": {
-        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites": "223e6e02bfd2df6c",
-        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites#2": "223e6e02bfd2df6c",
-        "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions": "7f675285035f48bf",
-        "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions#2": "7f675285035f48bf"
+        "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites": "223e6e02bfd2df6c",
+        "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites#2": "223e6e02bfd2df6c",
+        "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions": "7f675285035f48bf",
+        "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions#2": "7f675285035f48bf"
       },
       "units": {
-        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites": "731a7fac7db9d9cb",
-        "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites#2": "731a7fac7db9d9cb",
-        "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions": "16316e3e2651e3d8",
-        "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions#2": "16316e3e2651e3d8"
+        "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites": "731a7fac7db9d9cb",
+        "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites#2": "731a7fac7db9d9cb",
+        "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions": "16316e3e2651e3d8",
+        "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions#2": "16316e3e2651e3d8"
       },
       "verdict": "enforced"
     }

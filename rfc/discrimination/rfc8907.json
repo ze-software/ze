@@ -1115,7 +1115,7 @@
     {
       "rid": "RFC8907-8.3-4",
       "polarity": "positive",
-      "unit": "cmd/ze/hub/aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap",
+      "unit": "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap",
       "unit-sha": "b58c72c88b77ef5a",
       "claim-sha": "1aab67b5fbc6d387",
       "route": "revert",

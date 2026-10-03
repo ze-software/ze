@@ -279,7 +279,7 @@
     {
       "rid": "RFC9728-7.1-2",
       "polarity": "positive",
-      "unit": "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+      "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
       "unit-sha": "312664f30240b3d7",
       "claim-sha": "0b42b567ca2083f8",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC9728-7.1-2",
       "polarity": "negative",
-      "unit": "cmd/ze/hub/service_mcp_rfc9325_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+      "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
       "unit-sha": "312664f30240b3d7",
       "claim-sha": "1f582e369a259eab",
       "route": "revert",
@@ -301,7 +301,7 @@
     {
       "rid": "RFC9728-7.1-2",
       "polarity": "negative",
-      "unit": "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions",
+      "unit": "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions",
       "unit-sha": "26310dd007140893",
       "claim-sha": "0918612847051060",
       "route": "revert",
@@ -312,7 +312,7 @@
     {
       "rid": "RFC9728-7.1-2",
       "polarity": "positive",
-      "unit": "cmd/ze/hub/service_mcp_rfc9728_test.go::TestRFC9728MCPServingTLSVersions",
+      "unit": "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions",
       "unit-sha": "26310dd007140893",
       "claim-sha": "a5089ed95a56896a",
       "route": "revert",
