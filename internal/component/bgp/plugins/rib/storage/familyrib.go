@@ -48,7 +48,7 @@ type FamilyRIB struct {
 	direct  *store.Store[RouteEntry]      // cidr && !addPath
 	multi   *store.Store[pathSet]         // cidr && addPath
 	opaque  map[string]RouteEntry         // !cidr
-	labels  *store.Store[attrpool.Handle] // labeled && cidr: parallel BART for label handles
+	labels  *store.Store[attrpool.Handle] // labeled && cidr && !addPath: parallel BART for label handles; under ADD-PATH each pathEntry holds its own
 }
 
 // newFamilyRIB creates a FamilyRIB for the given address family.
@@ -67,7 +67,7 @@ func newFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	default:
 		r.direct = store.NewStore[RouteEntry](fam)
 	}
-	if r.labeled && r.cidr {
+	if r.labeled && r.cidr && !addPath {
 		r.labels = store.NewStore[attrpool.Handle](fam)
 	}
 	return r
@@ -334,9 +334,7 @@ func (r *FamilyRIB) insertOpaque(nlriBytes []byte, newEntry RouteEntry) {
 func (r *FamilyRIB) insertMulti(pfx netip.Prefix, pathID uint32, newEntry RouteEntry) {
 	if ps, exists := r.multi.Lookup(pfx); exists {
 		if oldEntry, have := ps.lookup(pathID); have && entriesEqual(oldEntry, newEntry) {
-			oldEntry.StaleLevel = StaleLevelFresh
-			oldEntry.MsgID = newEntry.MsgID
-			ps.upsert(pathID, oldEntry)
+			ps.refresh(pathID, newEntry.MsgID)
 			r.multi.Insert(pfx, ps)
 			newEntry.Release()
 			return
@@ -377,7 +375,7 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 			return false
 		}
 		entry.Release()
-		r.RemoveLabels(pfx)
+		r.removePrefixLabels(pfx)
 		return r.direct.Delete(pfx)
 	}
 
@@ -392,7 +390,6 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 	removed.Release()
 	if ps.len() == 0 {
 		r.multi.Delete(pfx)
-		r.RemoveLabels(pfx)
 	} else {
 		r.multi.Insert(pfx, ps)
 	}
@@ -641,31 +638,74 @@ func (r *FamilyRIB) HasAddPath() bool { return r.addPath }
 // isLabeled returns whether this is a labeled unicast family (SAFI 4).
 func (r *FamilyRIB) isLabeled() bool { return r.labeled }
 
-// SetLabels stores an MPLS label handle for a prefix (side-data, not on RouteEntry).
-func (r *FamilyRIB) SetLabels(pfx netip.Prefix, h attrpool.Handle) {
-	if r.labels == nil {
+// SetLabels binds the MPLS label handle h to the path (pathID, pfx), as
+// side-data beside its RouteEntry, and releases the handle that path held
+// before. Without ADD-PATH, pathID is ignored and the prefix holds one binding.
+// Returns false when the family is not labeled or, under ADD-PATH, the path is
+// not stored: the caller then still owns h.
+func (r *FamilyRIB) SetLabels(pathID uint32, pfx netip.Prefix, h attrpool.Handle) bool {
+	if !r.labeled {
+		return false
+	}
+	if r.labels != nil {
+		if old, exists := r.labels.Lookup(pfx); exists && old.IsValid() {
+			_ = pool.Labels.Release(old)
+		}
+		r.labels.Insert(pfx, h)
+		return true
+	}
+	if r.multi == nil {
+		return false
+	}
+	bound := false
+	r.multi.Modify(pfx, func(ps *pathSet) { bound = ps.setLabels(pathID, h) })
+	return bound
+}
+
+// LookupLabels returns the label handle bound to the path (pathID, pfx), or
+// InvalidHandle. Without ADD-PATH, pathID is ignored.
+func (r *FamilyRIB) LookupLabels(pathID uint32, pfx netip.Prefix) attrpool.Handle {
+	if !r.labeled {
+		return attrpool.InvalidHandle
+	}
+	if r.labels != nil {
+		h, ok := r.labels.Lookup(pfx)
+		if !ok {
+			return attrpool.InvalidHandle
+		}
+		return h
+	}
+	if r.multi == nil {
+		return attrpool.InvalidHandle
+	}
+	ps, exists := r.multi.Lookup(pfx)
+	if !exists {
+		return attrpool.InvalidHandle
+	}
+	return ps.lookupLabels(pathID)
+}
+
+// RemoveLabels releases the label handle bound to the path (pathID, pfx) and
+// leaves every other path's binding in place. Without ADD-PATH, pathID is
+// ignored.
+func (r *FamilyRIB) RemoveLabels(pathID uint32, pfx netip.Prefix) {
+	if !r.labeled {
 		return
 	}
-	if old, exists := r.labels.Lookup(pfx); exists && old.IsValid() {
-		_ = pool.Labels.Release(old)
+	if r.labels != nil {
+		r.removePrefixLabels(pfx)
+		return
 	}
-	r.labels.Insert(pfx, h)
+	if r.multi == nil {
+		return
+	}
+	r.multi.Modify(pfx, func(ps *pathSet) { ps.removeLabels(pathID) })
 }
 
-// LookupLabels returns the label handle for a prefix, or InvalidHandle.
-func (r *FamilyRIB) LookupLabels(pfx netip.Prefix) attrpool.Handle {
-	if r.labels == nil {
-		return attrpool.InvalidHandle
-	}
-	h, ok := r.labels.Lookup(pfx)
-	if !ok {
-		return attrpool.InvalidHandle
-	}
-	return h
-}
-
-// RemoveLabels deletes and releases the label handle for a prefix.
-func (r *FamilyRIB) RemoveLabels(pfx netip.Prefix) {
+// removePrefixLabels deletes and releases the one label binding a prefix holds
+// without ADD-PATH. Under ADD-PATH r.labels is nil and pathSet releases each
+// path's handle with the path.
+func (r *FamilyRIB) removePrefixLabels(pfx netip.Prefix) {
 	if r.labels == nil {
 		return
 	}
@@ -709,7 +749,7 @@ func (r *FamilyRIB) PurgeStale() int {
 			if entry, ok := r.direct.Lookup(pfx); ok {
 				entry.Release()
 				r.direct.Delete(pfx)
-				r.RemoveLabels(pfx)
+				r.removePrefixLabels(pfx)
 			}
 		}
 		return len(stalePfx)
@@ -739,7 +779,6 @@ func (r *FamilyRIB) PurgeStale() int {
 		removed.Release()
 		if ps.len() == 0 {
 			r.multi.Delete(k.pfx)
-			r.RemoveLabels(k.pfx)
 		} else {
 			r.multi.Insert(k.pfx, ps)
 		}
@@ -825,9 +864,7 @@ func (r *FamilyRIB) insertMultiNoOp(pfx netip.Prefix, pathID uint32, fp uint64, 
 		if oldEntry, have := ps.lookup(pathID); have {
 			if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
 				if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID {
-					oldEntry.StaleLevel = StaleLevelFresh
-					oldEntry.MsgID = messageID
-					ps.upsert(pathID, oldEntry)
+					ps.refresh(pathID, messageID)
 					r.multi.Insert(pfx, ps)
 				}
 				return true

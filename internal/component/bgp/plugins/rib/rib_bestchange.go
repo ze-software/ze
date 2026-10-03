@@ -717,7 +717,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			return bestChangeEntry{}, false
 		}
 	}
-	candidates := r.gatherCandidates(fam, nlriBytes, addPath)
+	candidates := r.gatherFramedCandidates(fam, nlriBytes, addPath)
 	// SelectMultipath returns the same primary winner as SelectBest plus any
 	// equal-cost siblings (rib-arch-4). When multipath is off (maximum-paths<=1,
 	// the default) it returns nil siblings with no extra work, so the single-best

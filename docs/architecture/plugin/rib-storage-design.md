@@ -828,6 +828,15 @@ Same IP prefix with different path-ids = different paths of one prefix,
 compared in one best-path election (RFC 8277 Section 3.1).
 ```
 
+Each path of a labeled unicast (SAFI 4) prefix holds its own MPLS label handle,
+in its `pathEntry` beside the `RouteEntry`. RFC 8277 Section 2.5 binds a label
+per path: an UPDATE for the same path id replaces that path's binding
+(`pathSet.upsert` releases it), and an UPDATE or a withdrawal for another path
+id leaves it in place. Without ADD-PATH the family keeps one handle per prefix in
+a parallel trie.
+<!-- source: internal/component/bgp/plugins/rib/storage/pathset.go -- pathEntry, upsert, setLabels -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- SetLabels, LookupLabels, RemoveLabels -->
+
 See `DirectNLRISet.nlriLen()` for parsing implementation.
 
 ### Reverse Index

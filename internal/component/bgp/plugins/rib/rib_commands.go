@@ -1103,19 +1103,26 @@ func (r *RIBManager) bestPathStatus() any {
 }
 
 // gatherCandidates collects best-path candidates for the route nlriBytes
-// names, across all peers. addPath says how nlriBytes is framed: under ADD-PATH
-// it leads with the sender's 4-byte path identifier (RFC 7911 Section 3). It is
-// optional, as in formatNLRIAsPrefix, and absent means the key carries no path
-// identifier. Acquires r.peerMu.RLock internally.
+// names, across all peers, where nlriBytes carries no path identifier. A key
+// framed for ADD-PATH goes to gatherFramedCandidates instead. Acquires
+// r.peerMu.RLock internally.
 //
 // Go's sync.RWMutex forbids recursive read-locking when a writer is pending
 // (documented deadlock in sync/rwmutex.go), so callers that ALREADY hold
-// r.peerMu.RLock MUST call gatherCandidatesLocked instead. The hot-path
-// caller is checkBestPathChange, which runs with no outer lock held.
-func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte, addPath ...bool) []*Candidate {
+// r.peerMu.RLock MUST call gatherCandidatesLocked instead.
+func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Candidate {
+	return r.gatherFramedCandidates(fam, nlriBytes, false)
+}
+
+// gatherFramedCandidates is gatherCandidates for a key whose framing the caller
+// names: under addPath, nlriBytes leads with the sender's 4-byte path
+// identifier (RFC 7911 Section 3). Acquires r.peerMu.RLock internally, with the
+// same recursion ban as gatherCandidates. The hot-path caller is
+// checkBestPathChange, which runs with no outer lock held.
+func (r *RIBManager) gatherFramedCandidates(fam family.Family, nlriBytes []byte, addPath bool) []*Candidate {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
-	return r.gatherCandidatesLocked(fam, nlriBytes, len(addPath) > 0 && addPath[0])
+	return r.gatherCandidatesLocked(fam, nlriBytes, addPath)
 }
 
 // gatherCandidatesLocked is gatherCandidates without the internal RLock.

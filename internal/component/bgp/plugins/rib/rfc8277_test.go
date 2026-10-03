@@ -177,17 +177,24 @@ func TestLabeledImplicitWithdrawalAddPath(t *testing.T) {
 	assert.True(t, stillFound7, "withdrawing path 9 leaves path 7 installed")
 }
 
-// TestLabeledAddPathLabelBindingClobberGap documents RFC 8277 Section 2.5 as
-// ze implements it today for ADD-PATH sessions. Route ENTRIES are keyed on
-// (path-id, prefix), but the MPLS label side-data is keyed on the prefix
-// alone, so an UPDATE for a second Path Identifier overwrites the label bound
-// to the first path, and a withdrawal of either path deletes the shared label
-// entry. U2 is therefore partly interpreted as withdrawing U1's binding, which
-// Section 2.5 forbids.
+// TestRFC8277AddPathLabelsBoundPerPath pins RFC 8277 Section 2.5 for the label
+// bindings of an ADD-PATH session. "If I1 is not the same as I2, U2 MUST be
+// interpreted as meaning that L2 is now bound to P at N1, but U2 MUST NOT be
+// interpreted as meaning that L1 is no longer bound to P at N1." And "If I1 is
+// the same as I2, UPDATE U2 MUST be interpreted as meaning that L2 is now bound
+// to P at N1 and that L1 is no longer bound to P at N1."
 //
-// VALIDATES: the exact observable behavior behind the RFC8277-2.5-3 gap.
-// PREVENTS: the gap being closed silently, or being mis-recorded as closed.
-func TestLabeledAddPathLabelBindingClobberGap(t *testing.T) {
+// VALIDATES: AC-4: path 7 binds label 100 and path 9 label 200; path 9 is
+// re-advertised with label 300; path 7 still reads 100 and path 9 reads 300.
+// Withdrawing path 9 leaves path 7's label in place and path 9 with none.
+// PREVENTS: label side-data keyed on the prefix alone, where the second path's
+// UPDATE overwrote the first path's binding and withdrawing either path
+// deleted the shared binding. That was the RFC8277-2.5-3 gap this test
+// replaces the pin of.
+//
+// RFC requirement: RFC8277-2.5-3 positive -- on one ADD-PATH session, an UPDATE binding label 200 to 10.0.0.0/8 under path 9 leaves label 100 bound under path 7, and so do a relabel and a withdrawal of path 9.
+// RFC requirement: RFC8277-2.5-2 positive -- on one ADD-PATH session, re-advertising 10.0.0.0/8 under path 9 with label 300 leaves path 9 bound to 300 alone, never to its earlier label 200.
+func TestRFC8277AddPathLabelsBoundPerPath(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.13")
 	ctxID, _ := bgpctx.Registry.Register(
@@ -195,19 +202,29 @@ func TestLabeledAddPathLabelBindingClobberGap(t *testing.T) {
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	cidr7 := []byte{0, 0, 0, 7, 8, 10}
+	cidr9 := []byte{0, 0, 0, 9, 8, 10}
 
 	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(7, true, pfx, []uint32{100})))
 	require.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7))
 
-	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(9, true, pfx, []uint32{200})))
-	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr7),
-		"gap RFC8277-2.5-3: path 9's label overwrites the label bound to path 7")
+	assert.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7),
+		"a different Path Identifier must not unbind path 7's label")
+	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr9), "path 9 binds its own label")
 
-	feedReceived(r, peer, ctxID, labeledWithdrawBody(labeledNLRI(9, true, pfx, []uint32{200})))
-	assert.Nil(t, labelsFor(r, peer, cidr7),
-		"gap RFC8277-2.5-3: withdrawing path 9 also deletes path 7's label binding")
+	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+		labeledNLRI(9, true, pfx, []uint32{300})))
+	assert.Equal(t, []uint32{300}, labelsFor(r, peer, cidr9),
+		"the same Path Identifier binds the new label and unbinds the old one")
+	assert.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7),
+		"relabelling path 9 must not touch path 7's label")
+
+	feedReceived(r, peer, ctxID, labeledWithdrawBody(labeledNLRI(9, true, pfx, []uint32{300})))
+	assert.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7),
+		"withdrawing path 9 leaves path 7's label bound")
+	assert.Nil(t, labelsFor(r, peer, cidr9), "the withdrawn path holds no label")
 }
 
 // TestLabeledRoutesWithDifferentLabelsAreComparable pins RFC 8277 Section 3.1:

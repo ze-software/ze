@@ -5,6 +5,11 @@
 
 package storage
 
+import (
+	"github.com/ze-software/ze/internal/component/bgp/attrpool"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
+)
+
 // pathSet holds the per-path-id RouteEntry list for a single prefix under
 // RFC 7911 ADD-PATH. A non-ADD-PATH session does not use pathSet at all --
 // FamilyRIB picks between the `direct` store (values are RouteEntry) and the
@@ -23,25 +28,102 @@ type pathSet struct {
 	entries []pathEntry
 }
 
-// pathEntry is one (path-id, RouteEntry) pair inside a pathSet.
+// pathEntry is one path of a prefix inside a pathSet: its path id, its route
+// data, and its MPLS label binding.
+//
+// labels is the path's own label handle (labeled unicast, SAFI 4), or
+// attrpool.InvalidHandle when the path carries none. It sits beside the
+// RouteEntry rather than in it, because sizeof_test guards RouteEntry and a
+// non-labeled family would pay for it on every route. The pair packs into the
+// eight bytes pathID alone would pad to, so it costs no memory.
 type pathEntry struct {
 	pathID uint32
+	labels attrpool.Handle
 	entry  RouteEntry
 }
 
 // upsert inserts or replaces the entry for pathID. Returns the replaced
 // RouteEntry (released by the caller) plus a bool indicating whether a
-// replacement happened. On new insert, (zero, false) is returned.
+// replacement happened. On new insert, (zero, false) is returned. A new path
+// starts with no label binding.
+//
+// RFC 8277 Section 2.5: "If I1 is the same as I2, UPDATE U2 MUST be
+// interpreted as meaning that L2 is now bound to P at N1 and that L1 is no
+// longer bound to P at N1." Replacing the route of a path id ends the label
+// binding of the route it replaces, so the replaced handle is released here
+// and the new UPDATE's labels are bound by setLabels. A refresh that keeps the
+// same route goes through refresh, which keeps the binding.
 func (s *pathSet) upsert(pathID uint32, entry RouteEntry) (RouteEntry, bool) {
 	for i := range s.entries {
 		if s.entries[i].pathID == pathID {
 			old := s.entries[i].entry
 			s.entries[i].entry = entry
+			releaseLabels(&s.entries[i])
 			return old, true
 		}
 	}
-	s.entries = append(s.entries, pathEntry{pathID: pathID, entry: entry})
+	s.entries = append(s.entries, pathEntry{pathID: pathID, labels: attrpool.InvalidHandle, entry: entry})
 	return RouteEntry{}, false
+}
+
+// refresh marks the route of pathID fresh and owned by messageID, keeping its
+// route data and its label binding: the UPDATE re-announced the same route.
+// Every caller looked the path up first, so an absent pathID is not reported.
+func (s *pathSet) refresh(pathID uint32, messageID uint64) {
+	for i := range s.entries {
+		if s.entries[i].pathID == pathID {
+			s.entries[i].entry.StaleLevel = StaleLevelFresh
+			s.entries[i].entry.MsgID = messageID
+			return
+		}
+	}
+}
+
+// setLabels binds h to pathID, releasing the handle the path held before.
+// Returns false if the pathID is absent, so the caller still owns h.
+//
+// RFC 8277 Section 2.5: "If I1 is not the same as I2, U2 MUST be interpreted
+// as meaning that L2 is now bound to P at N1, but U2 MUST NOT be interpreted
+// as meaning that L1 is no longer bound to P at N1." Each path holds its own
+// handle, so binding one path's labels leaves every other path's in place.
+func (s *pathSet) setLabels(pathID uint32, h attrpool.Handle) bool {
+	for i := range s.entries {
+		if s.entries[i].pathID == pathID {
+			releaseLabels(&s.entries[i])
+			s.entries[i].labels = h
+			return true
+		}
+	}
+	return false
+}
+
+// lookupLabels returns the label handle bound to pathID, or
+// attrpool.InvalidHandle when the path is absent or carries none.
+func (s *pathSet) lookupLabels(pathID uint32) attrpool.Handle {
+	for i := range s.entries {
+		if s.entries[i].pathID == pathID {
+			return s.entries[i].labels
+		}
+	}
+	return attrpool.InvalidHandle
+}
+
+// removeLabels releases the label handle bound to pathID, keeping the route.
+func (s *pathSet) removeLabels(pathID uint32) {
+	for i := range s.entries {
+		if s.entries[i].pathID == pathID {
+			releaseLabels(&s.entries[i])
+			return
+		}
+	}
+}
+
+// releaseLabels releases e's label handle and leaves e with none.
+func releaseLabels(e *pathEntry) {
+	if e.labels.IsValid() {
+		_ = pool.Labels.Release(e.labels)
+	}
+	e.labels = attrpool.InvalidHandle
 }
 
 // lookup returns the RouteEntry for pathID. Returns (zero, false) if absent.
@@ -63,6 +145,7 @@ func (s *pathSet) remove(pathID uint32) (RouteEntry, bool) {
 			continue
 		}
 		removed := s.entries[i].entry
+		releaseLabels(&s.entries[i])
 		// Swap-delete: order is not observable to callers.
 		last := len(s.entries) - 1
 		s.entries[i] = s.entries[last]
@@ -87,10 +170,12 @@ func (s *pathSet) modify(pathID uint32, fn func(*RouteEntry)) bool {
 // len returns the number of path-id entries in the set.
 func (s *pathSet) len() int { return len(s.entries) }
 
-// releaseAll calls Release on every stored RouteEntry and empties the set.
+// releaseAll calls Release on every stored RouteEntry, releases every label
+// handle, and empties the set.
 func (s *pathSet) releaseAll() {
 	for i := range s.entries {
 		s.entries[i].entry.Release()
+		releaseLabels(&s.entries[i])
 	}
 	s.entries = s.entries[:0]
 }

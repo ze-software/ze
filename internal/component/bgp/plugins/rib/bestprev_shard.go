@@ -171,7 +171,7 @@ func (b *bestPrevShards) shardDepth(fam family.Family) []int {
 	for i := range fs.shards {
 		sh := &fs.shards[i]
 		sh.mu.RLock()
-		count := 0
+		var count int
 		if sh.store.cidr {
 			count = sh.store.direct.Len()
 		} else {

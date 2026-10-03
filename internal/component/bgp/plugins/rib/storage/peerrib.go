@@ -418,9 +418,10 @@ func (r *PeerRIB) StaleCount() int {
 }
 
 // SetLabelsIfRouteExists stores MPLS labels as side-data for a CIDR NLRI
-// (label-stripped). Returns false if the family does not exist, is not
-// labeled, or the NLRI bytes are malformed, so the caller can release the
-// handle on failure.
+// (label-stripped), on the path the NLRI's path id names under ADD-PATH.
+// Returns false if the family does not exist, is not labeled, the NLRI bytes
+// are malformed, or under ADD-PATH the path is not stored, so the caller can
+// release the handle on failure.
 func (r *PeerRIB) SetLabelsIfRouteExists(fam family.Family, nlriBytes []byte, h attrpool.Handle) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -429,15 +430,15 @@ func (r *PeerRIB) SetLabelsIfRouteExists(fam family.Family, nlriBytes []byte, h 
 	if !exists || !rib.isLabeled() {
 		return false
 	}
-	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
+	pathID, pfx, ok := rib.parseNLRIKey(nlriBytes)
 	if !ok {
 		return false
 	}
-	rib.SetLabels(pfx, h)
-	return true
+	return rib.SetLabels(pathID, pfx, h)
 }
 
-// RemoveLabels deletes MPLS label side-data for a CIDR NLRI.
+// RemoveLabels deletes MPLS label side-data for a CIDR NLRI, of the one path
+// the NLRI's path id names under ADD-PATH.
 func (r *PeerRIB) RemoveLabels(fam family.Family, nlriBytes []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -446,14 +447,15 @@ func (r *PeerRIB) RemoveLabels(fam family.Family, nlriBytes []byte) {
 	if !exists || !rib.isLabeled() {
 		return
 	}
-	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
+	pathID, pfx, ok := rib.parseNLRIKey(nlriBytes)
 	if !ok {
 		return
 	}
-	rib.RemoveLabels(pfx)
+	rib.RemoveLabels(pathID, pfx)
 }
 
-// LookupLabels returns the MPLS label handle for a CIDR NLRI, or InvalidHandle.
+// LookupLabels returns the MPLS label handle for a CIDR NLRI, of the path the
+// NLRI's path id names under ADD-PATH, or InvalidHandle.
 func (r *PeerRIB) LookupLabels(fam family.Family, nlriBytes []byte) attrpool.Handle {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -462,11 +464,11 @@ func (r *PeerRIB) LookupLabels(fam family.Family, nlriBytes []byte) attrpool.Han
 	if !exists || !rib.isLabeled() {
 		return attrpool.InvalidHandle
 	}
-	_, pfx, ok := rib.parseNLRIKey(nlriBytes)
+	pathID, pfx, ok := rib.parseNLRIKey(nlriBytes)
 	if !ok {
 		return attrpool.InvalidHandle
 	}
-	return rib.LookupLabels(pfx)
+	return rib.LookupLabels(pathID, pfx)
 }
 
 // getOrCreateFamily returns the FamilyRIB, creating if needed.

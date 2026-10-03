@@ -1539,9 +1539,13 @@ REMOVE, the affected prefix is checked for best-path changes. Changes are collec
 into a batch under the RIB lock, then published to `bgp-rib/best-change/bgp` after lock
 release. Each entry contains the prefix, action (add/update/withdraw), next-hop,
 priority (admin distance), metric (MED), and optional MPLS label stack (for labeled
-unicast, SAFI 4). Labels are stored as side-data on FamilyRIB (not on RouteEntry) and
-populated from the winning peer's label pool handle at emission time.
+unicast, SAFI 4). Labels are stored as side-data on FamilyRIB (not on RouteEntry):
+one handle per prefix without ADD-PATH, and one per path under ADD-PATH, held in
+the path's `pathEntry`, so binding or withdrawing one path's label leaves every
+other path's in place (RFC 8277 Section 2.5). The best change is populated from
+the winning path's label pool handle at emission time.
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
+<!-- source: internal/component/bgp/plugins/rib/storage/pathset.go -- pathEntry, setLabels -->
 
 ### System RIB
 

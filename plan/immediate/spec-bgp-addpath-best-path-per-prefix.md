@@ -12,7 +12,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 2/4 |
+| Phase | 3/4 |
 | Handoff | - |
 | Updated | 2026-10-03 |
 
@@ -44,7 +44,7 @@ side keys on sent UPDATEs (`ribOutKey`, `rib.go`), not on best-change. R-1 holds
 | Phase | Content | State |
 |-------|---------|-------|
 | 1 | CIDR families: per-prefix gather, one record per prefix, winner-keyed reads, Loc-RIB Instance 0, tie-break, peer-down re-election, docs | done, committed |
-| 2 | Labels per path (AC-4, RFC8277-2.5-2 same-id case, RFC8277-2.5-3 and its `{gap}` removal) | open |
+| 2 | Labels per path (AC-4, RFC8277-2.5-2 same-id case, RFC8277-2.5-3 and its `{gap}` removal): handle in `pathEntry` under ADD-PATH, released in `pathSet.upsert`/`remove`/`releaseAll`, `pathSet.refresh` keeps it; `TestRFC8277AddPathLabelsBoundPerPath` replaces the gap pin, red against HEAD storage by overlay, records for 2.5-2 and 2.5-3; `gatherCandidates` split into `gatherCandidates` and `gatherFramedCandidates` | done, committed |
 | 3 | Opaque-key families (VPN, EVPN, ...): path id out of the key, per-path value layer, VPN and EVPN twins | open |
 | 4 | Functional `.ci` (`show rib best` one best for two path ids), interop (extend `bgp-addpath-frr` or the rail-agreement pattern) with revert-rebuild-red recorded | open |
 
