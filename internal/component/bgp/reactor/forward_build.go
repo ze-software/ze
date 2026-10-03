@@ -10,6 +10,7 @@
 package reactor
 
 import (
+	"bytes"
 	"encoding/binary"
 	"sync"
 
@@ -663,18 +664,42 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 	return e.n, modifyFailureNone
 }
 
-// buildWithdrawalPayload converts an announce UPDATE payload to a withdrawal.
-// RFC 9494: EBGP non-LLGR peers must receive a withdrawal for stale routes.
+// buildWithdrawalPayload converts an UPDATE payload into the withdrawal of
+// every route it names: the routes it announces AND the routes it already
+// withdraws.
 //
-// For IPv4 unicast (legacy NLRI in payload tail):
+// Two kinds of caller convert a destination's copy to a withdrawal. RFC 9494:
+// an EBGP peer that did not negotiate LLGR receives a withdrawal for a stale
+// route (the LLGR egress filter, mods.SetWithdraw). And every withhold gate of
+// the forward rails, because a destination refused the announcement may hold
+// the previous generation of the route: draft-ietf-idr-linklocal-capability
+// Section 4, "the BGP route MUST not be advertised to its peer. Instead,
+// treat-as-withdraw (Section 2 of [RFC7606]) is used."
 //
-//	Move NLRI bytes to Withdrawn Routes, set attr_len=0.
-//	Result: withdrawn_len(2) + nlri_bytes + attr_len(2)=0
+// RFC 7606 Section 2: "the UPDATE message containing the path attribute in
+// question MUST be treated as though all contained routes had been withdrawn
+// just as if they had been listed in the WITHDRAWN ROUTES field (or in the
+// MP_UNREACH_NLRI attribute if appropriate) of the UPDATE message".
 //
-// For other families (MP_REACH_NLRI attr 14):
+// "All contained routes" includes the ones the source already withdrew. A
+// conversion that rebuilt only the announced half would lose them, and the
+// destination would keep a prefix the source took back.
 //
-//	Extract AFI/SAFI + NLRI from MP_REACH, build MP_UNREACH_NLRI (attr 15).
-//	Result: withdrawn_len(2)=0 + attr_len(2) + mp_unreach_attr
+// Layout of the result:
+//
+//	Withdrawn Routes Length(2)
+//	Withdrawn Routes = source Withdrawn Routes, then source legacy NLRI
+//	Total Path Attribute Length(2)
+//	at most ONE MP_UNREACH_NLRI (code 15, optional, non-transitive):
+//	  AFI(2) SAFI(1), then the source MP_UNREACH NLRI, then the source MP_REACH NLRI
+//
+// RFC 7606 Section 3(g): "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
+// [RFC4760] attribute appears more than once in the UPDATE message, then a
+// NOTIFICATION message MUST be sent". So the two MP halves share one attribute,
+// which needs them to name one AFI/SAFI. A source whose MP_UNREACH and MP_REACH
+// name different families needs two messages, and that shape is refused rather
+// than half sent. An MP_UNREACH_NLRI with no prefix is not carried: its value is
+// AFI/SAFI only, which is the RFC 4724 End-of-RIB marker.
 //
 // Copy-on-modify: when pp is non-nil and has a free buffer, the result is
 // written directly into the per-peer pool buffer. The caller stores the
@@ -682,8 +707,8 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // writes to TCP. When no per-peer buffer is available, falls back to
 // sync.Pool + a result copy, matching buildModifiedPayload's shape.
 //
-// Returns (nil, 0) if the payload cannot be converted (malformed or
-// unsupported).
+// Returns (nil, 0) if the payload is malformed, withdraws nothing once
+// converted, or is the two-family shape above.
 func buildWithdrawalPayload(payload []byte, pp *peerPool) ([]byte, int) {
 	if len(payload) < 4 {
 		return nil, 0
@@ -699,10 +724,23 @@ func buildWithdrawalPayload(payload []byte, pp *peerPool) ([]byte, int) {
 	if len(payload) < attrEnd {
 		return nil, 0
 	}
+	withdrawn := payload[2:attrOffset]
+	announced := payload[attrEnd:]
 
-	// Acquire a buffer sized to the worst-case withdrawal (<= len(payload)
-	// since a withdrawal is strictly shorter than the source announce).
-	needSize := len(payload) + 4 // slack for headers
+	mp, ok := findWithdrawalMPHalves(payload[attrStart:attrEnd])
+	if !ok {
+		return nil, 0
+	}
+	if len(withdrawn)+len(announced) > 65535 {
+		return nil, 0
+	}
+	if len(withdrawn)+len(announced)+len(mp.unreach)+len(mp.reach) == 0 {
+		return nil, 0
+	}
+
+	// The result drops every attribute but one MP_UNREACH_NLRI header, so it
+	// is never longer than the source plus one extended attribute header.
+	needSize := len(payload) + 4
 	buf, peerBufIdx, poolBuf := acquireModBuf(pp, needSize)
 	defer func() {
 		if poolBuf != nil {
@@ -710,16 +748,7 @@ func buildWithdrawalPayload(payload []byte, pp *peerPool) ([]byte, int) {
 		}
 	}()
 
-	nlriBytes := payload[attrEnd:]
-	var n int
-	if len(nlriBytes) > 0 {
-		// IPv4 unicast: move NLRI to withdrawn routes, no attributes.
-		n = writeIPv4Withdrawal(buf, nlriBytes)
-	} else {
-		// No legacy NLRI: look for MP_REACH_NLRI (attr code 14) to convert.
-		n = writeMPUnreachFromReach(buf, payload[attrStart:attrEnd])
-	}
-
+	n := writeWithdrawal(buf, withdrawn, announced, mp)
 	if n == 0 {
 		if peerBufIdx > 0 && pp != nil {
 			pp.Return(peerBufIdx)
@@ -760,121 +789,139 @@ func acquireModBuf(pp *peerPool, needSize int) ([]byte, int, *[]byte) {
 	return make([]byte, needSize), 0, nil
 }
 
-// writeIPv4Withdrawal writes an IPv4 withdrawal (withdrawn_len + NLRI +
-// attr_len=0) into buf and returns the bytes written. Returns 0 if buf
-// is too small or nlri exceeds the uint16 withdrawn_len ceiling.
-func writeIPv4Withdrawal(buf, nlri []byte) int {
-	need := 2 + len(nlri) + 2
-	if len(buf) < need || len(nlri) > 65535 {
-		return 0
-	}
-	binary.BigEndian.PutUint16(buf[0:2], uint16(len(nlri)))
-	copy(buf[2:], nlri)
-	buf[2+len(nlri)] = 0
-	buf[2+len(nlri)+1] = 0
-	return need
+// withdrawalMPHalves holds the multiprotocol prefixes a withdrawal removes:
+// those the source's MP_UNREACH_NLRI already withdraws and those its
+// MP_REACH_NLRI announces, both of the family afiSAFI (AFI(2) + SAFI(1)). A nil
+// afiSAFI means the withdrawal carries no MP_UNREACH_NLRI.
+type withdrawalMPHalves struct {
+	afiSAFI []byte
+	unreach []byte
+	reach   []byte
 }
 
-// writeMPUnreachFromReach extracts AFI/SAFI + NLRI from MP_REACH_NLRI
-// (attr 14) and writes an UPDATE body with MP_UNREACH_NLRI (attr 15)
-// directly into buf. Returns bytes written, or 0 if no MP_REACH was
-// found / the payload is malformed / buf is too small.
+// findWithdrawalMPHalves finds both multiprotocol halves in an attribute
+// section, and reports false for a malformed section, a repeated MP attribute,
+// or two non-empty halves of different families (see buildWithdrawalPayload).
+// Allocation-free: every slice aliases attrs.
 //
 // MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NH(var) + Reserved(1) + NLRI(var).
 // MP_UNREACH_NLRI value: AFI(2) + SAFI(1) + NLRI(var).
-func writeMPUnreachFromReach(buf, attrs []byte) int {
+func findWithdrawalMPHalves(attrs []byte) (withdrawalMPHalves, bool) {
+	var out withdrawalMPHalves
+	var reachFamily, unreachFamily []byte
+	reachSeen, unreachSeen := false, false
 	off := 0
 	for off < len(attrs) {
-		if off+2 > len(attrs) {
-			return 0
+		if off+3 > len(attrs) {
+			return out, false
 		}
 		flags := attrs[off]
 		code := attrs[off+1]
-		var hdrLen int
-		var aLen uint16
-		if flags&0x10 == 0 {
-			if off+3 > len(attrs) {
-				return 0
-			}
-			aLen = uint16(attrs[off+2])
-			hdrLen = 3
-		} else { // Extended length.
+		hdrLen := 3
+		valLen := int(attrs[off+2])
+		if flags&0x10 != 0 { // Extended Length.
 			if off+4 > len(attrs) {
-				return 0
+				return out, false
 			}
-			aLen = binary.BigEndian.Uint16(attrs[off+2 : off+4])
 			hdrLen = 4
+			valLen = int(binary.BigEndian.Uint16(attrs[off+2 : off+4]))
 		}
 		valStart := off + hdrLen
-		valEnd := valStart + int(aLen)
+		valEnd := valStart + valLen
 		if valEnd > len(attrs) {
-			return 0
+			return out, false
 		}
-
-		if code != 14 { // not MP_REACH_NLRI
-			off = valEnd
-			continue
-		}
-
 		val := attrs[valStart:valEnd]
-		if len(val) < 4 { // AFI(2) + SAFI(1) + NH_Len(1) minimum
-			return 0
-		}
-		nhLen := int(val[3])
-		nlriStart := 4 + nhLen + 1 // skip NH + reserved byte
-		if nlriStart > len(val) {
-			return 0
-		}
-		nlriData := val[nlriStart:]
+		off = valEnd
 
-		// Compute size of MP_UNREACH attribute value (AFI+SAFI+NLRI).
-		unreachValLen := 3 + len(nlriData)
-		if unreachValLen > 65535 {
-			return 0
+		switch code {
+		case uint8(attribute.AttrMPReachNLRI):
+			if reachSeen {
+				return out, false
+			}
+			reachSeen = true
+			if len(val) < 4 {
+				return out, false
+			}
+			nlriStart := 4 + int(val[3]) + 1 // skip NH + reserved byte
+			if nlriStart > len(val) {
+				return out, false
+			}
+			reachFamily = val[:3]
+			out.reach = val[nlriStart:]
+		case uint8(attribute.AttrMPUnreachNLRI):
+			if unreachSeen {
+				return out, false
+			}
+			unreachSeen = true
+			if len(val) < 3 {
+				return out, false
+			}
+			unreachFamily = val[:3]
+			out.unreach = val[3:]
 		}
-
-		// Attribute header size: 3 (short) or 4 (extended) bytes.
-		var attrHdrLen int
-		var attrFlags byte
-		if unreachValLen > 255 {
-			attrFlags = 0x90 // Optional, Transitive, Extended Length.
-			attrHdrLen = 4
-		} else {
-			attrFlags = 0x80 // Optional, Transitive.
-			attrHdrLen = 3
-		}
-		attrTotalLen := attrHdrLen + unreachValLen
-
-		// Total wire body: withdrawn_len(2) + attr_len(2) + attr.
-		need := 4 + attrTotalLen
-		if len(buf) < need {
-			return 0
-		}
-
-		// withdrawn_len = 0.
-		buf[0] = 0
-		buf[1] = 0
-		// attr_len covers only the attribute (header + value).
-		binary.BigEndian.PutUint16(buf[2:4], uint16(attrTotalLen)) //nolint:gosec // G115: bounded by uint16 check
-		// MP_UNREACH header.
-		w := 4
-		buf[w] = attrFlags
-		buf[w+1] = 15 // MP_UNREACH_NLRI
-		if attrFlags == 0x90 {
-			binary.BigEndian.PutUint16(buf[w+2:w+4], uint16(unreachValLen)) //nolint:gosec // G115: bounded above
-			w += 4
-		} else {
-			buf[w+2] = byte(unreachValLen)
-			w += 3
-		}
-		// MP_UNREACH value: AFI(2) + SAFI(1) + NLRI.
-		copy(buf[w:w+2], val[0:2])
-		buf[w+2] = val[2]
-		copy(buf[w+3:], nlriData)
-		return need
 	}
 
-	return 0 // No MP_REACH_NLRI found.
+	switch {
+	case len(out.reach) > 0 && len(out.unreach) > 0:
+		if !bytes.Equal(reachFamily, unreachFamily) {
+			return out, false
+		}
+		out.afiSAFI = reachFamily
+	case len(out.reach) > 0:
+		out.afiSAFI = reachFamily
+	case len(out.unreach) > 0:
+		out.afiSAFI = unreachFamily
+	}
+	return out, true
+}
+
+// writeWithdrawal writes the withdrawal buildWithdrawalPayload lays out into
+// buf and returns the bytes written, or 0 when buf is too small or the
+// MP_UNREACH_NLRI value would exceed the uint16 attribute length. The caller
+// bounds len(withdrawn)+len(announced) to 65535.
+func writeWithdrawal(buf, withdrawn, announced []byte, mp withdrawalMPHalves) int {
+	legacyLen := len(withdrawn) + len(announced)
+	mpValLen := 0
+	attrHdrLen := 0
+	if mp.afiSAFI != nil {
+		mpValLen = 3 + len(mp.unreach) + len(mp.reach)
+		if mpValLen > 65535 {
+			return 0
+		}
+		attrHdrLen = 3
+		if mpValLen > 255 {
+			attrHdrLen = 4
+		}
+	}
+	attrTotalLen := attrHdrLen + mpValLen
+	need := 2 + legacyLen + 2 + attrTotalLen
+	if len(buf) < need {
+		return 0
+	}
+
+	binary.BigEndian.PutUint16(buf[0:2], uint16(legacyLen)) //nolint:gosec // G115: the caller bounds it to 65535
+	w := 2
+	w += copy(buf[w:], withdrawn)
+	w += copy(buf[w:], announced)
+	binary.BigEndian.PutUint16(buf[w:w+2], uint16(attrTotalLen)) //nolint:gosec // G115: bounded by the 65535 check above
+	w += 2
+	if mp.afiSAFI == nil {
+		return w
+	}
+	buf[w+1] = uint8(attribute.AttrMPUnreachNLRI)
+	if attrHdrLen == 4 {
+		buf[w] = 0x90                                              // Optional, Extended Length.
+		binary.BigEndian.PutUint16(buf[w+2:w+4], uint16(mpValLen)) //nolint:gosec // G115: bounded above
+	} else {
+		buf[w] = 0x80 // Optional.
+		buf[w+2] = byte(mpValLen)
+	}
+	w += attrHdrLen
+	w += copy(buf[w:], mp.afiSAFI)
+	w += copy(buf[w:], mp.unreach)
+	w += copy(buf[w:], mp.reach)
+	return w
 }
 
 // safeAttrModHandler runs an AttrModHandler with panic recovery.
