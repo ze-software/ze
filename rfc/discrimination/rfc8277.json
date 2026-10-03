@@ -146,6 +146,28 @@
     },
     {
       "rid": "RFC8277-2.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues",
+      "unit-sha": "97d434d388fb1a36",
+      "claim-sha": "7fb81d0308296c4d",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
+      "producer-sha": "89cf393565db492c",
+      "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNamesThePrefix",
+      "unit-sha": "02e539ede04b019c",
+      "claim-sha": "553f279236aba1fc",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
+      "producer-sha": "89cf393565db492c",
+      "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility",
       "unit-sha": "c04d68dee8dfc911",
@@ -165,6 +187,28 @@
       "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix",
       "producer-sha": "0b7ea75853f3f46d",
       "break": "body of LabeledWithdrawnPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue",
+      "unit-sha": "3091616f08a49c31",
+      "claim-sha": "f43af89d6b13c52e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::Withdraw",
+      "producer-sha": "94a63dd6b94eac2b",
+      "break": "body of Withdraw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
+      "unit-sha": "97b84c8e3373b704",
+      "claim-sha": "4e73927d30171fa8",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
+      "producer-sha": "89cf393565db492c",
+      "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8277-2.5-1",
@@ -198,6 +242,17 @@
       "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
       "producer-sha": "0942c1ada067298a",
       "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.5-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathSameIdentifierRebinds",
+      "unit-sha": "c438ca4a9a954c64",
+      "claim-sha": "47ed95d9e9dc5e67",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_structured.go::insertLabeledEntry",
+      "producer-sha": "1a9d1e392b3b5dd6",
+      "break": "body of insertLabeledEntry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8277-3.1-1",

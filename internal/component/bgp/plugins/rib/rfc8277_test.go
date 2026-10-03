@@ -227,6 +227,39 @@ func TestRFC8277AddPathLabelsBoundPerPath(t *testing.T) {
 	assert.Nil(t, labelsFor(r, peer, cidr9), "the withdrawn path holds no label")
 }
 
+// TestRFC8277AddPathSameIdentifierRebinds is the boundary of RFC 8277
+// Section 2.5's different-identifier rule: "If I1 is not the same as I2, U2
+// MUST be interpreted as meaning that L2 is now bound to P at N1, but U2 MUST
+// NOT be interpreted as meaning that L1 is no longer bound to P at N1."
+//
+// VALIDATES: on one ADD-PATH session, path 7 binds label 100 and is then
+// re-advertised under path 7 with label 200: one route remains, and it is
+// bound to 200 alone.
+// PREVENTS: label bindings kept for every UPDATE whatever its identifier, which
+// would also pass the different-identifier test while leaving a stale label
+// beside the new one when the identifier is the same.
+//
+// RFC requirement: RFC8277-2.5-3 negative -- on one ADD-PATH session, re-advertising 10.0.0.0/8 under the SAME path 7 with label 200 leaves one route bound to 200 alone: label 100 does not survive beside it, so the binding kept across different identifiers is kept because they differ.
+func TestRFC8277AddPathSameIdentifierRebinds(t *testing.T) {
+	r := newTestRIBManager(t)
+	peer := netip.MustParseAddr("192.0.2.14")
+	ctxID, _ := bgpctx.Registry.Register(
+		bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{labeledFamily: true}))
+
+	pfx := netip.MustParsePrefix("10.0.0.0/8")
+	cidr7 := []byte{0, 0, 0, 7, 8, 10}
+
+	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+		labeledNLRI(7, true, pfx, []uint32{100})))
+	require.Equal(t, []uint32{100}, labelsFor(r, peer, cidr7))
+
+	feedReceived(r, peer, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+		labeledNLRI(7, true, pfx, []uint32{200})))
+	assert.Equal(t, 1, r.bgpPeers[peer].Len(), "the same Path Identifier names the same route")
+	assert.Equal(t, []uint32{200}, labelsFor(r, peer, cidr7),
+		"the same Path Identifier rebinds the route: label 100 does not survive beside 200")
+}
+
 // TestLabeledRoutesWithDifferentLabelsAreComparable pins RFC 8277 Section 3.1:
 // two routes for the same prefix that differ only in the label they carry are
 // COMPARABLE, so ordinary best-path selection runs over both. ze strips the

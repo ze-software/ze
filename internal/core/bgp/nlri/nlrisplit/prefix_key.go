@@ -25,6 +25,12 @@ type PrefixKeyFunc func(raw, scratch []byte, withdraw bool) ([]byte, error)
 var prefixKeys = make(map[family.Family]PrefixKeyFunc)
 var withdrawalSplitters = make(map[family.Family]Splitter)
 
+// cidrKeys holds the families whose route key is the [length][prefix] CIDR of
+// the family's own address family, carried behind fields that are not part of
+// the key: a label stack in an announcement, a Compatibility field in a
+// withdrawal. RouteCIDR answers only for these.
+var cidrKeys = make(map[family.Family]PrefixKeyFunc)
+
 // GetPrefixKey returns the registered route identity operation. The default
 // preserves the whole NLRI for families whose wire fields all identify a route.
 func GetPrefixKey(fam family.Family) PrefixKeyFunc {
@@ -45,6 +51,26 @@ func GetWithdraw(fam family.Family) Splitter {
 		return split
 	}
 	return splitters[fam]
+}
+
+// RouteCIDR returns the [length][prefix] CIDR a route of fam names, with the
+// fields in front of the prefix that do not identify the route stripped. raw is
+// one NLRI without its ADD-PATH identifier, and withdraw says it was framed by
+// the family's withdrawal splitter. scratch must have PrefixKeyScratchSize
+// bytes, and the result aliases it. A family whose key is not such a CIDR
+// answers ErrUnsupported, which is the caller's cue to keep the NLRI opaque.
+//
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." For a withdrawal of a labeled family the CIDR is what is
+// left once the field is ignored, so it names the route whatever the field held.
+func RouteCIDR(fam family.Family, raw, scratch []byte, withdraw bool) ([]byte, error) {
+	mu.RLock()
+	key := cidrKeys[fam]
+	mu.RUnlock()
+	if key == nil {
+		return nil, ErrUnsupported
+	}
+	return key(raw, scratch, withdraw)
 }
 
 func keyOpaque(raw, _ []byte, _ bool) ([]byte, error) {

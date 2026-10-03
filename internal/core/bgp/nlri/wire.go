@@ -5,7 +5,9 @@ package nlri
 import (
 	"encoding/binary"
 	"errors"
+	"net/netip"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -48,7 +50,17 @@ func (w *WireNLRI) Len() int {
 }
 
 // String returns a human-readable representation.
+//
+// A family whose route is a CIDR behind a label stack (nlrisplit.RouteCIDR) is
+// named by that prefix, the way INET names its own, so a route announced as a
+// WireNLRI and withdrawn as an INET (wireu.ParseWithdrawnNLRIs) carry one name.
+// A consumer keyed on the name, such as the route reflector's withdrawal map,
+// then pairs the withdrawal with its announcement. The bytes are read as an
+// announcement: a withdrawal of such a family is never carried as a WireNLRI.
 func (w *WireNLRI) String() string {
+	if prefix, ok := w.routePrefix(); ok {
+		return prefix.String()
+	}
 	var b textbuf.Buffer
 	return b.Reset().Str("wire[").Str(w.fam.String()).Str("](").Int(int64(len(w.data))).Str(" bytes)").String()
 }
@@ -84,4 +96,30 @@ func (w *WireNLRI) WriteTo(buf []byte, off int) int {
 		return copy(buf[off:], w.data[4:])
 	}
 	return copy(buf[off:], w.data)
+}
+
+// routePrefix answers the prefix the route names when its family keys routes
+// by a CIDR, and false for every other family and for malformed bytes.
+func (w *WireNLRI) routePrefix() (netip.Prefix, bool) {
+	payload := w.data
+	if w.hasAddPath {
+		if len(payload) < 4 {
+			return netip.Prefix{}, false
+		}
+		payload = payload[4:]
+	}
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	cidr, err := nlrisplit.RouteCIDR(w.fam, payload, scratch[:], false)
+	if err != nil {
+		return netip.Prefix{}, false
+	}
+	n, _, err := ParseINET(w.fam.AFI, w.fam.SAFI, cidr, false)
+	if err != nil {
+		return netip.Prefix{}, false
+	}
+	inet, ok := n.(*INET)
+	if !ok {
+		return netip.Prefix{}, false
+	}
+	return inet.Prefix(), true
 }

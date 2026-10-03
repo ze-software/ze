@@ -113,6 +113,8 @@ func TestRFC8277VPNRelabelReplacesTheRoute(t *testing.T) {
 // PREVENTS: a withdrawal keyed with its Compatibility field, which matched no
 // stored route and removed nothing (RFC 8277 Section 2.4: "Upon reception, the
 // value of the Compatibility field MUST be ignored.").
+//
+// RFC requirement: RFC8277-2.4-1 positive -- a VPN withdrawal whose Compatibility field is 0x800000 removes the route announced under label 100 from the Adj-RIB-In, and the published withdrawal names the route as announced.
 func TestVPNWithdrawIgnoresCompatibilityValue(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)

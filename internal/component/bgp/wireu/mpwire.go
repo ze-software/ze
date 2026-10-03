@@ -6,6 +6,7 @@ package wireu
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -294,7 +295,8 @@ func (m MPUnreachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	withdrawnBytes := m[3:]
 	fam := m.Family()
 
-	return ParseNLRIs(withdrawnBytes, fam, hasAddPath)
+	// RFC 8277 Section 2.4: the withdrawal is framed by the withdrawal splitter.
+	return ParseWithdrawnNLRIs(withdrawnBytes, fam, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the withdrawn NLRI section.
@@ -418,7 +420,7 @@ func (w IPv4Withdraw) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	if len(w.withdrawn) == 0 {
 		return nil, nil
 	}
-	return ParseNLRIs(w.withdrawn, family.IPv4Unicast, hasAddPath)
+	return ParseWithdrawnNLRIs(w.withdrawn, family.IPv4Unicast, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the withdrawn section.
@@ -430,10 +432,32 @@ func (w IPv4Withdraw) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 	return nlri.NewNLRIIterator(w.withdrawn, addPath)
 }
 
-// ParseNLRIs parses a sequence of NLRIs using the nlri package.
+// ParseNLRIs parses the NLRIs of an announcement using the nlri package.
 // RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
-// Supports IPv4/IPv6 unicast/multicast. Other families return error.
+// IPv4/IPv6 unicast/multicast parse into INET; every other family is framed
+// by its registered splitter and carried as one WireNLRI per NLRI.
 func ParseNLRIs(data []byte, fam family.Family, hasAddPath bool) ([]nlri.NLRI, error) {
+	return parseNLRISection(data, fam, hasAddPath, false)
+}
+
+// ParseWithdrawnNLRIs is ParseNLRIs for the NLRIs of a withdrawal: MP_UNREACH_NLRI
+// or the IPv4 Withdrawn Routes field. A family whose withdrawal framing differs
+// from its announcement's is framed by nlrisplit.SplitWithdrawn, and a route it
+// names by a CIDR (nlrisplit.RouteCIDR) parses into an INET of that prefix.
+//
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." A labeled withdrawal carries that field where its
+// announcement carried a label stack, so the announcement framing walks it as
+// a label entry, finds the S bit clear in the 0x800000 a sender SHOULD use, and
+// runs past the NLRI. Framed as a withdrawal, the field is skipped, and the
+// INET carries what is left: the prefix and its path identifier, never a label.
+func ParseWithdrawnNLRIs(data []byte, fam family.Family, hasAddPath bool) ([]nlri.NLRI, error) {
+	return parseNLRISection(data, fam, hasAddPath, true)
+}
+
+// parseNLRISection is ParseNLRIs and ParseWithdrawnNLRIs; withdraw picks the
+// framing.
+func parseNLRISection(data []byte, fam family.Family, hasAddPath, withdraw bool) ([]nlri.NLRI, error) {
 	var result []nlri.NLRI
 	originalLen := len(data)
 
@@ -477,13 +501,17 @@ func ParseNLRIs(data []byte, fam family.Family, hasAddPath bool) ([]nlri.NLRI, e
 			// Split answers the NLRIs it read before any corruption, plus the
 			// error. Both are carried out: the routes that parsed are real, and
 			// the caller still learns the section was malformed.
-			parts, splitErr := nlrisplit.Split(fam, data, hasAddPath)
+			split := nlrisplit.Split
+			if withdraw {
+				split = nlrisplit.SplitWithdrawn
+			}
+			parts, splitErr := split(fam, data, hasAddPath)
 			for _, part := range parts {
-				w, wErr := nlri.NewWireNLRI(fam, part, hasAddPath)
-				if wErr != nil {
-					return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, wErr)
+				n, nErr := wrapNLRI(fam, part, hasAddPath, withdraw)
+				if nErr != nil {
+					return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, nErr)
 				}
-				result = append(result, w)
+				result = append(result, n)
 			}
 			if splitErr != nil {
 				return result, fmt.Errorf("splitting NLRI section for %s: %w", fam, splitErr)
@@ -500,4 +528,34 @@ func ParseNLRIs(data []byte, fam family.Family, hasAddPath bool) ([]nlri.NLRI, e
 	}
 
 	return result, nil
+}
+
+// wrapNLRI carries one framed NLRI of a family with no dedicated parser. An
+// announcement stays opaque for the family's decoder. A withdrawal of a family
+// that names its routes by a CIDR becomes an INET of that prefix, because the
+// field in front of it is the Compatibility field and carries nothing to decode
+// (RFC 8277 Section 2.4); any other withdrawal stays opaque too.
+func wrapNLRI(fam family.Family, part []byte, hasAddPath, withdraw bool) (nlri.NLRI, error) {
+	if !withdraw {
+		return nlri.NewWireNLRI(fam, part, hasAddPath)
+	}
+	pathID, payload, err := nlri.SplitPathID(part, hasAddPath)
+	if err != nil {
+		return nil, err
+	}
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	cidr, err := nlrisplit.RouteCIDR(fam, payload, scratch[:], true)
+	if errors.Is(err, nlrisplit.ErrUnsupported) {
+		return nlri.NewWireNLRI(fam, part, hasAddPath)
+	}
+	if err != nil {
+		return nil, err
+	}
+	prefixed := make([]byte, 0, 4+len(cidr)) // one owned NLRI: cidr aliases scratch
+	if hasAddPath {
+		prefixed = binary.BigEndian.AppendUint32(prefixed, pathID)
+	}
+	prefixed = append(prefixed, cidr...)
+	n, _, err := nlri.ParseINET(fam.AFI, fam.SAFI, prefixed, hasAddPath)
+	return n, err
 }

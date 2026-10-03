@@ -3,6 +3,8 @@ package nlrisplit
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/family"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,29 +54,44 @@ func TestLabeledRsrvIgnoredOnReceive(t *testing.T) {
 	assert.Equal(t, rsrvNonZero, framedR[0], "Rsrv bits must not alter NLRI framing")
 }
 
-// TestLabeledCompatibilityFieldWithdrawalGap documents the RFC 8277 Section 2.4
-// withdrawal encoding as ze reads it today. Section 2.4 frames a withdrawal as
-// [Length][Compatibility(3)][Prefix], with Compatibility RECOMMENDED to be
-// 0x800000 and MUST-ignored on reception. ze's readers instead walk those three
-// octets as a label stack entry and stop on the S bit, which 0x800000 leaves
-// clear, so the reader runs past the end of the NLRI and reports a truncated
-// label stack.
+// TestLabeledWithdrawalFramingSkipsCompatibilityField reads one RFC 8277
+// Section 2.4 withdrawal, [Length][Compatibility(3)][Prefix], with both readers.
+// Compatibility is RECOMMENDED to be 0x800000, whose S bit is clear, and
+// "Upon reception, the value of the Compatibility field MUST be ignored."
 //
-// VALIDATES: the exact observable behavior behind the RFC8277-2.4-1 gap.
-// PREVENTS: the gap being closed silently, or being mis-recorded as closed.
-func TestLabeledCompatibilityFieldWithdrawalGap(t *testing.T) {
+// VALIDATES: the announcement readers (ExtractLabels, SplitLabeled) walk the
+// three octets as a label stack entry and report a truncated stack, which is
+// right for an announcement and is why a withdrawal MUST NOT be read with them;
+// the withdrawal readers (SplitWithdrawn, RouteCIDR with withdraw set) frame
+// the one NLRI and name 10.0.0.0/8 whatever the field holds.
+// PREVENTS: a withdrawal caller reaching for the announcement framing (the
+// MPUnreachWire.NLRIs defect), or the withdrawal framing starting to depend on
+// the field's value.
+func TestLabeledWithdrawalFramingSkipsCompatibilityField(t *testing.T) {
 	t.Parallel()
 
+	labeled := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
 	// Withdrawal of 10.0.0.0/8: Length = 24 + 8 = 32, Compatibility = 0x800000.
 	withdrawal := []byte{32, 0x80, 0x00, 0x00, 10}
 
 	_, _, err := ExtractLabels(withdrawal, false)
 	assert.ErrorIs(t, err, errNlrisplitTruncatedLabelStack,
-		"gap RFC8277-2.4-1: the Compatibility field is parsed as a label stack entry instead of being ignored")
-
+		"the announcement reader walks the Compatibility field as a label stack entry")
 	_, splitErr := splitAll(t, SplitLabeled, withdrawal, false)
-	assert.Error(t, splitErr,
-		"gap RFC8277-2.4-1: NLRI framing also depends on the Compatibility field's S bit")
+	assert.Error(t, splitErr, "the announcement framing depends on the field's S bit")
+
+	for _, compat := range [][3]byte{{0x80, 0x00, 0x00}, {0x00, 0x00, 0x00}, {0x00, 0x06, 0x41}} {
+		nlri := []byte{32, compat[0], compat[1], compat[2], 10}
+		parts, err := SplitWithdrawn(labeled, nlri, false)
+		require.NoError(t, err, "Compatibility %x", compat)
+		require.Len(t, parts, 1, "Compatibility %x", compat)
+		assert.Equal(t, nlri, parts[0], "Compatibility %x", compat)
+
+		var scratch [PrefixKeyScratchSize]byte
+		cidr, err := RouteCIDR(labeled, nlri, scratch[:], true)
+		require.NoError(t, err, "Compatibility %x", compat)
+		assert.Equal(t, []byte{8, 10}, cidr, "Compatibility %x: the route is 10.0.0.0/8", compat)
+	}
 }
 
 // TestLabeledSingleLabelSBitClearGap documents the RFC 8277 Section 2.2

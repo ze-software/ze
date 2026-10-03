@@ -41,6 +41,7 @@ func init() {
 	} {
 		Register(fam, SplitLabeled)
 		prefixKeys[fam] = keyLabeled
+		cidrKeys[fam] = keyLabeled
 		withdrawalSplitters[fam] = splitVPN
 	}
 

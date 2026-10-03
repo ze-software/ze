@@ -252,8 +252,15 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 
 	// Fallback: external plugins over RPC. Wire-encode, hex, dispatch via registry.
 	// Registry APIs are string-keyed; stringify the typed family once at this boundary.
+	//
+	// An INET is never handed over. It holds a prefix and nothing else, and its
+	// Bytes are that CIDR rather than the family's wire form, so a plugin family's
+	// decoder would read prefix octets as its own fields. It reaches here in a
+	// plugin family as a labeled withdrawal, whose Compatibility field was
+	// ignored when it was framed (RFC 8277 Section 2.4).
 	familyStr := fam.String()
-	if registry.PluginForFamily(familyStr) != "" {
+	_, isINET := n.(*nlri.INET)
+	if !isINET && registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
 
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData, addPath)
