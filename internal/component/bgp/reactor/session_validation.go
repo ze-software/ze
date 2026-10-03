@@ -503,6 +503,13 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 	// the deduplicated attribute is what the RIB, the relays and every rebuild see.
 	wu = removeRedundantLargeCommunities(wu)
 
+	// RFC 8669 Section 6, RFC 9252 Section 7, applied here for the same reason:
+	// the RIB, the relays and the JSON encoder all read the first TLV alone.
+	// Route-server clients included, as with the RFC 8092 removal above and the
+	// RFC 7606 Section 3.g strip: the discard is the RFC's own receive rule, not
+	// an attribute update RFC 7947 Section 2.2 asks a route server to avoid.
+	wu = discardRepeatedPrefixSIDTLVs(wu)
+
 	// RFC 8277 Section 2.2, applied at this site for the same reason: the label
 	// fields the RIB keeps and the relays copy carry a zero Rsrv.
 	wu = clearLabelRsrv(wu, bgpctx.Registry.Get(s.recvCtxID).AddPathFor)

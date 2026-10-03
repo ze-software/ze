@@ -240,7 +240,8 @@ the VPP dispatch logic.
 | Unknown TLVs preserved on propagation | 3 | Implemented (opaque forwarding) |
 | EBGP: discard unless configured to accept | 4 | Implemented (`accept-srv6-prefix-sid`) |
 | Propagation to other ASes explicitly configured | 8 | Implemented (`propagate-srv6-prefix-sid`): every rail that writes an UPDATE asks |
-| Malformed attribute: attribute-discard | 6 | Implemented (RFC 7606 validator) |
+| Malformed attribute: attribute-discard | 6 | Partial: a TLV overrunning the attribute and trailing octets are discarded; a TLV length outside its type's constraint and an empty attribute are not refused yet (`plan/immediate/spec-bgp-prefix-sid-rfc-defects.md`, D1) |
+| Repeated single-occurrence TLV: all but the first discarded | 6 | Implemented: Label-Index, SRv6 L3 and L2 Service TLVs, at ingest, so neither the RIB nor any relay sees the repeat |
 
 ### RFC 9252 (SRv6 Overlay Services)
 
@@ -255,8 +256,8 @@ the VPP dispatch logic.
 | LBL+LNL+FL+AL <= 128 validation | 3.2.1 | Implemented (errata 7817) |
 | NH unchanged: preserve TLVs | 3.3 | Implemented (zero-copy forward) |
 | NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented (the Service TLVs leave because Ze allocates no local SRv6 SID; the Prefix-SID handler rewrites the attribute per route) |
-| Malformed Service TLV: treat-as-withdraw | 3.4 | Implemented |
-| Path ineligibility (no valid SID) | 5 | Implemented |
+| Malformed Service TLV: treat-as-withdraw | 7 | Partial: a Service TLV overrunning the attribute gets attribute-discard instead (spec D2) |
+| Path ineligibility (no valid SID) | 5 | Partial: an invalid SID Structure still counts as a valid SID (spec D3, D4) |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
 
 ## Limitations

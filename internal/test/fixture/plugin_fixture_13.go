@@ -15,6 +15,7 @@ import (
 )
 
 func init() {
+	Register("plugin/prefixsid-duplicate-tlv-relay", routeServerReplay13("shutdown-after-forward", "10.0.1.0/24"))
 	Register("plugin/reload-listener-rejected", reloadListenerRejected13)
 	Register("plugin/reload-shared-secret", reloadSharedSecret13)
 	Register("plugin/reload-listener-rejected-trigger", reloadTrigger13)

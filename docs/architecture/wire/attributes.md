@@ -634,7 +634,24 @@ Sub-Sub-TLVs. Sub-Sub-TLV 1 is the SID Structure (RFC 9252 Section 3.2.1): six
 Ze keeps the attribute value whole and decodes a field where a reader asks for
 one. RFC 8669 Section 3 requires unknown TLVs to be propagated unmodified, and
 RFC 9252 Section 2 requires every Reserved field to be propagated unchanged, so
-a relayed Prefix-SID is byte-identical to the one received.
+a relayed Prefix-SID is byte-identical to the one received, with one exception.
+
+**A repeated single-occurrence TLV is discarded at ingest.** RFC 8669 Section 6
+requires a receiver to discard every occurrence after the first of a TLV whose
+specification allows one, and RFC 9252 Section 7 says the same of the SRv6 L3
+and L2 Service TLVs. `publishBase` rewrites the received UPDATE when the
+attribute repeats a Label-Index (1), SRv6 L3 Service (5) or SRv6 L2 Service (6)
+TLV, keeping the first of each and every other TLV in received order, so the
+RIB, the relays, every rebuild and the JSON encoder see the first TLV alone. It
+runs for route-server clients too. `PrefixSIDTLVSingleOccurrence` is the one
+declaration of that set. An Originator SRGB TLV (3) is kept however often it
+repeats, because RFC 8669 sets no occurrence limit for it, and so is a TLV ze
+does not know. The walk allocates nothing when nothing repeats, and the
+attribute keeps the peer's flags and length-field width. It runs after the
+RFC 7606 walk, which validates every TLV, the repeats included, so a malformed
+second SRv6 Service TLV is still treat-as-withdraw.
+<!-- source: internal/component/bgp/reactor/rfc8669_duplicate_tlv.go -- discardRepeatedPrefixSIDTLVs -->
+<!-- source: internal/core/bgp/attribute/prefixsid_wire.go -- PrefixSIDTLVSingleOccurrence -->
 
 A malformed TLV is refused: the parse returns an error and no attribute, rather
 than a value filled as far as the bytes allowed.
@@ -752,8 +769,8 @@ parsed-value side table alone.
 attribute bytes must run before the first `Attrs()` call, or wrap its result in a
 new `WireUpdate`. On the receive path that is why `enforceRFC7606` publishes the
 base last, after its RFC 7606 Section 3.g duplicate strip, its in-place
-attribute-discard branch and the RFC 8092 Section 3 redundant-value removal
-have all run.
+attribute-discard branch, the RFC 8092 Section 3 redundant-value removal and
+the RFC 8669 Section 6 repeated-TLV discard have all run.
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 
 ---

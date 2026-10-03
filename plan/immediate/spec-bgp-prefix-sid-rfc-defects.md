@@ -59,6 +59,60 @@ On 2026-10-02 Thomas assigned D6 and RFC8669-6-3 to this existing spec rather
 than expanding the verdict pass. The earlier five-defect scope is extended by
 AC-8/AC-9; D1 through D5 remain unchanged.
 
+On 2026-10-03 Thomas authorised fixing D6 without claiming this spec. That fix
+is designed and implemented below (AC-8, and AC-9 up to the independent judge).
+D1 to D5, AC-1 to AC-7, and AC-9's `./le rfc audit-stamp ... mode rejudge` are
+still open, and the spec stays `skeleton` for them.
+
+## D6 design (implemented 2026-10-03)
+
+An ingest step of `publishBase`, beside `removeRedundantLargeCommunities`:
+`discardRepeatedPrefixSIDTLVs` (`internal/component/bgp/reactor/rfc8669_duplicate_tlv.go`)
+walks the Prefix-SID TLVs with a stack bitset of the single-occurrence types
+already met. When nothing repeats it returns the UPDATE untouched and allocates
+nothing. Otherwise it copies the attribute section from the first repeat on,
+drops each later TLV of a single-occurrence type, keeps every other TLV in
+received order, fixes the attribute length under the peer's header width, and
+rebuilds the body with `message.RebuildUpdateBody`. It runs after the RFC 7606
+walk, which validates every TLV, so a malformed repeat is still
+treat-as-withdraw, and it runs for route-server clients too.
+
+-> Decision: the single-occurrence set is Label-Index (1), SRv6 L3 Service (5)
+and SRv6 L2 Service (6), declared once in
+`internal/core/bgp/attribute/prefixsid_wire.go::PrefixSIDTLVSingleOccurrence`.
+RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service TLV are
+encountered, all but the first instance MUST be ignored." (and the same for L2).
+RFC 8669 Section 1 has the Label-Index TLV "advertise the label index for a
+given prefix": one index per prefix.
+-> Decision: the Originator SRGB TLV (3) is not in the set. RFC 8669 states no
+occurrence limit for it, and Section 3.2 makes repetition its encoding: "the
+SRGB field MAY appear multiple times. If the SRGB field appears multiple times,
+the SRGB consists of multiple ranges that are concatenated."
+-> Decision: an unknown TLV is kept however often it repeats. RFC 8669 Section 6:
+"For future extensibility, unknown TLVs MUST be ignored and propagated
+unmodified."
+-> Constraint: D5 (`ExtractSRv6SIDFull` falling back to the second Service TLV)
+is out of D6. On received routes the second TLV is now gone before the RIB sees
+it, but the extractor's own rule is still D5's to fix.
+
+### D6 Risks & Assumptions
+
+| ID | Assumption | Status | Evidence |
+|----|------------|--------|----------|
+| A-1 | No consumer reads TLVs inside attribute 40 before `publishBase` | confirmed | `enforceRFC7606` validates, strips and discards, then publishes; the RIB, both relays and JSON read the published bytes |
+| A-2 | The RFC 7606 walk validates a repeated SRv6 Service TLV | confirmed | `validatePrefixSIDAttr` loops over every TLV; `TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn` |
+| R-1 | A peer splits one SRGB over several Originator SRGB TLVs | accepted | type 3 is kept on every occurrence |
+
+### D6 Critical Review Checklist
+
+| Check | What to verify |
+|-------|----------------|
+| No allocation without a repeat | `TestDiscardRepeatedPrefixSIDTLVsAllocatesNothingWithoutRepeat` (AllocsPerRun 0, same pointer back) |
+| Header width kept | the extended-length case in `TestRFC8669DuplicateServiceTLVDiscardedOnReceive` |
+| Order kept, unknown kept | the Label-Index case with an unknown TLV between, and `TestRFC8669SingleOccurrencePrefixSIDKeptWhole` |
+| Malformed repeat still withdrawn | `TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn` |
+| Peer to peer | `test/plugin/prefixsid-duplicate-tlv-relay.ci` |
+
 ## Required Reading
 
 ### RFC Summaries (Scope: protocol)
@@ -98,6 +152,7 @@ AC-8/AC-9; D1 through D5 remain unchanged.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | UPDATE from a peer with a malformed Prefix-SID | → | `validatePrefixSIDAttr`, `isSRv6Ineligible` | [to fill in design: a `.ci` test] |
+| UPDATE from a peer whose Prefix-SID repeats a single-occurrence TLV (D6) | → | `publishBase` → `discardRepeatedPrefixSIDTLVs` | `test/plugin/prefixsid-duplicate-tlv-relay.ci` |
 
 ## Acceptance Criteria
 
@@ -119,12 +174,18 @@ AC-8/AC-9; D1 through D5 remain unchanged.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | one failing-first test per defect row, both polarities | beside each producer | D1 to D5 | [to fill in design] |
+| `TestRFC8669DuplicateServiceTLVDiscardedOnReceive` (RFC8669-6-3 positive) | `internal/component/bgp/reactor/rfc8669_duplicate_tlv_test.go` | D6: types 5, 6 and 1 repeated, extended length, route-server client; published and forwarded bytes | red before, green after |
+| `TestRFC8669SingleOccurrencePrefixSIDKeptWhole` (RFC8669-6-3 negative) | same | D6: each type once, unknown twice, SRGB twice published octet-equal | green before and after |
+| `TestRFC8669DuplicateMalformedServiceTLVStillWithdrawn` | same | D6: a malformed repeat is still treat-as-withdraw | green |
+| `TestDiscardRepeatedPrefixSIDTLVsAllocatesNothingWithoutRepeat` | same | D6: no allocation without a repeat | green |
 
 ### Functional Tests
-- [to fill in design: `.ci` over the UPDATE path]
+- [to fill in design: `.ci` over the UPDATE path] (D1, D2, D4)
+- D6: `test/plugin/prefixsid-duplicate-tlv-relay.ci` (RFC8669-6-3 positive): Label-Index, unknown, Label-Index in; Label-Index, unknown out; an unknown-twice control relayed byte for byte. Red with the `publishBase` call removed (the second Label-Index reached the receiver), green with it.
 
 ### Interop Tests
 - [to fill in design: scenario against a peer sending SRv6 L3VPN routes]
+- D6: `test/interop/scenarios/bgp-prefix-sid-duplicate-tlv-frr`, not yet written. FRR is the receiver: it treats a repeated SRv6 L3 Service TLV as an error, so an injector sending two type-5 TLVs through Ze to FRR discriminates the discard. Needs an SRv6 L3VPN family between Ze and FRR.
 
 ## Files to Modify
 

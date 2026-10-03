@@ -257,8 +257,9 @@ func TestRFC8669TrailingBytesDiscarded(t *testing.T) {
 // PREVENTS: a peer overriding a valid Prefix-SID by appending a second copy.
 //
 // NOT an RFC coverage claim for RFC8669-6-2: only the PROCESSING half is pinned here.
-// The duplicate is skipped unexamined, but it is not removed from the bytes forwarded
-// on -- see the {gap} on RFC8669-6-2.
+// The duplicate is skipped unexamined and recorded in DuplicateRanges; removing it from
+// the bytes forwarded on is the reactor's RFC 7606 Section 3.g strip (enforceRFC7606),
+// outside this package -- see the {gap} on RFC8669-6-2.
 func TestRFC8669DuplicateAttributeFirstOccurrenceWins(t *testing.T) {
 	valid := rfc8669Attr(rfc8669LabelIndexTLV(0, 0, 777))
 	malformed := rfc8669Attr([]byte{1, 0, 200, 0, 0, 0, 0, 0, 0, 42})
@@ -279,7 +280,8 @@ func TestRFC8669DuplicateAttributeFirstOccurrenceWins(t *testing.T) {
 // followed by a VALID duplicate.
 //
 // NOT an RFC coverage claim for RFC8669-6-2: the malformed FIRST occurrence is what is
-// validated and tombstoned, but the untouched duplicate stays in the forwarded bytes --
+// validated and tombstoned here; the duplicate is recorded in DuplicateRanges and removed
+// by the reactor's RFC 7606 Section 3.g strip (enforceRFC7606), outside this package --
 // see the {gap} on RFC8669-6-2.
 func TestRFC8669DuplicateAttributeCannotRepairFirst(t *testing.T) {
 	malformed := rfc8669Attr([]byte{1, 0, 200, 0, 0, 0, 0, 0, 0, 42})

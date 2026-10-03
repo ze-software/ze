@@ -91,6 +91,31 @@ const (
 	srv6SubSubTLVSIDStructure uint8 = 1
 )
 
+// PrefixSIDTLVSingleOccurrence reports whether Ze recognizes Prefix-SID TLV
+// type tlvType and its specification allows the TLV only once in an attribute.
+// It is the one declaration of that set: the receive path discards every
+// occurrence after the first of a type it answers true for, and keeps every
+// other TLV in received order.
+//
+// RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service TLV are
+// encountered, all but the first instance MUST be ignored." It says the same
+// of the SRv6 L2 Service TLV. RFC 8669 Section 1 has the Label-Index TLV
+// "advertise the label index for a given prefix": one index per prefix, so a
+// second TLV is a second answer to a question with one answer.
+//
+// The Originator SRGB TLV (type 3) is not in the set. RFC 8669 states no
+// occurrence limit for it, and Section 3.2 makes repetition its encoding:
+// "the SRGB field MAY appear multiple times. If the SRGB field appears
+// multiple times, the SRGB consists of multiple ranges that are concatenated."
+// Discarding a second TLV on a guess would drop ranges the originator sent.
+func PrefixSIDTLVSingleOccurrence(tlvType uint8) bool {
+	switch tlvType {
+	case prefixSIDTLVLabelIndex, PrefixSIDTLVSRv6L3Service, PrefixSIDTLVSRv6L2Service:
+		return true
+	}
+	return false
+}
+
 var errEmptyPrefixSIDAttribute = errors.New("prefix-sid: attribute carries no TLV")
 
 // PrefixSID is the BGP Prefix-SID attribute (RFC 8669, code 40).
