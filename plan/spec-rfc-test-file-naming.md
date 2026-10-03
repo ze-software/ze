@@ -655,9 +655,33 @@ The two test-only edits need no fixture re-seal, because the fixture digest skip
 | reseal of the verdicts the comment edits shifted | - | 3168d066aa | - |
 | tool fix D-1 to D-3 (inner stem, record trees) | - | fd31c539ce | - |
 | re-rename of the three doubled names | 3 | 6194de918a | none |
-| round 4 review fixes R-1 to R-5 | - | this commit | - |
+| round 4 review fixes R-1 to R-5 | - | 71b1772696 | - |
+| round 5 record, F-2 and F-3 test cases | - | f37a0f3312 | - |
+| `internal/component/bfd` | 6 | 9135d29dfc | none |
+| `internal/component/mcp` | 6 (2 from the collision table) | 6f3a48c1d3 | none |
+| `internal/plugins/ldp` | 6 | bc6a6d93a3 | none |
+| `internal/plugins/vrrp` | 8 | 02bb8f13db | none |
+| reseal (vrrp) | - | a70ab07289 | - |
+| `cmd/ze/hub` | 4 (1 from the collision table) | efd82c0ee2 | none |
+| `internal/core/bgp` | 9 (2 from the collision table) | f4f9ae8a09 | none |
+| `internal/component/config` | 16 (2 from the collision table) | 1ce82bbf63 | none |
+| reseal (core bgp, config) | - | a9bf78cb0f | - |
+| `internal/component/plugin` | 1 | f0c371d371 | none |
+| `internal/core/network` | 3 | be7b56a1bd | none |
+| `internal/component/radius` | 6 | 3418bb3bf5 | none |
+| `internal/plugins/rsvpte` | 21 (4 from the collision table) | d9e0b9595d | none |
+| `internal/plugins/flowexport` | 34 (2 from the collision table) | 205417fd68 | none |
+| reseal (network, rsvpte, flowexport) | - | 68c3b74651 | - |
+| `internal/plugins/isis` | 39 (5 from the collision table) | 7768f39f9b | none |
+| `internal/component/l2tp` | 49 (1 from the collision table) | 1f4e1e81f1 | none |
+| reseal (isis, l2tp) | - | 1c08e1dbf9 | - |
+| `internal/plugins/ospf` | 78 (1 from the collision table) | b980836600 | none |
+| reseal (ospf) | - | 59531a714b | - |
 
-Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new. `./le doc check links` stayed at its 12 pre-existing broken references.
+Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new; it is 94 after 59531a714b, none new. `./le doc check links` stayed at its 12 pre-existing broken references. `internal/component/bgp` (172 proposed pairs, 7 hand rows) is the one component left.
+
+→ Constraint (Phase 2, second batch): a `.ci` file whose tag is file-scoped is a tagged unit as a whole, so a comment edit anywhere in it stales the verdict. `test/l2tp/rfc2661-sccrq-mandatory-avp.ci` and `test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci` keep naming `reactor_sccrq_mandatory_avp_test.go` and `reactor_sccrq_zero_tid_test.go` in a comment, though both moved in 1f4e1e81f1.
+→ Constraint (Phase 2, second batch): a plain mention reported for a moved base name is often a file of the same name in another directory (`config_test.go`, `fsm_test.go`, `packet/checksum_test.go`). Each mention was applied only where its path, or its directory when it gives none, is the moved file's.
 
 → Constraint (Phase 2): a comment edit in another tagged test file shifts its audit verdicts (`./le rfc reseal` re-stamps them), and one INSIDE a tagged unit stales the verdict, so a mention inside a tagged unit is left on the old name.
 → Constraint (Phase 2, fixed by D-2 and D-3): `./le rfc rename` rewrote citations in `test/weakened/<session>.md`, which `./le commit create` refuses to carry for another session and the link sweep exempts as history; those lines were restored to HEAD. It also rewrote journal rows over the 600-character cap, which `./le commit create` then refuses (`row-too-long`).
