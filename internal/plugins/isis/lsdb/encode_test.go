@@ -18,7 +18,7 @@ import (
 )
 
 // hostnameAccepted is a COPY of ISISHostnameAccepted
-// (internal/component/config/validators_isis_test.go), kept identical by hand.
+// (internal/component/config/rfc5301_validators_isis_test.go), kept identical by hand.
 // It cannot be a shared variable: the original lives in a _test.go file, so no
 // other package can import it, and lifting it into non-test code would put a
 // test fixture in the shipped binary. So the copy CAN drift, and nothing in the

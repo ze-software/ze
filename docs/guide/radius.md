@@ -354,7 +354,7 @@ Run them with `./le test integration interop-radius`, or one at a time with
 
 Unit coverage lives in `internal/component/radius/{config,authenticator,aaa,chap,doctor}_test.go`.
 The `auth-method` enum is pinned against the schema by
-`internal/component/config/radius_auth_method_enum_test.go`.
+`internal/component/config/rfc7950_radius_auth_method_enum_test.go`.
 
 For ad-hoc verification, point the daemon at a real RADIUS server and run any
 command via `ze cli -c "show bgp"` -- the daemon log tags the satisfying

@@ -173,7 +173,7 @@ func (v *Validator) findInEntry(entry *yang.Entry, parts []string) (*yang.Entry,
 // This replaced a switch over twelve prefixes, and the thirteenth is why the
 // switch was a defect rather than a shortcut: "pppoe" was never added, so
 // ValidateTree("pppoe", ...) resolved no module and checked nothing at all
-// (validator_yang_test.go records the workaround it forced).
+// (rfc7950_validator_yang_test.go records the workaround it forced).
 //
 // ConfModuleNames is sorted, so a section several modules contribute to always
 // resolves to the same one. ValidateTreeAllModules is the entry point for a
