@@ -5,12 +5,12 @@
       "note": "Forbidden: a Type-6 Inter-AS-TE-v2 Link TLV that carries the Link ID sub-TLV (type 2). Red on it: TestInterAsTEOriginateScopePolicy asserts `if l.HasLinkID { t.Fatalf }` on the Link TLV teOriginateType6 emits, for both area and AS scope. Negative polarity: TestTEReceiveMalformedNoEntry feeds a type-6 Link TLV that is otherwise valid (Link Type, Remote AS, IPv4 Remote ASBR ID) plus a Link ID and asserts no TED entry (validateReceivedTELink rejects l.HasLinkID for InterAsTEOpaqueType).",
       "requirement_sha": "dd74178bb777124d",
       "tests": {
-        "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
-        "internal/plugins/ospf/te_test.go::TestTEReceiveMalformedNoEntry": "42473d2278067787"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "42473d2278067787"
       },
       "units": {
-        "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
-        "internal/plugins/ospf/te_test.go::TestTEReceiveMalformedNoEntry": "b5692fc2f1e9fd4d"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "b5692fc2f1e9fd4d"
       },
       "verdict": "enforced"
     },
@@ -18,12 +18,12 @@
       "note": "Row now quotes the verbatim span ending at 'the Inter-AS-TE-v2 LSA' (R3 split; the v3 clause is RFC5392-3.2.1-5, verified against rfc/full/rfc5392.txt lines 528-529). The obligation binds the originator: + TestInterAsTEOriginateScopePolicy fails unless every originated Inter-AS-TE-v2 Link TLV carries sub-TLV 21 with the configured AS 65001 (record on buildInterASTELink observed red); - per owner ruling 2, the handling of a peer's Link TLV lacking it: TestTEReceiveType6MissingRemoteASSkipped encodes an otherwise well-formed type-6 Link TLV (Link Type, IPv4 Remote ASBR ID) without sub-TLV 21 and asserts no TED link is stored (validateReceivedTELink's !HasRemoteAS branch; record observed red). Buffer isolated: Link Type present and no Link ID, so only the missing sub-TLV 21 can trip.",
       "requirement_sha": "957e941a8b9d883b",
       "tests": {
-        "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
-        "internal/plugins/ospf/te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "42473d2278067787"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "42473d2278067787"
       },
       "units": {
-        "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
-        "internal/plugins/ospf/te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "d7cb7e9d567c1705"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5",
+        "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "d7cb7e9d567c1705"
       },
       "upgrade_reason": "The units are unchanged; the row changed. The earlier weak verdict rested only on the unproven Inter-AS-TE-v3 clause, which the R3 split moved to the new gap row RFC5392-3.2.1-5. Re-read both tagged units against the new v2-only span: both polarities of the v2 clause are proven and each now carries an observed-red discrimination record.",
       "verdict": "enforced"
@@ -40,10 +40,10 @@
       "note": "Forbidden: a 2-octet AS number encoded with non-zero high-order octets in the 4-octet Remote AS Number field. Red on it: TestInterAsTERemoteAsTLV (packet/te_interas_test.go) encodes RemoteAS 65001 and asserts `body[8] != 0x00 || body[9] != 0x00` fatal on the wire bytes. Positive only, covered by the row's {single-polarity: positive} marker (uint32 big-endian encode cannot set the high octets for a 2-byte ASN).",
       "requirement_sha": "36df30317d37fa63",
       "tests": {
-        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTERemoteAsTLV": "df389507e0340ff5"
+        "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTERemoteAsTLV": "df389507e0340ff5"
       },
       "units": {
-        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTERemoteAsTLV": "9ae5688559b65549"
+        "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTERemoteAsTLV": "9ae5688559b65549"
       },
       "verdict": "enforced"
     },
@@ -51,10 +51,10 @@
       "note": "Forbidden: an OSPFv2 inter-AS advertisement that omits the IPv4 Remote ASBR ID sub-TLV (22) when the neighboring ASBR has an IPv4 address. Ze learns the remote ASBR's address only from config (remote-asbr-ipv4), so the observable case is a configured IPv4 remote ASBR ID. Red on it: TestInterAsTEOriginateScopePolicy configures remote-asbr-ipv4 203.0.113.9 and asserts `!l.HasRemoteASBRv4` fatal on the originated type-6 Link TLV. Positive only, covered by the row's {single-polarity: positive} marker.",
       "requirement_sha": "f17a6f5232dee1c9",
       "tests": {
-        "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "a7ccaac6dfd4490a"
       },
       "units": {
-        "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "6312ad2e41a345f5"
       },
       "verdict": "enforced"
     },
@@ -62,11 +62,11 @@
       "note": "Origination now driven: v6-only inter-as config (remote-as 65001, remote-asbr-ipv6 2001:db8::9) through teOriginateType6/buildInterASTELink; originated body holds the literal sub-TLV 00 18 00 10 + address, decode shows v6 ID present, no v4 ID, Remote AS 65001. Judge overlay dropping HasRemoteASBRv6 in buildInterASTELink turns it red. {single-polarity: positive} on the row; record observed red on buildInterASTELink.",
       "requirement_sha": "dc0a43c190e81962",
       "tests": {
-        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "df389507e0340ff5",
+        "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "df389507e0340ff5",
         "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID": "bd6b04c1ae6dd838"
       },
       "units": {
-        "internal/plugins/ospf/packet/te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "0aa1a7c77d41c748",
+        "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "0aa1a7c77d41c748",
         "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID": "1414358db2798e32"
       },
       "verdict": "enforced"
@@ -76,11 +76,11 @@
       "requirement_sha": "20168becb3d64f38",
       "tests": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
-        "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
       },
       "units": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
-        "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
       },
       "verdict": "enforced"
     },
@@ -90,11 +90,11 @@
       "requirement_sha": "3c3921bb4f22f238",
       "tests": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
-        "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
       },
       "units": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
-        "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
+        "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
       },
       "verdict": "enforced"
     },
@@ -102,12 +102,12 @@
       "note": "Forbidden: re-advertising a changed inter-AS TE LSA without any precaution against excessive re-advertisement. Red on it: TestInterASTEReAdvertiseRateLimited (internal/plugins/ospf/lsdb/opaque_originate_test.go) originates a Type-6 LSA, changes its body within MinLSInterval and asserts `ok || h2.Sequence != h1.Sequence` fatal plus no extra LS Update send. Negative polarity: after MinLSInterval the changed body is re-advertised with the next sequence.",
       "requirement_sha": "f43e8178e4a7a6c2",
       "tests": {
-        "internal/plugins/ospf/lsdb/opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited": "14b52f45d1462fca",
-        "internal/plugins/ospf/lsdb/opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited#2": "14b52f45d1462fca"
+        "internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited": "14b52f45d1462fca",
+        "internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited#2": "14b52f45d1462fca"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited": "016a9c38b67c886d",
-        "internal/plugins/ospf/lsdb/opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited#2": "016a9c38b67c886d"
+        "internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited": "016a9c38b67c886d",
+        "internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go::TestInterASTEReAdvertiseRateLimited#2": "016a9c38b67c886d"
       },
       "verdict": "enforced"
     }

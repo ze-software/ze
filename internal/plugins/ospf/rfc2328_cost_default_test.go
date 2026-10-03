@@ -1,6 +1,6 @@
 // Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPF interface output cost.
 // Related: interface_cost.go -- interfaceCost, the one producer of an interface's cost.
-// Related: config_interface_validate_test.go -- the explicit cost 0 refusal.
+// Related: rfc2328_config_interface_validate_test.go -- the explicit cost 0 refusal.
 //
 // VALIDATES: RFC 2328 Appendix C.3 "Interface output cost ... must always be greater than
 // 0" for a cost that is NOT configured: every interface resolved from the configuration

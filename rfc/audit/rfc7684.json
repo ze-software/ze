@@ -6,12 +6,12 @@
       "note": "Re-judged 2026-09-30: unit changed only by the lookupPrefix area argument (types.BackboneArea, the zero AreaID the receive path keys an unset area with); assertions unchanged. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry's flags still carry ExtPrefixFlagN; the positive half fails if N is dropped from a /32 host prefix. Both polarities present.",
       "requirement_sha": "ff58b703a1cb3758",
       "tests": {
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "ba85a5be9e5d5c57",
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "ba85a5be9e5d5c57"
+        "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "ba85a5be9e5d5c57",
+        "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "ba85a5be9e5d5c57"
       },
       "units": {
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "2b0016ac187bc75c",
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "2b0016ac187bc75c"
+        "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "2b0016ac187bc75c",
+        "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "2b0016ac187bc75c"
       },
       "verdict": "enforced"
     },
@@ -19,14 +19,14 @@
       "note": "Re-judged 2026-09-30 after the D-8 fix. Forbidden: an ABR dropping (or inventing) the N-Flag when Extended Prefix information crosses areas. extRecv now keys received entries by source area (extRecvKey.area; AS scope keys the zero area), and selfPrefixAdverts ORs N into the inter-area TLV when hostFlagOutside finds an area-scope entry for the prefix, in an area other than the summary's target, carrying N (non-host N already cleared on receipt). + TestRFC7684NFlagOfAnotherRouterPreservedInterArea: 2.2.2.2's N /32 received in area 0, this ABR's Type-3 into area 1 carries N (prefix not connected locally, so only the received flag can set it; red before the fix). - TestRFC7684NFlagNotInventedInterArea: no N when the area-0 advertisement lacks it, when N is advertised only in the target area 1, or on a non-host /24. Records on ext.go::hostFlagOutside (+/-) observed red. Older ext_prefix_origin_test tags (own connected host /32) stay supplementary and carry no record. The handoff's suggested 'via that router' condition is not applied: any other-area N advertisement for the same host prefix sets N, which matches 'preserved' for a prefix identifying one router.",
       "requirement_sha": "f51856c50fab2403",
       "tests": {
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "40406e471c3bc5ab",
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "40406e471c3bc5ab",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "40406e471c3bc5ab",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "40406e471c3bc5ab",
         "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagNotInventedInterArea": "5baf498f903d0a61",
         "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagOfAnotherRouterPreservedInterArea": "5baf498f903d0a61"
       },
       "units": {
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "0557d29fbdad4080",
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "ec9689e392c28dd3",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "0557d29fbdad4080",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "ec9689e392c28dd3",
         "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagNotInventedInterArea": "4ffb7f9379f88ed1",
         "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagOfAnotherRouterPreservedInterArea": "e601f1f212e5d022"
       },
@@ -36,14 +36,14 @@
       "note": "Forbidden: an Extended Prefix Opaque LSA whose flooding scope fails a prefix it carries. + TestRFC7684EveryPrefixInAnLSAFitsItsScope: real self LSAs (stub, two Type-3s, two Type-5s) through extPrefixOnOriginate; every TLV of every decoded body has extPrefixScope(routeType) == the LSA scope, and the counts pin 3 area-scope and 2 AS-scope TLVs (so a mapping that put externals in area scope also fails). - TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA (R1(b)): 10.0.0.0/24 as intra, inter and external never sits in an LSA whose scope fails its role, and all three roles are originated. Records on ext_prefix.go::extPrefixOnOriginate (+/-) observed red; author's overlay forcing area scope on every origination turned both red. TestExtPrefixScopeSelection keeps the per-route-type mapping.",
       "requirement_sha": "1a1a8019ff12d009",
       "tests": {
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "40406e471c3bc5ab",
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "40406e471c3bc5ab",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "40406e471c3bc5ab",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "40406e471c3bc5ab",
         "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684EveryPrefixInAnLSAFitsItsScope": "bec84401626d5712",
         "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA": "bec84401626d5712"
       },
       "units": {
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "84892185fdc266d2",
-        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "84892185fdc266d2",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "84892185fdc266d2",
+        "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "84892185fdc266d2",
         "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684EveryPrefixInAnLSAFitsItsScope": "3e3b6747d15275a9",
         "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA": "4769e2092d7758bc"
       },
@@ -53,20 +53,20 @@
       "note": "Re-judged 2026-09-30: supplementary unit TestExtPrefixMalformedCounted changed only by the lookupPrefix area argument; the verdict rests unchanged on TestRFC7684MalformedPermutationsDetected (+ valid prefix and link bodies accepted by DecodeExt*LSA and ValidateExtLSABody; - nine single-fault permutations each refused by both paths, panic converted to t.Fatalf). Records on DecodeExtPrefixLSA (+) and decodeExtSubTLVs (-) observed red; older supplementary tags carry no record and are not relied on.",
       "requirement_sha": "6500d989d77c9033",
       "tests": {
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "ba85a5be9e5d5c57",
-        "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
-        "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",
-        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "b02a6265fe53ccd9",
-        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "b02a6265fe53ccd9",
+        "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "ba85a5be9e5d5c57",
+        "internal/plugins/ospf/packet/rfc7684_ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
+        "internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",
+        "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtLinkBody": "b02a6265fe53ccd9",
+        "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtPrefixBody": "b02a6265fe53ccd9",
         "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected": "d6b47c34d8e9252f",
         "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected#2": "d6b47c34d8e9252f"
       },
       "units": {
-        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "336ab995aae3b4df",
-        "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "304b858afdc04282",
-        "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "02b1ff221be93aed",
-        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "6bf39fe85a060f65",
-        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "aad0e21f86dcf6a7",
+        "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "336ab995aae3b4df",
+        "internal/plugins/ospf/packet/rfc7684_ext_link_test.go::TestExtLinkTLVRoundTrip": "304b858afdc04282",
+        "internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "02b1ff221be93aed",
+        "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtLinkBody": "6bf39fe85a060f65",
+        "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtPrefixBody": "aad0e21f86dcf6a7",
         "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected": "0b94eb0bed2c0602",
         "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected#2": "0b94eb0bed2c0602"
       },
@@ -76,12 +76,12 @@
       "note": "Rejudged after the D-15 body fix in TestExtIngressValidCarriage (unknown-application body ff -> ff 00 00 00, assertions unchanged): a 1-octet Opaque body is no Opaque LSA under RFC 5250 Section 3, so the positive now carries a valid unknown application; it still proves valid extended LSAs and unknown applications are stored byte-for-byte, acked and flooded by scope after a malformed companion. Negative TestExtIngressMalformedDiscard unchanged: TLV overrun, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated cases are 4-octet aligned and reach validateExtLSA; revert record on ext.go validateExtLSA observed red. Its trailing-header case (valid + 1 octet) is now discarded first by the RFC 5250 alignment check, still the outcome this row forbids. Positive revert record on ReceiveUpdate.",
       "requirement_sha": "d8623840e3f394c8",
       "tests": {
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "26a56ecb4e9b3b65",
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "26a56ecb4e9b3b65"
+        "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressMalformedDiscard": "26a56ecb4e9b3b65",
+        "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressValidCarriage": "26a56ecb4e9b3b65"
       },
       "units": {
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "8d95e6edf616b3b9",
-        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "a5956e180b77842f"
+        "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressMalformedDiscard": "8d95e6edf616b3b9",
+        "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressValidCarriage": "a5956e180b77842f"
       },
       "verdict": "enforced"
     }

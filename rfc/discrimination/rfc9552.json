@@ -521,7 +521,7 @@
     {
       "rid": "RFC9552-5.2.3.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/bgpls_export_rfc9552_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType",
+      "unit": "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType",
       "unit-sha": "527c461655ea19ce",
       "claim-sha": "e741ea4ce543352a",
       "route": "revert",

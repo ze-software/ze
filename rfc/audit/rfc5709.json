@@ -38,11 +38,11 @@
       "requirement_sha": "fd5a822b2c2eb0b6",
       "tests": {
         "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "0416e890e9f2f366",
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineSignPacketCrypto": "f06f71d9d878a2de"
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineSignPacketCrypto": "f06f71d9d878a2de"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "887f67ec998a67d9",
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineSignPacketCrypto": "a5e4dca623c7683d"
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineSignPacketCrypto": "a5e4dca623c7683d"
       },
       "verdict": "enforced"
     },
@@ -95,12 +95,12 @@
       "note": "(a) forbidden: a new key whose KeyStartGenerate is after the old key's KeyStopGenerate; (b) TestKeyRolloverGapRejected asserts validateConfig returns ErrKeyRolloverGap for start 2026-03-01 after end 2026-02-01, and TestKeyRolloverOverlapAccepted asserts an overlapping rollover validates. The equal-time boundary is not exercised",
       "requirement_sha": "0dd7a741bc6040c8",
       "tests": {
-        "internal/plugins/ospf/config_test.go::TestKeyRolloverGapRejected": "d69bebe15746b9eb",
-        "internal/plugins/ospf/config_test.go::TestKeyRolloverOverlapAccepted": "d69bebe15746b9eb"
+        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverGapRejected": "d69bebe15746b9eb",
+        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverOverlapAccepted": "d69bebe15746b9eb"
       },
       "units": {
-        "internal/plugins/ospf/config_test.go::TestKeyRolloverGapRejected": "96adb5a544b6f23d",
-        "internal/plugins/ospf/config_test.go::TestKeyRolloverOverlapAccepted": "7658ca0dd4f37ab9"
+        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverGapRejected": "96adb5a544b6f23d",
+        "internal/plugins/ospf/rfc5709_config_test.go::TestKeyRolloverOverlapAccepted": "7658ca0dd4f37ab9"
       },
       "verdict": "enforced"
     },
@@ -198,8 +198,8 @@
       "note": "(a) forbidden: verifying without the section 3.3 computation, overwriting the received digest before comparing, not placing Apad in the trailer, or not selecting by KeyID; (b) TestRFC5709ReceiveRejectsWrongHashConstruction asserts zero-Apad, underived-key and inner-only digests are rejected while the valid control is accepted; TestOSPFAuthSignVerifyCrypto rejects a flipped digest byte; TestRFC5709ReceiveIndependentDigest accepts an independent digest and asserts Verify left the wire bytes unchanged; TestEngineReceiveSelectsSecurityAssociation rejects packets outside the KeyID's association and counts them",
       "requirement_sha": "56709b3868f4210d",
       "tests": {
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoChecksumOctetAuthenticated": "8f829bce13807b16",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
@@ -207,8 +207,8 @@
         "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
       },
       "units": {
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoChecksumOctetAuthenticated": "63d214550eb8b9db",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
@@ -221,14 +221,14 @@
       "note": "(a) forbidden: choosing the algorithm or key other than by the received KeyID (trying other associations); (b) TestEngineReceiveSelectsSecurityAssociation asserts a KeyID 8 (SHA-512) packet signed with SHA-256 and a KeyID 9 packet signed with KeyID 7's secret are rejected even though another configured association verifies them, and unknown KeyID 99 is rejected; TestOSPFAuthCryptoRejectsKeyIDMismatch rejects a non-matching KeyID with the same secret; positives accept each KeyID under its own algorithm",
       "requirement_sha": "c7ec6bba8578baec",
       "tests": {
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "8f829bce13807b16",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "8f829bce13807b16"
       },
       "units": {
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
-        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
+        "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "c6b3afbbb3714510",
         "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "c6b3afbbb3714510"
       },

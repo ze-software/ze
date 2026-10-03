@@ -20,14 +20,14 @@
       "note": "Re-judged 2026-09-29 (independent judge). The operator surface is now driven: TestRFC3623OperatorTurnsUnplannedRecoveryOff parses 'graceful-restart restarter support' from configuration text and runs maybeUnplannedRestart: planned-and-unplanned enters in-restart, planned and disabled do not. A parser mapping every value to planned-and-unplanned reddens the negative (revert records on parseGRSupport).",
       "requirement_sha": "91a0b2119d6ad629",
       "tests": {
-        "internal/plugins/ospf/gr_unplanned_test.go::TestUnplannedDisabledByDefault": "798a0b6d7dc27944",
-        "internal/plugins/ospf/gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "798a0b6d7dc27944",
+        "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedDisabledByDefault": "798a0b6d7dc27944",
+        "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "798a0b6d7dc27944",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff": "58f3a76a57e8a603",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff#2": "58f3a76a57e8a603"
       },
       "units": {
-        "internal/plugins/ospf/gr_unplanned_test.go::TestUnplannedDisabledByDefault": "4533b3807e534a1e",
-        "internal/plugins/ospf/gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "554a91f1f888f93c",
+        "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedDisabledByDefault": "4533b3807e534a1e",
+        "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "554a91f1f888f93c",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff": "4398817bf227f287",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff#2": "4398817bf227f287"
       },
@@ -68,11 +68,11 @@
       "note": "Re-judged 2026-09-29 (independent judge). TestRFC3623UnplannedGraceLSACarriesUnplannedReason configures planned-and-unplanned, runs maybeUnplannedRestart on a running interface and decodes the installed Grace-LSA: reason 3, equal to the recorded e.gr.reason (revert record on maybeUnplannedRestart). The {single-polarity} annotation stands: the unplanned reason is a constant and there is no receive-side reason rejection.",
       "requirement_sha": "78dbaf3c155be9b8",
       "tests": {
-        "internal/plugins/ospf/gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "798a0b6d7dc27944",
+        "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "798a0b6d7dc27944",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623UnplannedGraceLSACarriesUnplannedReason": "58f3a76a57e8a603"
       },
       "units": {
-        "internal/plugins/ospf/gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "554a91f1f888f93c",
+        "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "554a91f1f888f93c",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623UnplannedGraceLSACarriesUnplannedReason": "d98745ba15785ffe"
       },
       "verdict": "enforced"
@@ -81,14 +81,14 @@
       "note": "c23 re-judge (independent judge). Positive: TestRFC3623OriginatedGraceLSATLVOctets drives grOriginateGraceLSAs (the OSPFv2 origination, grV4Body) over running p2p eth0 and broadcast eth1 and compares the installed link-scope body with literal octets 00 01 00 04 00 00 00 78 (Type 1, Length 4, 120 s), read without the codec; an overlay GraceTLVPeriod=4 reds it while TestGraceLSARoundTrip and TestGraceLSAv4* stay green (scratch/c23/o1). Negative under owner ruling 2 (RFC 3623 prescribes no handling; the helper cannot run a window it was not given, so ignore): TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV feeds a reason-only body through graceOnReceive while helping X and asserts the session survives with an unchanged grace end; the control with both TLVs moves it to now+600, so the input is isolated to the missing TLV. Decoder overlay without the hasPeriod check reds only missing-grace-period (o3). Both units hold observed-red revert records (EncodeGraceLSA, DecodeGraceLSA). The HEAD codec units stay supplementary.",
       "requirement_sha": "e48a7ac4d7b16413",
       "tests": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "88abc512204c607b",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
       },
       "units": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "c8441ff4dbe08dc1",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
       },
@@ -98,14 +98,14 @@
       "note": "c23 re-judge (independent judge). Positive: TestRFC3623OriginatedGraceLSATLVOctets asserts the originated OSPFv2 Grace-LSA carries 00 02 00 01 02 00 00 00 (Type 2, Length 1, reason 2, padded) at octets 8..15 on both p2p and broadcast, and the p2p body is exactly these 16 octets; overlay GraceTLVReason=5 reds it, old units green (o2). Negative under owner ruling 2: a period-only body (600) through graceOnReceive is ignored, same session, same grace end, control with both TLVs applied; decoder overlay without the hasReason check reds only missing-restart-reason (o4). Observed-red revert records on EncodeGraceLSA and DecodeGraceLSA. HEAD codec units supplementary.",
       "requirement_sha": "11574bd702f7ecb8",
       "tests": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "88abc512204c607b",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
       },
       "units": {
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
-        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
+        "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "c8441ff4dbe08dc1",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
       },
@@ -115,14 +115,14 @@
       "note": "c23 re-judge under the main-thread ruling (R46 / owner ruling 5 precedent): judged on its positive. TestRFC3623OriginatedGraceLSATLVOctets: the Grace-LSA grOriginateGraceLSAs installs on a running broadcast interface is 24 octets and octets 16..19 are the literal type-3 TLV header 00 03 00 04; TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress covers broadcast, NBMA and P2MP and decodes the address value. Both hold observed-red revert records on grSharedMedia. No legitimate refusal exists: Ze's helper keys a restarting neighbour by advertising Router ID (onGraceReceived, hasFullNeighbor) and never reads the TLV, which RFC 3623 sec A does not forbid. The HEAD negative tag on TestGraceLSAv4BodyBuild (#2) is true as written (grV4Body with sharedMedia=false emits no type-3 TLV, asserted by !g2.HasInterfaceAddr) and stays supplementary: it does not violate this requirement, which forbids nothing on point-to-point. Observation for the main thread, outside this row: RFC 3623 sec 3.1 item 1 says on broadcast/NBMA/P2MP the neighbour 'is identified by the IP interface address in the body of the grace-LSA'; Ze identifies by Router ID (no gated row carries that sentence).",
       "requirement_sha": "d1cd3dd926b92d50",
       "tests": {
-        "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild": "7e9ede073442bc66",
-        "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild#2": "7e9ede073442bc66",
+        "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild": "7e9ede073442bc66",
+        "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild#2": "7e9ede073442bc66",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "58f3a76a57e8a603",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
       },
       "units": {
-        "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild": "6b0efc6ec6c19999",
-        "internal/plugins/ospf/gr_lsa_test.go::TestGraceLSAv4BodyBuild#2": "6b0efc6ec6c19999",
+        "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild": "6b0efc6ec6c19999",
+        "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild#2": "6b0efc6ec6c19999",
         "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "fbcb989e428d9e0b",
         "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
       },

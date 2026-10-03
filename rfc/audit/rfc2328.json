@@ -14,14 +14,14 @@
       "note": "Re-judged c18. Forbidden: a second DD leaving the master while one is unacknowledged. Setup gives the master (10.0.0.3) a summary list longer than one DD, so a non-compliant master has a DD n+1 to send. Positive TestRFC2328MasterHoldsOneOutstandingDD: three RxmtInterval expiries each send exactly one packet, DD n unchanged (sameDD), exactly three DDs all seq n; the slave DD acking n releases exactly one DD n+1 with the remaining 3 headers. Negative TestRFC2328MasterSendsNoSecondDDWithoutAck: a repeat of the slave's previous DD -> duplicate-drop with nothing sent; a slave DD n+2 -> SeqNumberMismatch and an Init DD; no non-Init DD n+1 is ever sent. Records: + resendLastDDLocked, - handleExchangeDDLocked, observed red. Old nsm_test tags kept as supplementary; TestOSPFDuplicateDD (negative) proves the slave's 10.8 duplicate, a neighbour, and carries no weight here.",
       "requirement_sha": "6fabb95ec6c3ba94",
       "tests": {
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFDDRetransmit": "505f18daaaedb60c",
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFDuplicateDD": "505f18daaaedb60c",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit": "505f18daaaedb60c",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD": "505f18daaaedb60c",
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD": "cf75f320761de34a",
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterSendsNoSecondDDWithoutAck": "cf75f320761de34a"
       },
       "units": {
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFDDRetransmit": "cb72f509b75a77ba",
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFDuplicateDD": "5dc1e7c93e6332d0",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit": "cb72f509b75a77ba",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD": "5dc1e7c93e6332d0",
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD": "cd9993a9dd59ab43",
         "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterSendsNoSecondDDWithoutAck": "94617f8f823ae62d"
       },
@@ -31,13 +31,13 @@
       "note": "Forbidden: an LS Request for an LSA absent from the database not generating BadLSReq. Red: TestOSPFBadLSReqRestart fails on HandleLSReq != reasonBadLSReq, on state != exstart, and on the resent DD not being the initial I|M|MS DD. Other polarity: TestOSPFValidLSReqSendsLSUpdate and TestRFC2328KnownLSRequestDoesNotRestartExchange go red if a satisfiable request restarts the exchange (state change, exstart) or is not answered with one LS Update carrying that LSA. One clause, both polarities.",
       "requirement_sha": "ca04ff37ce67ff10",
       "tests": {
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFBadLSReqRestart": "505f18daaaedb60c",
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "505f18daaaedb60c",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFBadLSReqRestart": "505f18daaaedb60c",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "505f18daaaedb60c",
         "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328KnownLSRequestDoesNotRestartExchange": "42818b298d1598fb"
       },
       "units": {
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFBadLSReqRestart": "7b6a35c0a78c9ef9",
-        "internal/plugins/ospf/neighbor/nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "d2b1d2495f207b62",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFBadLSReqRestart": "7b6a35c0a78c9ef9",
+        "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "d2b1d2495f207b62",
         "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328KnownLSRequestDoesNotRestartExchange": "78452075523e8ff6"
       },
       "verdict": "enforced"
@@ -182,13 +182,13 @@
       "note": "Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).",
       "requirement_sha": "777287c8db2b74df",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "6242f112e5a452b3",
         "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "26f4f0cd9038b198",
         "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "26f4f0cd9038b198"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "4590a0976cf127c3",
         "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "fa74463d58b67307",
         "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "fa74463d58b67307"
@@ -199,14 +199,14 @@
       "note": "c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.",
       "requirement_sha": "41dc0469753b2263",
       "tests": {
-        "internal/plugins/ospf/lsdb/area_type_test.go::TestOSPFStubFloodFilter": "a8040e2a2e2a44b0",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter": "a8040e2a2e2a44b0",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5": "5f02a64139f8d93a",
         "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "330db5d6e142abe6",
         "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "330db5d6e142abe6"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/area_type_test.go::TestOSPFStubFloodFilter": "df85c915bafc46f3",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFStubAreaDropsType5": "00a1edf28240c2b1",
+        "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter": "df85c915bafc46f3",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5": "00a1edf28240c2b1",
         "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "7b99f8bd9ad0fb62",
         "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "6da69fd268bd37a5"
       },
@@ -233,11 +233,11 @@
       "note": "Forbidden: acknowledging, or sending the database copy back for, an LSA received while the database copy is MaxAge at MaxSequenceNumber. Red: TestOSPFMaxSeqMaxAgeSilentDiscard installs a MaxSequenceNumber copy aged to MaxAge, receives an older instance, flushes delayed acks, and fails on any send. Other polarity: TestRFC2328OlderInstanceGetsDatabaseCopyBack fails if an ordinary more-recent copy is not sent back to the sender (so a blanket silent discard goes red). One clause, both polarities.",
       "requirement_sha": "81117094d2c8ebbc",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "fcd3234658f1748d",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "fcd3234658f1748d",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "d30def248d201f20",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "d30def248d201f20",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "846d82d2765e89f7"
       },
       "verdict": "enforced"
@@ -291,13 +291,13 @@
       "note": "c20 judge: order and signedness now discriminated. TestRFC2328FreshnessStepsAppliedInOrder pits an earlier step against a later one in both argument orders (sequence over checksum+MaxAge, unsigned 0x8001 over 0x7FFF against MaxAge, MaxAge over age, age > MaxAgeDiff, MaxSequenceNumber over InitialSequenceNumber signed); TestRFC2328LessRecentByEarlierStepRefused through ReceiveUpdate (past MinLSArrival) keeps the database copy against a lower sequence or smaller checksum at MaxAge. Matrix and Older-sequence units kept. Revert records both polarities on CompareHeaders; author overlays (order swaps, signed checksum, unsigned sequence) red.",
       "requirement_sha": "7f1e50f1e1a1cbd3",
       "tests": {
-        "internal/plugins/ospf/lsdb/lsdb_test.go::TestOSPFFreshnessCompareMatrix": "ae0055f5fef676ec",
+        "internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go::TestOSPFFreshnessCompareMatrix": "ae0055f5fef676ec",
         "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder": "ad7121ee95b70bef",
         "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused": "ad7121ee95b70bef",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/lsdb_test.go::TestOSPFFreshnessCompareMatrix": "5006bad58fcc1fda",
+        "internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go::TestOSPFFreshnessCompareMatrix": "5006bad58fcc1fda",
         "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder": "27f8293c0fade9eb",
         "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused": "5f90dab7abd2a421",
         "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "846d82d2765e89f7"
@@ -308,16 +308,16 @@
       "note": "Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.",
       "requirement_sha": "d6a44568dd86b581",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer": "5f02a64139f8d93a",
         "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "84c49eaebde9a3c9",
         "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "84c49eaebde9a3c9"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "83ee1dc511a59967",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFRetransmitTimer": "eaf3259d54925587",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "83ee1dc511a59967",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer": "eaf3259d54925587",
         "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "7725a0719db8fdf5",
         "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "7725a0719db8fdf5"
       },
@@ -357,14 +357,14 @@
       "note": "Both detection rules through ReceiveUpdate: router-LSA adv = own Router ID, and network-LSAs from 9.9.9.9 whose LSID is either own interface address, are each installed at MaxAge with sequence+1 and flooded at MaxAge. Negatives: a network-LSA with a foreign LSID, another router's router-LSA, and an AS-external whose LSID equals an own address (rule 2 is network-LSA only) are installed as received and never flushed. Disabling rule 2, or dropping its type check, turns the matching subtests red.",
       "requirement_sha": "fde3f33741605652",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "fcd3234658f1748d",
-        "internal/plugins/ospf/lsdb/origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "618a366fc22e7907",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "fcd3234658f1748d",
+        "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "618a366fc22e7907",
         "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated": "ca16b940e4f4eaf6",
         "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress": "ca16b940e4f4eaf6"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "ad7fb9db719ee48e",
-        "internal/plugins/ospf/lsdb/origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "13f3ad4d5bc32194",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "ad7fb9db719ee48e",
+        "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "13f3ad4d5bc32194",
         "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated": "2673985a5730131f",
         "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress": "638a520842880acf"
       },
@@ -374,15 +374,15 @@
       "note": "c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.",
       "requirement_sha": "24e8e5fb97afba29",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "fcd3234658f1748d",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFAckDecisionTable": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "fcd3234658f1748d",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "5f02a64139f8d93a",
         "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "09296c82da305f9e"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "df4470387694a059",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFAckDecisionTable": "8f25863a405c187e",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "1b631d6e9c599745",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "df4470387694a059",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable": "8f25863a405c187e",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "1b631d6e9c599745",
         "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "5870efe0e2ea0b59"
       },
       "verdict": "enforced"
@@ -391,14 +391,14 @@
       "note": "Forbidden: (a) LS age incremented past MaxAge: TestLSAgeAddSaturates fails unless MaxAge-10 plus 20 equals MaxAge exactly, and TestOSPFLSDBAgeToPurge fails unless the aged LSA sits at MaxAge; (b) a MaxAge LSA used in the routing calculation: TestOSPFGraphSkipsMaxAge fails if BuildGraph makes a router vertex of a MaxAge router-LSA. The fixture is isolated: BuildGraph (graph.go) turns a decodable non-MaxAge router-LSA into a vertex with no other filter, so only the age check can exclude it. Positive: age advances and saturation leaves DoNotAge untouched.",
       "requirement_sha": "0dbf6790df1d44a1",
       "tests": {
-        "internal/plugins/ospf/lsdb/aging_test.go::TestOSPFLSDBAgeToPurge": "1049c439d6042101",
-        "internal/plugins/ospf/spf/graph_test.go::TestOSPFGraphSkipsMaxAge": "5ca0737a9ae07b03",
-        "internal/plugins/ospf/types/lsage_test.go::TestLSAgeAddSaturates": "47132f4a0db74409"
+        "internal/plugins/ospf/lsdb/rfc2328_aging_test.go::TestOSPFLSDBAgeToPurge": "1049c439d6042101",
+        "internal/plugins/ospf/spf/rfc2328_graph_test.go::TestOSPFGraphSkipsMaxAge": "5ca0737a9ae07b03",
+        "internal/plugins/ospf/types/rfc2328_lsage_test.go::TestLSAgeAddSaturates": "47132f4a0db74409"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/aging_test.go::TestOSPFLSDBAgeToPurge": "595f33e6995b88bf",
-        "internal/plugins/ospf/spf/graph_test.go::TestOSPFGraphSkipsMaxAge": "22b6b9170e8c63a9",
-        "internal/plugins/ospf/types/lsage_test.go::TestLSAgeAddSaturates": "dee829dad96802ab"
+        "internal/plugins/ospf/lsdb/rfc2328_aging_test.go::TestOSPFLSDBAgeToPurge": "595f33e6995b88bf",
+        "internal/plugins/ospf/spf/rfc2328_graph_test.go::TestOSPFGraphSkipsMaxAge": "22b6b9170e8c63a9",
+        "internal/plugins/ospf/types/rfc2328_lsage_test.go::TestLSAgeAddSaturates": "dee829dad96802ab"
       },
       "verdict": "enforced"
     },
@@ -406,14 +406,14 @@
       "note": "Clause (b) now holds Exchange as well as Loading: a purged MaxAge LSA on no retransmission list is kept with the only neighbor in exchange or loading and removed at once in full or exstart; a Loading-only guard turns the exchange subtest red while the older Loading unit stays green. Clause (a) stays on the retransmission-list units. The units call deletePurgedIfAcked directly, the LSDB seam every trigger uses.",
       "requirement_sha": "c44a7407d2818023",
       "tests": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "5f02a64139f8d93a",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "5f02a64139f8d93a",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "5f02a64139f8d93a",
         "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "207148933d5942ce",
         "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "207148933d5942ce"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "7eb73e02547a5a89",
-        "internal/plugins/ospf/lsdb/flooding_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "f8ef49f3f9f94f71",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "7eb73e02547a5a89",
+        "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "f8ef49f3f9f94f71",
         "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "82eea7ef3f6a7a01",
         "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "a4b620aed4c475d7"
       },
@@ -446,14 +446,14 @@
       "tests": {
         "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip": "b9cd19a4f666c2f3",
         "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex": "b9cd19a4f666c2f3",
-        "internal/plugins/ospf/spf/spf_test.go::TestOSPFSPFShortestPath": "beb97c3c18b451e8",
-        "internal/plugins/ospf/spf/spf_test.go::TestOSPFTwoWayCheck": "beb97c3c18b451e8"
+        "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFSPFShortestPath": "beb97c3c18b451e8",
+        "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFTwoWayCheck": "beb97c3c18b451e8"
       },
       "units": {
         "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip": "1c07645da33df4c2",
         "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex": "9c59bab60f4c5288",
-        "internal/plugins/ospf/spf/spf_test.go::TestOSPFSPFShortestPath": "c529cc253499eb83",
-        "internal/plugins/ospf/spf/spf_test.go::TestOSPFTwoWayCheck": "edbfaa682f52faec"
+        "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFSPFShortestPath": "c529cc253499eb83",
+        "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFTwoWayCheck": "edbfaa682f52faec"
       },
       "verdict": "enforced"
     },
@@ -474,13 +474,13 @@
       "note": "c20 judge: the 'attached to multiple areas' condition now discriminated: TestRFC2328NonABRUsesItsAreaSummaries, a router in area 0.0.0.1 only installs 10.40.0.0/24 from that area's summary at 2 via 3.3.3.3 (red under a backbone-only-for-every-router producer). Negative TestOSPFABRBackboneOnlyAcceptance: the ABR ignores the cheaper area-1 summary, metric 30 via 2.2.2.2; judge-observed revert record on ComputeInterAreaWith.",
       "requirement_sha": "8e78c47bb67b2879",
       "tests": {
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "8afc978a14b338b7",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "8afc978a14b338b7",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7",
         "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries": "50f6d38abd345bba"
       },
       "units": {
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "143c6d8b2108e3ef",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "143c6d8b2108e3ef",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42",
         "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries": "05be64bd715a8230"
       },
       "verdict": "enforced"
@@ -489,18 +489,18 @@
       "note": "Closes the earlier gap (advertised LSInfinity unfed). + TestRFC2328SummaryAdvertisingLSInfinitySkipped: summary cost 20 through an ABR 10 away installs one route; - the same summary with cost LSInfinity installs none. MaxAge and self-originated skips stay on rfc2328_test.go; composed-cost saturation on interarea_test. Records: + v4SummaryReader, - ComputeInterAreaWith, observed red. Note: the advertised-cost check (v4SummaryReader, interarea.go:189) is subsumed by the composed-cost check (ComputeInterAreaWith, interarea.go:153), because clampMetric saturates any sum with an LSInfinity term to LSInfinity; a mutant removing only :189 stays green, but no input then installs a route, so the behaviour the clause demands is enforced by the unit either way. The AS-external tags on external_test/rfc2328_test prove s16.4 neighbours and are supplementary.",
       "requirement_sha": "c98d70765b1a001e",
       "tests": {
-        "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalLSInfinityDropped": "9c93a2a5f3cb7b7e",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "8afc978a14b338b7",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7",
+        "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalLSInfinityDropped": "9c93a2a5f3cb7b7e",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "8afc978a14b338b7",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "8afc978a14b338b7",
         "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped": "7df20734b224cbd1",
         "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped#2": "7df20734b224cbd1",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf": "d7fb83f76cbdc96f",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary": "d7fb83f76cbdc96f"
       },
       "units": {
-        "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalLSInfinityDropped": "e47cac897259923f",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "c508f57cfa4224b0",
-        "internal/plugins/ospf/spf/interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42",
+        "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalLSInfinityDropped": "e47cac897259923f",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "c508f57cfa4224b0",
+        "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "5aa46c8359efbb42",
         "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped": "bf29a1252208a3b5",
         "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped#2": "bf29a1252208a3b5",
         "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf": "5ecbe37f628d0f51",
@@ -512,16 +512,16 @@
       "note": "All four orderings asserted: intra over external (route_test), inter-area at 100 over E1 and E2 at 1 (selectBestRoutes, both input orders), E1 over E2 regardless of metric (external_test), and among E2 the smallest advertised metric (7 via an ASBR 50 away) over 9 via an ASBR 1 away through ComputeExternal. Ranking inter-area below externals, or letting distance decide E2, turns the new units red.",
       "requirement_sha": "fedd680a38ace253",
       "tests": {
-        "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalE1PreferredOverE2": "9c93a2a5f3cb7b7e",
+        "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1PreferredOverE2": "9c93a2a5f3cb7b7e",
         "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused": "05726bfdcca78ba0",
         "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected": "05726bfdcca78ba0",
-        "internal/plugins/ospf/spf/route_test.go::TestOSPFRouteTablePreference": "93cbca41ae0bce52"
+        "internal/plugins/ospf/spf/rfc2328_route_test.go::TestOSPFRouteTablePreference": "93cbca41ae0bce52"
       },
       "units": {
-        "internal/plugins/ospf/spf/external_test.go::TestOSPFExternalE1PreferredOverE2": "1994156734c401a6",
+        "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1PreferredOverE2": "1994156734c401a6",
         "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused": "4160346543960073",
         "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected": "d19b92c3b8b47492",
-        "internal/plugins/ospf/spf/route_test.go::TestOSPFRouteTablePreference": "7af1ad6871867409"
+        "internal/plugins/ospf/spf/rfc2328_route_test.go::TestOSPFRouteTablePreference": "7af1ad6871867409"
       },
       "verdict": "enforced"
     },
@@ -544,14 +544,14 @@
       "tests": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "d5c94aa47f4b6b51",
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "d5c94aa47f4b6b51",
-        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "313376fa53f2d457",
-        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "313376fa53f2d457"
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "313376fa53f2d457",
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "313376fa53f2d457"
       },
       "units": {
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled": "3e6caeb689ba2dcb",
         "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup": "56831eb81b6e1311",
-        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "9428ea71742dc605",
-        "internal/plugins/ospf/transport/transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "7973a094508486e9"
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive": "9428ea71742dc605",
+        "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip": "7973a094508486e9"
       },
       "verdict": "enforced"
     },
@@ -595,12 +595,12 @@
       "note": "Each listed test has both polarities through deliverDatagram, the Linux receive path. IP checksum: the 'checksum' case fails if a datagram with a broken header checksum is delivered. Destination: accepted for the interface address, AllSPFRouters and AllDRouters (TestOSPFReceiveAcceptsValidIPv4Envelope fails if any is rejected or not delivered), 'destination' case fails if a foreign address is delivered. Protocol: 'protocol' case (17) fails if delivered, while the valid datagrams carry 89. Rejections also assert one drop recorded and nothing on recvCh.",
       "requirement_sha": "ce131d5ca75ff71f",
       "tests": {
-        "internal/plugins/ospf/transport/backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "7b652ec10cdf20f2",
-        "internal/plugins/ospf/transport/backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "7b652ec10cdf20f2"
+        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "7b652ec10cdf20f2",
+        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "7b652ec10cdf20f2"
       },
       "units": {
-        "internal/plugins/ospf/transport/backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "fe85c4a36c926d58",
-        "internal/plugins/ospf/transport/backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "863cacb2235f9405"
+        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "fe85c4a36c926d58",
+        "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "863cacb2235f9405"
       },
       "verdict": "enforced"
     },
@@ -706,12 +706,12 @@
       "note": "Forbidden: accepting or emitting a Version other than 2. Red: TestOSPFHeaderRejectsBadVersionAndLength fails unless DecodeHeader returns ErrBadVersion for Version 3. Other polarity: TestOSPFHeaderRoundTrip fails unless every packet type written by WriteTo decodes, which needs the emitted Version octet to equal 2. One clause, both polarities.",
       "requirement_sha": "5fb48e943f437e19",
       "tests": {
-        "internal/plugins/ospf/packet/header_test.go::TestOSPFHeaderRejectsBadVersionAndLength": "3690176478e839f0",
-        "internal/plugins/ospf/packet/header_test.go::TestOSPFHeaderRoundTrip": "3690176478e839f0"
+        "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRejectsBadVersionAndLength": "3690176478e839f0",
+        "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRoundTrip": "3690176478e839f0"
       },
       "units": {
-        "internal/plugins/ospf/packet/header_test.go::TestOSPFHeaderRejectsBadVersionAndLength": "c509a086b22449c8",
-        "internal/plugins/ospf/packet/header_test.go::TestOSPFHeaderRoundTrip": "9214b193f049085b"
+        "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRejectsBadVersionAndLength": "c509a086b22449c8",
+        "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRoundTrip": "9214b193f049085b"
       },
       "verdict": "enforced"
     },
@@ -720,13 +720,13 @@
       "requirement_sha": "ceb1df038e294974",
       "tests": {
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth": "8ac8573c092c7f1a",
-        "internal/plugins/ospf/packet/header_test.go::TestPacketVerifyChecksum": "3690176478e839f0",
+        "internal/plugins/ospf/packet/rfc2328_header_test.go::TestPacketVerifyChecksum": "3690176478e839f0",
         "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth": "d8d026ab65bff2b1",
         "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused": "d8d026ab65bff2b1"
       },
       "units": {
         "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth": "7578318cd652e22d",
-        "internal/plugins/ospf/packet/header_test.go::TestPacketVerifyChecksum": "d97dae373086ba92",
+        "internal/plugins/ospf/packet/rfc2328_header_test.go::TestPacketVerifyChecksum": "d97dae373086ba92",
         "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth": "05356c529611eaee",
         "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused": "a102206c6e365966"
       },
@@ -764,14 +764,14 @@
       "note": "Re-judged 2026-09-29 (independent judge). Explicit cost 0 stays refused (TestInterfaceCostAndTransmitDelayBoundary). The unset-cost gap is closed: TestRFC2328DefaultedInterfaceCostIsPositive resolves interfaces from config text with no cost leaf and reads interfaceCost, the one producer every consumer uses (instance.go Router-LSA and routing-table cost, ldp_sync.go, te_originate.go): 1 Gbit/s under 100 Gbit/s -> 100, and the inputs that divide to 0 (100 Gbit/s under a 1 Mbit/s reference, unknown speed) -> 1. Records: revert on interfaceCost (positive) and on DefaultMetric (negative); a mutant dropping DefaultMetric's MetricMin clamp would be sharper.",
       "requirement_sha": "1f1ae4c769c592bc",
       "tests": {
-        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "44965ea02e856e15",
-        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "44965ea02e856e15",
+        "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "44965ea02e856e15",
+        "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "44965ea02e856e15",
         "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive": "d48a102aa7680d97",
         "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive#2": "d48a102aa7680d97"
       },
       "units": {
-        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "af0552b6e7e35d3a",
-        "internal/plugins/ospf/config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "af0552b6e7e35d3a",
+        "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "af0552b6e7e35d3a",
+        "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "af0552b6e7e35d3a",
         "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive": "80c3a10fa24606da",
         "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive#2": "80c3a10fa24606da"
       },

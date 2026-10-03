@@ -1,5 +1,5 @@
 // Design: docs/architecture/ospf/ospf-11-stub-nssa.md -- NSSA Type-7 to Type-5 translation.
-// Related: nssa_test.go -- the translator election and eligibility tests.
+// Related: rfc3101_nssa_test.go -- the translator election and eligibility tests.
 //
 // VALIDATES: RFC 3101 section 3.2: the translated Type-5 copies network, mask, path type,
 // metric, forwarding address and route tag from its CURRENT source Type-7, and carries the

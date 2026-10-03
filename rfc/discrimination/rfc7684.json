@@ -70,7 +70,7 @@
     {
       "rid": "RFC7684-5-3",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard",
+      "unit": "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressMalformedDiscard",
       "unit-sha": "324264b8cbdc0c48",
       "claim-sha": "472cde0423190c3a",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC7684-5-3",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage",
+      "unit": "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressValidCarriage",
       "unit-sha": "3176482834d0ad36",
       "claim-sha": "9fe2b179e51afa0e",
       "route": "revert",

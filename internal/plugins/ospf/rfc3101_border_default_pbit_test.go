@@ -1,6 +1,6 @@
 // Design: docs/architecture/ospf/ospf-11-stub-nssa.md -- NSSA default-route origination.
 // Related: nssa.go -- applyNSSADefaults, the per-area NSSA default reconciler.
-// Related: nssa_ac14_16_test.go -- the plain border-router default (P-clear) positive.
+// Related: rfc3101_nssa_ac14_16_test.go -- the plain border-router default (P-clear) positive.
 //
 // VALIDATES: RFC 3101 Section 2.4 on the NSSA border router's Type-7 default: every input
 // that makes an internal NSSA router originate a P-set default (a redistributed default

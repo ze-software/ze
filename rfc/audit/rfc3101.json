@@ -11,14 +11,14 @@
       "note": "c22 re-judge. The quote requires the received Hello's N-bit and E-bit to match the area type of the receiving interface, any area type. iface/rfc3101_hello_options_test.go drives ReceiveHello -> validateHelloLocked. Positive: matching options accepted on normal (E), stub (none) and NSSA (N). Negative: normal N set -> options-n, normal E clear -> options-e, stub N set -> options-n, stub E set -> options-e, NSSA N clear -> options-n; each case keeps the other bit matching, so the asserted drop reason isolates the bit under test (E is checked first). The author overlay comparing N only on NSSA (the earlier finding) reds normal-n-set and stub-n-set while the old NSSA-only TestOSPFNSSANbitMismatch stays green. Both polarities carry a recorded revert of validateHelloLocked.",
       "requirement_sha": "c6957237a63eeeba",
       "tests": {
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted": "4184129f1a0e776d",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType": "4184129f1a0e776d"
       },
       "units": {
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted": "9b9be4d9e73373f0",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType": "f164c3e081f1f30a"
       },
@@ -28,12 +28,12 @@
       "note": "Forbidden: an adjacency with a neighbour disagreeing on N. iface/hello_nssa_test.go TestOSPFNSSANbitMismatch sends an N-clear Hello to an NSSA interface and asserts DropReasonOptionsN (line 63); receiveHello returns on that reason before the neighbour is created. Positive: the N-set, E-clear Hello is accepted (line 54).",
       "requirement_sha": "bed79e3dd5e8dddb",
       "tests": {
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29"
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29"
       },
       "units": {
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195"
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195"
       },
       "verdict": "enforced"
     },
@@ -41,12 +41,12 @@
       "note": "Forbidden: an LSDB that cannot hold Type-7. lsdb/nssa_test.go TestOSPFType7Origination requires the originated route under LSTypeNSSA in the NSSA area store (require.True line 38) and asserts it is absent from the AS-wide Type-5 store (line 52). Received Type-7 storage is covered under RFC3101-x-4.",
       "requirement_sha": "e5b55dd5b4fa1e80",
       "tests": {
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination": "25c9971b446b97d0",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination#2": "25c9971b446b97d0"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "25c9971b446b97d0",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "25c9971b446b97d0"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination": "a9ff7f924309e5ea",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination#2": "a9ff7f924309e5ea"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "a9ff7f924309e5ea",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "a9ff7f924309e5ea"
       },
       "verdict": "enforced"
     },
@@ -54,14 +54,14 @@
       "note": "c22 re-judge. lsdb/rfc3101_type7_flood_scope_test.go: ABR with eth0 backbone, eth1+eth4 NSSA 0.0.0.1, eth2 NSSA 0.0.0.2, all with Full neighbors; a Type-7 from 3.3.3.3 enters through ReceiveUpdate on eth1. Positive: installed in 0.0.0.1 and flooded out eth4 (same NSSA). Negative: with eth4 reach asserted first, no LS Update carries it out eth2 (a different NSSA) or eth0, no retransmission entry for 5.5.5.5 or 2.2.2.2, no copy in area 0.0.0.2. Dropping the AreaID==area comparison in eligibleInterface's NSSA case (the earlier finding) reds the new negative while TestOSPFType7FloodScope stays green. Both polarities carry a recorded revert of flooding.go::eligibleInterface.",
       "requirement_sha": "1ae6cfbb93a1b34d",
       "tests": {
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope": "25c9971b446b97d0",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope#2": "25c9971b446b97d0",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope": "25c9971b446b97d0",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope#2": "25c9971b446b97d0",
         "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA": "ccba28623b8750db",
         "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA": "ccba28623b8750db"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope": "77e7c7a36db7bf5a",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7FloodScope#2": "77e7c7a36db7bf5a",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope": "77e7c7a36db7bf5a",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope#2": "77e7c7a36db7bf5a",
         "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA": "2ff94ee40bff2bee",
         "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA": "5a0f675d4734c86e"
       },
@@ -71,12 +71,12 @@
       "note": "Forbidden: keeping a Type-7 whose forwarding interface went Down. nssa_import_lifecycle_test.go TestNSSAImportReoriginatesAfterForwardingInterfaceDown asserts after onInterfaceDown the next forwarding address, Sequence.Next(), not MaxAge (line 138), and MaxAge when no address remains (line 145); TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent asserts an unrelated Down leaves sequence and address unchanged (line 170).",
       "requirement_sha": "360c6bc39ddddad9",
       "tests": {
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "2eecb1a0b2932e34",
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "2eecb1a0b2932e34"
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "2eecb1a0b2932e34",
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "2eecb1a0b2932e34"
       },
       "units": {
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "19e5f5f7b72be51b",
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "9695b633b187bbe8"
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "19e5f5f7b72be51b",
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "9695b633b187bbe8"
       },
       "verdict": "enforced"
     },
@@ -84,12 +84,12 @@
       "note": "Forbidden: a propagate-wanted Type-7 with P clear. lsdb/nssa_test.go TestOSPFType7Origination asserts OptionNP set when propagate=true (line 39) and clear when propagate=false (line 63).",
       "requirement_sha": "79d7a291a7e5b4cc",
       "tests": {
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination": "25c9971b446b97d0",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination#2": "25c9971b446b97d0"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "25c9971b446b97d0",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "25c9971b446b97d0"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination": "a9ff7f924309e5ea",
-        "internal/plugins/ospf/lsdb/nssa_test.go::TestOSPFType7Origination#2": "a9ff7f924309e5ea"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "a9ff7f924309e5ea",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "a9ff7f924309e5ea"
       },
       "verdict": "enforced"
     },
@@ -97,16 +97,16 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestOSPFv3NSSADefaultPBitFollowsForwardingAddress now carries a 2.4-2 negative (was a misplaced 2.4-4 tag): a P-set default keeps its non-zero forwarding address beside P and is flushed, not originated P-set without one, once the address is lost. The lsdb TestOSPFNSSAPBitBoundaryPolicy pair and TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress are unchanged. Prior judgement: Forbidden: a P-set Type-7 with a zero forwarding address. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts the P-set, zero-FA request is not originated (LookupLSA exists -> Fatal, line 27) and a P-set, non-zero-FA request keeps P (line 37); origination_v6_nssa_default_test.go TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress asserts no v3 P-set default without a usable address (line 175). The 'may be 0.0.0.0' clause is a permission and has no forbidden behaviour.",
       "requirement_sha": "42d84fa39e6de394",
       "tests": {
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "6e7d1420848b435e",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "6e7d1420848b435e",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "ced5bacc36accdcc",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "ced5bacc36accdcc",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f"
       },
       "verdict": "enforced"
     },
@@ -114,12 +114,12 @@
       "note": "Forbidden: P set on a Type-7 whose network this router also originates as Type-5. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts P clear after OriginateExternal for the same network (line 49) and P set with no self Type-5 (line 37).",
       "requirement_sha": "6cf7dd2375679aed",
       "tests": {
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
-        "internal/plugins/ospf/lsdb/nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758"
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758"
       },
       "verdict": "enforced"
     },
@@ -127,13 +127,13 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): positives TestOSPFNSSABorderRouterDefaultsEveryArea (v4) and TestOSPFv3NSSABorderRouterOriginatesDefault (v6) assert the border router's Type-7 default is P-clear; negative TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport pushes every P-set trigger (NSSA default-originate plus a retained default import from an nssa-propagate source) and asserts applyNSSADefaults still installs the default P-clear. The misplaced install-rule negatives moved to RFC3101-2.5-1. Judge-run overlay mutants in applyNSSADefaults: ABR taking the internal-router propagate decision (line 152 'if !isABR' -> 'if true') reds the negative; 'propagate := true' reds both positives. Four stale 2.4-4 records remain for units that lost the tag (orphans, not gate-named).",
       "requirement_sha": "5580f41ed54eeabb",
       "tests": {
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
         "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "2b69215e56d2b8cb"
       },
       "units": {
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
         "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "e645ac7412a82308"
       },
       "verdict": "enforced"
@@ -143,21 +143,21 @@
       "requirement_sha": "4b357d8f2afb7da7",
       "tests": {
         "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "f04334a58fd00e7c",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "49a610561289e458",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc"
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "49a610561289e458",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc"
       },
       "units": {
         "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "322e3dcf95ec3fd6",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "c9c53a484f5748d4",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410"
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "c9c53a484f5748d4",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410"
       },
       "verdict": "enforced"
     },
@@ -165,20 +165,20 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): both skip conditions of section 2.5 step (3) now carry tags: positives TestOSPFNSSABorderRouterDefaultPBit / TestOSPFv3NSSABorderRouterDefaultPBit skip a P-set default under summary suppression and (P-bit clear subtest) a P-clear default with summaries imported; negatives in the same units install a P-set default with summaries imported, and TestOSPFNSSANonBorderRouterInstallsPClearDefault (v4, v6) show both conditions bind a border router only. Six revert records on spf/external.go::ComputeExternalWith, observed red; the ComputeExternalWith comment now names 2.5-1 for the P-clear skip.",
       "requirement_sha": "736cc5e7e9acddb1",
       "tests": {
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "f93dfb172fe49a83",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "f93dfb172fe49a83",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "f93dfb172fe49a83",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "3f77f8e2f0df1040",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "3f77f8e2f0df1040",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "3f77f8e2f0df1040"
+        "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "f93dfb172fe49a83",
+        "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "f93dfb172fe49a83",
+        "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "f93dfb172fe49a83",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "3f77f8e2f0df1040",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "3f77f8e2f0df1040",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "3f77f8e2f0df1040"
       },
       "units": {
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "b60fee1eef468443",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "b60fee1eef468443",
-        "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "ccc74ac5a45aa007",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9621c391127ac046",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9621c391127ac046",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "ef2dede7da97f98a"
+        "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "b60fee1eef468443",
+        "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "b60fee1eef468443",
+        "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "ccc74ac5a45aa007",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9621c391127ac046",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9621c391127ac046",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "ef2dede7da97f98a"
       },
       "verdict": "enforced"
     },
@@ -186,16 +186,16 @@
       "note": "Forbidden: taking a Type-7's ASBR entry from another area. nssa_scope_test.go TestNSSAASBRUsesOriginatingArea asserts own-area cost 15 via 192.0.2.9 despite a cheaper backbone entry (line 105); TestNSSAASBRRejectsOtherArea asserts no route when the ASBR is reachable only outside the NSSA, with and without forwarding address (line 120); spf/external_nssa_recalc_test.go repeats both through Computer.Run.",
       "requirement_sha": "36fec9324e48655c",
       "tests": {
-        "internal/plugins/ospf/nssa_scope_test.go::TestNSSAASBRRejectsOtherArea": "851652176e157f7d",
-        "internal/plugins/ospf/nssa_scope_test.go::TestNSSAASBRUsesOriginatingArea": "851652176e157f7d",
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "3353280a27f2ef90",
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "3353280a27f2ef90"
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRRejectsOtherArea": "851652176e157f7d",
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRUsesOriginatingArea": "851652176e157f7d",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "3353280a27f2ef90",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "3353280a27f2ef90"
       },
       "units": {
-        "internal/plugins/ospf/nssa_scope_test.go::TestNSSAASBRRejectsOtherArea": "9e84412d7ddf6cbd",
-        "internal/plugins/ospf/nssa_scope_test.go::TestNSSAASBRUsesOriginatingArea": "80ed47f21d5473f3",
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "e02793fa3c75138b",
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "094c87dc544572ca"
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRRejectsOtherArea": "9e84412d7ddf6cbd",
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRUsesOriginatingArea": "80ed47f21d5473f3",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "e02793fa3c75138b",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "094c87dc544572ca"
       },
       "verdict": "enforced"
     },
@@ -203,14 +203,14 @@
       "note": "Forbidden: a Type-5 forwarding address resolved through an NSSA, stub, or external route. nssa_scope_test.go TestExternalForwardingScopeRejectsIneligiblePaths asserts no route for the NSSA-area, external-path-type and stub cases (line 173). Positives: inter-area in the backbone (TestExternalForwardingScopeAcceptsEligiblePaths line 140) and intra-area in two Type-5 capable areas (spf/external_nssa_test.go TestExternalForwardingPreservesInternalPreferenceAndECMP lines 238-239).",
       "requirement_sha": "e97326ba6f32085c",
       "tests": {
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "3f77f8e2f0df1040"
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "3f77f8e2f0df1040"
       },
       "units": {
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "4bfbc3f9d8706909",
-        "internal/plugins/ospf/spf/external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "7a0854df82c5f186"
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "4bfbc3f9d8706909",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "7a0854df82c5f186"
       },
       "verdict": "enforced"
     },
@@ -218,12 +218,12 @@
       "note": "Forbidden: a Type-7 forwarding address resolved outside an intra-area path of its own NSSA. nssa_scope_test.go TestExternalForwardingScopeRejectsIneligiblePaths asserts no route for a backbone route, an inter-area route and a stub-area route (line 173); TestExternalForwardingScopeAcceptsEligiblePaths asserts the own-NSSA intra-area route resolves (line 140).",
       "requirement_sha": "b33ab5b840f610ab",
       "tests": {
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d"
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d"
       },
       "units": {
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
-        "internal/plugins/ospf/nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "4bfbc3f9d8706909"
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
+        "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "4bfbc3f9d8706909"
       },
       "verdict": "enforced"
     },
@@ -231,12 +231,12 @@
       "note": "Forbidden: the external calculation skipping Type-7 LSAs. spf/external_nssa_recalc_test.go TestNSSAExternalCalculationRunsOnType7Change asserts Computer.Run adds the Type-7 route at cost 15 and changes it to 19 on a Type-7 metric change (lines 50, 61); TestNSSAExternalCalculationDropsLostASBR asserts removal when the NSSA loses the ASBR (line 84).",
       "requirement_sha": "fcb59d677dc46819",
       "tests": {
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "3353280a27f2ef90",
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "3353280a27f2ef90"
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "3353280a27f2ef90",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "3353280a27f2ef90"
       },
       "units": {
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "e02793fa3c75138b",
-        "internal/plugins/ospf/spf/external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "094c87dc544572ca"
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "e02793fa3c75138b",
+        "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "094c87dc544572ca"
       },
       "verdict": "enforced"
     },
@@ -244,12 +244,12 @@
       "note": "Forbidden: a border router unable to import Type-3 summaries into an NSSA. spf/area_type_test.go TestOSPFNSSAType3SummaryImport asserts a regular NSSA keeps the inter-area Type-3 (line 88) and a no-summary NSSA suppresses it (line 99), proving the import is optional and supported.",
       "requirement_sha": "e7b15fa907047381",
       "tests": {
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
       },
       "units": {
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
       },
       "verdict": "enforced"
     },
@@ -257,20 +257,20 @@
       "note": "Forbidden: a no-summary NSSA default that is not a Type-3. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default through OriginateSummaries (line 133); origination_v6_nssa_default_test.go TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA asserts no NSSA-LSA default in the no-summary NSSA (line 101) and the inter-area default (line 112). Negatives: a regular NSSA gets no Type-3 default (area_type_test.go lines 94, 154).",
       "requirement_sha": "a624fa41a2040d6a",
       "tests": {
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
       },
       "units": {
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "c129732635a68daf",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "c129732635a68daf",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "56db5f97fcfce795",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "c129732635a68daf",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "c129732635a68daf",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "56db5f97fcfce795",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
       },
       "verdict": "enforced"
     },
@@ -278,20 +278,20 @@
       "note": "Forbidden: a Type-3 default into an NSSA that imports summaries. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection/regular asserts no summary default through OriginateSummaries (line 154), TestOSPFNSSAType3SummaryImport asserts it through applyAreaTypePolicy (line 94), and the v3 test asserts no inter-area default (line 121). Negatives show the ban is conditional on import (area_type_test.go lines 107, 133).",
       "requirement_sha": "624ecf4c3946e8b6",
       "tests": {
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
       },
       "units": {
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "c129732635a68daf",
-        "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "c129732635a68daf",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "56db5f97fcfce795",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
-        "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "c129732635a68daf",
+        "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "c129732635a68daf",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "56db5f97fcfce795",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
+        "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
       },
       "verdict": "enforced"
     },
@@ -299,8 +299,8 @@
       "note": "c23 re-judge (independent judge). OSPFv2 as recorded at c22 (rfc3101_nssa_border_ebit_areas_test.go, both polarities, records on NSSABorderEBit). OSPFv3 now proven: rfc3101_v6_nssa_border_ebit_test.go builds an OSPFv3 engine (v6Codec) with backbone, area 0.0.0.1, normal 0.0.0.2 and stub 0.0.0.3, one passive running interface each, and drives v6OriginateSelf (no hand-set nssaBorderE); the E-bit is read as the literal 0x02 of the flags octet at offset 20 of the installed Router-LSA (RFC 5340 A.4.3: 0 0 0 Nt x V E B). Positive: with 0.0.0.1 NSSA, E set in 0, 0.0.0.1 and 0.0.0.2 with no external origination, clear in the stub. Negative: with 0.0.0.1 normal, E clear in all four. Overlays on NSSABorderEBit (scratch/c23/e1..e3): backbone-only reds the positive, dropping the stub check reds it, any-active-area reds the negative; TestOSPFv6OriginateRouterLSAABRNtBits green under all three. Both new units hold observed-red revert records. TestOSPFASBRBitFromNSSAType7 (#2) stays supplementary.",
       "requirement_sha": "0409f2f519db36f9",
       "tests": {
-        "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "0d6427b918f145f2",
-        "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "0d6427b918f145f2",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "0d6427b918f145f2",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "0d6427b918f145f2",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "05a1bdbad4c0a365",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "fa377c02d28ef7c6",
@@ -309,8 +309,8 @@
         "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "c864c4021e34b9e0"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "61554072b6a1ad56",
-        "internal/plugins/ospf/lsdb/origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "61554072b6a1ad56",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7": "61554072b6a1ad56",
+        "internal/plugins/ospf/lsdb/rfc3101_origination_external_test.go::TestOSPFASBRBitFromNSSAType7#2": "61554072b6a1ad56",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "58b9ac30f97841e6",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "6336aecd21aa6836",
         "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "403ab4b7dbaeffb5",
@@ -324,16 +324,16 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuation 5): the row now quotes the verbatim span through 'reachable both over the NSSA' (R3 split); the transit-topology ASBR condition is gap row RFC3101-3.1-5, so no clause of this row is untested. electNSSATranslator skips a router the NSSA's completed SPF does not reach (ReachabilitySnapshot.RouterReachable). TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed are an isolated pair differing only in reachability (translated 1 vs 0); TestOSPFNSSATranslatorElection adds the unreachable-higher case; five observed-red records re-recorded after the nssa.go comment edit.",
       "requirement_sha": "d6068455a61452de",
       "tests": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "a977f5140de4f2b1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "a977f5140de4f2b1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "1a75c011dc554ac3",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "1a75c011dc554ac3"
       },
       "units": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection": "1fd77b8549e7f82c",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection#2": "1fd77b8549e7f82c",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected": "384f0c6935a2fc5b",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection": "1fd77b8549e7f82c",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection#2": "1fd77b8549e7f82c",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed": "866e564e59384946",
         "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed": "59a51d09756da274"
       },
@@ -363,15 +363,15 @@
       "note": "Re-judged 2026-09-29. TestOSPFNSSATranslation now asserts the network mask as well as metric, E1, tag and FA, and the advertising router through the lookup key (translator Router ID) and the network through the Link State ID. New TestRFC3101TranslatedType5FollowsSourceFields re-originates the Type-7 with a new mask, E2, metric, FA and tag (clock advanced past MinLSInterval) and reads each new value in the translated Type-5, so a translator that hardcodes, defaults or keeps stale fields goes red. Revert records on translateNSSA for both. The withdraw and P=0 negatives stay (neighbouring section 3.2 steps).",
       "requirement_sha": "017482a6ad8fbfd6",
       "tests": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "a977f5140de4f2b1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "a977f5140de4f2b1",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSAPbitNotTranslated": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "a977f5140de4f2b1",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation#2": "a977f5140de4f2b1",
         "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "ed1fcad648e40d52"
       },
       "units": {
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSAPbitNotTranslated": "00b5b56941c2e6f5",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation": "2152f0b32a75a9cf",
-        "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation#2": "2152f0b32a75a9cf",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSAPbitNotTranslated": "00b5b56941c2e6f5",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "2152f0b32a75a9cf",
+        "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation#2": "2152f0b32a75a9cf",
         "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "a971df27e394f0dc"
       },
       "verdict": "enforced"
@@ -385,11 +385,11 @@
       "note": "Owner decision D-12: translator = router whose Router-LSA in the NSSA carries the B-bit (nssaABRs/nssaABRsV6 with B), equivalent = same destination and mask, same metric, same non-zero forwarding address (equivalentType5, equivalentType5V6 over lsdb.HigherRIDTranslatorExternals). TestRFC3101TranslatorYieldsOnlyToEquivalentType5 and its V6 twin assert the yield for an equivalent Type-5 and translation for a different metric, forwarding address, mask, or a non-translator advertiser; TestOSPFNSSAHigherRIDType5Suppresses and lsdb TestOSPFHigherRIDType5Exists keep the higher-RID ordering. Weak because the clause 'and that are reachable over area 0 and the NSSA' is neither implemented nor tested: the translator set is read from the NSSA LSDB, not from per-area SPF reachability.",
       "requirement_sha": "2028717c11468c93",
       "tests": {
-        "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "9b819c85416f1c4b",
-        "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#2": "9b819c85416f1c4b",
-        "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "9b819c85416f1c4b",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "49a610561289e458",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "49a610561289e458",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "9b819c85416f1c4b",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#2": "9b819c85416f1c4b",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "9b819c85416f1c4b",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "49a610561289e458",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "49a610561289e458",
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5": "ce75774bb9d76417",
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#2": "ce75774bb9d76417",
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#3": "ce75774bb9d76417",
@@ -400,11 +400,11 @@
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#3": "ce75774bb9d76417"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "e98176e04ba89461",
-        "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#2": "e98176e04ba89461",
-        "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "e98176e04ba89461",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "a4429060e42cf7f4",
-        "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "a4429060e42cf7f4",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "e98176e04ba89461",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#2": "e98176e04ba89461",
+        "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "e98176e04ba89461",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "a4429060e42cf7f4",
+        "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "a4429060e42cf7f4",
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5": "c011a53ece5f4d68",
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#2": "c011a53ece5f4d68",
         "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#3": "c011a53ece5f4d68",
@@ -420,14 +420,14 @@
       "note": "c22 re-judge. Positive TestRFC3101NSSAHelloSentWithNSetAndEClear reads the Options octet at offset 30 of buildHelloPacketLocked (the payload every Hello send uses, iface.go) on an NSSA interface and asserts 0x08 set and 0x02 clear as literal bits (recorded revert of expectedOptionsLocked). Negative under OWNER RULING 2: an NSSA Hello carrying N and E together is dropped with options-e (TestRFC3101NSSAHelloWithNAndESetRefused, recorded revert of validateHelloLocked); the author overlay skipping the E check when N is set reds it while the old E-only negative stays green. RFC 3101 is OSPFv2; the Options octet checked is the OSPFv2 one.",
       "requirement_sha": "c2f99629ac81af34",
       "tests": {
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "87dd3a4c8ff90e29",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "87dd3a4c8ff90e29",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear": "4184129f1a0e776d",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused": "4184129f1a0e776d"
       },
       "units": {
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
-        "internal/plugins/ospf/iface/hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "0e19aeddeb46b195",
+        "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "0e19aeddeb46b195",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear": "1c152a7c5d3e59b9",
         "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused": "9987661d6ac3a143"
       },
@@ -437,14 +437,14 @@
       "note": "Forbidden: no configuration vehicle for the P-bit. nssa_import_lifecycle_test.go TestNSSAPerSourcePropagationEnabled parses nssa-propagate true and asserts P set on the imported route and default (line 204); TestNSSAPerSourcePropagationDisabled asserts P clear for explicit false and unconfigured sources (line 226); TestNSSAPerSourcePropagationCannotOverrideType5 asserts P clear with a Type-5 twin (line 251).",
       "requirement_sha": "2b879ef85689ae6e",
       "tests": {
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "2eecb1a0b2932e34",
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "2eecb1a0b2932e34",
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "2eecb1a0b2932e34"
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "2eecb1a0b2932e34",
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "2eecb1a0b2932e34",
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "2eecb1a0b2932e34"
       },
       "units": {
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "ef30e2634943bb4b",
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "375db7146acd698e",
-        "internal/plugins/ospf/nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "66dbcc509ce9d80f"
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "ef30e2634943bb4b",
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "375db7146acd698e",
+        "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "66dbcc509ce9d80f"
       },
       "verdict": "enforced"
     },
@@ -452,12 +452,12 @@
       "note": "Forbidden: an NSSA area that discards Type-7. lsdb/area_capability_rfc3101_test.go TestRFC3101NSSAAreaAcceptsType7 fails if a received Type-7 is not installed in an NSSA area; TestRFC3101NormalAreaRejectsType7 fails if the same LSA is installed in a normal area.",
       "requirement_sha": "d6d83e8e4765aa6d",
       "tests": {
-        "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NSSAAreaAcceptsType7": "65fa31ece0c5ae88",
-        "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NormalAreaRejectsType7": "65fa31ece0c5ae88"
+        "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NSSAAreaAcceptsType7": "65fa31ece0c5ae88",
+        "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NormalAreaRejectsType7": "65fa31ece0c5ae88"
       },
       "units": {
-        "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NSSAAreaAcceptsType7": "42cc0f7b2aa591c9",
-        "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NormalAreaRejectsType7": "a7c103d82b870f28"
+        "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NSSAAreaAcceptsType7": "42cc0f7b2aa591c9",
+        "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NormalAreaRejectsType7": "a7c103d82b870f28"
       },
       "verdict": "enforced"
     },

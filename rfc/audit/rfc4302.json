@@ -22,12 +22,12 @@
       "note": "(a) forbidden: AH parameters settled without a signalling or out-of-band mechanism both peers hold, e.g. a defaulted integrity algorithm. (b) TestAHParametersComeFromConfiguration: protocol, SPI, algorithm and key length are asserted from the parsed RFC 4552 block (positive), and an AH block with no algorithm must fail with ErrIPsecAuthAlgo (negative). Ze uses the out-of-band configuration mechanism the sentence names; it runs no AH signalling.",
       "requirement_sha": "83e60a3e408a06ef",
       "tests": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration": "4eb7d1753c913cce",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration#2": "4eb7d1753c913cce"
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration": "4eb7d1753c913cce",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration#2": "4eb7d1753c913cce"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration": "4677f4b45791218a",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration#2": "4677f4b45791218a"
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration": "4677f4b45791218a",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration#2": "4677f4b45791218a"
       },
       "verdict": "enforced"
     },
@@ -35,14 +35,14 @@
       "note": "Re-judged 2026-09-29 (independent judge). The unicast clause is now asserted: TestRFC4302UnicastAHStateIdentifiedBySPI builds the interface's whole SA set and finds exactly one inbound state for the unicast link-local fe80::1 with SPI 0x1000, proto AH, source wildcarded; with SPI 0x2000 configured the unicast state carries 0x2000, so the mapping key follows the configured SPI. Records on buildIPsecInterfaceSAs and buildIPsecSA. Multicast units stand. Ze's role is installing the state the kernel maps inbound AH by; the kernel lookup itself is XFRM.",
       "requirement_sha": "1c40d5ea6827b71c",
       "tests": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol": "4eb7d1753c913cce",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "4eb7d1753c913cce",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol": "4eb7d1753c913cce",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "4eb7d1753c913cce",
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "b73d4aaa80fb87fb",
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "b73d4aaa80fb87fb"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol": "fe9892d839b88960",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "fe9892d839b88960",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol": "fe9892d839b88960",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "fe9892d839b88960",
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "13af0c0de68f9619",
         "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "13af0c0de68f9619"
       },
@@ -65,12 +65,12 @@
       "note": "(a) forbidden: an AH SA carrying SPI 0 installed and so sent on the wire. (b) TestAHSPIReservedRangeRefused: validateConfig on spi 0 must return ErrIPsecSPIReserved, else red; spi 256 must validate (positive bound). SPI 255 refusal is IANA-range, beyond this row.",
       "requirement_sha": "11d3ac6441efc504",
       "tests": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused": "4eb7d1753c913cce",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused#2": "4eb7d1753c913cce"
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused": "4eb7d1753c913cce",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused#2": "4eb7d1753c913cce"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused": "5fda7c062965f660",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused#2": "5fda7c062965f660"
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused": "5fda7c062965f660",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused#2": "5fda7c062965f660"
       },
       "verdict": "enforced"
     },
@@ -78,12 +78,12 @@
       "note": "(a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected >= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.",
       "requirement_sha": "cb85941d72f6e4c2",
       "tests": {
-        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "402fac7c3f341aa8",
-        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "402fac7c3f341aa8"
+        "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "402fac7c3f341aa8",
+        "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "402fac7c3f341aa8"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "a8d02622804657f7",
-        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "a8d02622804657f7"
+        "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "a8d02622804657f7",
+        "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "a8d02622804657f7"
       },
       "verdict": "enforced"
     },
@@ -91,14 +91,14 @@
       "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): whole-stack: new rfc4302_ah_unknown_spi_linux_test.go runs in a private user+net namespace (judge ran it: child PASS, not SKIP), installs the OSPF AH SAs (SPI 256) through newIPsecInstaller over real XFRM, and sends a raw AH packet to fe80::1. Positive: unknown SPI -> nothing reaches a raw-89 socket and XfrmInNoStates rises by exactly 1 (the auditable event; a counter, no audit log with SPI/time/addresses, which is the SHOULD beside this row). Negative: the installed SPI -> XfrmInNoStates unchanged and XfrmInStateProtoError +1, proving the lookup runs against the SAD Ze installed. The kernel performs the discard; Ze's part is the SAD. HEAD tags on TestAHInboundRequirePolicyInstalled kept as supplementary (coverage ratchet).",
       "requirement_sha": "71ad1e125ba6b922",
       "tests": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled": "4eb7d1753c913cce",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled#2": "4eb7d1753c913cce",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "4eb7d1753c913cce",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "4eb7d1753c913cce",
         "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "2e87a960ff18a159",
         "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "2e87a960ff18a159"
       },
       "units": {
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled": "edb23718e29c581e",
-        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled#2": "edb23718e29c581e",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "edb23718e29c581e",
+        "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "edb23718e29c581e",
         "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "bd7e211a6ea7bd18",
         "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "862d8c86cbed26ad"
       },
@@ -110,14 +110,14 @@
       "tests": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow": "976d07eeb9539b2b",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2": "976d07eeb9539b2b",
-        "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "5261aab46344e530",
-        "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "5261aab46344e530"
+        "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "5261aab46344e530",
+        "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "5261aab46344e530"
       },
       "units": {
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow": "d61dcce45d4b5c05",
         "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2": "d61dcce45d4b5c05",
-        "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "78e777c07d8e7e27",
-        "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "78e777c07d8e7e27"
+        "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow": "78e777c07d8e7e27",
+        "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow#2": "78e777c07d8e7e27"
       },
       "verdict": "enforced"
     },

@@ -1,6 +1,6 @@
 // Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- OSPFv3 manual-key AH SAs installed into XFRM.
 // Related: ipsec_install.go -- buildIPsecInterfaceSAs, the states this probe installs.
-// Related: ipsec_rfc4302_test.go -- the unit tests over the SA and policy Ze builds.
+// Related: rfc4302_ipsec_test.go -- the unit tests over the SA and policy Ze builds.
 //
 // VALIDATES: against a real Linux XFRM stack, RFC 4302 Section 3.4.2 on the AH SAs the OSPF
 // installer puts in the SAD: an AH packet addressed to the router whose SPI matches no SA

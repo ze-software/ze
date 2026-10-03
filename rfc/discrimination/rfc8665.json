@@ -37,7 +37,7 @@
     {
       "rid": "RFC8665-3.2-14",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665NonReservedOctetIsRead",
+      "unit": "internal/plugins/ospf/sr/rfc8665_reserved_test.go::TestRFC8665NonReservedOctetIsRead",
       "unit-sha": "24e6c401a3016646",
       "claim-sha": "5dfb3d5d1538c82d",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC8665-3.2-14",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665ReservedFieldIgnoredOnReception",
+      "unit": "internal/plugins/ospf/sr/rfc8665_reserved_test.go::TestRFC8665ReservedFieldIgnoredOnReception",
       "unit-sha": "b2a695a46099939f",
       "claim-sha": "5e2a698beb47d2bd",
       "route": "revert",

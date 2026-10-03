@@ -8,7 +8,7 @@
 # RFC 7166 key-chain) is enforced by construction -- the IPv6-family interface schema has
 # no `authentication` container -- plus the Go validator, unit-tested by
 # TestIPsecAnd7166MutuallyExclusive. The live kernel install/drop path is exercised by the
-# QEMU integration test internal/plugins/ospf/ipsec_integration_linux_test.go.
+# QEMU integration test internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go.
 # PREVENTS: a malformed or misplaced IPsec block being accepted and reaching the kernel.
 
 # --- Valid: ESP transport-mode authentication-only IPsec on an IPv6-family interface. ---

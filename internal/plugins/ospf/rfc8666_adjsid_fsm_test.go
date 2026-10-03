@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/ospf.md -- OSPF Segment Routing Adj-SID lifecycle.
 // Related: bfd_client.go -- neighborEventSinkValue, the sink the neighbor table calls.
 // Related: sr_adjsid.go -- srAdjNeighborLost, the Adj-SID withdrawal hook.
-// Related: bfd_client_test.go -- driveNeighborFull, the DD exchange this file mirrors.
+// Related: rfc5882_bfd_client_test.go -- driveNeighborFull, the DD exchange this file mirrors.
 //
 // VALIDATES: RFC 8666 Section 8.4.1, "If the adjacency transitions to a state lower than
 // 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area.", through the

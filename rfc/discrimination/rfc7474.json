@@ -246,7 +246,7 @@
     {
       "rid": "RFC7474-6-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/packet/auth_rfc7474_test.go::TestRFC7474KoNonZeroPadRejected",
+      "unit": "internal/plugins/ospf/packet/rfc7474_auth_test.go::TestRFC7474KoNonZeroPadRejected",
       "unit-sha": "64121e627d2dbff0",
       "claim-sha": "5e75e451a4a123a2",
       "route": "revert",
@@ -257,7 +257,7 @@
     {
       "rid": "RFC7474-6-2",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/packet/auth_rfc7474_test.go::TestRFC7474KoZeroPaddedToBlockSize",
+      "unit": "internal/plugins/ospf/packet/rfc7474_auth_test.go::TestRFC7474KoZeroPaddedToBlockSize",
       "unit-sha": "d8dedbf7698ffaba",
       "claim-sha": "996bc5111a9f29f8",
       "route": "revert",

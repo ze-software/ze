@@ -48,7 +48,7 @@
     {
       "rid": "RFC3101-2.4-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress",
+      "unit": "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress",
       "unit-sha": "faaacddcded2dcf5",
       "claim-sha": "dfc4f41d2a27c5b2",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
       "unit-sha": "4be14e1e41d39e23",
       "claim-sha": "36301c9ba28032fd",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
       "unit-sha": "4be14e1e41d39e23",
       "claim-sha": "cbc192c33a4041cc",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault",
       "unit-sha": "d306f29c4fcd790c",
       "claim-sha": "618fbe721a857002",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit",
+      "unit": "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit",
       "unit-sha": "3b7b87d5d7daab12",
       "claim-sha": "3500c85c26780f24",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit",
+      "unit": "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit",
       "unit-sha": "3b7b87d5d7daab12",
       "claim-sha": "fca343ace1119b3c",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault",
+      "unit": "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault",
       "unit-sha": "ba5135232d866bbf",
       "claim-sha": "0999cc4c994add8b",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC3101-2.7-3",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA",
+      "unit": "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA",
       "unit-sha": "2ae16604eab991cc",
       "claim-sha": "2e7de1574471be9a",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC3101-2.7-3",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA",
+      "unit": "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA",
       "unit-sha": "2ae16604eab991cc",
       "claim-sha": "b9ddf721104cd77f",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC3101-2.7-3",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection",
+      "unit": "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection",
       "unit-sha": "9847801263f88cef",
       "claim-sha": "a394ee8d77df9db4",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC3101-2.7-3",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection",
+      "unit": "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection",
       "unit-sha": "9847801263f88cef",
       "claim-sha": "cd1b75c2b38487f6",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC3101-2.7-3",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport",
+      "unit": "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport",
       "unit-sha": "13e8ce4cd36f760b",
       "claim-sha": "ed8d0fff5b3f741e",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC3101-2.7-3",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/spf/area_type_test.go::TestOSPFNSSAType3SummaryImport",
+      "unit": "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport",
       "unit-sha": "13e8ce4cd36f760b",
       "claim-sha": "8a259193b623b4b4",
       "route": "revert",
@@ -268,7 +268,7 @@
     {
       "rid": "RFC3101-3.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected",
       "unit-sha": "78b924b49670c5b3",
       "claim-sha": "5601f16161e8fa4c",
       "route": "revert",
@@ -279,7 +279,7 @@
     {
       "rid": "RFC3101-3.1-2",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection",
       "unit-sha": "f05c24436a56f34e",
       "claim-sha": "af5fbf493fe1a24e",
       "route": "revert",
@@ -290,7 +290,7 @@
     {
       "rid": "RFC3101-3.1-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslatorElection",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection",
       "unit-sha": "f05c24436a56f34e",
       "claim-sha": "3477fec955fdc7c0",
       "route": "revert",
@@ -323,7 +323,7 @@
     {
       "rid": "RFC3101-3.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/nssa_test.go::TestOSPFNSSATranslation",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation",
       "unit-sha": "2e51e5d5b99ba019",
       "claim-sha": "bdc527ac16f0b2fc",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC3101-3.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",
       "unit-sha": "40af562f3a0b0fff",
       "claim-sha": "0f2a8180aadb26ab",
       "route": "revert",
@@ -356,7 +356,7 @@
     {
       "rid": "RFC3101-3.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",
       "unit-sha": "40af562f3a0b0fff",
       "claim-sha": "08d2fd62b2539051",
       "route": "revert",
@@ -367,7 +367,7 @@
     {
       "rid": "RFC3101-3.2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses",
       "unit-sha": "b4eac4c7c3e6aa35",
       "claim-sha": "6a5f48bf9dbc519a",
       "route": "revert",
@@ -378,7 +378,7 @@
     {
       "rid": "RFC3101-3.2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses",
+      "unit": "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses",
       "unit-sha": "b4eac4c7c3e6aa35",
       "claim-sha": "97d7ad4e7f2f097d",
       "route": "revert",
@@ -455,7 +455,7 @@
     {
       "rid": "RFC3101-x-4",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NSSAAreaAcceptsType7",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NSSAAreaAcceptsType7",
       "unit-sha": "6593f76bb730a408",
       "claim-sha": "dd242dfa10c74477",
       "route": "revert",
@@ -466,7 +466,7 @@
     {
       "rid": "RFC3101-x-4",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NormalAreaRejectsType7",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NormalAreaRejectsType7",
       "unit-sha": "62c0ec9d352b0be3",
       "claim-sha": "5e3a9b8cd7302333",
       "route": "revert",

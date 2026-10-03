@@ -5,7 +5,7 @@
 # registered by the ospf component and explainable. The check-execution logic is covered
 # by internal/plugins/ospf/doctor_ipsec_test.go (TestOSPFIPsecDoctorWarnsWhenXFRMUnavailable);
 # the live XFRM install/drop path is exercised by the QEMU integration test
-# internal/plugins/ospf/ipsec_integration_linux_test.go.
+# internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go.
 # PREVENTS: the IPsec doctor code regressing to unregistered/unexplainable.
 
 cmd=foreground:seq=1:exec=ze explain doctor-ospfv3-ipsec

@@ -6,13 +6,13 @@
       "note": "Re-judged 2026-09-29 (independent judge, continuation 2). All three route-computation inputs on an IPv4-unicast AF now refuse a non-conforming (64-bit) prefix beside a conforming /24 that proves the reader ran: intra-area (TestRFC5838NonConformingPrefixNotInRouteComputation, v6BuildRoutes), inter-area (TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation, v6SummaryReader yields exactly the /24), and AS-External plus NSSA (TestRFC5838NonConformingExternalPrefixNotInRouteComputation, v6ExternalReader accepts the /24, refuses the 64-bit). Revert records on v6PrefixToNetip, v6SummaryReader and v6ExternalReader. Positive TestIPv4OverV3BuildRoutes is exact but carries no record.",
       "requirement_sha": "77dae112c4211bff",
       "tests": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "e735eb206dc29802",
+        "internal/plugins/ospf/rfc5838_afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "e735eb206dc29802",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingExternalPrefixNotInRouteComputation": "871029566403d2c9",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation": "871029566403d2c9",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "871029566403d2c9"
       },
       "units": {
-        "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "10d1c67249c2ed0c",
+        "internal/plugins/ospf/rfc5838_afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "10d1c67249c2ed0c",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingExternalPrefixNotInRouteComputation": "5f2dc97ec3bdcb9f",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation": "8ba05f9ac8a29622",
         "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "b71d69fae5fefd50"
@@ -23,12 +23,12 @@
       "note": "Forbidden behaviour (a): a non-default-AF instance accepting a Hello with the AF-bit clear. (b) TestAFBitGatesFullNonDefault dispatches that Hello on an IPv4-unicast instance and asserts neighborSnapshot() is empty (a processed Hello would create an Init neighbor), then the same Hello with SetAF() yields one neighbor, isolating the AF-bit as the only difference.",
       "requirement_sha": "43c492e526df2eb9",
       "tests": {
-        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "1f18d003751f1799",
-        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "1f18d003751f1799"
+        "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "1f18d003751f1799",
+        "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "1f18d003751f1799"
       },
       "units": {
-        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "986c4eef6c815748",
-        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "986c4eef6c815748"
+        "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "986c4eef6c815748",
+        "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "986c4eef6c815748"
       },
       "verdict": "enforced"
     },
@@ -36,10 +36,10 @@
       "note": "Forbidden behaviour (a): the base IPv6-unicast AF discarding a Hello whose AF-bit is clear. (b) TestAFBitIgnoredDefaultAF dispatches an AF-bit-less Hello to the default IPv6-unicast engine and asserts neighborSnapshot() has one row, so an applied AF-bit check goes red. Single-polarity marker holds (the base AF has no reject path).",
       "requirement_sha": "ba63887227c48a43",
       "tests": {
-        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "1f18d003751f1799"
+        "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "1f18d003751f1799"
       },
       "units": {
-        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "2c0595984ef71387"
+        "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "2c0595984ef71387"
       },
       "verdict": "enforced"
     },

@@ -274,11 +274,11 @@
       "requirement_sha": "c518550f04f2281f",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "de280b1c094e08d4",
-        "internal/plugins/ospf/bgpls_export_rfc9552_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "708a9a8051791b09"
+        "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "708a9a8051791b09"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeOSPFRouteType": "f0355b7bfd1485ad",
-        "internal/plugins/ospf/bgpls_export_rfc9552_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "5a0596f08f928889"
+        "internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go::TestRFC9552ExtendedPrefixResolvesRouteType": "5a0596f08f928889"
       },
       "verdict": "enforced"
     },
@@ -482,22 +482,22 @@
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "6886dddcc0644d09",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "070276052fe9c6ff",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "070276052fe9c6ff",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "42da0474de6f1b9c",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "42da0474de6f1b9c",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "42da0474de6f1b9c",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFUnknownOriginsWaitForComputation": "42da0474de6f1b9c",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "42da0474de6f1b9c"
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "42da0474de6f1b9c",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "42da0474de6f1b9c",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "42da0474de6f1b9c",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFUnknownOriginsWaitForComputation": "42da0474de6f1b9c",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "42da0474de6f1b9c"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "2a3ef904d0143c41",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "2a3ef904d0143c41",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "61cea5e6fdd1c236",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "61cea5e6fdd1c236",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "bec52f36129e6a2d",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "2b55e2f4dd16ecf4",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "2b55e2f4dd16ecf4",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeSPFUnknownOriginsWaitForComputation": "198ff91247cd80bd",
-        "internal/plugins/ospf/bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "7c0bd011a84e2a15"
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "bec52f36129e6a2d",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "2b55e2f4dd16ecf4",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "2b55e2f4dd16ecf4",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFUnknownOriginsWaitForComputation": "198ff91247cd80bd",
+        "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "7c0bd011a84e2a15"
       },
       "verdict": "enforced"
     },

@@ -9,12 +9,12 @@
       "note": "(a) delivering a packet whose Instance ID differs from the engine's to a handler; (b) TestDispatchDropsMismatchedInstance: handled != 0 after IDs {0,1,4,6,255} to instance 5 fails; negative: the matching ID 5 reaches the handler (handled == 1). One engine per Instance ID covers several configured instances on one interface.",
       "requirement_sha": "3f35a3398830e2ff",
       "tests": {
-        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance": "9a7f47039ac2a407",
-        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance#2": "9a7f47039ac2a407"
+        "internal/plugins/ospf/rfc6549_instance_test.go::TestDispatchDropsMismatchedInstance": "9a7f47039ac2a407",
+        "internal/plugins/ospf/rfc6549_instance_test.go::TestDispatchDropsMismatchedInstance#2": "9a7f47039ac2a407"
       },
       "units": {
-        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance": "604d6ec8e98e9e26",
-        "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance#2": "604d6ec8e98e9e26"
+        "internal/plugins/ospf/rfc6549_instance_test.go::TestDispatchDropsMismatchedInstance": "604d6ec8e98e9e26",
+        "internal/plugins/ospf/rfc6549_instance_test.go::TestDispatchDropsMismatchedInstance#2": "604d6ec8e98e9e26"
       },
       "verdict": "enforced"
     }

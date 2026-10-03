@@ -19,7 +19,7 @@ workstation being darwin, and none of it is blocked on Linux:
   on Linux, not the `ifconfig` form. `./le setup check` reports it as
   `loopback-addresses (fd00::2 (REQUIRED))` when it is absent, and two reactor tests
   fail correctly without it.
-- The kernel work is native. `internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go`
+- The kernel work is native. `internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go`
   and `TestAHPolicyResolvesToTheSAItNames` need a Linux host with AH, which the
   rebuilt appliance kernel now has.
 
@@ -209,7 +209,7 @@ Audit row 6 DID land, as `TestSetIPv6MinHopCountEnforcesTheFloor`
 (`internal/core/network/ttl_integration_linux_test.go`). It is committed unrun:
 this host is darwin, the unit is linux-only, and it compiles under `GOOS=linux`.
 
-`internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go` is committed and RED
+`internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go` is committed and RED
 for the product reason above. It carries the `RFC4302-3.3.4-1` tag, and the owner
 chose to keep the tag and fix the product rather than untag it.
 

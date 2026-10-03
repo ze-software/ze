@@ -1,7 +1,7 @@
 // VALIDATES: the test-only backend-refusal sentinel used by the engine-start
-// tests in instance_test.go (TestOpenInterfacesSurvivesOneFailingInterface).
+// tests in rfc6549_instance_test.go (TestOpenInterfacesSurvivesOneFailingInterface).
 // PREVENTS: nothing on its own -- it exists so the sentinel does not have to be
-// added to instance_test.go, which carries an RFC-tagged test (RFC6549-2-1) and
+// added to rfc6549_instance_test.go, which carries an RFC-tagged test (RFC6549-2-1) and
 // is therefore change-guarded.
 
 package ospf

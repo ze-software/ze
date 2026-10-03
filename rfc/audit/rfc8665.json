@@ -76,12 +76,12 @@
       "note": "the MUST clause is reception: TestRFC8665ReservedFieldIgnoredOnReception sets the Reserved octets of all seven SR TLV/sub-TLV decoders to 0xff and fails unless the decode is DeepEqual to the zero case and error-free, red on a decoder that reads or rejects Reserved; TestRFC8665NonReservedOctetIsRead flips a read octet and requires a changed decode, so the equality is not vacuous. The transmission clause is a SHOULD, carried by row RFC8665-3.2-9, not by this MUST row Re-stamped 2026-09-27 by DF-OSPF-C after a rename only: the tag's prose names the range decoder DecodeExtPrefixRangeValueV4 (was decodeExtPrefixRangeValueV4, now exported for the RFC 8665 Section 9 LSA-level check); no assertion changed. REV-OSPF independent re-audit 2026-09-27: kept enforced. Forbidden: a decoder that rejects or reads a Reserved octet; TestRFC8665ReservedFieldIgnoredOnReception sets every Reserved octet of all seven SR decoders to 0xff and fails unless the decode is error-free and DeepEqual to the clean one; TestRFC8665NonReservedOctetIsRead proves the equality is not vacuous. The transmission SHOULD is row RFC8665-3.2-9. The body change since the earlier stamp is the decodeExtPrefixRangeValueV4 to DecodeExtPrefixRangeValueV4 rename only.",
       "requirement_sha": "0238db444e6261f9",
       "tests": {
-        "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665NonReservedOctetIsRead": "25fbcfea2ea8e6ca",
-        "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665ReservedFieldIgnoredOnReception": "25fbcfea2ea8e6ca"
+        "internal/plugins/ospf/sr/rfc8665_reserved_test.go::TestRFC8665NonReservedOctetIsRead": "25fbcfea2ea8e6ca",
+        "internal/plugins/ospf/sr/rfc8665_reserved_test.go::TestRFC8665ReservedFieldIgnoredOnReception": "25fbcfea2ea8e6ca"
       },
       "units": {
-        "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665NonReservedOctetIsRead": "48b996a268ce23da",
-        "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665ReservedFieldIgnoredOnReception": "4d68b422d705d5c6"
+        "internal/plugins/ospf/sr/rfc8665_reserved_test.go::TestRFC8665NonReservedOctetIsRead": "48b996a268ce23da",
+        "internal/plugins/ospf/sr/rfc8665_reserved_test.go::TestRFC8665ReservedFieldIgnoredOnReception": "4d68b422d705d5c6"
       },
       "verdict": "enforced"
     },

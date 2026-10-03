@@ -2883,7 +2883,7 @@ in the traditional sense). Run them periodically or before releases.
 | Receiver/server parsers | 4 | `FuzzDecodeBMPTLV`, `FuzzDecodeRADIUSVSA`, `FuzzDHCPHandle`, `FuzzDecode` (VRRP) |
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzInvalidHandle`, `FuzzParseAttributes`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzFSMEventSequence` |
 <!-- source: internal/plugins/isis/packet/fuzz_test.go -- IS-IS packet fuzz targets -->
-<!-- source: internal/plugins/ospf/packet/fuzz_test.go -- OSPF packet fuzz targets -->
+<!-- source: internal/plugins/ospf/packet/rfc7684_fuzz_test.go -- OSPF packet fuzz targets -->
 <!-- source: internal/le/test/fuzz/actions.go -- Answer -->
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
 <!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->

@@ -45,16 +45,16 @@
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "c179cec33f80bf77",
         "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "741ef04b97554cc2",
         "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "741ef04b97554cc2",
-        "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "cbd459350ebb4f75",
-        "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "cbd459350ebb4f75"
+        "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "cbd459350ebb4f75",
+        "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "cbd459350ebb4f75"
       },
       "units": {
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "e12a0686a3d133a5",
         "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "e5b5a7f67c6a711f",
         "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDClientAdminDownDoesNotTeardown": "ebe1208a859067ee",
         "internal/component/bgp/reactor/peer_bfd_test.go::TestBFDRemoteAdminDownDoesNotTeardown": "399a8434eb38227f",
-        "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "a64467f5c3048d7c",
-        "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "18f69cf21051ee7d"
+        "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction": "a64467f5c3048d7c",
+        "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction": "18f69cf21051ee7d"
       },
       "verdict": "enforced"
     },

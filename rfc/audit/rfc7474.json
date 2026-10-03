@@ -53,13 +53,13 @@
       "requirement_sha": "faffa992abce4572",
       "tests": {
         "internal/plugins/ospf/auth_keystore_test.go::TestBootCountMonotonicAcrossRestart": "0416e890e9f2f366",
-        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "8b78b66a3a8ad8d9",
-        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "8b78b66a3a8ad8d9"
+        "internal/plugins/ospf/rfc7474_state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "8b78b66a3a8ad8d9",
+        "internal/plugins/ospf/rfc7474_state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "8b78b66a3a8ad8d9"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestBootCountMonotonicAcrossRestart": "720aa31a10018e70",
-        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "ea08750dda52505c",
-        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "7c6ac8eb66b4161a"
+        "internal/plugins/ospf/rfc7474_state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "ea08750dda52505c",
+        "internal/plugins/ospf/rfc7474_state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "7c6ac8eb66b4161a"
       },
       "verdict": "enforced"
     },

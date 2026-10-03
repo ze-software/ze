@@ -4,7 +4,7 @@
     {
       "rid": "RFC5392-3.2.1-4",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/te_originate_test.go::TestInterAsTEOriginateScopePolicy",
+      "unit": "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy",
       "unit-sha": "02da0175fbe84c4c",
       "claim-sha": "8efba38f7f537c73",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC5392-3.2.1-4",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/te_test.go::TestTEReceiveType6MissingRemoteASSkipped",
+      "unit": "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped",
       "unit-sha": "45485e93a892fb38",
       "claim-sha": "fc04f367b8114227",
       "route": "revert",

@@ -114,4 +114,4 @@ extended 64-bit cryptographic sequence).
   round trip. SHA tests construct Ko, Ipad, Opad and Apad independently; the
   AuType-3 padding tests also supply the source address and protocol-ID suffix.
   <!-- source: internal/plugins/ospf/packet/auth_verify_test.go -- rfc5709ReferenceDigest, TestRFC5709ReceiveIndependentDigest, TestRFC5709ReceiveRejectsWrongHashConstruction -->
-  <!-- source: internal/plugins/ospf/packet/auth_rfc7474_test.go -- TestRFC7474KoZeroPaddedToBlockSize, TestRFC7474KoNonZeroPadRejected -->
+  <!-- source: internal/plugins/ospf/packet/rfc7474_auth_test.go -- TestRFC7474KoZeroPaddedToBlockSize, TestRFC7474KoNonZeroPadRejected -->

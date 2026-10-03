@@ -1,6 +1,6 @@
 // Design: docs/architecture/ospf/ospf-ext-16-ipsec-auth.md -- OSPFv3 IPsec SA installation.
 // Related: ipsec_install.go -- buildIPsecInterfaceSAs, the set of SAs one interface installs.
-// Related: ipsec_rfc4302_test.go -- the multicast-state identifier and selector tests.
+// Related: rfc4302_ipsec_test.go -- the multicast-state identifier and selector tests.
 //
 // VALIDATES: RFC 4302 on the whole SA set Ze installs for an AH interface: the UNICAST
 // inbound state (this interface's own link-local, the destination of every unicast OSPF

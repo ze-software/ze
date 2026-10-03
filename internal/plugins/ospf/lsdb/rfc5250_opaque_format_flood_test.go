@@ -1,7 +1,7 @@
 // Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- LS Update receive procedure
-// Related: opaque_scope_test.go -- the LS-type and flooding-scope clauses of RFC5250-3-1
+// Related: rfc5250_opaque_scope_test.go -- the LS-type and flooding-scope clauses of RFC5250-3-1
 //
-// VALIDATES: RFC 5250 Section 3, the two clauses opaque_scope_test.go leaves open: an
+// VALIDATES: RFC 5250 Section 3, the two clauses rfc5250_opaque_scope_test.go leaves open: an
 // Opaque LSA is a standard LSA header followed by a 32-bit aligned body, and Opaque LSAs
 // are distributed by the standard link-state database flooding mechanisms.
 // PREVENTS: storing and reflooding an Opaque LSA whose body breaks the RFC 5250 format,

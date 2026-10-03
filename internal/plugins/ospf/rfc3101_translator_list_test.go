@@ -1,6 +1,6 @@
 // Design: docs/architecture/ospf/ospf-11-stub-nssa.md -- NSSA Type-7 translator election.
 // Related: nssa.go -- electNSSATranslator, the election over the reachable list.
-// Related: nssa_test.go -- the election tests that build the list from bare router-LSAs.
+// Related: rfc3101_nssa_test.go -- the election tests that build the list from bare router-LSAs.
 //
 // VALIDATES: RFC 3101 Section 3.1 list membership: a candidate translator elects over the
 // NSSA's border routers "that are reachable both over the NSSA", so a router-LSA in the

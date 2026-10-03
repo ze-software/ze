@@ -4,7 +4,7 @@
     {
       "rid": "RFC5250-3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting",
       "unit-sha": "d05449b19ebfab72",
       "claim-sha": "de97004139e378bf",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC5250-3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting",
       "unit-sha": "d05449b19ebfab72",
       "claim-sha": "d46cafcb91f36cc4",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC5250-3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues",
+      "unit": "internal/plugins/ospf/types/rfc5250_lstype_test.go::TestLSTypeKnownValues",
       "unit-sha": "a24e599bbdd360df",
       "claim-sha": "3ebd85b61fc80b78",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC5250-3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues",
+      "unit": "internal/plugins/ospf/types/rfc5250_lstype_test.go::TestLSTypeKnownValues",
       "unit-sha": "a24e599bbdd360df",
       "claim-sha": "46d6482d82cff9e7",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC5250-3.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded",
       "unit-sha": "9df4b9edb258c168",
       "claim-sha": "19b6339fb68b8cc8",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC5250-3.1-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded",
       "unit-sha": "9df4b9edb258c168",
       "claim-sha": "170daafcad802a2e",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC5250-3.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",
       "unit-sha": "44cb441d782eceff",
       "claim-sha": "543107052e20151f",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC5250-3.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA",
       "unit-sha": "f9c659a9cdc0bb05",
       "claim-sha": "05c25fce2a0c33b1",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC5250-3.2-3",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",
       "unit-sha": "44cb441d782eceff",
       "claim-sha": "5d2a0ef53febd90b",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "RFC5250-3.2-3",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA",
+      "unit": "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA",
       "unit-sha": "f9c659a9cdc0bb05",
       "claim-sha": "ffffbcbc637a56e8",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "RFC5250-3.2-4",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOwnInterfaceType9",
+      "unit": "internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go::TestRFC5250SummaryListsOwnInterfaceType9",
       "unit-sha": "108da11cf1db6ba7",
       "claim-sha": "531d2a6f41a2e3d6",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC5250-3.2-4",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/neighbor/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsOtherInterfaceType9",
+      "unit": "internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go::TestRFC5250SummaryOmitsOtherInterfaceType9",
       "unit-sha": "257d450c4f826d14",
       "claim-sha": "6b47103c5bb74078",
       "route": "revert",

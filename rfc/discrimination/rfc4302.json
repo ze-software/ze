@@ -26,7 +26,7 @@
     {
       "rid": "RFC4302-2-2",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration",
       "unit-sha": "06660fd8d4bb59ec",
       "claim-sha": "d1c73b47eedcf395",
       "route": "mutant",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC4302-2-2",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration",
       "unit-sha": "06660fd8d4bb59ec",
       "claim-sha": "7cf4a2152c02d8b3",
       "route": "mutant",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC4302-2.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol",
       "unit-sha": "76150f7de074b229",
       "claim-sha": "08b876305d7717bb",
       "route": "mutant",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC4302-2.4-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol",
       "unit-sha": "76150f7de074b229",
       "claim-sha": "6db684b87fa574e0",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC4302-2.4-6",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused",
       "unit-sha": "8e392603a8934d0c",
       "claim-sha": "007371a8521a6391",
       "route": "mutant",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC4302-2.4-6",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused",
       "unit-sha": "8e392603a8934d0c",
       "claim-sha": "ae7c723e2616d7cc",
       "route": "mutant",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC4302-3.3.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
       "unit-sha": "f93b127fe33cf0ea",
       "claim-sha": "497f223b351350c1",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC4302-3.3.4-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
       "unit-sha": "f93b127fe33cf0ea",
       "claim-sha": "fa06674caf993e0c",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC4302-3.4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled",
       "unit-sha": "36ad11afbe3bada9",
       "claim-sha": "113aa3e2c91efccf",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC4302-3.4.2-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled",
       "unit-sha": "36ad11afbe3bada9",
       "claim-sha": "4c57552851e6ac17",
       "route": "mutant",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC4302-3.4.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
       "unit-sha": "f64493fffbd0cce7",
       "claim-sha": "2a4dfd806024f167",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC4302-3.4.3-1",
       "polarity": "negative",
-      "unit": "internal/plugins/ospf/ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
+      "unit": "internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go::TestIPsecInstallerXFRMReplayWindow",
       "unit-sha": "f64493fffbd0cce7",
       "claim-sha": "70d435f16ff2e785",
       "route": "revert",

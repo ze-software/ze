@@ -34,14 +34,14 @@
       "note": "malformed values are rejected with an error (not only no panic) by every v3 SR decoder and by v6PrefixSIDFromPrefixTLV; well-formed range TLVs still decode",
       "requirement_sha": "47397c9a8d9a2f91",
       "tests": {
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "b898637e07666ee9",
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SRTLVMalformed": "b898637e07666ee9",
-        "internal/plugins/ospf/sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "4c31345aa8a7ddcb"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "b898637e07666ee9",
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "b898637e07666ee9",
+        "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "4c31345aa8a7ddcb"
       },
       "units": {
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "28b2d01095e0e685",
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SRTLVMalformed": "c3a55ee7b69680b4",
-        "internal/plugins/ospf/sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "6cc00cb85c94df67"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "28b2d01095e0e685",
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SRTLVMalformed": "c3a55ee7b69680b4",
+        "internal/plugins/ospf/rfc8666_sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "6cc00cb85c94df67"
       },
       "verdict": "enforced"
     },
@@ -73,12 +73,12 @@
       "note": "0xFFFFFF in Reserved decodes identically to zero (and encoder sends zero); negative bounds the ignore by showing the adjacent AF octet is honoured",
       "requirement_sha": "aa4465919943ca6c",
       "tests": {
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "b898637e07666ee9",
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "b898637e07666ee9"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "b898637e07666ee9",
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "b898637e07666ee9"
       },
       "units": {
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "8df0184123137542",
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "1816868428900699"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "8df0184123137542",
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "1816868428900699"
       },
       "verdict": "enforced"
     },
@@ -203,12 +203,12 @@
       "note": "V=1/L=0 and V=0/L=1 are rejected by DecodePrefixSIDValueV6, whose error drops the TLV in v6PrefixSIDFromTLV; valid V/L pairs decode",
       "requirement_sha": "fc278fea6100294c",
       "tests": {
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "b898637e07666ee9",
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "b898637e07666ee9"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "b898637e07666ee9",
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "b898637e07666ee9"
       },
       "units": {
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "85934b8e6e6b35b7",
-        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "c92162de6f626fde"
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "85934b8e6e6b35b7",
+        "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "c92162de6f626fde"
       },
       "verdict": "enforced"
     },
@@ -252,12 +252,12 @@
       "note": "v6InterAreaPrefixSIDRule sets NP and clears E for a propagated prefix and keeps flags when directly attached; TestOSPFv3OriginateInterAreaPropagation asserts NP set/E clear on the real propagated LSA",
       "requirement_sha": "639c04002daed3b8",
       "tests": {
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "4d7580beb8e88dd1",
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "4d7580beb8e88dd1"
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "4d7580beb8e88dd1",
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "4d7580beb8e88dd1"
       },
       "units": {
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "1dd747256a907a64",
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "1dd747256a907a64"
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "1dd747256a907a64",
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "1dd747256a907a64"
       },
       "verdict": "enforced"
     },
@@ -304,12 +304,12 @@
       "note": "intra-area Prefix-SID learned in area 1 is re-originated by v6OriginateInterAreaSR into the backbone E-Inter-Area-Prefix-LSA and not back into area 1",
       "requirement_sha": "566c417ccecc4056",
       "tests": {
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation": "4d7580beb8e88dd1",
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation#2": "4d7580beb8e88dd1"
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation": "4d7580beb8e88dd1",
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation#2": "4d7580beb8e88dd1"
       },
       "units": {
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation": "47977f9757d3cd3e",
-        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation#2": "47977f9757d3cd3e"
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation": "47977f9757d3cd3e",
+        "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation#2": "47977f9757d3cd3e"
       },
       "verdict": "enforced"
     },
@@ -319,12 +319,12 @@
       "tests": {
         "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "1b1458ebdf81ba5c",
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "ec9a3737d2fcf57d",
-        "internal/plugins/ospf/sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123"
+        "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123"
       },
       "units": {
         "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "81a5a6159f0e81fe",
         "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "b07bfcd1929996dc",
-        "internal/plugins/ospf/sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "4af1af3c4a026316"
+        "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "4af1af3c4a026316"
       },
       "verdict": "enforced"
     }

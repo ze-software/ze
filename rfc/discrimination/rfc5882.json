@@ -169,7 +169,7 @@
     {
       "rid": "RFC5882-4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction",
+      "unit": "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDAdminDownTakesNoAction",
       "unit-sha": "ec2ac223d566496c",
       "claim-sha": "2888c2dd37ad7a48",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "RFC5882-4.2-1",
       "polarity": "positive",
-      "unit": "internal/plugins/ospf/bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction",
+      "unit": "internal/plugins/ospf/rfc5882_bfd_client_test.go::TestOSPFBFDRemoteAdminDownTakesNoAction",
       "unit-sha": "1bde837cad164293",
       "claim-sha": "8e36615d4a32cb66",
       "route": "revert",
