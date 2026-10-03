@@ -2,6 +2,50 @@
   "rfc": "rfc5575",
   "records": [
     {
+      "rid": "RFC5575-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily",
+      "unit-sha": "6b2f3b18cca183c2",
+      "claim-sha": "a5509a13a12390e6",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+      "producer-sha": "1c87a9d9522cb3b4",
+      "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily",
+      "unit-sha": "6b2f3b18cca183c2",
+      "claim-sha": "ba426c16483fa801",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+      "producer-sha": "1c87a9d9522cb3b4",
+      "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily",
+      "unit-sha": "6b2f3b18cca183c2",
+      "claim-sha": "1006ac1ed84aae8a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+      "producer-sha": "1c87a9d9522cb3b4",
+      "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily",
+      "unit-sha": "6b2f3b18cca183c2",
+      "claim-sha": "1ec9a1c0201344f0",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+      "producer-sha": "1c87a9d9522cb3b4",
+      "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5575-4-8",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
@@ -22,6 +66,28 @@
       "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
       "producer-sha": "a2c8bcfda8dc029a",
       "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival",
+      "unit-sha": "028c87a793d58722",
+      "claim-sha": "362b3e58ebb18f55",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/compare.go::Compare",
+      "producer-sha": "915d2d9660fb4bc4",
+      "break": "body of Compare replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5575-5.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival",
+      "unit-sha": "028c87a793d58722",
+      "claim-sha": "8e1de02904af9164",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/compare.go::Compare",
+      "producer-sha": "915d2d9660fb4bc4",
+      "break": "body of Compare replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

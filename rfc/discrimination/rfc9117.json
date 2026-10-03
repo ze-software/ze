@@ -4,6 +4,28 @@
     {
       "rid": "RFC9117-4.1-1",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute",
+      "unit-sha": "e2b0a45ab1e90ca1",
+      "claim-sha": "ec7f28687bcea10c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute",
+      "unit-sha": "e2b0a45ab1e90ca1",
+      "claim-sha": "57881778c5128192",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.1-1",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates",
       "unit-sha": "ac3fddc99a848728",
       "claim-sha": "1b73a398e0b7f0a7",
@@ -18,6 +40,28 @@
       "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates",
       "unit-sha": "ac3fddc99a848728",
       "claim-sha": "dc48bedf89c67f2f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute",
+      "unit-sha": "e2b0a45ab1e90ca1",
+      "claim-sha": "cbf6d644d153d551",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9117-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute",
+      "unit-sha": "e2b0a45ab1e90ca1",
+      "claim-sha": "1c499f385b658218",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
       "producer-sha": "0a47a97a2218c705",

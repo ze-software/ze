@@ -58,6 +58,50 @@
       "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8955-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit-sha": "682ef46b74cff9a9",
+      "claim-sha": "816251ae780212b7",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+      "producer-sha": "fd06b7eac61538ae",
+      "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-5.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit-sha": "682ef46b74cff9a9",
+      "claim-sha": "a6993c56fe7548ba",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+      "producer-sha": "fd06b7eac61538ae",
+      "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-6-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute",
+      "unit-sha": "e2b0a45ab1e90ca1",
+      "claim-sha": "8d1454e45ee71d46",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-6-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute",
+      "unit-sha": "e2b0a45ab1e90ca1",
+      "claim-sha": "16542364304b5ffb",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecAuthorized",
+      "producer-sha": "0a47a97a2218c705",
+      "break": "body of flowSpecAuthorized replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8955-6-5",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecLosingPathIsNeverPublished",
@@ -78,6 +122,28 @@
       "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkBestPathChange",
       "producer-sha": "d3e6b24680f0e6f7",
       "break": "body of checkBestPathChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-7.3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit-sha": "682ef46b74cff9a9",
+      "claim-sha": "c44fcfef4f342fdb",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+      "producer-sha": "fd06b7eac61538ae",
+      "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-7.3-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowspec-firewall/selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+      "unit-sha": "682ef46b74cff9a9",
+      "claim-sha": "be8e7ac9775ed572",
+      "route": "revert",
+      "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+      "producer-sha": "fd06b7eac61538ae",
+      "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8955-8-1",

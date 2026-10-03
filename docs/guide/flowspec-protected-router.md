@@ -215,6 +215,11 @@ packet header. If several matching rules request different DSCP values, the
 highest-precedence marking rule wins. Discard takes precedence over marking
 and normal forwarding.
 
+For example, a more-specific rule can mark a packet and continue to a covering
+rule that samples it. Both actions apply: the receiver observes the DSCP mark
+and the covering rule's sample counter advances. Clearing Terminal Action on
+the first rule retains its mark but prevents that later sampling action.
+
 When one route carries several limits in the same unit, the lowest rate wins.
 A route asking for both byte and packet limits is refused because the bridge
 has one limiter per rule and cannot enforce both dimensions together.

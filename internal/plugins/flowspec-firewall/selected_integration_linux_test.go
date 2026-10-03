@@ -22,7 +22,7 @@ import (
 
 // RFC requirement: RFC8955-5.1-2 positive -- the kernel applies a more-specific FlowSpec before an overlapping covering rule (§5.1).
 // RFC requirement: RFC8955-5.1-2 negative -- inserting the covering discard first cannot shadow the more-specific terminal rule (§5.1).
-// RFC requirement: RFC8955-7.3-2 positive -- T-set continues and applies a later matching discard, while T-clear stops (§7.3).
+// RFC requirement: RFC8955-7.3-2 positive -- T-set applies a first rule's DSCP marking and a later rule's sampling action to the same received packet, while T-clear stops the later action (§7.3).
 // RFC requirement: RFC8955-7.3-2 negative -- a continuing marking action cannot change the header used by a later DSCP predicate (§7.3).
 func TestSelectedFlowSpecKernelPacketSemantics(t *testing.T) {
 	runtime.LockOSThread()
@@ -127,6 +127,39 @@ func TestSelectedFlowSpecKernelPacketSemantics(t *testing.T) {
 	probe(true, 10)
 	withdraw(narrow)
 	probe(true, 0)
+
+	// RFC 8955 Section 7.3: "All the Traffic Filtering Actions from these
+	// Flow Specifications shall be collected and applied." One received
+	// packet must carry the first rule's mark AND hit the second rule's
+	// sample counter. A later discard alone cannot prove the first action.
+	samples := func() uint64 {
+		t.Helper()
+		counters, err := firewall.GetBackend().GetCounters(tableName)
+		require.NoError(t, err)
+		var packets uint64
+		for _, chain := range counters {
+			for _, term := range chain.Terms {
+				if strings.HasSuffix(term.Name, "-sample") {
+					packets += term.Packets
+				}
+			}
+		}
+		return packets
+	}
+	// Continuing rules use the shared "-sample" counter in ruleChains;
+	// terminal, unlimited rules instead inline Log in their match term.
+	sample := []byte{0x80, 7, 0, 0, 0, 0, 0, 3}
+	install(broad, sample)
+	install(narrow, append(append([]byte(nil), mark...), cont...))
+	require.Zero(t, samples())
+	probe(true, 10)
+	require.Equal(t, uint64(1), samples(), "the marked packet also receives the later sampling action")
+	install(narrow, mark)
+	beforeTerminal := samples()
+	probe(true, 10)
+	require.Equal(t, beforeTerminal, samples(), "T-clear must stop before the later sampling action")
+	withdraw(broad)
+	withdraw(narrow)
 
 	// A positive packet rate permits conforming traffic and drops excess.
 	// Sending the complete burst before reading avoids counting receive
