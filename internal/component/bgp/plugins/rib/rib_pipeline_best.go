@@ -85,6 +85,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 	type routeKey struct {
 		fam     family.Family
 		nlriKey string
+		addPath bool // nlriKey leads with a path identifier
 		familyS string
 		prefixS string
 	}
@@ -101,10 +102,18 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
 			fStr := formatFamily(fam)
 			pStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
+			// A CIDR family holds one election per PREFIX: every path id of
+			// the prefix, from every peer in either ADD-PATH mode, lands on
+			// one key, so the prefix answers with one best (RFC 8277 Section
+			// 3.1). Every other family is identified by its wire key.
+			identity := nlriBytes
+			if addPath[fam] && storage.IsCIDRFamily(fam) && len(nlriBytes) >= 4 {
+				identity = nlriBytes[4:]
+			}
 			var tb textbuf.Buffer
-			key := tb.Str(fStr).Byte('|').Str(string(nlriBytes)).String()
+			key := tb.Str(fStr).Byte('|').Str(string(identity)).String()
 			if _, ok := seen[key]; !ok {
-				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
+				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), addPath: addPath[fam], familyS: fStr, prefixS: pStr}
 			}
 			return true
 		})
@@ -137,10 +146,20 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		// bestPipeline holds r.peerMu.RLock across this call; use the
 		// Locked variant to avoid a recursive RLock that would deadlock
 		// against a pending writer (Go sync.RWMutex docs).
-		candidates := r.gatherCandidatesLocked(rk.fam, []byte(rk.nlriKey))
+		candidates := r.gatherCandidatesLocked(rk.fam, []byte(rk.nlriKey), rk.addPath)
 		best, siblings := SelectMultipath(candidates, multipathMax, relaxASPath)
 		if best == nil {
 			continue
+		}
+		// The winner's own key: the prefix may have been first seen under
+		// another path or another peer's framing, and the row names the path
+		// that won. Cold path (one per prefix of a show), so the key is owned.
+		winnerNLRI := []byte(rk.nlriKey)
+		if storage.IsCIDRFamily(rk.fam) {
+			if _, pfx, ok := parsePrevKey(rk.fam, winnerNLRI, rk.addPath); ok {
+				winnerNLRI = candidateNLRI(best, pfx, make([]byte, cidrKeyOctetsMax))
+				rk.prefixS = formatNLRIAsPrefix(rk.fam, winnerNLRI, best.AddPath)
+			}
 		}
 
 		item := RouteItem{
@@ -175,7 +194,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 			stashCandidates[bestRouteKey(rk.familyS, rk.prefixS)] = candidates
 		}
 
-		entries = append(entries, bestEntry{item: item, peerRIB: peerRIB, nlri: []byte(rk.nlriKey)})
+		entries = append(entries, bestEntry{item: item, peerRIB: peerRIB, nlri: winnerNLRI})
 	}
 
 	// Sort by family then prefix for stable output.

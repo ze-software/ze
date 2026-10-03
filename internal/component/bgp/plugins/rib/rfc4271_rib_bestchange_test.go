@@ -316,15 +316,15 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 	}
 }
 
-// TestPurgeBestPrevForPeerAddPath exercises the multi (ADD-PATH) branch
-// of the purge walker. Two path-ids for the same prefix from the leaving
-// peer must both vanish; a third path-id from a surviving peer on the
-// same prefix must remain.
+// TestPurgeBestPrevForPeerAddPath exercises the purge walker under ADD-PATH.
+// The leaving peer sends one prefix as paths 1 and 2, a surviving peer sends
+// it as path 3. One best is recorded for the prefix (RFC 8277 Section 3.1),
+// and when the leaving peer goes down the surviving path is elected.
 //
-// VALIDATES: sh.store.multi Iterate + Modify + post-Lookup Delete purge
-// branch in purgeBestPrevForPeer.
-// PREVENTS: dead-code regression on the ADD-PATH side (the original
-// TestPurgeBestPrevForPeer used addPath=false so multi was untouched).
+// VALIDATES: purgeBestPrevForPeer drops the one per-prefix record, and
+// emitPurgedWithdraws re-elects the prefix from the paths that remain.
+// PREVENTS: a prefix left withdrawn after its winner leaves while another
+// peer still holds a path to it.
 func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
@@ -360,42 +360,52 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 		nlri := apPrefix(pid, 24, 10, 20, 0)
 		r.bgpPeers[leavingPeer].Insert(fam, attrsLeaving, nlri)
 		_, ok := r.checkBestPathChange(fam, nlri, true, nil)
-		require.True(t, ok, "AP seed %d must record", pid)
+		require.Equal(t, pid == 1, ok, "path 1 is elected; path 2 ties and loses on the lowest path id")
 	}
-	// Third path-id from the surviving peer on the same prefix.
+	// Third path-id from the surviving peer on the same prefix: it ties on
+	// every attribute step and loses on the lower peer address.
 	nlriSurviving := apPrefix(3, 24, 10, 20, 0)
 	r.bgpPeers[survivingPeer].Insert(fam, attrsSurviving, nlriSurviving)
 	_, ok := r.checkBestPathChange(fam, nlriSurviving, true, nil)
-	require.True(t, ok, "AP seed surviving must record")
+	require.False(t, ok, "the surviving peer's path does not displace the best")
 
-	// Before: three AP entries for the one prefix.
-	depthsBefore := r.bestPrev.shardDepth(fam)
-	totalBefore := 0
-	for _, d := range depthsBefore {
-		totalBefore += d
+	totalRecords := func() int {
+		total := 0
+		for _, d := range r.bestPrev.shardDepth(fam) {
+			total += d
+		}
+		return total
 	}
-	require.Equal(t, 3, totalBefore, "expected three AP records before purge")
+	require.Equal(t, 1, totalRecords(), "one best record for the one prefix")
 
+	bus.events = nil
 	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer.String(), State: rpc.SessionStateDown})
 
-	depthsAfter := r.bestPrev.shardDepth(fam)
-	totalAfter := 0
-	for _, d := range depthsAfter {
-		totalAfter += d
+	assert.Equal(t, 1, totalRecords(), "the prefix is re-elected from the surviving path")
+	var got []bestChangeEntry
+	for _, evt := range bus.events {
+		if batch, isBatch := evt.Payload.(*bestChangeBatch); isBatch {
+			got = append(got, batch.Changes...)
+		}
 	}
-	assert.Equal(t, 1, totalAfter, "only the surviving peer's AP record should remain")
+	require.Len(t, got, 2, "a withdraw of the departed best, then the survivor's add")
+	assert.Equal(t, ribevents.BestChangeWithdraw, got[0].Action)
+	assert.Equal(t, uint32(1), got[0].PathID, "the withdraw names the path that was best")
+	assert.Equal(t, ribevents.BestChangeAdd, got[1].Action)
+	assert.Equal(t, uint32(3), got[1].PathID, "the survivor's path id is the new best")
 }
 
 // TestBestChangeEntryPathIDPropagation validates that PathID flows from
 // the ADD-PATH NLRI into the emitted BestChangeEntry on every code path
 // that produces one: Add/Update (checkBestPathChange insert branch),
 // Withdraw via checkBestPathChange (single peer, natural withdraw), and
-// Withdraw via purgeBestPrevForPeer (multi branch, peer-down purge).
+// Withdraw via purgeBestPrevForPeer (peer-down purge).
 //
-// VALIDATES: ADD-PATH subscribers can distinguish per-path entries on
-// the same prefix because each emitted BestChangeEntry carries its PathID.
-// PREVENTS: the parity gap the handoff flagged (multi-path purge emitted
-// duplicate Prefix strings with no way to tell them apart).
+// VALIDATES: each emitted BestChangeEntry carries the path id of the path
+// that is best for the prefix, and the prefix has one best whatever the
+// number of paths it was received as.
+// PREVENTS: a best-change naming the path of the UPDATE that triggered the
+// election rather than the path that won.
 func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
@@ -433,17 +443,23 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 	assert.Equal(t, ribevents.BestChangeWithdraw, withdrawEntry.Action)
 	assert.Equal(t, uint32(7), withdrawEntry.PathID, "natural Withdraw must carry ADD-PATH pathID")
 
-	// Re-seed with two path-ids (11, 22) so the purge multi branch fires.
+	// Re-seed with two path-ids (22, then 11): one best for the prefix,
+	// moving to path 11 when it arrives (equal attributes, lowest path id).
 	nlri11 := apPrefix(11, 24, 10, 31, 0)
 	nlri22 := apPrefix(22, 24, 10, 31, 0)
-	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri11)
 	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri22)
-	for _, nlri := range [][]byte{nlri11, nlri22} {
-		_, ok := r.checkBestPathChange(fam, nlri, true, nil)
-		require.True(t, ok)
-	}
+	first, ok := r.checkBestPathChange(fam, nlri22, true, nil)
+	require.True(t, ok)
+	assert.Equal(t, uint32(22), first.PathID)
+	r.bgpPeers[leavingPeer].Insert(fam, attrs, nlri11)
+	moved, ok := r.checkBestPathChange(fam, nlri11, true, nil)
+	require.True(t, ok, "a move to another path of the same peer is a best change")
+	assert.Equal(t, ribevents.BestChangeUpdate, moved.Action)
+	assert.Equal(t, uint32(11), moved.PathID)
+	_, ok = r.checkBestPathChange(fam, nlri22, true, nil)
+	assert.False(t, ok, "re-running the election from path 22's UPDATE changes nothing")
 
-	// DOWN: purgeBestPrevForPeer multi branch emits one Withdraw per pathID.
+	// DOWN: purgeBestPrevForPeer emits one Withdraw for the prefix, naming the best path.
 	bus.events = nil // drop prior seed batches so we only see the DOWN batch
 	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer.String(), State: rpc.SessionStateDown})
 
@@ -464,8 +480,8 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 		}
 	}
 	slices.Sort(withdrawPathIDs)
-	assert.Equal(t, []uint32{11, 22}, withdrawPathIDs,
-		"purge Withdraw must emit distinct pathIDs so subscribers can distinguish them")
+	assert.Equal(t, []uint32{11}, withdrawPathIDs,
+		"one Withdraw for the prefix, naming the path that was best")
 }
 
 // TestBestChangeEntryPathIDNonAddPath pins the contract that non-ADD-PATH

@@ -754,16 +754,34 @@ The BART-vs-map dispatch is factored into `storage.Store[T]` (a generic
 NLRI-keyed store). `FamilyRIB` is one user; the best-path change tracker
 (`rib_bestchange.go`) is the other. `FamilyRIB` is single-mode (mode fixed at
 peer-OPEN time from negotiated ADD-PATH capability). Best-path tracking is
-cross-peer, so a CIDR family's `bestPrevStore` holds **two** BART-backed
-stores -- one non-ADD-PATH (`*Store[bestPathRecord]`), one ADD-PATH
-(`*Store[bestPrevSet]`) -- and dispatches per call on the incoming `addPath`
-flag. This lets one family host peers with mixed ADD-PATH capability without
-key collision between the two wire shapes.
+cross-peer and per PREFIX: a CIDR family's `bestPrevStore` holds one
+BART-backed `*Store[bestPrevRecord]` with one record per prefix, whatever the
+ADD-PATH mode of the sessions that carry it. The record packs the winner and
+names the path that won by its received path id and ADD-PATH flag, which is
+what the published best-change carries.
+
+Candidates for a CIDR prefix are gathered by prefix: `PeerRIB.AppendPrefixPaths`
+appends every stored path of the prefix, one per path id under ADD-PATH, into a
+caller-owned slice that `gatherPrefixCandidatesLocked` backs with a stack array.
+A peer is never asked with another session's wire key, because a key framed for
+ADD-PATH reads as a different prefix in a peer stored without it. Every read of
+what the winner carries (next hop, labels, SRv6 SID, blackhole) goes back to the
+winner's own path through `candidateNLRI`. RFC 8277 Section 3.1 makes two paths
+of one ADD-PATH session comparable, so the path id names a path and never
+partitions the election. Two paths that tie on every RFC 4271 step are ordered
+by the lowest path id, a Ze tie-break rather than RFC text.
+
+The Loc-RIB mirror writes one BGP path per prefix under Instance 0
+(`bgpLocRIBInstance`): the RFC 4271 decision is already made here, and a second
+BGP path in the Loc-RIB would be ranked by distance and metric alone. A peer
+going down drops the records its paths won (`purgeBestPrevForPeer`), and
+`emitPurgedWithdraws` then re-elects each of those routes from the paths that
+remain.
 
 Other non-CIDR families take the same opaque-map backend `FamilyRIB` does, for the
 same reason: its NLRI leads with a label stack and a Route Distinguisher, or
 with a route type, so `store.NLRIToPrefix` names no `netip.Prefix` for it. The
-key is the full wire bytes, which already carry the ADD-PATH path-id. In
+key is the full wire bytes, which still carry the ADD-PATH path-id. In
 `FamilyRIB`, a FlowSpec key uses the shortest length field, so both framings of
 one rule share one stored route (`FamilyRIB.opaqueKey`), and
 `storage.IsCIDRFamily` is the one predicate both stores partition by. Such a
@@ -805,8 +823,9 @@ Without ADD-PATH:
 With ADD-PATH:
   [path-id:4][prefix-len:1][prefix-bytes:0-4]
 
-The path-id + prefix together form the unique key.
-Same IP prefix with different path-ids = different routes.
+The path-id + prefix together form the unique key of a stored path.
+Same IP prefix with different path-ids = different paths of one prefix,
+compared in one best-path election (RFC 8277 Section 3.1).
 ```
 
 See `DirectNLRISet.nlriLen()` for parsing implementation.

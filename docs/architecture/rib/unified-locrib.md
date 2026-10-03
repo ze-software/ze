@@ -26,7 +26,9 @@ BGP.** `Store[T]` is BART-backed. `nlrikey.go` holds `NLRIToPrefix` and
 **ADD-PATH collapsed into the value layer.** The store no longer bifurcates
 between a trie and a `map[NLRIKey]T`. BART is the only prefix index.
 Per-path-id semantics live in BGP storage's `pathSet`, and locrib's
-`PathGroup.Paths` is keyed by `(Source, Instance)`. ADD-PATH sessions gain
+`PathGroup.Paths` is keyed by `(Source, Instance)`. BGP elects one best path
+per prefix across every peer and ADD-PATH path before it mirrors anything, so
+it writes one path per prefix at Instance 0 (`bgpLocRIBInstance`). ADD-PATH sessions gain
 longest-prefix match and iteration. A caller that needs per-path-id lookup puts
 a path-id map in the value layer.
 <!-- source: internal/component/bgp/plugins/rib/storage/pathset.go -- value-layer ADD-PATH wrapper -->

@@ -153,6 +153,7 @@ func TestBestStep_String(t *testing.T) {
 		BestStepRouterID:     "router-id",
 		BestStepClusterList:  "cluster-list-length",
 		BestStepPeerAddr:     "peer-address",
+		BestStepPathID:       "path-id",
 		BestStepEqual:        "equal",
 	} {
 		assert.Equal(t, want, step.String())

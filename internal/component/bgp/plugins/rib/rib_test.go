@@ -2805,7 +2805,7 @@ func TestGatherCandidatesOnlyBGP(t *testing.T) {
 	r.ribInPool[monitorID] = monitorPeers
 
 	r.peerMu.RLock()
-	candidates := r.gatherCandidatesLocked(ipv4Uni, nlri)
+	candidates := r.gatherCandidatesLocked(ipv4Uni, nlri, false)
 	r.peerMu.RUnlock()
 
 	require.Len(t, candidates, 1)

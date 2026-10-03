@@ -4,8 +4,6 @@
 
 package rib
 
-// RFC naming: untagged -- a red defect probe: RFC8277-3.1-1 is unmet on one ADD-PATH session until best-path keying is fixed.
-
 import (
 	"net/netip"
 	"testing"
@@ -17,8 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// TestRFC8277AddPathRoutesOnOneSessionAreComparable is the failing-first test for
-// the second case of RFC 8277 Section 3.1: two UPDATEs "received on the same
+// TestRFC8277AddPathRoutesOnOneSessionAreComparable covers the second case of RFC 8277 Section 3.1: two UPDATEs "received on the same
 // session, add-paths is used on that session, and the NLRIs of the two UPDATEs
 // have different path identifiers. These two routes MUST be considered to be
 // comparable, even if they specify different labels. Thus, the BGP best-path
@@ -31,9 +28,11 @@ import (
 // PREVENTS: best-path selection keyed on (path identifier, prefix), which never
 // compares two paths of one session and elects one best route per identifier.
 //
-// RED at the time of writing: gatherCandidatesLocked looks up each peer's RIB
-// with the path-id-keyed NLRI, so each key yields one candidate. Untagged until
-// the fix lands (design-sized: best-path keying under ADD-PATH receive).
+// Red before spec-bgp-addpath-best-path-per-prefix: gatherCandidatesLocked
+// looked each peer up with the path-id-keyed NLRI, so each key yielded one
+// candidate and path 9's key elected the MED 20 route.
+//
+// RFC requirement: RFC8277-3.1-1 positive -- two labeled paths of one prefix on one ADD-PATH session, under different path identifiers and labels, are both candidates of the one selection for the prefix, and the MED 10 path is selected whichever path's key starts the lookup.
 func TestRFC8277AddPathRoutesOnOneSessionAreComparable(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("192.0.2.31")
@@ -48,7 +47,7 @@ func TestRFC8277AddPathRoutesOnOneSessionAreComparable(t *testing.T) {
 	require.Equal(t, 2, r.bgpPeers[peer].Len(), "precondition: two paths stored")
 
 	for _, key := range [][]byte{{0, 0, 0, 7, 8, 10}, {0, 0, 0, 9, 8, 10}} {
-		candidates := r.gatherCandidates(labeledFamily, key)
+		candidates := r.gatherCandidates(labeledFamily, key, true)
 		assert.Len(t, candidates, 2, "both paths of the session are candidates for 10.0.0.0/8 (key %x)", key)
 		if best := SelectBest(candidates); best != nil {
 			assert.Equal(t, uint32(10), best.MED, "the MED 10 path wins (key %x)", key)

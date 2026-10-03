@@ -10,6 +10,7 @@
 package rib
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"net/netip"
@@ -44,6 +45,7 @@ const (
 	BestStepRouterID                     // 7 -- lowest Router ID / ORIGINATOR_ID
 	BestStepClusterList                  // 8 -- shortest CLUSTER_LIST (RFC 4456 Section 9)
 	BestStepPeerAddr                     // 9 -- lowest peer address
+	BestStepPathID                       // 10 -- lowest path identifier (Ze tie-break, not RFC text)
 	BestStepEqual                        // no step resolved -- candidates are byte-for-byte identical
 )
 
@@ -72,6 +74,8 @@ func (s BestStep) String() string {
 		return "cluster-list-length"
 	case BestStepPeerAddr:
 		return "peer-address"
+	case BestStepPathID:
+		return "path-id"
 	case BestStepEqual:
 		return "equal"
 	}
@@ -105,6 +109,13 @@ type Candidate struct {
 	ClusterListEntries uint16           // CLUSTER_ID count in the CLUSTER_LIST (RFC 4456 Section 9; 0 when the attribute is absent)
 	StaleLevel         uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
 	ASPathHandle       attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
+	// PathID is the RFC 7911 Path Identifier the path was received under, and
+	// AddPath says whether the peer's family is stored with ADD-PATH. Together
+	// with the prefix they name the one stored path every winner-dependent read
+	// (next hop, labels, SRv6 SID, blackhole) goes back to. PathID is zero, and
+	// AddPath false, for a family received without ADD-PATH.
+	PathID  uint32
+	AddPath bool
 }
 
 // SelectBest selects the best route from a list of candidates.
@@ -393,9 +404,18 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 		return 1, BestStepClusterList
 	}
 
-	// Step 9: Lowest peer address (final tiebreak).
+	// Step 9: Lowest peer address.
 	if a.PeerIP != b.PeerIP {
 		return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr
+	}
+
+	// Step 10: lowest path identifier (final tiebreak). Two paths of one
+	// ADD-PATH session that tie on every RFC 4271 step would otherwise be
+	// ordered by where the store happened to keep them, so the elected path
+	// could change with no change on the wire. This is Ze's choice, not RFC
+	// text: RFC 7911 gives the identifier no rank.
+	if a.PathID != b.PathID {
+		return cmp.Compare(a.PathID, b.PathID), BestStepPathID
 	}
 
 	return 0, BestStepEqual
@@ -526,6 +546,13 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 	if a.PeerIP != b.PeerIP {
 		return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr,
 			fmt.Sprintf("peer-address %s vs %s", a.PeerAddr, b.PeerAddr)
+	}
+
+	// Step 10: lowest path identifier, the same Ze tie-break comparePair makes.
+	if a.PathID != b.PathID {
+		var tb textbuf.Buffer
+		return cmp.Compare(a.PathID, b.PathID), BestStepPathID,
+			tb.Str("path-id ").Uint32(a.PathID).Str(" vs ").Uint32(b.PathID).String()
 	}
 
 	return 0, BestStepEqual, "identical candidates"

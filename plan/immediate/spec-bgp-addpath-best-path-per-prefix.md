@@ -9,12 +9,53 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 2/4 |
 | Handoff | - |
-| Updated | 2026-10-02 |
+| Updated | 2026-10-03 |
+
+<!-- Not claimed: the implementing session (ff3776cb) holds another claim
+     (plan/spec-rfc-test-file-naming.md). Thomas authorised the fix agent and
+     the scope (ALL ADD-PATH families in one spec) on 2026-10-03. -->
+
+## Design (chosen 2026-10-03, Option A)
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Select once per prefix; storage stays keyed (path id, prefix); `PeerRIB.AppendPrefixPaths` appends every path of a prefix into a caller-owned (stack-backed) slice | Keep per-path-id selection and compare across ids afterwards | RFC 8277 Section 3.1 and RFC 7911 Section 2: the id names a path, it never partitions selection. FRR `bgp_best_selection` walks every `pi` of the dest; BIRD `rte_recalculate` walks the net |
+| Each peer is asked by PREFIX, never with another session's wire key | Re-frame the key per peer | Closes the cross-mode defect: an ADD-PATH key `00000007 08 0a` parsed as `0/0` in a non-ADD-PATH peer (store.NLRIToPrefix ignores trailing bytes) |
+| `Candidate` gains `PathID` and `AddPath`; every winner-dependent read (next hop, labels, SRv6 SID, blackhole, show-best row) goes through `candidateNLRI` to the winner's own key | Re-read with the triggering UPDATE's key | The triggering UPDATE may be another path or another peer |
+| `bestPrevSet` and the `multi` store deleted; one `bestPrevRecord{rec, pathID, addPath}` per prefix; the best-change `PathID`/`AddPath` are the WINNER's | Keep both stores (layering, banned) | One best per prefix; record grows 8 to 16 bytes per prefix (footprint bench 27.5 to 35.5 heap bytes/entry), the ADD-PATH per-prefix heap slice is gone |
+| Loc-RIB mirror Instance 0 (`bgpLocRIBInstance`), `locrib.Path.Instance` comment corrected | Instance = path id (old code, contradicted the comment) | Two BGP paths in the Loc-RIB would be re-ranked by distance and MED alone, overriding RFC 4271 |
+| Final tie-break: lowest path id (`BestStepPathID`, `lost-path-id`) | Storage order | Ze choice, documented as not RFC text: deterministic election |
+| Peer-down: `emitPurgedWithdraws` re-elects each purged route from the remaining paths | Leave the route withdrawn until the survivor's next UPDATE | Per-prefix records made the existing gap reachable for ADD-PATH (the survivor path no longer had its own record) |
+| Labels: label handle per path (in `pathEntry` under ADD-PATH), released in `pathSet.remove`/`upsert` | Parallel per-(id,prefix) BART | One store per fact; `sizeof_test` guards `RouteEntry`, so the handle lives in `pathEntry` |
+| Opaque-key families (VPN, EVPN, ...): strip the path id from the opaque key, add a per-path value layer, same per-key selection | Leave keyed by full bytes | Same RFC 8277 Section 3.1 defect for VPN (RFC 8277 labels in RFC 4364 NLRI) and every other family |
+
+R-1 audit (2026-10-03): no consumer outside `bgp-rib` reads `BestChangeEntry.PathID`
+(grep of every importer of `ribevents.BestChange*`: sysrib, fib kernel/vpp/p4,
+bmp_locrib, redistribute, flowexport, static, isis, fakefib). The ADD-PATH send
+side keys on sent UPDATEs (`ribOutKey`, `rib.go`), not on best-change. R-1 holds.
+
+### Phases
+
+| Phase | Content | State |
+|-------|---------|-------|
+| 1 | CIDR families: per-prefix gather, one record per prefix, winner-keyed reads, Loc-RIB Instance 0, tie-break, peer-down re-election, docs | done, committed |
+| 2 | Labels per path (AC-4, RFC8277-2.5-2 same-id case, RFC8277-2.5-3 and its `{gap}` removal) | open |
+| 3 | Opaque-key families (VPN, EVPN, ...): path id out of the key, per-path value layer, VPN and EVPN twins | open |
+| 4 | Functional `.ci` (`show rib best` one best for two path ids), interop (extend `bgp-addpath-frr` or the rail-agreement pattern) with revert-rebuild-red recorded | open |
+
+### Added acceptance criteria
+
+| AC ID | Input / Condition | Expected Behavior | Evidence |
+|-------|-------------------|-------------------|----------|
+| AC-8 | Non-ADD-PATH peer holds 0.0.0.0/0, ADD-PATH peer holds 10/8 path 7 | 0/0 is never a candidate for 10/8 | `TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix` |
+| AC-9 | Path 7 LP 200 MED 50, path 9 LP 100 MED 10 | One BGP Loc-RIB path for the prefix, path 7's | `TestAddPathLocRIBHoldsOneBGPPath` |
+| AC-10 | Withdraw non-best, then best | Non-best: no change; best: path 9 promoted (Update, PathID 9); last: Withdraw naming 9 | `TestAddPathWithdrawalKeepsOrPromotes`, `TestPurgeBestPrevForPeerAddPath` (peer-down) |
+| AC-11 | VPN and EVPN twins of AC-1 | One election per NLRI-without-path-id | phase 3 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later Opus 5 session reviews that commit and closes. `-` closes in the same session. -->
 
@@ -114,12 +155,15 @@ peer.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- A received UPDATE reaches `bgp-rib` as a structured event (`handleReceivedStructured`, `rib_structured.go`), one NLRI at a time, with the session's ADD-PATH flag for the family
+- NLRI wire bytes: `[path-id:4][prefix-len:1][prefix]` under ADD-PATH, `[prefix-len:1][prefix]` otherwise
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. The route is stored in the peer's Adj-RIB-In keyed (path id, prefix) (`FamilyRIB.Insert`, `pathSet` under ADD-PATH)
+2. `checkBestPathChange` parses the prefix and gathers every path of it from every peer (`gatherPrefixCandidatesLocked`, `PeerRIB.AppendPrefixPaths`)
+3. `SelectMultipath` elects one best; winner reads go through `candidateNLRI`; one `bestPrevRecord` per prefix; Loc-RIB Instance 0; one best-change per prefix naming the winner's path id
+
+Design documents changed with the code: `docs/architecture/plugin/rib-storage-design.md` (per-prefix record, gather by prefix, Loc-RIB instance, peer-down re-election), `docs/architecture/route-selection.md` (ADD-PATH paragraph, `lost-path-id` step), `docs/architecture/rib/unified-locrib.md` (BGP Instance 0).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -156,7 +200,8 @@ peer.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The ADD-PATH send side and the best-change consumers depend on one best per path id | [how we notice it] | [what we do about it] |
+| R-1 | The ADD-PATH send side and the best-change consumers depend on one best per path id | a consumer reading `BestChangeEntry.PathID` per path | Audited 2026-10-03: none does (see Design, R-1 audit) |
+| R-2 | Peer-down left a prefix withdrawn while another path survives | `TestPurgeBestPrevForPeerAddPath` | `emitPurgedWithdraws` re-elects each purged route |
 
 ## Blast Radius
 
@@ -307,10 +352,11 @@ peer.
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific, for example "merge order correct", "error messages name the offending value"] |
-| Naming | [feature-specific, for example "JSON keys kebab-case", "YANG leaf matches env var leaf"] |
-| Data flow | [feature-specific, for example "resolution in X only, reactor unaware of Y"] |
-| Rule: [relevant rule] | [what to check] |
+| Correctness | Every winner-dependent read keys on the winner's (peer, path id); no read uses the triggering UPDATE's bytes for another path |
+| Naming | `lost-path-id` / `path-id` step name; JSON `path-id` unchanged |
+| Data flow | Selection per prefix in `gatherPrefixCandidatesLocked`; storage keyed (path id, prefix) |
+| Rule: no-layering | `bestPrevSet`, the `multi` best-prev store and the prefix-keyed label store are deleted, not kept beside the new shape |
+| Rule: performance | No new per-UPDATE allocation on the gather (stack-backed path slice) or the winner key (stack buffer) |
 
 ### Deliverables Checklist
 

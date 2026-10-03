@@ -12,7 +12,8 @@ import (
 )
 
 // BenchmarkBestPathRecordHeapFootprint measures the steady-state heap cost of
-// storing N distinct packed records in Store[bestPathRecord] plus the shared
+// storing N distinct records in Store[bestPrevRecord] (the packed winner plus
+// its path id, 16 bytes) plus the shared
 // interner. Provides a lower-bounds figure that complements the full
 // `STRESS_SCENARIO=profile ./le test integration stress` run in AC-1.
 //
@@ -28,7 +29,7 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
 			for range b.N {
 				fam := family.Family{AFI: 1, SAFI: 1}
-				store := ribstore.NewStore[bestPathRecord](fam)
+				store := ribstore.NewStore[bestPrevRecord](fam)
 				interner := newBestPrevInterner()
 				// Pre-intern a small realistic cardinality (2k peers, 256 NHs,
 				// 16 metrics) so the per-record cost is dominated by the
@@ -75,7 +76,7 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 						nhIdxs[i%len(nhIdxs)],
 						flagEBGP,
 					)
-					store.Insert(pfx, rec)
+					store.Insert(pfx, bestPrevRecord{rec: rec, pathID: uint32(i), addPath: true}) //nolint:gosec // bench index is bounded by N
 				}
 				runtime.GC()
 				var afterMs runtime.MemStats

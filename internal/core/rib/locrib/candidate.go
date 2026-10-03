@@ -40,8 +40,10 @@ type Path struct {
 
 	// Instance is a within-protocol identifier used to distinguish multiple
 	// route advertisements from the same protocol for the same prefix.
-	// Examples: a peer-index for BGP, a process-ID for OSPF, 0 for kernel
-	// and connected. Upsert replaces on (Source, Instance) match.
+	// Examples: 0 for BGP, whose RIB elects one best path per prefix across
+	// every peer and ADD-PATH path before mirroring it here; a process-ID
+	// for OSPF; 0 for kernel and connected. Upsert replaces on (Source,
+	// Instance) match.
 	Instance uint32
 
 	// NextHop is the IP address the FIB should forward to. The zero Addr

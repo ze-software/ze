@@ -145,6 +145,17 @@
       "break": "body of WriteLabelStack replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8277-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable",
+      "unit-sha": "7ff70b50fe17ac72",
+      "claim-sha": "ded0a6b8757ee4fe",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesLocked",
+      "producer-sha": "27bd98677c852b43",
+      "break": "body of gatherPrefixCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8277-3.2.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels",

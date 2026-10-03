@@ -160,8 +160,8 @@ type bestprevLabelKey struct {
 
 // shardDepth returns the per-shard route counts for fam, in shard-index
 // order. Returns nil when fam has no shards. For a CIDR family each shard's
-// count includes both direct entries and the sum of AP path-id entries; for a
-// non-CIDR family it is the opaque map size.
+// count is its prefix count, one record per prefix; for a non-CIDR family it
+// is the opaque map size.
 func (b *bestPrevShards) shardDepth(fam family.Family) []int {
 	fs := b.familyShards(fam, false)
 	if fs == nil {
@@ -174,10 +174,6 @@ func (b *bestPrevShards) shardDepth(fam family.Family) []int {
 		count := 0
 		if sh.store.cidr {
 			count = sh.store.direct.Len()
-			sh.store.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
-				count += len(ps.entries)
-				return true
-			})
 		} else {
 			count = len(sh.store.opaque)
 		}

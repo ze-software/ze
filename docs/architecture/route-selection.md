@@ -118,8 +118,17 @@ decides.
 | 15 | `lost-igp-cost` | Lowest resolved interior distance to next-hop | 4271/7311 | Recursive BGP hops contribute received AIGP, not MED; unavailable distance is distinct from zero |
 | 16 | `lost-router-id` | Lowest Router ID / ORIGINATOR_ID wins | 4271/4456 | Numeric IP comparison |
 | 17 | `lost-cluster-list-length` | Shortest CLUSTER_LIST wins | 4456 | Section 9 inserts this between RFC 4271 steps f) and g). Counted in CLUSTER_IDs; an absent attribute counts zero. Unconditional |
-| 18 | `lost-peer-address` | Lowest peer IP address wins (final tiebreak) | 4271 | Numeric IP comparison |
+| 18 | `lost-peer-address` | Lowest peer IP address wins | 4271 | Numeric IP comparison |
+| 19 | `lost-path-id` | Lowest received ADD-PATH path identifier wins (final tiebreak) | Ze | Not RFC text: RFC 7911 gives the identifier no rank. It orders two paths of one session that tie on every step above, so the elected path does not depend on storage order |
 <!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
+
+Under ADD-PATH (RFC 7911) every path a session holds for a CIDR prefix is a
+candidate of the one selection for that prefix: RFC 8277 Section 3.1 makes two
+paths of one session, under different path identifiers, comparable. The RIB
+elects one best per prefix across every peer and every path, and the
+best-change names the winning path by its path id
+(`gatherPrefixCandidatesLocked`, `rib_commands.go`).
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked -->
 
 ### Candidate Extraction
 
@@ -259,6 +268,7 @@ it fails.
 | 16 | `lost-router-id` | Selection | 4271/4456 |
 | 17 | `lost-cluster-list-length` | Selection | 4456 |
 | 18 | `lost-peer-address` | Selection | 4271 |
+| 19 | `lost-path-id` | Selection | Ze |
 
 ## Implementation Notes
 

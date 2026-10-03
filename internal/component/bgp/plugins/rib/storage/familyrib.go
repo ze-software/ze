@@ -421,6 +421,42 @@ func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 	return ps.lookup(pathID)
 }
 
+// PrefixPath is one stored path of a prefix: the path identifier it was
+// received under and its route. PathID is zero for a family stored without
+// ADD-PATH, where the prefix alone names the path.
+type PrefixPath struct {
+	PathID uint32
+	Entry  RouteEntry
+}
+
+// appendPrefixPaths appends every path stored for pfx to dst and returns the
+// extended slice. A CIDR family stored without ADD-PATH holds at most one path
+// per prefix; under ADD-PATH it holds one per path identifier (RFC 7911
+// Section 2). A non-CIDR family appends nothing: its routes have no prefix.
+//
+// The entries are copies whose pool handles are NOT retained, the same contract
+// as lookupEntry. The caller owns dst, so a caller that passes a reused or
+// stack-backed slice selects without allocating.
+func (r *FamilyRIB) appendPrefixPaths(pfx netip.Prefix, dst []PrefixPath) []PrefixPath {
+	if !r.cidr {
+		return dst
+	}
+	if !r.addPath {
+		if entry, ok := r.direct.Lookup(pfx); ok {
+			dst = append(dst, PrefixPath{Entry: entry})
+		}
+		return dst
+	}
+	ps, ok := r.multi.Lookup(pfx)
+	if !ok {
+		return dst
+	}
+	for i := range ps.entries {
+		dst = append(dst, PrefixPath{PathID: ps.entries[i].pathID, Entry: ps.entries[i].entry})
+	}
+	return dst
+}
+
 // Len returns the total number of routes in the RIB. Under ADD-PATH, routes
 // with different path-ids for the same prefix count separately.
 func (r *FamilyRIB) Len() int {

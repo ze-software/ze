@@ -4,6 +4,7 @@ package storage
 
 import (
 	"maps"
+	"net/netip"
 	"slices"
 	"sync"
 
@@ -116,6 +117,30 @@ func (r *PeerRIB) Lookup(fam family.Family, nlriBytes []byte) (RouteEntry, bool)
 		return RouteEntry{}, false
 	}
 	return rib.lookupEntry(nlriBytes)
+}
+
+// AppendPrefixPaths appends every path this peer holds for pfx to dst, and
+// reports whether the family is stored with ADD-PATH, which says how each
+// path's own NLRI key is formed: the path identifier then the prefix, or the
+// prefix alone.
+//
+// Best-path selection asks by prefix, never by another session's wire key. A key
+// carries the sender's ADD-PATH framing, and a peer stored the other way would
+// read it as a different prefix: four path-id octets parse as a zero-length
+// prefix, which turned a non-ADD-PATH peer's default route into a candidate for
+// an ADD-PATH prefix.
+//
+// The entries are copies whose handles are NOT retained, the contract Lookup
+// states. Safe for concurrent use.
+func (r *PeerRIB) AppendPrefixPaths(fam family.Family, pfx netip.Prefix, dst []PrefixPath) ([]PrefixPath, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rib, exists := r.families[fam]
+	if !exists {
+		return dst, false
+	}
+	return rib.appendPrefixPaths(pfx, dst), rib.addPath
 }
 
 // LookupRetained finds the RouteEntry for an NLRI and takes a reference to its

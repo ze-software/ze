@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/stringsx"
@@ -1101,29 +1102,93 @@ func (r *RIBManager) bestPathStatus() any {
 	}
 }
 
-// gatherCandidates collects best-path candidates for a given (family, nlri)
-// across all peers. Acquires r.peerMu.RLock internally.
+// gatherCandidates collects best-path candidates for the route nlriBytes
+// names, across all peers. addPath says how nlriBytes is framed: under ADD-PATH
+// it leads with the sender's 4-byte path identifier (RFC 7911 Section 3). It is
+// optional, as in formatNLRIAsPrefix, and absent means the key carries no path
+// identifier. Acquires r.peerMu.RLock internally.
 //
 // Go's sync.RWMutex forbids recursive read-locking when a writer is pending
 // (documented deadlock in sync/rwmutex.go), so callers that ALREADY hold
 // r.peerMu.RLock MUST call gatherCandidatesLocked instead. The hot-path
 // caller is checkBestPathChange, which runs with no outer lock held.
-func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Candidate {
+func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte, addPath ...bool) []*Candidate {
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
-	return r.gatherCandidatesLocked(fam, nlriBytes)
+	return r.gatherCandidatesLocked(fam, nlriBytes, len(addPath) > 0 && addPath[0])
 }
 
 // gatherCandidatesLocked is gatherCandidates without the internal RLock.
 // Caller MUST hold r.peerMu.RLock for the duration of the call, including
 // across the returned candidates' lifetime if they reference peer state.
-// PeerRIB content reads (peerRIB.Lookup) use PeerRIB's own lock.
-func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte) []*Candidate {
+// PeerRIB content reads use PeerRIB's own lock.
+//
+// A CIDR family is gathered by PREFIX, over every path of every peer, so the
+// path identifier never partitions the election. A non-CIDR family is gathered
+// by its wire key.
+func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte, addPath bool) []*Candidate {
+	if !storage.IsCIDRFamily(fam) {
+		return r.gatherKeyCandidatesLocked(fam, nlriBytes)
+	}
+	_, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
+	if !ok {
+		return nil
+	}
+	return r.gatherPrefixCandidatesLocked(fam, pfx)
+}
+
+// gatherPrefixCandidatesLocked collects every stored path of pfx from every
+// peer. Caller MUST hold r.peerMu.RLock.
+//
+// RFC 7911 Section 2: "a particular path for an address prefix can be
+// identified by the combination of the address prefix and the Path
+// Identifier". The identifier names a path; it does not make a second prefix.
+//
+// RFC 8277 Section 3.1: "the two UPDATEs are received on the same session,
+// add-paths is used on that session, and the NLRIs of the two UPDATEs have
+// different path identifiers. These two routes MUST be considered to be
+// comparable, even if they specify different labels." So the paths one
+// ADD-PATH session holds for a prefix are candidates of ONE selection.
+//
+// Each peer is asked by prefix, never with another session's wire key: a key
+// framed for ADD-PATH reads as a different prefix in a peer stored without it.
+func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.Prefix) []*Candidate {
 	var candidates []*Candidate
 	// Loaded ONCE, so every candidate for this prefix is judged against the same
 	// set of this speaker's own addresses (rib_self_nexthop.go). A per-candidate
 	// load could straddle a session change and admit one route while excluding
 	// its equal.
+	selfNextHops := r.selfNextHops.Load()
+	// Stack-backed: a prefix carries one to a few paths per peer, so the common
+	// case appends without allocating. A peer with more paths grows it once.
+	var pathsArray [4]storage.PrefixPath
+	validate := ribevents.ValidationEnabled()
+	for peer, peerRIB := range r.bgpPeers {
+		paths, peerAddPath := peerRIB.AppendPrefixPaths(fam, pfx, pathsArray[:0])
+		for i := range paths {
+			path := &paths[i]
+			if validate && !ribevents.RouteEligible(ribevents.ValidationRoute{
+				Peer: peer, Family: fam, Prefix: pfx, PathID: path.PathID,
+			}, path.Entry.MsgID) {
+				continue
+			}
+			if !r.candidateAdmitted(fam, peerRIB, path.Entry, selfNextHops) {
+				continue
+			}
+			c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), path.Entry)
+			c.PathID = path.PathID
+			c.AddPath = peerAddPath
+			candidates = append(candidates, c)
+		}
+	}
+	return candidates
+}
+
+// gatherKeyCandidatesLocked collects the route stored under nlriBytes from every
+// peer, for a family whose NLRI is no CIDR prefix. Caller MUST hold
+// r.peerMu.RLock.
+func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, nlriBytes []byte) []*Candidate {
+	var candidates []*Candidate
 	selfNextHops := r.selfNextHops.Load()
 	for peer, peerRIB := range r.bgpPeers {
 		entry, ok := peerRIB.Lookup(fam, nlriBytes)
@@ -1133,44 +1198,53 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		if !r.validationEligible(peer, peerRIB, fam, nlriBytes, entry.MsgID) {
 			continue
 		}
-		// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
-		if isSRv6Ineligible(entry) {
+		if !r.candidateAdmitted(fam, peerRIB, entry, selfNextHops) {
 			continue
-		}
-		// RFC 4271 Section 5.1.3: "A BGP speaker SHALL NOT install a route with
-		// itself as the next hop." A route naming one of this speaker's own
-		// addresses tells it to forward through itself, which is a local loop.
-		//
-		// EXCLUDED FROM THE DECISION PROCESS, not refused at install. Refusing at
-		// install would leave the prefix with no route at all whenever the broken
-		// path happened to win, even with a sound alternative in the RIB. Removing
-		// it from candidacy lets the runner-up win, which is what Section 9.1.2
-		// already does with a next hop it cannot resolve, and this is a next hop
-		// that resolves to this speaker.
-		//
-		// Nothing legitimate reaches here with a self next hop. Every candidate is
-		// a route another speaker SENT (r.bgpPeers is the Adj-RIB-In), and
-		// Section 6.3 calls that address semantically incorrect on arrival. Locally
-		// originated routes -- static, connected, redistributed -- never enter this
-		// map and so are untouched by this test.
-		if selfNextHops != nil && len(*selfNextHops) > 0 {
-			if nh := entryNextHopAddr(fam, entry); isSelfNextHop(selfNextHops, nh) {
-				// RFC 4271 Section 6.3: "the error SHOULD be logged, and the route
-				// SHOULD be ignored". A guard that drops a route in silence is how
-				// "routes vanish sometimes" gets reported instead of the cause.
-				logger().Warn("route excluded from best-path: its next hop is this speaker's own address",
-					"peer", peerRIB.PeerAddr(), "next-hop", nh, "family", fam,
-					"rfc", "RFC 4271 Section 5.1.3",
-					"action", "route not installed; another path to this prefix is used if one exists")
-				continue
-			}
 		}
 		// The map key gives the typed address; PeerRIB caches the canonical
 		// string, so the hot path performs no parse and no conversion.
-		c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), entry)
-		candidates = append(candidates, c)
+		candidates = append(candidates, r.extractCandidate(fam, peer, peerRIB.PeerAddr(), entry))
 	}
 	return candidates
+}
+
+// candidateAdmitted reports whether a stored path may enter the decision
+// process at all: the RFC 9252 SRv6 and RFC 4271 Section 5.1.3 exclusions, the
+// same for every family.
+func (r *RIBManager) candidateAdmitted(fam family.Family, peerRIB *storage.PeerRIB, entry storage.RouteEntry, selfNextHops *[]netip.Addr) bool {
+	// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
+	if isSRv6Ineligible(entry) {
+		return false
+	}
+	// RFC 4271 Section 5.1.3: "A BGP speaker SHALL NOT install a route with
+	// itself as the next hop." A route naming one of this speaker's own
+	// addresses tells it to forward through itself, which is a local loop.
+	//
+	// EXCLUDED FROM THE DECISION PROCESS, not refused at install. Refusing at
+	// install would leave the prefix with no route at all whenever the broken
+	// path happened to win, even with a sound alternative in the RIB. Removing
+	// it from candidacy lets the runner-up win, which is what Section 9.1.2
+	// already does with a next hop it cannot resolve, and this is a next hop
+	// that resolves to this speaker.
+	//
+	// Nothing legitimate reaches here with a self next hop. Every candidate is
+	// a route another speaker SENT (r.bgpPeers is the Adj-RIB-In), and
+	// Section 6.3 calls that address semantically incorrect on arrival. Locally
+	// originated routes -- static, connected, redistributed -- never enter this
+	// map and so are untouched by this test.
+	if selfNextHops != nil && len(*selfNextHops) > 0 {
+		if nh := entryNextHopAddr(fam, entry); isSelfNextHop(selfNextHops, nh) {
+			// RFC 4271 Section 6.3: "the error SHOULD be logged, and the route
+			// SHOULD be ignored". A guard that drops a route in silence is how
+			// "routes vanish sometimes" gets reported instead of the cause.
+			logger().Warn("route excluded from best-path: its next hop is this speaker's own address",
+				"peer", peerRIB.PeerAddr(), "next-hop", nh, "family", fam,
+				"rfc", "RFC 4271 Section 5.1.3",
+				"action", "route not installed; another path to this prefix is used if one exists")
+			return false
+		}
+	}
+	return true
 }
 
 // extractCandidate builds a Candidate from a RouteEntry by reading pool handles.
