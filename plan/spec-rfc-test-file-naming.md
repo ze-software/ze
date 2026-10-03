@@ -426,9 +426,11 @@ Three commits for Phases 1 and 3, and one commit per component for Phase 2. No c
 | `internal/plugins/rsvpte/softstate_test.go` | `rfc2205_softstate_test.go` |
 | `internal/plugins/flowexport/sflow/flow_rfc_sflow_v5_test.go` | `sflow_v5_flow_sampling_test.go` |
 | `internal/plugins/flowexport/sflow/flow_test.go` | `sflow_v5_flow_test.go` |
+| `internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go` | `rfc4760_mup_session_test.go` |
 
 Each target stays in its source's directory. Every target was checked absent on 2026-10-03; the rename refuses one that has appeared since.
 
+→ Decision (review of fd31c539ce, R-6, 2026-10-03): `rfc_mup_session_test.go` tags only RFC 4760 (its tests drive `capability.Negotiate` over the two MUP Multiprotocol capabilities), and `mup` is no word of `rfc4760`, so the tool keeps `rfc_mup` as topic and proposes `rfc4760_rfc_mup_session_test.go`. That target is free, so `propose` writes the pair rather than leaving it out: the component's plan MUST carry the row above instead.
 → Decision (D-1 recount, 2026-10-03): a fresh whole-tree `propose` with the inner stem dropped writes 439 pairs and leaves out 23 collisions and 6 name/tag mismatches. The 23 are the 21 rows above not yet landed (the ike and tacacs rows landed in e52260d978 and 489a1b53a5) plus the sflow `flow` pair, whose two sources now propose the same `sflow_v5_flow_test.go` and gained the last two rows. Every other hand-chosen row is still needed: each of its pairs still collides on its proposed name.
 
 ### Phase 3 untagged RFC-named files (39)
@@ -559,7 +561,7 @@ Each target stays in its source's directory. Every target was checked absent on 
 |-------|-------|
 | Artifact | Phase 1, commit e87b8bb205 |
 | `./le spec review check` | not run |
-| Rounds | 2 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780) |
+| Rounds | 2 (round 1 scope: e87b8bb205: baseline rename following, `./le rfc rename`, the naming predicate, the citation leaf package; round 2 scope: 150892523b; round 3 scope: 14d6771780; round 4 scope: fd31c539ce) |
 | Reviewer lenses used | independent review of e87b8bb205 |
 
 ### Findings fixed
@@ -599,6 +601,19 @@ Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/disc
 | N-2 | NOTE | The `start < written` half of the escape check is driven by no test; it is reachable only with a path holding U+FFFD | `internal/le/rfc/rename.go` `rewriteEvidencePaths` | Accepted |
 | N-3 | NOTE | `auditDiff` never consults `RFC-approved:` trailers, so `./le commit audit base X` over 14d6771780 reports `rename_test.go` WEAKENED for good | `internal/le/test/weakened/audit.go` `auditDiff` | Recorded: `plan/journal/check-cannot-see-the-change-it-looks-for.md` |
 
+### Round 4 (scope: fd31c539ce, the Phase 2 tool fixes D-1 to D-3)
+
+| # | Severity | Finding | Location | Disposition |
+|---|----------|---------|----------|-------------|
+| R-1 | ISSUE | A topic left empty whose bare `<stem>_test.go` was taken fell back to the old topic, which carried the stem twice | `internal/le/rfc/names.go` `judgeTestFileName` | Fixed: the bare target is kept and `propose` reports it as taken. `TestRenameProposeReportsTakenBareTarget`, red under an overlay of HEAD's `names.go` and `rename.go` (the plan held `rfc9999_rfc_rfc9999_test.go`) |
+| R-2 | ISSUE | The legacy draft abbreviation `rfc_<word>` (`rfc_mup`) was no spelling of the draft stem, so the mup files proposed `draft_ietf_bess_mup_safi_rfc_mup_*` | `internal/le/rfc/names.go` `stemSpellingAt` | Fixed for the draft's own words; `rfc_mup_session_test.go` (RFC 4760) takes a hand-chosen topic. Three mup cases in `TestJudgeTestFileNameDropsTheInnerStem`, red with the new arm removed |
+| R-3 | NOTE | `ai/INDEX.md` still named `citationExcludes`, which fd31c539ce moved | `ai/INDEX.md` | Fixed: it names `citation.Excluded`, `citation.Policed` and `citation.CorpusGlobs` in `internal/le/doc/citation/policed.go` |
+| R-4 | NOTE | A suggested repair can change which platforms compile the file (`linux_test.go` would become `rfc5082_linux_test.go`); `./le rfc rename` refuses that rename, but the finding still suggests it | `internal/le/rfc/names.go` `judgeTestFileName` | Not done: `propose` drops a verdict with no target without a word, so refusing the target needs a new report category, past the 10-line bound the main thread set. The rename's `buildSuffixMoves` refusal still holds |
+| R-5 | NOTE | No test killed the `buildSuffixLength` cap-1 mutant, nor the `existsIn`-always-false mutant | `internal/le/rfc/names.go` | Fixed: the case `foo_rfc_draft_linux_amd64_test.go` (a stem word at n-2 before an arch token) is red under the cap-1 and cap-0 mutants. `existsIn` is deleted by R-1; the taken path is now `proposeRenames`' own collision check, driven by `TestRenameProposeReportsTakenBareTarget` |
+| R-6 | NOTE | Names the tool cannot repair alone | Phase 2 | Hand-chosen topics in Phase 2 (`rfc_mup_session_test.go` row added) |
+| R-7 | NOTE | Owed: the main thread holds the finding text | - | Accepted (main thread) |
+| R-8 | NOTE | Owed: the main thread holds the finding text | - | Accepted (main thread) |
+
 ## Phase 2 progress
 
 | Component | Pairs | SHA | Deferred |
@@ -617,8 +632,9 @@ Verdict 0 BLOCKER, 0 ISSUE, 3 NOTE. Evidence: all 315 JSON files under `rfc/disc
 | `internal/component/tacacs` | 4 (1 from the collision table) | 489a1b53a5 | none |
 | `internal/component/ike` | 16 (4 from the collision table) | e52260d978 | none |
 | reseal of the verdicts the comment edits shifted | - | 3168d066aa | - |
-| tool fix D-1 to D-3 (inner stem, record trees) | - | this commit | - |
-| re-rename of the three doubled names | 3 | the next commit | none |
+| tool fix D-1 to D-3 (inner stem, record trees) | - | fd31c539ce | - |
+| re-rename of the three doubled names | 3 | 6194de918a | none |
+| round 4 review fixes R-1 to R-5 | - | this commit | - |
 
 Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` trailer. `./le rfc check` stood at 135 violations before the first rename and 94 after 3168d066aa, none new. `./le doc check links` stayed at its 12 pre-existing broken references.
 
@@ -626,6 +642,8 @@ Every move is R100 in `git show -M`, and no commit carries an `RFC-approved:` tr
 → Constraint (Phase 2, fixed by D-2 and D-3): `./le rfc rename` rewrote citations in `test/weakened/<session>.md`, which `./le commit create` refuses to carry for another session and the link sweep exempts as history; those lines were restored to HEAD. It also rewrote journal rows over the 600-character cap, which `./le commit create` then refuses (`row-too-long`).
 → Constraint (Phase 2, fixed by D-1): `propose` kept an inner stem, so `gtsm_rfc5082_linux_test.go` became `rfc5082_gtsm_rfc5082_linux_test.go` (155 of the 494 targets). Three landed names carried it (`internal/component/gtsm`, `internal/component/iface`, `internal/plugins/dhcpserver`) and are re-renamed by the fixed tool in the commit after the fix.
 → Decision (D-1, main thread, 2026-10-03): `judgeTestFileName`'s repair topic drops every `_`-delimited spelling of the target stem (`topicForStem`): the stem itself, the legacy `rfc_<stem>`, and for a draft the legacy `rfc_draft_<word>` where the word is one of the draft name's own. The trailing elements `go/build` reads as a GOOS/GOARCH suffix are never removed, judged by `platformsBuilding` over a platform naming no OS and no arch, so no suffix list is copied. A topic left empty names the bare `<stem>_test.go` only when that path is free, and keeps the old topic otherwise. Test: `TestJudgeTestFileNameDropsTheInnerStem`, `TestBuildSuffixTokenFollowsGoBuild`.
+→ Decision (review of fd31c539ce, R-1, replaces the bare-target fallback in the decision above): a topic left empty names the bare `<stem>_test.go` whether or not it exists. The fallback to the old topic put back the doubled stem it existed to remove (`rfc_draft_abraitis_test.go` would become `draft_abraitis_bgp_version_capability_rfc_draft_abraitis_test.go`). A taken bare target is now left out by `propose` as a collision and takes a hand-chosen topic. `judgeTestFileName` lost its `taken` parameter and `existsIn` was deleted, because nothing else asked. Test: `TestRenameProposeReportsTakenBareTarget`.
+→ Decision (review of fd31c539ce, R-2): a draft's legacy `rfc_<word>` is a fourth spelling of its stem, where the word is one of the draft name's own after `draft` (`rfc_mup` for `draft-ietf-bess-mup-safi`). A lone draft word with no `rfc_` before it is not a spelling, as for every other stem, so `rfc_mup_safi_test.go` proposes `draft_ietf_bess_mup_safi_safi_test.go`. Accepted: the second `safi` is the file's topic (the SAFI value tests), not a repeat of the stem. Test: `TestJudgeTestFileNameDropsTheInnerStem` (the three mup files).
 → Decision (D-2 and D-3, main thread, 2026-10-03): the rename rewrites citations, and lists stale lines and plain mentions, only in a file the link sweep polices. The one declaration moved from `internal/le/doc/check/links.go` (`citationExcludes`, `markdownGlobs`) into the leaf `internal/le/doc/citation/policed.go` (`Excluded`, `CorpusGlobs`, `Policed`), which both the sweep and `planCitations` read; the sweep's behaviour is unchanged and its exclusion test stays in `links_test.go`, now reading `citation.Excluded`. Test: `TestRenameLeavesUnpolicedRecordsUntouched`, `TestPolicedKeepsCorpusFilesUnderRecordTrees`.
 
 ## Checklist

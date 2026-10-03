@@ -1292,11 +1292,15 @@ judged, so interop carriers, `.ci` files, `internal/le/`, `test/draft/`,
 The repair keeps the old name as its topic, less every spelling of the target
 stem it already carried: the stem itself (`gtsm_rfc5082_linux_test.go` becomes
 `rfc5082_gtsm_linux_test.go`), the legacy `rfc_<stem>` (`rfc_sflow_v5`), and for
-a draft the legacy `rfc_draft_<word>` where the word is one of the draft name's
-own (`rfc_draft_abraitis`). The trailing elements `go/build` reads as a
-GOOS/GOARCH suffix are never removed. A topic that held nothing else repairs to
-the bare `<stem>_test.go` when no file has that name, and keeps its old topic
-whole when one does.
+a draft the legacy `rfc_draft_<word>` and `rfc_<word>`, where the word is one of
+the draft name's own after `draft` (`rfc_draft_abraitis`, and `rfc_mup` for
+`draft-ietf-bess-mup-safi`). A draft word standing alone is kept, so
+`rfc_mup_safi_test.go` repairs to `draft_ietf_bess_mup_safi_safi_test.go`. The
+trailing elements `go/build` reads as a GOOS/GOARCH suffix are never removed. A
+topic that held nothing else repairs to the bare `<stem>_test.go` whether or not
+a file has that name. When one does, `./le rfc rename propose` leaves the file
+out as a taken target, so a hand-chosen topic replaces it rather than a name
+that carries the stem twice.
 
 `checkTestFileNames` implements the rule and `./le rfc rename` refuses a target
 through it. It is not yet one of `./le rfc check`'s checks: it arms when the

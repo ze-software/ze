@@ -231,7 +231,7 @@ func refusePair(tree string, pair renamePair, judged renameJudgement) []string {
 	}
 	file := namedTestFile{Rel: pair.Target, TagStems: judged.TagStems[pair.Source],
 		Marker: readNamingMarker(string(src))}
-	if verdict, refused := judgeTestFileName(file, judged.Stems, existsIn(tree)); refused {
+	if verdict, refused := judgeTestFileName(file, judged.Stems); refused {
 		var tb textbuf.Buffer
 		why := tb.Str("fails the test file naming rule: ").Str(verdict.Problem)
 		if verdict.Target != "" {

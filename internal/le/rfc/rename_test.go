@@ -448,6 +448,31 @@ func TestRenameProposeWritesOnePairPerFindingAndNamesCollisions(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-9b -- a file whose topic is only its stem's spelling proposes
+// the bare <stem>_test.go, and when that file exists propose reports the
+// collision instead of falling back to a name that carries the stem twice.
+// PREVENTS: rfc_rfc9999_test.go proposed as rfc9999_rfc_rfc9999_test.go.
+func TestRenameProposeReportsTakenBareTarget(t *testing.T) {
+	source := "internal/bare/rfc_rfc9999_test.go"
+	bare := "internal/bare/rfc9999_test.go"
+	root := checkFixtureTree(t, map[string]string{
+		selftestProducerPath: selftestProducerSource,
+		source: "package bare\n\n// RFC requirement: " + selftestRIDSend + " positive -- it sends one.\n" +
+			"func TestBare() {}\n",
+		bare: "package bare\n\n" + namingMarkerText + " the bare name is taken\n",
+	})
+	report, err := proposeRenames(root, "internal/bare", "plan.txt")
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	if got := readRel(t, root, "plan.txt"); got != "" {
+		t.Errorf("the plan reads %q, want no pair", got)
+	}
+	if len(report.Collisions) != 1 || report.Collisions[0] != source+" -> "+bare {
+		t.Errorf("the collisions are %v, want the one taken bare target %s", report.Collisions, bare)
+	}
+}
+
 // VALIDATES: R-2 -- an evidence file another session changed between the
 // rename's read and its write refuses the batch, and nothing is written.
 func TestRenameRefusesJSONChangedDuringRename(t *testing.T) {

@@ -401,7 +401,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// over the bytes that fix commit commits. No verdict moved: a proposed name
 	// drops the inner stem spelling, and the citation rewrite skips the files
 	// the link sweep exempts. Neither judges a record.
-	const want = "2deb21267aaff852eeb57fba26ee457a6a4d71026b53f34b64850d8d06762845"
+	//
+	// Re-sealed 2026-10-03 for the review fixes to fd31c539ce, over the bytes
+	// that fix commit commits. No verdict moved: a proposed name keeps the bare
+	// stem target when it is taken, so propose reports the collision, and a
+	// draft's rfc_<word> abbreviation counts as a spelling of its stem. Neither
+	// judges a record.
+	const want = "698b0a734dd284e40c6de3c63644d25be320665f36d0aad79cd0504275c06b64"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

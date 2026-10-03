@@ -290,52 +290,61 @@ func TestCheckTestFileNamesSkipsOutOfScopeFiles(t *testing.T) {
 func innerStemStems() map[string]bool {
 	return map[string]bool{"rfc5082": true, "rfc7311": true, "rfc7999": true, "sflow-v5": true,
 		"draft-abraitis-bgp-version-capability": true, "draft-ietf-idr-linklocal-capability": true,
-		"draft-ze-linux-thing": true}
+		"draft-ze-linux-thing": true, "draft-ietf-bess-mup-safi": true, "rfc4760": true}
 }
 
 // VALIDATES: AC-14 -- the repair drops every spelling of the target stem the
-// old name carried, in the three spellings the tree uses (rfcN, rfc_<stem>,
-// rfc_draft_<word>), keeps the GOOS/GOARCH suffix, and names the bare stem
-// file only while it is free. The cases are the Phase 2 proposals that named
-// their RFC twice.
+// old name carried, in the four spellings the tree uses (rfcN, rfc_<stem>,
+// rfc_draft_<word>, rfc_<word>), keeps the GOOS/GOARCH suffix, and names the
+// bare stem file whether or not it exists (propose reports a taken one). The
+// cases are the Phase 2 proposals that named their RFC twice.
 // PREVENTS: gtsm_rfc5082_linux_test.go being renamed rfc5082_gtsm_rfc5082_linux_test.go.
 func TestJudgeTestFileNameDropsTheInnerStem(t *testing.T) {
 	cases := []struct {
 		rel, stem, target string
-		taken             bool
 	}{
-		{"c/gtsm/gtsm_rfc5082_linux_test.go", "rfc5082", "c/gtsm/rfc5082_gtsm_linux_test.go", false},
-		{"c/attr/aigp_rfc7311_test.go", "rfc7311", "c/attr/rfc7311_aigp_test.go", false},
-		{"c/attr/aigp_test.go", "rfc7311", "c/attr/rfc7311_aigp_test.go", false},
-		{"c/fc/blackhole_rfc7999_test.go", "rfc7999", "c/fc/rfc7999_blackhole_test.go", false},
-		{"c/fc/blackhole_test.go", "rfc7999", "c/fc/rfc7999_blackhole_test.go", false},
-		{"c/rib/rib_blackhole_rfc7999_cover_test.go", "rfc7999", "c/rib/rfc7999_rib_blackhole_cover_test.go", false},
+		{"c/gtsm/gtsm_rfc5082_linux_test.go", "rfc5082", "c/gtsm/rfc5082_gtsm_linux_test.go"},
+		{"c/attr/aigp_rfc7311_test.go", "rfc7311", "c/attr/rfc7311_aigp_test.go"},
+		{"c/attr/aigp_test.go", "rfc7311", "c/attr/rfc7311_aigp_test.go"},
+		{"c/fc/blackhole_rfc7999_test.go", "rfc7999", "c/fc/rfc7999_blackhole_test.go"},
+		{"c/fc/blackhole_test.go", "rfc7999", "c/fc/rfc7999_blackhole_test.go"},
+		{"c/rib/rib_blackhole_rfc7999_cover_test.go", "rfc7999", "c/rib/rfc7999_rib_blackhole_cover_test.go"},
 		{"c/msg/rfc_draft_abraitis_softver_test.go", "draft-abraitis-bgp-version-capability",
-			"c/msg/draft_abraitis_bgp_version_capability_softver_test.go", false},
+			"c/msg/draft_abraitis_bgp_version_capability_softver_test.go"},
 		{"c/sv/rfc_draft_abraitis_test.go", "draft-abraitis-bgp-version-capability",
-			"c/sv/draft_abraitis_bgp_version_capability_test.go", false},
-		{"c/sv/rfc_draft_abraitis_test.go", "draft-abraitis-bgp-version-capability",
-			"c/sv/draft_abraitis_bgp_version_capability_rfc_draft_abraitis_test.go", true},
+			"c/sv/draft_abraitis_bgp_version_capability_test.go"},
 		{"c/re/rfc_draft_linklocal_send_test.go", "draft-ietf-idr-linklocal-capability",
-			"c/re/draft_ietf_idr_linklocal_capability_send_test.go", false},
-		{"c/sf/config_rfc_sflow_v5_test.go", "sflow-v5", "c/sf/sflow_v5_config_test.go", false},
-		{"c/sf/counters_sflow_v5_test.go", "sflow-v5", "c/sf/sflow_v5_counters_test.go", false},
-		{"c/x/foo_rfc5082_linux_amd64_test.go", "rfc5082", "c/x/rfc5082_foo_linux_amd64_test.go", false},
+			"c/re/draft_ietf_idr_linklocal_capability_send_test.go"},
+		{"c/sf/config_rfc_sflow_v5_test.go", "sflow-v5", "c/sf/sflow_v5_config_test.go"},
+		{"c/sf/counters_sflow_v5_test.go", "sflow-v5", "c/sf/sflow_v5_counters_test.go"},
+		{"c/x/foo_rfc5082_linux_amd64_test.go", "rfc5082", "c/x/rfc5082_foo_linux_amd64_test.go"},
 		// The draft's word "linux" is also the GOOS suffix, so it stays.
 		{"c/x/foo_rfc_draft_linux_test.go", "draft-ze-linux-thing",
-			"c/x/draft_ze_linux_thing_foo_rfc_draft_linux_test.go", false},
-		{"c/x/plain_test.go", "rfc5082", "c/x/rfc5082_plain_test.go", false},
+			"c/x/draft_ze_linux_thing_foo_rfc_draft_linux_test.go"},
+		{"c/x/plain_test.go", "rfc5082", "c/x/rfc5082_plain_test.go"},
+		// The stem word "linux" sits at n-2, before the arch token, so both
+		// stay: the suffix go/build reads is two elements long.
+		{"c/x/foo_rfc_draft_linux_amd64_test.go", "draft-ze-linux-thing",
+			"c/x/draft_ze_linux_thing_foo_rfc_draft_linux_amd64_test.go"},
+		// The legacy draft abbreviation rfc_<word>: rfc_mup is a spelling of
+		// draft-ietf-bess-mup-safi, and the lone word safi after it is kept.
+		{"c/mup/rfc_mup_ingress_test.go", "draft-ietf-bess-mup-safi",
+			"c/mup/draft_ietf_bess_mup_safi_ingress_test.go"},
+		{"c/mup/rfc_mup_safi_test.go", "draft-ietf-bess-mup-safi",
+			"c/mup/draft_ietf_bess_mup_safi_safi_test.go"},
+		// mup is no word of rfc4760, so rfc_mup is topic here and the file
+		// takes a hand-chosen topic in Phase 2.
+		{"c/mup/rfc_mup_session_test.go", "rfc4760", "c/mup/rfc4760_rfc_mup_session_test.go"},
 	}
 	for _, tc := range cases {
 		file := namedTestFile{Rel: tc.rel, TagStems: map[string]bool{tc.stem: true}}
-		taken := func(string) bool { return tc.taken }
-		verdict, refused := judgeTestFileName(file, innerStemStems(), taken)
+		verdict, refused := judgeTestFileName(file, innerStemStems())
 		if !refused {
 			t.Errorf("%s: not refused", tc.rel)
 			continue
 		}
 		if verdict.Target != tc.target {
-			t.Errorf("%s (taken %v): target %s, want %s", tc.rel, tc.taken, verdict.Target, tc.target)
+			t.Errorf("%s: target %s, want %s", tc.rel, verdict.Target, tc.target)
 		}
 	}
 }
