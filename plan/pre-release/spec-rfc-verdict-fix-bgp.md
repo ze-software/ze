@@ -27,7 +27,7 @@ Measured 2026-09-28 over `rfc/audit/*.json` with the filter below: **346 weak an
 
 ### Packages it owns
 
-Test packages: `internal/component/bgp/...`, `internal/core/bgp/...`, BGP interop (`internal/le/interoplab/bgp`) and MRT (`internal/mrt`, `internal/plugins/mrt`), plus the refined moves: `test/plugin`, `test/reload`, `internal/core/network`, `internal/plugins/flowspec-firewall`, `internal/component/sysrib`, the SRv6 nexthop test file `internal/plugins/fib/kernel/nexthop_srv6_linux_test.go`, and the IS-IS BGP-LS export test file `internal/plugins/isis/bgpls_export_rfc9552_test.go`.
+Test packages: `internal/component/bgp/...`, `internal/core/bgp/...`, BGP interop (`internal/le/interoplab/bgp`) and MRT (`internal/mrt`, `internal/plugins/mrt`), plus the refined moves: `test/plugin`, `test/reload`, `internal/core/network`, `internal/plugins/flowspec-firewall`, `internal/component/sysrib`, the SRv6 nexthop test file `internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go`, and the IS-IS BGP-LS export test file `internal/plugins/isis/bgpls_export_rfc9552_test.go`.
 
 | Package | Weak + wrong (2026-09-28) | Of which wrong |
 |---------|--------------|----------------|

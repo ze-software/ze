@@ -213,7 +213,7 @@
     {
       "rid": "RFC1195-4.4-1",
       "polarity": "positive",
-      "unit": "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+      "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
       "unit-sha": "3e899cc3c83f0b81",
       "claim-sha": "e1d1fe0869902884",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC1195-4.4-1",
       "polarity": "negative",
-      "unit": "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+      "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
       "unit-sha": "3e899cc3c83f0b81",
       "claim-sha": "53ac4a1a8c941d82",
       "route": "revert",

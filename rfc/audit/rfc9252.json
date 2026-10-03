@@ -196,12 +196,12 @@
       "note": "(a) forbidden: an ingress PE forwarding an SRv6 service route without IPv6 encapsulation. TestSRv6ServiceSIDSelectsIPv6Encapsulation asserts SEG6 encap mode 1 with the SID for the kernel backend (buildRichRoute). The VPP backend (internal/plugins/fib/vpp/srv6.go) has no test. The negative-tagged TestRouteWithoutServiceSIDKeepsMPLSEncapsulation proves a route without a SID keeps MPLS, which is not a violation of this row.",
       "requirement_sha": "18afd49fba316531",
       "tests": {
-        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestRouteWithoutServiceSIDKeepsMPLSEncapsulation": "afeaff4068947c99",
-        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestSRv6ServiceSIDSelectsIPv6Encapsulation": "afeaff4068947c99"
+        "internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go::TestRouteWithoutServiceSIDKeepsMPLSEncapsulation": "afeaff4068947c99",
+        "internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go::TestSRv6ServiceSIDSelectsIPv6Encapsulation": "afeaff4068947c99"
       },
       "units": {
-        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestRouteWithoutServiceSIDKeepsMPLSEncapsulation": "731be302b1ae9384",
-        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestSRv6ServiceSIDSelectsIPv6Encapsulation": "2ba9af606b60e898"
+        "internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go::TestRouteWithoutServiceSIDKeepsMPLSEncapsulation": "731be302b1ae9384",
+        "internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go::TestSRv6ServiceSIDSelectsIPv6Encapsulation": "2ba9af606b60e898"
       },
       "verdict": "weak"
     },

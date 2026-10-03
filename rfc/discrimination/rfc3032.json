@@ -4,7 +4,7 @@
     {
       "rid": "RFC3032-2.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/fib/kernel/mplsentry_test.go::TestHandleMPLSEntryPushImplicitNull",
+      "unit": "internal/plugins/fib/kernel/rfc3032_mplsentry_test.go::TestHandleMPLSEntryPushImplicitNull",
       "unit-sha": "53f6ce6b683cdace",
       "claim-sha": "e4fff422ba51863d",
       "route": "revert",

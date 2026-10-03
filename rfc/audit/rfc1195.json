@@ -154,14 +154,14 @@
       "note": "Re-judged 2026-09-30. The earlier gap (nothing showed IS-IS itself marks an off-subnet adjacency next hop on-link) is closed at the boundary Ze owns. Positive TestRFC1195OffSubnetNeighborIsOnLinkNextHop: adjacency on isis-on-a 192.0.2.1/24, neighbor 198.51.100.2 (setup asserts off-subnet) resolves to 198.51.100.2 via isis-on-a with OnLink. Negative TestRFC1195OffSubnetNeighborNotResolvedBySubnet: isis-on-b holds the covering 198.51.100.1/24 but no adjacency, and the next hop is never placed on isis-on-b by subnet match; a subnet or recursive resolver goes red. Producer spf_wiring.go ResolveNextHop returns the Up adjacency's circuit with OnLink=true; +/- recorded on it. The FIB side (kernel installs the OnLink gateway, flips when the mark is cleared) is carried by fib/kernel onlink_integration_linux_test.go, Linux CAP_NET_ADMIN only and without a discrimination record.",
       "requirement_sha": "6f71c136a942c21a",
       "tests": {
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
         "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop": "12c8d6276548fb6f",
         "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet": "12c8d6276548fb6f"
       },
       "units": {
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
         "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop": "21bb266abde0e874",
         "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet": "6df478449b8362d7"
       },
@@ -205,16 +205,16 @@
       "note": "IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop fails if an OSI-only neighbor resolves to a usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable (production LSDB/SPF/installer) and returns to unicast when IPv4 support returns; the FIB integration test fails unless the kernel answers EHOSTUNREACH instead of the default and restores it on removal. OSI half: Ze forwards no OSI/CLNP packets, so no code path can violate it.",
       "requirement_sha": "0cc1e7c5a022a544",
       "tests": {
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
         "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195NeighborProtocolTransitions": "1b6b580adc0147c1",
         "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "1b6b580adc0147c1",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "b67887a5f61b2632",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "b67887a5f61b2632"
       },
       "units": {
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
-        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
+        "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
         "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195NeighborProtocolTransitions": "5610717ccdc56c7c",
         "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "c4dd9b032c623b7b",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "85e4b26caa2bcd37",
