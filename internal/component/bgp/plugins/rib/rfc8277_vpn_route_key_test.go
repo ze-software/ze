@@ -37,10 +37,10 @@ func TestVPNRouteKeyTwoPEsDifferentLabelsMeetInOneElection(t *testing.T) {
 	feedReceived(r, peA, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 1}, 200, nlriA))
 	feedReceived(r, peB, ctxID, vpnv4AnnounceBody([4]byte{10, 0, 0, 2}, 100, nlriB))
 
-	if got := len(r.gatherCandidates(vpnv4Family, nlriA)); got != 2 {
+	if got := len(gatherCandidatesHeld(r, vpnv4Family, nlriA, false)); got != 2 {
 		t.Fatalf("candidates seen from PE A's NLRI = %d, want 2: one route under two labels", got)
 	}
-	if got := len(r.gatherCandidates(vpnv4Family, nlriB)); got != 2 {
+	if got := len(gatherCandidatesHeld(r, vpnv4Family, nlriB, false)); got != 2 {
 		t.Fatalf("candidates seen from PE B's NLRI = %d, want 2: one route under two labels", got)
 	}
 	if got := bestRecordCount(r, vpnv4Family); got != 1 {

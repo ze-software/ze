@@ -742,7 +742,7 @@ func parseNextHopAddr(data []byte) netip.Addr {
 // no handle is available. Remove-induced withdrawals bypass forward
 // -- r.locRIB.Remove takes no handle because Remove carries no source
 // buffer by design (see design-rib-rs-fastpath.md).
-// Safe to call with no outer lock held. gatherCandidates and
+// Safe to call with no outer lock held. gatherPrefixCandidates, gatherKeyCandidates and
 // bestCandidateNextHopAddr take r.peerMu.RLock internally for their brief
 // map reads; bestPrev has its own per-shard locks; bestPathInterner has
 // its own per-table mutexes. Lock order: r.peerMu -> shard.mu.
@@ -1220,12 +1220,6 @@ func candidatePath(c *Candidate, cidr bool, pfx netip.Prefix) storedPath {
 	return storedPath{nlri: framedRouteNLRI(nil, c.Route, c.PathID, c.AddPath), pathID: c.PathID, addPath: c.AddPath}
 }
 
-// wirePath names a stored path by the wire NLRI its session framed it with,
-// which reaches a path of any family.
-func wirePath(nlriBytes []byte, addPath bool) storedPath {
-	return storedPath{nlri: nlriBytes, addPath: addPath}
-}
-
 // lookupStoredPath returns a copy of the entry peerAddr's RIB holds for p, with
 // PeerRIB.Lookup's contract: the handles are not retained. Acquires
 // r.peerMu.RLock internally for the bgpPeers read, so the caller MUST NOT hold
@@ -1256,12 +1250,6 @@ func (r *RIBManager) lookupLabelsForBest(fam family.Family, p storedPath, peerAd
 		return pool.ResolveLabels(peerRIB.LookupPathLabels(fam, p.pathID, p.pfx))
 	}
 	return pool.ResolveLabels(peerRIB.LookupLabels(fam, p.nlri))
-}
-
-// lookupSRv6SIDForBest is storedPathSRv6SID for a path named by the wire NLRI
-// its session framed it with.
-func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, addPath bool, peerAddr netip.Addr) netip.Addr {
-	return r.storedPathSRv6SID(fam, wirePath(nlriBytes, addPath), peerAddr)
 }
 
 // storedPathSRv6SID extracts the SRv6 SID from the PrefixSID attribute
@@ -1709,7 +1697,8 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 // bus produces lazily (only when at least one external subscriber exists).
 // reconcileBestPath runs best-path selection for a single prefix after a
 // command-driven mutation (inject, withdraw). Must be called AFTER releasing
-// peerMu so the internal peerMu.RLock in gatherCandidates does not deadlock.
+// peerMu so the internal peerMu.RLock in gatherPrefixCandidates and
+// gatherKeyCandidates does not deadlock.
 // addPath=false because inject/withdraw build NLRI with pathID=0 and no
 // ADD-PATH prefix; if those commands gain --path-id, this must change.
 func (r *RIBManager) reconcileBestPath(fam family.Family, nlriBytes []byte) {

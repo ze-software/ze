@@ -5,7 +5,7 @@
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
 // Related: rib_commands.go — command handling and JSON responses
-// Related: bestpath.go — best-path selection (gatherCandidates, SelectBest)
+// Related: bestpath.go — best-path selection (gatherCandidatesLocked, SelectBest)
 package rib
 
 import (
@@ -80,7 +80,7 @@ func bestRouteKey(familyS, prefixS string) string {
 // stashCandidates is non-nil, the full candidate slice for every yielded
 // item is written into it keyed by bestRouteKey(family, prefix). This lets
 // the "reason" terminal re-run the decision process with narration without
-// re-querying gatherCandidates under a second lock acquisition.
+// re-querying gatherCandidatesLocked under a second lock acquisition.
 func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string][]*Candidate) *bestSource {
 	sel := selector.ParseDefault(selectorStr)
 	// Collect all unique (family, nlriKey) across matching peers.

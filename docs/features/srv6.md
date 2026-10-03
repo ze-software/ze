@@ -133,10 +133,10 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: IsSRv6Ineligible() excludes routes with broken SRv6 TLVs
+RIB best-path: isSRv6Ineligible() excludes routes with broken SRv6 TLVs
   |
   v
-Best-path emission: lookupSRv6SIDForBest() extracts SID from OtherAttrs
+Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
   |  For VPN/EVPN: applies transposition (label bits -> SID function)
   |
   v

@@ -182,7 +182,7 @@ func TestFlowSpecAuthorizationFromReceivedUpdates(t *testing.T) {
 			if !ribevents.RoutePresent(key) {
 				t.Fatal("authorization discarded the received route")
 			}
-			if got := len(r.gatherCandidates(flowspecFamily, raw)) != 0; got != tc.want {
+			if got := len(gatherCandidatesHeld(r, flowspecFamily, raw, false)) != 0; got != tc.want {
 				t.Fatalf("candidate availability = %v, want %v", got, tc.want)
 			}
 			events := flowValidationEvents(bus)
@@ -329,7 +329,7 @@ func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
 				if !ribevents.RoutePresent(key) {
 					t.Fatal("legal four-byte offset pattern was rejected instead of retained")
 				}
-				if ribevents.RouteEligible(key, 6) || len(r.gatherCandidates(flowFamily, offsetRaw)) != 0 {
+				if ribevents.RouteEligible(key, 6) || len(gatherCandidatesHeld(r, flowFamily, offsetRaw, false)) != 0 {
 					t.Fatal("nonzero destination offset passed IPv6 validation")
 				}
 				events = flowValidationEvents(bus)
@@ -442,7 +442,7 @@ func TestFlowSpecAuthorizationSurvivesRealRPKIDisableAndRefresh(t *testing.T) {
 		if ribevents.RouteEligible(goodKey, 11) != eligible || ribevents.RouteEligible(badKey, 12) {
 			t.Fatal("optional validation lifecycle bypassed or replaced mandatory FlowSpec export authorization")
 		}
-		if (len(r.gatherCandidates(flowspecFamily, good)) != 0) != eligible || len(r.gatherCandidates(flowspecFamily, bad)) != 0 {
+		if (len(gatherCandidatesHeld(r, flowspecFamily, good, false)) != 0) != eligible || len(gatherCandidatesHeld(r, flowspecFamily, bad, false)) != 0 {
 			t.Fatal("candidate selection diverged from mandatory FlowSpec authorization")
 		}
 		for key, id := range map[ribevents.ValidationRoute]uint64{goodKey: 11, badKey: 12} {
@@ -515,7 +515,7 @@ func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
 			RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: msgID, RawBytes: body, WireUpdate: wu, AttrsWire: aw},
 		})
 		key := ribevents.ValidationRoute{Peer: peer, Family: flowspecFamily, NLRI: string(raw)}
-		if !ribevents.RouteEligible(key, msgID) || len(r.gatherCandidates(flowspecFamily, raw)) != 1 {
+		if !ribevents.RouteEligible(key, msgID) || len(gatherCandidatesHeld(r, flowspecFamily, raw, false)) != 1 {
 			t.Fatalf("ignored next hop %x excluded the authorized candidate", nextHop)
 		}
 		events := flowValidationEvents(bus)

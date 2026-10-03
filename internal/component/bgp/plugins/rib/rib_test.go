@@ -37,6 +37,15 @@ func newTestRIBManager(t testing.TB) *RIBManager {
 	return newRIBManager(p)
 }
 
+// gatherCandidatesHeld runs gatherCandidatesLocked, the candidate gather the
+// show pipeline calls (rib_pipeline_best.go), under the r.peerMu.RLock its
+// contract requires. addPath says nlri leads with a 4-byte path identifier.
+func gatherCandidatesHeld(r *RIBManager, fam family.Family, nlri []byte, addPath bool) []*Candidate {
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	return r.gatherCandidatesLocked(fam, nlri, addPath)
+}
+
 // TestParseEvent_SentFormat verifies parsing of sent UPDATE events.
 //
 // VALIDATES: Sent events with flat structure are parsed correctly.

@@ -56,7 +56,7 @@ func TestRFC9117AuthorizationUsesLongestCoveringRoute(t *testing.T) {
 			if !ribevents.RoutePresent(key) {
 				t.Fatal("received rule was not retained")
 			}
-			if got := len(r.gatherCandidates(flowspecFamily, raw)); got != map[bool]int{false: 0, true: 1}[tc.want] {
+			if got := len(gatherCandidatesHeld(r, flowspecFamily, raw, false)); got != map[bool]int{false: 0, true: 1}[tc.want] {
 				t.Fatalf("candidate count = %d, want eligible %v", got, tc.want)
 			}
 			events := flowValidationEvents(bus)

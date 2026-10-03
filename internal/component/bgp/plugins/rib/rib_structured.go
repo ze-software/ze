@@ -135,7 +135,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// here and Phase 3, that handler takes r.peerMu.Lock, calls
 	// peerRIB.Release, and delete(r.bgpPeers, peerAddr). Phase 2 below
 	// keeps writing to the local peerRIB pointer -- those writes land on
-	// an orphan PeerRIB that no future gatherCandidates sees. Semantics
+	// an orphan PeerRIB that no future candidate gather sees. Semantics
 	// stay correct because Phase 3's checkBestPathChange still emits
 	// withdraws for every prefix whose best came from the now-absent
 	// peer (newBest == nil, havePrev == true). The orphan writes are
@@ -311,7 +311,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Phase 3: best-path change detection. Runs with no r.peerMu held --
-	// gatherCandidates and bestCandidateNextHopAddr acquire peerMu.RLock
+	// gatherPrefixCandidates, gatherKeyCandidates and bestCandidateNextHopAddr acquire peerMu.RLock
 	// internally for their brief map reads. The sharded bestPrev and the
 	// self-locking bestPathInterner handle their own concurrency.
 	//

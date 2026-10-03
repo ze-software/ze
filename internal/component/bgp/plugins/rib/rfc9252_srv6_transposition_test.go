@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -94,6 +95,33 @@ func vpnv4SRv6Update(label uint32, transposLen byte) (body, nlriKey []byte) {
 	return append(body, attrs...), nlri
 }
 
+// storedSRv6SID answers the SRv6 SID the election reads for the one path peer
+// stored under nlri, a VPN NLRI framed without ADD-PATH: it names the path the
+// way checkRouteBestChange names a winner (candidatePath, from the route the
+// session stored) and asks storedPathSRv6SID, the producer the election calls.
+// It reads the stored path rather than an elected candidate, so a path the
+// election would refuse (isSRv6Ineligible) still has its SID asked.
+func storedSRv6SID(t *testing.T, r *RIBManager, fam family.Family, nlri []byte, peer netip.Addr) netip.Addr {
+	t.Helper()
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	routeKey, ok := routeIdentity(fam, nlri, false, false, scratch[:])
+	if !ok {
+		t.Fatalf("no route key for NLRI %x", nlri)
+	}
+	r.peerMu.RLock()
+	peerRIB := r.bgpPeers[peer]
+	r.peerMu.RUnlock()
+	if peerRIB == nil {
+		t.Fatalf("peer %s holds no RIB", peer)
+	}
+	paths, addPath := peerRIB.AppendKeyPaths(fam, routeKey, nil)
+	if len(paths) != 1 {
+		t.Fatalf("peer %s stores %d paths for NLRI %x, want 1", peer, len(paths), nlri)
+	}
+	c := &Candidate{Route: paths[0].Route, PathID: paths[0].PathID, AddPath: addPath}
+	return r.storedPathSRv6SID(fam, candidatePath(c, false, netip.Prefix{}), peer)
+}
+
 // TestSRv6TranspositionRestoresFunctionBitsFromNLRILabel drives a real VPNv4
 // UPDATE through the RIB ingest path and checks the SID the RIB reports for
 // the installed route.
@@ -117,7 +145,7 @@ func TestSRv6TranspositionRestoresFunctionBitsFromNLRILabel(t *testing.T) {
 	body, nlriKey := vpnv4SRv6Update(label, srv6TransposLen)
 	feedReceived(r, peer, ctxID, body)
 
-	got := r.lookupSRv6SIDForBest(fam, nlriKey, false, peer)
+	got := storedSRv6SID(t, r, fam, nlriKey, peer)
 	want := netip.MustParseAddr(srv6FullSID)
 	if got != want {
 		t.Errorf("SRv6 SID = %v, want %v (partial SID on the wire was %s)", got, want, srv6PartialSID)
@@ -146,7 +174,7 @@ func TestSRv6TranspositionTracksTheLabelValue(t *testing.T) {
 	body, nlriKey := vpnv4SRv6Update(label, srv6TransposLen)
 	feedReceived(r, peer, ctxID, body)
 
-	got := r.lookupSRv6SIDForBest(fam, nlriKey, false, peer)
+	got := storedSRv6SID(t, r, fam, nlriKey, peer)
 	want := netip.MustParseAddr("2001:db8:1:1234::")
 	if got != want {
 		t.Errorf("SRv6 SID = %v, want %v", got, want)
@@ -182,7 +210,7 @@ func TestSRv6TranspositionWiderThanLabelFieldIsIneligible(t *testing.T) {
 
 	feedReceived(r, peer, ctxID, body)
 
-	if sid := r.lookupSRv6SIDForBest(fam, nlriKey, false, peer); sid.IsValid() {
+	if sid := storedSRv6SID(t, r, fam, nlriKey, peer); sid.IsValid() {
 		t.Errorf("SID = %v, want none: a %d-bit transposition does not fit a 20-bit label field", sid, tooWide)
 	}
 

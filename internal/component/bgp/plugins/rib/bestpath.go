@@ -1,7 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — best-path selection
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_attr_format.go — attribute formatting (asPathLength, firstASInPath shared concern)
-// Related: rib_commands.go — extractCandidate, gatherCandidates
+// Related: rib_commands.go — extractCandidate, gatherCandidatesLocked
 // Related: rib_pipeline_best.go — best-path pipeline for show bgp rib best commands
 // Related: rib_bestchange.go — best-path change tracking and Bus publishing
 //
@@ -151,7 +151,7 @@ func SelectBest(candidates []*Candidate) *Candidate {
 // the full path set.
 //
 // Parameters:
-//   - candidates:   full candidate set (as produced by gatherCandidates).
+//   - candidates:   full candidate set (as produced by gatherCandidatesLocked).
 //   - maxPaths:     configured maximum-paths (from bgp/multipath); 0 and 1
 //     both mean "single best, no multipath" and the siblings slice is nil.
 //   - relaxASPath:  when false, a sibling must have byte-identical AS_PATH
@@ -244,7 +244,7 @@ func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 // the explanation is likewise linear: there is no combinatorial blowup even
 // for prefixes with dozens of candidates.
 type bestPathExplanation struct {
-	Candidates []*Candidate   // candidates in original (gatherCandidates) order
+	Candidates []*Candidate   // candidates in original (gatherCandidatesLocked) order
 	Steps      []PairwiseStep // N-1 entries for N candidates
 	Winner     *Candidate     // final running best after all steps
 }

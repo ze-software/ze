@@ -101,7 +101,7 @@ func TestBestPathStepFComparesThePeerBGPIdentifier(t *testing.T) {
 	feedReceivedWithIdentifier(t, r, lowAddress, identifierFor(t, "10.0.0.9"), ctxID, identifierTestUpdate())
 	feedReceivedWithIdentifier(t, r, highAddress, identifierFor(t, "10.0.0.1"), ctxID, identifierTestUpdate())
 
-	candidates := r.gatherCandidates(family.IPv4Unicast, cidr)
+	candidates := gatherCandidatesHeld(r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2, "both peers announced the prefix, so both are candidates")
 
 	explanation := SelectBestExplain(candidates)
@@ -129,7 +129,7 @@ func TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress(t *testing.T) {
 	feedReceivedWithIdentifier(t, r, lowAddress, shared, ctxID, identifierTestUpdate())
 	feedReceivedWithIdentifier(t, r, highAddress, shared, ctxID, identifierTestUpdate())
 
-	candidates := r.gatherCandidates(family.IPv4Unicast, cidr)
+	candidates := gatherCandidatesHeld(r, family.IPv4Unicast, cidr, false)
 	require.Len(t, candidates, 2)
 
 	explanation := SelectBestExplain(candidates)
