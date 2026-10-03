@@ -11,7 +11,7 @@
 # NOT prove an OSPF route beats an eBGP one at distance 250: that needs two
 # protocols holding one prefix, which is a QEMU scenario rather than a config
 # case. TestBgpStampsTheDeclaredDistanceNotItsOwn
-# (internal/component/bgp/plugins/rib/rib_bestchange_test.go) covers the half
+# (internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go) covers the half
 # this cannot reach, and was observed RED at 0x14 where 0xfa was required.
 
 stdin=dist-override:terminator=EOF_OVERRIDE

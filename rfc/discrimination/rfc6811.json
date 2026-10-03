@@ -4,7 +4,7 @@
     {
       "rid": "RFC6811-2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/validate_rfc6811_state_test.go::TestRouteStateIsSetFromTheLookup",
+      "unit": "internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go::TestRouteStateIsSetFromTheLookup",
       "unit-sha": "8ca42e21cea0ac80",
       "claim-sha": "1a05ce92db99a10c",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC6811-2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/validate_rfc6811_state_test.go::TestRouteStateIsSetFromTheLookup",
+      "unit": "internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go::TestRouteStateIsSetFromTheLookup",
       "unit-sha": "8ca42e21cea0ac80",
       "claim-sha": "72ce62a05dc56119",
       "route": "revert",

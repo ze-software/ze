@@ -5,16 +5,16 @@
       "note": "Forbidden: advertising BLACKHOLE to a bilateral peer that did not agree. internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer / ::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree / ::TestAnnounceBlackholeReachesAMemberOfADynamicGroup / ::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup all drive handleAnnounceBlackhole only. The second originating path the enrolment names, send ... unicast community 65535:666, is tested by TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate, which carries no tag, and no unit covers re-advertising a received BLACKHOLE-tagged route to an un-agreed peer.",
       "requirement_sha": "5bd800aa9f0fea81",
       "tests": {
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree": "fa37344dfaaff4d9",
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup": "fa37344dfaaff4d9",
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAMemberOfADynamicGroup": "fa37344dfaaff4d9",
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer": "fa37344dfaaff4d9"
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree": "fa37344dfaaff4d9",
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup": "fa37344dfaaff4d9",
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeReachesAMemberOfADynamicGroup": "fa37344dfaaff4d9",
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer": "fa37344dfaaff4d9"
       },
       "units": {
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree": "3aa332b197213e4d",
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup": "15c85b7f317dffff",
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAMemberOfADynamicGroup": "ef96a2123e9add1e",
-        "internal/component/bgp/plugins/cmd/announce/blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer": "50f62acf0f2dc36b"
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree": "3aa332b197213e4d",
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup": "15c85b7f317dffff",
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeReachesAMemberOfADynamicGroup": "ef96a2123e9add1e",
+        "internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go::TestAnnounceBlackholeReachesAnAgreedPeer": "50f62acf0f2dc36b"
       },
       "verdict": "weak"
     },
@@ -22,15 +22,15 @@
       "note": "Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.",
       "requirement_sha": "d39585bfbbd1e803",
       "tests": {
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/blackhole_test.go::TestRFC7999BlackholeFieldHasReader": "01445f68041be7b4",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "8504f6d9864f16f2",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "8504f6d9864f16f2",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "01445f68041be7b4",
         "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
       },
       "units": {
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "e89478426e039e95",
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "71a267ba2179b3d3",
-        "internal/component/bgp/plugins/filter_community/blackhole_test.go::TestRFC7999BlackholeFieldHasReader": "eacfe9ac70880fbc",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "e89478426e039e95",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "71a267ba2179b3d3",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "eacfe9ac70880fbc",
         "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
       },
       "verdict": "enforced"
@@ -39,14 +39,14 @@
       "note": "Positive TestRFC7999PropagationCommunityFollowsTheOperatorLeaf: each leaf value puts exactly its community on a received BLACKHOLE route. Negative TestRFC7999PropagationCommunityIsNeverForced: the unchosen community is absent under each value, and leaf none or unset leaves the route unchanged, so no fixed default is forced. Revert records on blackholeGuardCommunity for both.",
       "requirement_sha": "e0c6234737f6b78b",
       "tests": {
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999PropagationCommunityIsNeverForced": "8504f6d9864f16f2",
-        "internal/component/bgp/plugins/filter_community/blackhole_test.go::TestBlackholeGuardNoAdvertise": "01445f68041be7b4"
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "8504f6d9864f16f2",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "8504f6d9864f16f2",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "01445f68041be7b4"
       },
       "units": {
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "7b8f99a53f3b3a38",
-        "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999PropagationCommunityIsNeverForced": "65e3c5b2d5256e16",
-        "internal/component/bgp/plugins/filter_community/blackhole_test.go::TestBlackholeGuardNoAdvertise": "bff270859ef99dad"
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf": "7b8f99a53f3b3a38",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced": "65e3c5b2d5256e16",
+        "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestBlackholeGuardNoAdvertise": "bff270859ef99dad"
       },
       "verdict": "enforced"
     },
@@ -56,20 +56,20 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "21e8ae7237b60916",
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "21e8ae7237b60916",
-        "internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "619a6a003fffd5d0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f04334a58fd00e7c"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "7572508169fe6f87",
         "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "9fbf037f461af03d",
-        "internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "0a7b4e0d15a24fd2",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "0a7b4e0d15a24fd2",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "b9baf6f830c148ce",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "b9baf6f830c148ce"
       },
@@ -79,24 +79,24 @@
       "note": "Both conditions, both polarities, on the rib honoring path. Condition 1: positive TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix (equal /24 authorized: Blackhole on event rail and Loc-RIB); negative TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix with the session agreed, outside /32 and SHORTER /16 stay RouteType 0, isolating condition 1. Revert records on coveredByAuthorized. Condition 2: rib_blackhole_wiring/dynamic units both ways plus the FRR/BIRD interop scenario. The filter_modify next-hop units were retagged to 4-1 (D-15): an operator-written modify matching the community is operator policy, not Ze honoring BLACKHOLE, so it is not a condition-1 defect.",
       "requirement_sha": "4eaeda4d7877392c",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
-        "internal/component/bgp/plugins/rib/rib_blackhole_rfc7999_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1969eb7af8dc7698",
-        "internal/component/bgp/plugins/rib/rib_blackhole_rfc7999_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "1969eb7af8dc7698",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "56c15503fb0a8522",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1969eb7af8dc7698",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "1969eb7af8dc7698",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "619a6a003fffd5d0",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "f04334a58fd00e7c"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
-        "internal/component/bgp/plugins/rib/rib_blackhole_rfc7999_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1180af0e7f6a806f",
-        "internal/component/bgp/plugins/rib/rib_blackhole_rfc7999_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "e683818e36855e13",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "a94ddb69ae210ad3",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "055cdd66dfc1ef2d",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "18a9447db206bf57",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1180af0e7f6a806f",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "e683818e36855e13",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "a94ddb69ae210ad3",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "055cdd66dfc1ef2d",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "b9baf6f830c148ce",
         "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "b9baf6f830c148ce"
       },
@@ -106,12 +106,12 @@
       "note": "Forbidden: origin validation rejecting a legitimate BLACKHOLE announcement. internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid: a /32 Invalid only by maxLength with BLACKHOLE must be Accept (Error if not). Negative ::TestBlackholeDoesNotSurviveAWrongOrigin keeps a wrong-origin BLACKHOLE rejected, delimiting 'legitimate'. The exemption is operator opt-in (blackholeDecisionPlugin(t, true)), matching the sentence binding the operator.",
       "requirement_sha": "e6874c9822952da2",
       "tests": {
-        "internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin": "381b9b0995dfeec1",
-        "internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid": "381b9b0995dfeec1"
+        "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin": "381b9b0995dfeec1",
+        "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid": "381b9b0995dfeec1"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin": "288980339bae715b",
-        "internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid": "468cdc78a5782d28"
+        "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin": "288980339bae715b",
+        "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid": "468cdc78a5782d28"
       },
       "verdict": "enforced"
     },
@@ -119,16 +119,16 @@
       "note": "SHOULD NOT discard without an operator directive. Positive (conforming) TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement: a modify naming only 65001:100 accepts the 65535:666 route with no change; rib TestBlackholeNotStampedWithoutAgreement / ...WhenNoCommunityAgreedButAuthorizationExists: RouteType 0 on both rails. Negative TestBlackholeCommunityRewritesNextHopWhenAgreed is the directive-present counter-case (next-hop rewritten to the named discard address). Accepted as the negative: it shows the no-discard outcome is caused by the absent directive, so a filter that never rewrote anything cannot pass the pair. Revert records on (matchCond).matches for both filter_modify units; the rib positives have none.",
       "requirement_sha": "c006b51aa3795b1a",
       "tests": {
-        "internal/component/bgp/plugins/filter_modify/match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement": "91411573b949eb87",
-        "internal/component/bgp/plugins/filter_modify/match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed": "91411573b949eb87",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement": "619a6a003fffd5d0"
+        "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement": "91411573b949eb87",
+        "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed": "91411573b949eb87",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement": "619a6a003fffd5d0"
       },
       "units": {
-        "internal/component/bgp/plugins/filter_modify/match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement": "bbbc478635be0312",
-        "internal/component/bgp/plugins/filter_modify/match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed": "e5aa58871f74bcac",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "a94ddb69ae210ad3",
-        "internal/component/bgp/plugins/rib/rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement": "49d7e4599e6fd43d"
+        "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement": "bbbc478635be0312",
+        "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed": "e5aa58871f74bcac",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "a94ddb69ae210ad3",
+        "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWithoutAgreement": "49d7e4599e6fd43d"
       },
       "verdict": "enforced"
     }

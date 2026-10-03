@@ -96,14 +96,14 @@
       "note": "Re-judged 2026-10-02 (BGP c29 judge), owner rulings 7 and 8(a). parseGRCapValue now lists a family only when nlrisplit.Supported (the RIB plugin, a hard Dependency of bgp-gr resolved by ResolveDependencies at autoload, can store and re-send it). Negative TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores registers ipv4/rib-less (SAFI 241, no splitter, preconditions asserted) and pins 007800010100 for the session list and 0078 (capability still sent, no tuple) for a configured list naming only it, each with the Warn carrying peer and family; HEAD negative ClaimsNoFamilyItDoesNotCarry keeps the uncarried-family refusal. Positives: TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores (ipv4/flow + ipv4/unicast, 00780001850000010100, no Warn) and ListsTheFamiliesOfTheSession (exact two-tuple payload). Four observed-red records (revert parseGRCapValue); author probe inverting the condition reds all four, and the pre-fix run reds only the negative, so the pair discriminates the condition itself.",
       "requirement_sha": "e75e23c1c2e8a7b7",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "ce3c5eff2f3d3893",
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "ce3c5eff2f3d3893",
+        "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "ce3c5eff2f3d3893",
+        "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "ce3c5eff2f3d3893",
         "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "81cb1be2900d94ab",
         "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "81cb1be2900d94ab"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "4035e6d18bdb61eb",
-        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "2490057e784184d3",
+        "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "4035e6d18bdb61eb",
+        "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "2490057e784184d3",
         "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "98577b935a086f0c",
         "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "3094c882236d7e06"
       },
@@ -147,12 +147,12 @@
       "note": "Insert of a stale prefix clears StaleLevel to fresh with the new attributes; the negative keeps an unrefreshed stale prefix stale while a new prefix is fresh",
       "requirement_sha": "eb9b7c4980430e56",
       "tests": {
-        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertClearsStale": "dc1f58aea4e1377e",
-        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertNewDuringStale": "dc1f58aea4e1377e"
+        "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertClearsStale": "dc1f58aea4e1377e",
+        "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertNewDuringStale": "dc1f58aea4e1377e"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertClearsStale": "282085d10ccf597b",
-        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertNewDuringStale": "8d7ae43ea109aa66"
+        "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertClearsStale": "282085d10ccf597b",
+        "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertNewDuringStale": "8d7ae43ea109aa66"
       },
       "verdict": "enforced"
     },

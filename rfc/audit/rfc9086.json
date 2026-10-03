@@ -10,16 +10,16 @@
       "note": "rejudge 2026-10-02 (c33 judge): + TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN reads both emitted NLRIs (Node type 1 and Link type 2, Protocol-ID 7) and asserts one Local Node Descriptors TLV 256 holding TLV 516 c0 00 02 01 and TLV 512 00 00 fd e8 exactly once each, closing the unchecked Node NLRI. - TestRFC9086NativePeerRequiresLocalRouterID (local router-id 0.0.0.0 or absent: State errors, no label, no NLRI) beside HEAD TestRFC9086NativePeerRequiresNodeIdentities (local ASN 0). Judge break: the local-identifier check in epe_source.go State reduced to rejecting only a non-IPv4 address turns the new negative red. The confederation-identifier clause is conditional on confederations, which have no configuration surface in Ze (internal/component/bgp/reactor/forward_local_pref.go), so TLV 512 always carries the plain local ASN.",
       "requirement_sha": "4754fb0312f016dd",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "511e2ab2aae3d91b",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "511e2ab2aae3d91b",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "511e2ab2aae3d91b",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "511e2ab2aae3d91b",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "1f5303e3ea1836c5",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "31ce1ba3742101aa",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "1f5303e3ea1836c5",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "31ce1ba3742101aa",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
       },
       "verdict": "enforced"
     },
@@ -27,12 +27,12 @@
       "note": "(a) forbidden: a BGP-LS Link NLRI whose Remote Node Descriptors lack TLV 516 or TLV 512 of the peer. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts remote 516=192.0.2.2 and remote 512=65001 on the Link NLRI; each goes red if that TLV is dropped or carries the local value. Negative: TestRFC9086NativePeerRequiresNodeIdentities, a remote Router-ID of 0.0.0.0 refuses origination, installs no label and emits no command.",
       "requirement_sha": "b363a5df9b3da09c",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "d17e6e623cb153b8"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
       },
       "verdict": "enforced"
     },
@@ -40,11 +40,11 @@
       "note": "(a) forbidden: an EPE-enabled BGP session advertised as a Link NLRI whose BGP-LS Attribute lacks the PeerNode SID TLV 1101. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts exportTLVValues(linkAttrs, 1101) equals exactly the assigned SID; TestRFC9086NativeLinkWithoutPeerNodeRefused asserts a BGP Link snapshot with no 1101 is refused (replace errors, no command emitted).",
       "requirement_sha": "a237fa9f14cfadd4",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "de280b1c094e08d4"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "5f3cfdb2d2321a90"
       },
       "verdict": "enforced"
@@ -53,12 +53,12 @@
       "note": "(a) forbidden: advertising an index-encoded PeerNode SID without advertising the SRGB through the RFC 9085 SR Capabilities TLV. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts the Node NLRI attribute carries TLV 1034 with range 100 and base label 16000 alongside the index SID 7; TestRFC9086NativePeerIndexRequiresSRGB asserts an index SID with no SRGB is refused and no command is emitted.",
       "requirement_sha": "b8c18495cecfb380",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "d17e6e623cb153b8",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "d17e6e623cb153b8"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "a11f931e027cc40e"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "a11f931e027cc40e"
       },
       "verdict": "enforced"
     },
@@ -81,12 +81,12 @@
       "note": "Clauses: configure/enable/disable advertisement of PeerNode, of PeerAdj, of PeerSet, and control of which information goes to which internal or external peer. (b) TestRFC9086NativeConfigurationEnableDisable asserts config enables a PeerNode advertisement and label and removing the config withdraws both, enforced for PeerNode only. No tagged unit asserts an option for PeerAdj or PeerSet (Ze originates neither) or any per-receiving-peer control of what is advertised.",
       "requirement_sha": "ecf2c6e8a2e8af8f",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable": "d17e6e623cb153b8",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "d17e6e623cb153b8"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable": "d17e6e623cb153b8",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "d17e6e623cb153b8"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable": "56cdeefc3b5f14f5",
-        "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "56cdeefc3b5f14f5"
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable": "56cdeefc3b5f14f5",
+        "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable#2": "56cdeefc3b5f14f5"
       },
       "verdict": "weak"
     }

@@ -160,12 +160,12 @@
       "note": "receiver closes after reading a Termination with the router end held open (well under the read deadline) and drops the router; without a Termination two valid messages leave the session open",
       "requirement_sha": "f36f60f6f7d09a41",
       "tests": {
-        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "ed236b6be6cca946",
-        "internal/component/bgp/plugins/bmp/termination_close_test.go::TestBMPReceiverClosesAfterTermination": "6de2c420371e9ffc"
+        "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "ed236b6be6cca946",
+        "internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go::TestBMPReceiverClosesAfterTermination": "6de2c420371e9ffc"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "d5890bbacbfdeccb",
-        "internal/component/bgp/plugins/bmp/termination_close_test.go::TestBMPReceiverClosesAfterTermination": "d063e84b94592b08"
+        "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "d5890bbacbfdeccb",
+        "internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go::TestBMPReceiverClosesAfterTermination": "d063e84b94592b08"
       },
       "verdict": "enforced"
     },
@@ -199,12 +199,12 @@
       "note": "Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.",
       "requirement_sha": "5cfc5355e3dc68da",
       "tests": {
-        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
-        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "ed236b6be6cca946"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
+        "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "ed236b6be6cca946"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
-        "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "94c059c47be91595"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
+        "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "94c059c47be91595"
       },
       "verdict": "enforced"
     },
@@ -292,12 +292,12 @@
       "note": "reasons 1 and 3 carry the exact NOTIFICATION PDU and reason 5 carries no Data, but the reason 2 clause ('the code corresponding to the FSM Event that caused the system to close the session') is unproven: the producer writes the constant fsmEventNone for every reason 2, so the subtest's two-zero-octet assertion cannot fail on a wrong event code, and the subtest drives 'connection lost', an unexpected transport termination that Section 4.9 assigns to reason 4, not reason 2",
       "requirement_sha": "16daa710662a204f",
       "tests": {
-        "internal/component/bgp/plugins/bmp/peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "01698cbab3c0d1f1",
-        "internal/component/bgp/plugins/bmp/peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "01698cbab3c0d1f1"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "01698cbab3c0d1f1",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "01698cbab3c0d1f1"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "c78701703837c5a5",
-        "internal/component/bgp/plugins/bmp/peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "3c2585587adafa7a"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "c78701703837c5a5",
+        "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "3c2585587adafa7a"
       },
       "verdict": "weak"
     },
@@ -371,13 +371,13 @@
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "49dfad3eed97ec32",
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "49dfad3eed97ec32",
         "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330",
-        "internal/component/bgp/plugins/bmp/session_test.go::TestBMPMalformedHeaderDrops": "3c92f5bc82c93a53"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "3c92f5bc82c93a53"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "0af7d40ff45810dc",
         "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "0af7d40ff45810dc",
         "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a",
-        "internal/component/bgp/plugins/bmp/session_test.go::TestBMPMalformedHeaderDrops": "bb9c68add4058f2b"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "bb9c68add4058f2b"
       },
       "verdict": "enforced"
     },
@@ -386,11 +386,11 @@
       "requirement_sha": "18f14aad3f239d5b",
       "tests": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "ab6458033c6436a6",
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "457b579d815a6a7c",
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderPeerDown": "d103d014f34221d9"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "d103d014f34221d9"
       },
       "verdict": "weak"
     },
@@ -398,12 +398,12 @@
       "note": "Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.",
       "requirement_sha": "56e09620e7c035a8",
       "tests": {
-        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderTermination": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderTermination": "b1d529e5dcb7872e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderTermination": "1938d89642e3c010"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderTermination": "1938d89642e3c010"
       },
       "verdict": "enforced"
     },
@@ -411,10 +411,10 @@
       "note": "receiver loop driven with Initiation and Termination writes zero bytes toward the router end; single-polarity marker",
       "requirement_sha": "915aa12927b2f3e2",
       "tests": {
-        "internal/component/bgp/plugins/bmp/session_test.go::TestBMPReceiverUnidirectional": "3c92f5bc82c93a53"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPReceiverUnidirectional": "3c92f5bc82c93a53"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/session_test.go::TestBMPReceiverUnidirectional": "0de52d2b66207b7c"
+        "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPReceiverUnidirectional": "0de52d2b66207b7c"
       },
       "verdict": "enforced"
     },
@@ -540,10 +540,10 @@
       "note": "collector reads the first message off a live TCP connection and asserts type Initiation; single-polarity marker",
       "requirement_sha": "b998a062402f9bb5",
       "tests": {
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderConnects": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderConnects": "b1d529e5dcb7872e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderConnects": "6fb0f387226d2698"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderConnects": "6fb0f387226d2698"
       },
       "verdict": "enforced"
     },
@@ -551,10 +551,10 @@
       "note": "live Initiation carries sysName equal to the system identity and a sysDescr; single-polarity marker",
       "requirement_sha": "f8527623bb343db3",
       "tests": {
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderInitiation": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderInitiation": "b1d529e5dcb7872e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderInitiation": "5e81b25bfa147221"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderInitiation": "5e81b25bfa147221"
       },
       "verdict": "enforced"
     },
@@ -563,13 +563,13 @@
       "requirement_sha": "72726805d80b4e52",
       "tests": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "ab6458033c6436a6",
-        "internal/component/bgp/plugins/bmp/peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "9857217c99e09fd7",
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderPeerUp": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "9857217c99e09fd7",
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp": "b1d529e5dcb7872e"
       },
       "units": {
         "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "be4e45534cd37c5d",
-        "internal/component/bgp/plugins/bmp/peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "6bc26984c02f374a",
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderPeerUp": "bee521cf4cef19b4"
+        "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "6bc26984c02f374a",
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp": "bee521cf4cef19b4"
       },
       "verdict": "enforced"
     },
@@ -577,10 +577,10 @@
       "note": "Route Monitoring wraps the body in a full RFC 4271 header of type UPDATE; single-polarity marker",
       "requirement_sha": "a9fca9f4729a4777",
       "tests": {
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderRouteMonitoring": "b1d529e5dcb7872e"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderRouteMonitoring": "b1d529e5dcb7872e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/sender_test.go::TestBMPSenderRouteMonitoring": "a166c5963293a5fd"
+        "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderRouteMonitoring": "a166c5963293a5fd"
       },
       "verdict": "enforced"
     }

@@ -9,12 +9,12 @@
       "note": "Non-compliant: nonzero padding bits emitted. TestIPv6FlowPrefixPatternAndPadding re-encodes received patterns whose padding is 0xff and asserts fs.Bytes() and WriteTo equal the canonical zero-padded bytes (e.g. 0xff -> 0xfe for 72/65), and asserts a configured 2001:db8:ffff::/33 encodes its last octet as 0x80 with host bits cleared. Both polarities present.",
       "requirement_sha": "bcfd522b4db754ea",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding": "44663cabcbd3ed30",
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "44663cabcbd3ed30"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding": "44663cabcbd3ed30",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "44663cabcbd3ed30"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding": "1585212b8b135a99",
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "1585212b8b135a99"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding": "1585212b8b135a99",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "1585212b8b135a99"
       },
       "verdict": "enforced"
     },
@@ -22,12 +22,12 @@
       "note": "The quote carries both clauses. Encoding: the canonical-bytes assertions described for RFC8956-3.1-1 go red if padding is emitted nonzero. Decoding: inputs with padding 0xff must parse without error and comp.Prefix() must equal the prefix built from pattern bits only (::7f00:0:0:0/72, 103:8000::/17); a decoder that read padding into the match or rejected nonzero padding fails require.NoError or the Prefix assertion.",
       "requirement_sha": "0e1fd219dfd83aa1",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding": "44663cabcbd3ed30",
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "44663cabcbd3ed30"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding": "44663cabcbd3ed30",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "44663cabcbd3ed30"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding": "1585212b8b135a99",
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "1585212b8b135a99"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding": "1585212b8b135a99",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "1585212b8b135a99"
       },
       "verdict": "enforced"
     },
@@ -35,13 +35,13 @@
       "note": "Re-judged 2026-10-02 (BGP c31 judge). RFC 8956 Section 3.1: \"If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed.\" First clause: flowspec-firewall rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress parses wire 03 01 00 00 and 03 02 00 00 through ParseFlowSpec and requires the firewall matches MatchDestinationAddress{::/0} and MatchSourceAddress{::/0} exactly (its address-containment loop asserts on the ::/0 constant and adds nothing; the require.Equal on the match is the proof). Second clause: HEAD TestIPv6FlowPrefixRejectsMalformedBounds refuses 0/1, 64/64, 63/64, 129/0 and accepts 80/64. Judge overlay: extractPrefix refusing a 0-bit prefix turns the new positive red; revert record on extractPrefix.",
       "requirement_sha": "6a4509e65d495227",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixRejectsMalformedBounds": "44663cabcbd3ed30",
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixRejectsMalformedBounds#2": "44663cabcbd3ed30",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds": "44663cabcbd3ed30",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds#2": "44663cabcbd3ed30",
         "internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress": "be64947ae1a8ff24"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixRejectsMalformedBounds": "95cb81365175e3ca",
-        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go::TestIPv6FlowPrefixRejectsMalformedBounds#2": "95cb81365175e3ca",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds": "95cb81365175e3ca",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds#2": "95cb81365175e3ca",
         "internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress": "d17d562aab141313"
       },
       "verdict": "enforced"
@@ -50,12 +50,12 @@
       "note": "Non-compliant: a fragment bitmask encoded wider than one octet. TestRFC8956FragmentSingleOctet encodes a value of ^uint64(0) through IPv6 FlowSpec and VPN producers and asserts the exact bytes {12, 0x81, 0x0e} (len=00, one octet) via WriteTo and Bytes(); the negative requires ParseFlowSpec/ParseFlowSpecVPN to error on a 0x91 (len=01) two-octet operand.",
       "requirement_sha": "c12cea270f72f879",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentSingleOctet": "94bf1ffd5bb0fe51",
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentSingleOctet#2": "94bf1ffd5bb0fe51"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet": "94bf1ffd5bb0fe51",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet#2": "94bf1ffd5bb0fe51"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentSingleOctet": "0df8c61089e2cb6d",
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentSingleOctet#2": "0df8c61089e2cb6d"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet": "0df8c61089e2cb6d",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet#2": "0df8c61089e2cb6d"
       },
       "verdict": "enforced"
     },
@@ -63,12 +63,12 @@
       "note": "Non-compliant: a reserved bit set in an encoded IPv6 fragment operand. TestRFC8956FragmentEncodingRespectsEnclosingFamily adds DF|IsF and asserts the IPv6 and IPv6-VPN encodings carry 2 (DF bit cleared) while IPv4 carries 3; IsF/FF/LF emit 2, 4, 8. High reserved bits are cleared in the 3.6-1 unit (0x0e from all-ones).",
       "requirement_sha": "bb709caf44222159",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily": "94bf1ffd5bb0fe51",
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily#2": "94bf1ffd5bb0fe51"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily": "94bf1ffd5bb0fe51",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily#2": "94bf1ffd5bb0fe51"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily": "8df1a2d9bd58d718",
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily#2": "8df1a2d9bd58d718"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily": "8df1a2d9bd58d718",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily#2": "8df1a2d9bd58d718"
       },
       "verdict": "enforced"
     },
@@ -76,12 +76,12 @@
       "note": "The quote carries both clauses. Decoding: TestRFC8956FragmentDecodeIgnoresReservedBits parses operands 0xf3, 0xf5, 0xf9, 0xf1 (every reserved bit set) without error and asserts Matches() is IsF, FF, LF, 0; a decoder that kept or rejected reserved bits fails. Encoding: the re-encoded NLRI must equal want with reserved bits zeroed (2, 4, 8, 0).",
       "requirement_sha": "1ad8c505059b4be3",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits": "94bf1ffd5bb0fe51",
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits#2": "94bf1ffd5bb0fe51"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits": "94bf1ffd5bb0fe51",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits#2": "94bf1ffd5bb0fe51"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits": "aff6a22503288cb2",
-        "internal/component/bgp/plugins/nlri/flowspec/fragment_rfc8956_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits#2": "aff6a22503288cb2"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits": "aff6a22503288cb2",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits#2": "aff6a22503288cb2"
       },
       "verdict": "enforced"
     },

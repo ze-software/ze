@@ -4,7 +4,7 @@
 //
 // Spec: plan/spec-fixit-stored-route-relay-hardening.md (R6-1, AC-8).
 //
-// Deliberately NOT in otc_test.go: that file carries `RFC requirement:` tags and
+// Deliberately NOT in rfc9234_otc_test.go: that file carries `RFC requirement:` tags and
 // is the proof behind a public RFC 9234 compliance claim. Nothing here changes
 // an RFC 9234 decision, so nothing here belongs beside those.
 

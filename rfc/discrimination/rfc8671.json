@@ -15,7 +15,7 @@
     {
       "rid": "RFC8671-x-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip",
+      "unit": "internal/component/bgp/plugins/bmp/rfc8671_msg_test.go::TestBMPPeerUpRoundTrip",
       "unit-sha": "c89f6bcb1ee6ccfe",
       "claim-sha": "474cee42c40d8741",
       "route": "revert",

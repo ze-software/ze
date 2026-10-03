@@ -138,12 +138,12 @@
       "note": "First judgement 2026-10-02 (BGP c22 judge). Positive TestSameNodeHasOneKeyWhateverTheStorageOrder parses one node from two wire orders (512,514,515 and 515,514,512) and asserts both re-encode to the identical canonical bytes, equal to the ascending order: an order-dependent parse or encode goes red (revert record on parseNodeDescriptorTLVsAt observed red). Negative TestNodeDescriptorWriteToMatchesBytes asserts WriteTo and Bytes emit identical octets for one node, so the encoder choice cannot give a second key; it carries no record because Bytes/WriteTo repeat in types_descriptor.go and cannot be producer keys (journal row 2026-10-02).",
       "requirement_sha": "8681cae084ee2329",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "ec80089366c68919",
-        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "ec80089366c68919"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "ec80089366c68919",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "ec80089366c68919"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "307f9fe101227dff",
-        "internal/component/bgp/plugins/nlri/ls/types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "9ee5ac17cad1dcb2"
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "307f9fe101227dff",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "9ee5ac17cad1dcb2"
       },
       "verdict": "enforced"
     },
@@ -181,12 +181,12 @@
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDualStackLinkKeepsEveryAddress": "de280b1c094e08d4",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDualStackLinkKeepsEveryAddress": "440e340ac4b7fbfc",
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "bf450ecfa02bf986",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
       },
       "verdict": "enforced"
     },
@@ -195,11 +195,11 @@
       "requirement_sha": "7bf0ef653c86b8ad",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "bf450ecfa02bf986",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
       },
       "verdict": "enforced"
     },
@@ -208,11 +208,11 @@
       "requirement_sha": "6ce3d136fd1b6463",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "bf450ecfa02bf986",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
       },
       "verdict": "enforced"
     },
@@ -221,11 +221,11 @@
       "requirement_sha": "a04f6f915788b3a4",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "97ef5987ccec2d51",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
       },
       "verdict": "enforced"
     },
@@ -262,11 +262,11 @@
       "requirement_sha": "fc919baf0a851bcf",
       "tests": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "de280b1c094e08d4",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeTopologySeparation": "6886dddcc0644d09"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeTopologySeparation": "6886dddcc0644d09"
       },
       "units": {
         "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "e8de4dbd26fb2b07",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeTopologySeparation": "c8103e2c2c3d1705"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeTopologySeparation": "c8103e2c2c3d1705"
       },
       "verdict": "enforced"
     },
@@ -287,16 +287,16 @@
       "note": "originator half: native export clears source bits 6-7 to 0 and keeps the defined bits (0xfc kept, 0x03 emitted as 0); receiver half: decoder yields identical defined bits with undefined bits set or clear, sets no defined flag from undefined-only bits, and keeps walking to the next TLV",
       "requirement_sha": "d8c43762436e2f5e",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored": "bb044614bfc50226",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags": "bb044614bfc50226"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored": "bb044614bfc50226",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags": "bb044614bfc50226"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored": "85f74576fa82c2b0",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags": "6bbbc8a35ac86069"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored": "85f74576fa82c2b0",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags": "6bbbc8a35ac86069"
       },
       "verdict": "enforced"
     },
@@ -304,12 +304,12 @@
       "note": "OSPFv2 node opaque from RI-LSA provenance reaches TLV 1025; Extended Link LSA provenance is refused by validOpaqueSource and leaves the advertised state untouched; the OSPF node check is shared by OSPFv2 and OSPFv3, only OSPFv2 driven",
       "requirement_sha": "0162db3a20368bfb",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance": "d43002f22020b856",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance#2": "d43002f22020b856"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance": "d43002f22020b856",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance#2": "d43002f22020b856"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance": "f5e018c75c545746",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance#2": "f5e018c75c545746"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance": "f5e018c75c545746",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance#2": "f5e018c75c545746"
       },
       "verdict": "enforced"
     },
@@ -334,12 +334,12 @@
       "note": "negative refuses an IS-IS replacement carrying TLV 1094 and keeps the prior state; positive shows a Direct link still carries the mask; OSPF Protocol-IDs 3 and 6 are not driven",
       "requirement_sha": "fa4412655f7ae717",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeIGPMPLSMaskRefused": "6886dddcc0644d09"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeIGPMPLSMaskRefused": "6886dddcc0644d09"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeIGPMPLSMaskRefused": "acc96654c47a508a"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeIGPMPLSMaskRefused": "acc96654c47a508a"
       },
       "verdict": "enforced"
     },
@@ -347,16 +347,16 @@
       "note": "quote is the undefined-bits sentence: native export clears reserved MPLS mask bits (0x3f emitted as 0) and keeps L/R (0xc0); decoder reports L=0 R=0 for reserved-only bits and keeps walking, and decodes L/R when reserved bits are zero",
       "requirement_sha": "f5ee256da7d9345e",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552MPLSProtocolMaskDecode": "bb044614bfc50226",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored": "bb044614bfc50226"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskDecode": "bb044614bfc50226",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored": "bb044614bfc50226"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552MPLSProtocolMaskDecode": "2d5ba56d627e129a",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored": "37263a2be886f1b5"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskDecode": "2d5ba56d627e129a",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored": "37263a2be886f1b5"
       },
       "verdict": "enforced"
     },
@@ -388,12 +388,12 @@
       "note": "OSPFv2 link opaque from Extended Link LSA reaches TLV 1097; RI-LSA provenance refused without replacing the valid state; the OSPFv2 link allowlist has one member, so the pair discriminates it",
       "requirement_sha": "8cd3406105cbc7e9",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance": "d43002f22020b856",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance#2": "d43002f22020b856"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance": "d43002f22020b856",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance#2": "d43002f22020b856"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance": "eecaba302089ad15",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance#2": "eecaba302089ad15"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance": "eecaba302089ad15",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance#2": "eecaba302089ad15"
       },
       "verdict": "enforced"
     },
@@ -401,12 +401,12 @@
       "note": "OSPFv3 link opaque from E-Router-LSA reaches TLV 1097; E-Inter-Area-Prefix provenance refused; E-Link-LSA acceptance and other forbidden sources are not driven, one representative of each side",
       "requirement_sha": "fb93a7fdf3d2050c",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance": "d43002f22020b856",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance#2": "d43002f22020b856"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance": "d43002f22020b856",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance#2": "d43002f22020b856"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance": "fdb451a0a63badf9",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance#2": "fdb451a0a63badf9"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance": "fdb451a0a63badf9",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance#2": "fdb451a0a63badf9"
       },
       "verdict": "enforced"
     },
@@ -414,16 +414,16 @@
       "note": "originator half: native export clears IGP Flags bits 4-7 (0x0f emitted as 0) and keeps D/N/L/P (0xf0); receiver half: decoder gives identical defined bits with undefined bits set or clear, sets no defined flag from undefined-only bits, and continues the walk",
       "requirement_sha": "fc9e74cd47d6b8d1",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552IGPFlagsUndefinedBitsIgnored": "bb044614bfc50226",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags": "bb044614bfc50226"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552IGPFlagsUndefinedBitsIgnored": "bb044614bfc50226",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags": "bb044614bfc50226"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552IGPFlagsUndefinedBitsIgnored": "3a0b40bb739e75ed",
-        "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags": "21ce6356d56a67d8"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552IGPFlagsUndefinedBitsIgnored": "3a0b40bb739e75ed",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags": "21ce6356d56a67d8"
       },
       "verdict": "enforced"
     },
@@ -431,12 +431,12 @@
       "note": "OSPFv2 prefix opaque from Extended Prefix LSA reaches TLV 1157; Extended Link LSA provenance refused; single-member allowlist, so the pair discriminates it",
       "requirement_sha": "0e1873f96ab3d623",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance": "d43002f22020b856",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance#2": "d43002f22020b856"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance": "d43002f22020b856",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance#2": "d43002f22020b856"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance": "7df62daffbe05108",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance#2": "7df62daffbe05108"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance": "7df62daffbe05108",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance#2": "7df62daffbe05108"
       },
       "verdict": "enforced"
     },
@@ -444,12 +444,12 @@
       "note": "OSPFv3 prefix opaque from E-NSSA-LSA reaches TLV 1157; E-Link-LSA provenance refused; the other three permitted LSAs and other forbidden sources are not driven, one representative of each side",
       "requirement_sha": "bdd22dfb84e1a5e3",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance": "d43002f22020b856",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance#2": "d43002f22020b856"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance": "d43002f22020b856",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance#2": "d43002f22020b856"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance": "d041cc4d7d3602c9",
-        "internal/component/bgp/plugins/ls_export/export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance#2": "d041cc4d7d3602c9"
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance": "d041cc4d7d3602c9",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance#2": "d041cc4d7d3602c9"
       },
       "verdict": "enforced"
     },
@@ -479,8 +479,8 @@
       "note": "ls_export unit withdraws the unreachable origin and re-announces the identical commands once Unreachable clears, and emits nothing while it stays unreachable; IS-IS and OSPF units prove the source restores eligibility only after completed SPF; assertions are engine commands, not wire",
       "requirement_sha": "51bcfe14ec1bef3b",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "6886dddcc0644d09",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "6886dddcc0644d09",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "6886dddcc0644d09",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "070276052fe9c6ff",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "070276052fe9c6ff",
         "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "42da0474de6f1b9c",
@@ -490,8 +490,8 @@
         "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "42da0474de6f1b9c"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "2a3ef904d0143c41",
-        "internal/component/bgp/plugins/ls_export/export_rfc9552_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "2a3ef904d0143c41",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "2a3ef904d0143c41",
+        "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "2a3ef904d0143c41",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "61cea5e6fdd1c236",
         "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "61cea5e6fdd1c236",
         "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "bec52f36129e6a2d",

@@ -138,7 +138,7 @@
     {
       "rid": "RFC9252-7-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins",
+      "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins",
       "unit-sha": "0bfa26fb005370d5",
       "claim-sha": "ae1491ba3214f6f3",
       "route": "revert",
@@ -149,7 +149,7 @@
     {
       "rid": "RFC9252-7-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins",
+      "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins",
       "unit-sha": "0bfa26fb005370d5",
       "claim-sha": "eba578d286109885",
       "route": "revert",
@@ -160,7 +160,7 @@
     {
       "rid": "RFC9252-7-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins",
+      "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins",
       "unit-sha": "0bfa26fb005370d5",
       "claim-sha": "246834a5231acaf8",
       "route": "revert",
@@ -171,7 +171,7 @@
     {
       "rid": "RFC9252-7-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins",
+      "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins",
       "unit-sha": "0bfa26fb005370d5",
       "claim-sha": "8d2b776b1267278b",
       "route": "revert",

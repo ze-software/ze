@@ -1,7 +1,7 @@
 // Design: docs/guide/graceful-restart.md -- What Ze Advertises
 // RFC: rfc/short/rfc4724.md -- Section 4, the families a speaker may list
 // Overview: gr_capability.go -- extractGRCapabilities, parseGRCapValue
-// Related: gr_capability_test.go -- grConfig, grPayloadForConfig
+// Related: rfc4724_gr_capability_test.go -- grConfig, grPayloadForConfig
 
 package gr
 

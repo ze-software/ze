@@ -4,7 +4,7 @@
     {
       "rid": "RFC8955-3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute",
+      "unit": "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute",
       "unit-sha": "accf95a278fafe82",
       "claim-sha": "27db2d06ebc0362c",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC8955-3-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute",
+      "unit": "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute",
       "unit-sha": "367e853b672d7055",
       "claim-sha": "f27632312d660116",
       "route": "revert",
@@ -148,7 +148,7 @@
     {
       "rid": "RFC8955-8-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure",
       "unit-sha": "354a0484ebff712e",
       "claim-sha": "619539e073ac74b6",
       "route": "revert",
@@ -159,7 +159,7 @@
     {
       "rid": "RFC8955-8-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure",
       "unit-sha": "354a0484ebff712e",
       "claim-sha": "7afc17e82d0f4a96",
       "route": "revert",
@@ -170,7 +170,7 @@
     {
       "rid": "RFC8955-8-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD",
       "unit-sha": "58f10164df717240",
       "claim-sha": "26357dde6e5e9fcf",
       "route": "revert",
@@ -181,7 +181,7 @@
     {
       "rid": "RFC8955-8-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD",
       "unit-sha": "58f10164df717240",
       "claim-sha": "ab7f6fef3545f368",
       "route": "revert",

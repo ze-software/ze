@@ -4,7 +4,7 @@
     {
       "rid": "RFC9086-3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "1fb6453039a60ae5",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC9086-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "8e5d7dc3c49fadb1",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC9086-4.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN",
       "unit-sha": "b790cd7db4608df7",
       "claim-sha": "63c58e65683f4559",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "RFC9086-4.2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID",
       "unit-sha": "099efc2f9635f16a",
       "claim-sha": "efd06cb4939bf476",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC9086-4.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "06d83c16d4cca7b1",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC9086-4.2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
       "unit-sha": "d0250f7efba41298",
       "claim-sha": "da2416390007fc2f",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC9086-4.2-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "001bd0e5ffc7810b",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC9086-4.2-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
       "unit-sha": "d0250f7efba41298",
       "claim-sha": "19403867391d1a3c",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC9086-5-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "4897979624c081a8",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "RFC9086-5-10",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
       "unit-sha": "8f41c860bd5d880f",
       "claim-sha": "c5af3b5b6b32ebfc",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC9086-5-10",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativePeerIndexRequiresSRGB",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB",
       "unit-sha": "9951f15de8f82a35",
       "claim-sha": "cef49ee537d172b1",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "RFC9086-5-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086OriginatedPeerSIDRsvdBitsZero",
       "unit-sha": "eb7317826534a07f",
       "claim-sha": "fd78bda49b394b18",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "RFC9086-5-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/export_rfc9086_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_export_sentence_test.go::TestRFC9086SourceRsvdBitsNeverOriginated",
       "unit-sha": "480c464955f88faf",
       "claim-sha": "6c7f5519804091e4",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC9086-7-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable",
       "unit-sha": "0ce16e8c85d826e4",
       "claim-sha": "fa1ec6345481a87b",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC9086-7-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativeConfigurationEnableDisable",
       "unit-sha": "0ce16e8c85d826e4",
       "claim-sha": "95de167da0797bd5",
       "route": "revert",

@@ -103,7 +103,7 @@
     {
       "rid": "RFC7752-3.2-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71",
       "unit-sha": "d4b4184973e4fb05",
       "claim-sha": "73035151510c3f47",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC7752-3.2-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN",
+      "unit": "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN",
       "unit-sha": "1eef07734dc500b4",
       "claim-sha": "883b1bdf1301e9e5",
       "route": "revert",

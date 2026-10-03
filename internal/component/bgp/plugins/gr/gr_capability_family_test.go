@@ -17,7 +17,7 @@ import (
 // a promise Ze cannot keep.
 //
 // The default state, no container at all, is asserted by
-// TestRFC4724GRCapabilityListsTheFamiliesOfTheSession (gr_capability_test.go),
+// TestRFC4724GRCapabilityListsTheFamiliesOfTheSession (rfc4724_gr_capability_test.go),
 // which reads the same octets for a peer that writes no container.
 // deliverBGPSection, grConfig and grPayloadForConfig live in that file too.
 

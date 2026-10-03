@@ -81,8 +81,8 @@
       "note": "Re-judged 2026-10-01 (BGP c20 judge, R58(a)). The c19 hole is closed at its producer: refuseLinkLocalCapabilityWithoutAddress (llnh.go), run by both OnConfigVerify (commit) and OnConfigure (startup, FatalOnConfigError in register.go), refuses a peer, a group member or a dynamic-group template whose capability 77 is enabled (llnhEnabledFor, the same answer extractLLNHCapabilities advertises from) with no session link-local on the peer or its group; ResolveBGPTree merges the group's session leaves into the peer, so the group case matches what the reactor's applyLinkLocal reads. So every configuration that can negotiate 77 carries the address linkScope.linkLocalNextHop appends. New units, both through the real LoadConfig + ToPluginMap lowering: negative TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress (standalone and group-inherited capability refused, error names peer1 and session link-local, the section entry refuses too); positive TestLinkLocalCapabilityAcceptedWithLinkLocalAddress (leaf on peer, group, member: accepted and the capability still declared). Both recorded red under the producer break. The wire half stays proven both polarities on the announce rail (directly connected originated route: [global, fe80::1]; route through another router: 16-octet global) and on the forward facts (next-hop self, local ip auto, unchanged), each with an observed-red record. Functional: test/plugin/llnh-refuses-without-link-local.ci (ze boot exits 1 with the refusal) passes. Residual note: the wire units do not negotiate capability 77 itself; linkLocalNextHop does not read the capability, so the same producer answers with and without it.",
       "requirement_sha": "0edf8c5e4a281906",
       "tests": {
-        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "52228b2fd5d81dde",
-        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "52228b2fd5d81dde",
+        "internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "52228b2fd5d81dde",
+        "internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "52228b2fd5d81dde",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "eda240ce7fd2c20c",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "eda240ce7fd2c20c",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "8b6df8728f9a616d",
@@ -90,8 +90,8 @@
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop": "8b6df8728f9a616d"
       },
       "units": {
-        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "9a117eec472d8b16",
-        "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "67d7879a8992500a",
+        "internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress": "9a117eec472d8b16",
+        "internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress": "67d7879a8992500a",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressIncludedForDirectlyConnectedOriginatedRoute": "e601b387c8bfbd8a",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalOwnAddressNotIncludedForRouteThroughAnotherRouter": "d006104036f3194f",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker": "71cf6e0c76b63ec2",

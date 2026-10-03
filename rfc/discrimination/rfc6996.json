@@ -4,7 +4,7 @@
     {
       "rid": "RFC6996-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/filter_remove_private_as/private_as_rfc6996_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges",
+      "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996KeepsASNsOutsideThePrivateUseRanges",
       "unit-sha": "946ea34640a632b8",
       "claim-sha": "cc2d20b447090c06",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC6996-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/filter_remove_private_as/private_as_rfc6996_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes",
+      "unit": "internal/component/bgp/plugins/filter_remove_private_as/rfc6996_private_as_attributes_test.go::TestRFC6996RemovesPrivateUseASNsFromBothPathAttributes",
       "unit-sha": "1c38a24daeb9ab28",
       "claim-sha": "bfec604d066e4798",
       "route": "revert",

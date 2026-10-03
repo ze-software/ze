@@ -136,7 +136,7 @@
     {
       "rid": "RFC4760-8-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated",
+      "unit": "internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated",
       "unit-sha": "7492b234ffea46e7",
       "claim-sha": "26951f0854a74623",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "RFC4760-8-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs",
+      "unit": "internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs",
       "unit-sha": "b879eac75c50dbb7",
       "claim-sha": "b42c84e92898aee6",
       "route": "revert",

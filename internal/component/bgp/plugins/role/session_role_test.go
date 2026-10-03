@@ -33,7 +33,7 @@ func openWithoutRole(peer string) *sdk.ValidateOpenInput {
 	return &sdk.ValidateOpenInput{Peer: peer, Remote: rpc.ValidateOpenMessage{}}
 }
 
-// The capability payload encoder is hexByte, defined in validate_test.go; it is
+// The capability payload encoder is hexByte, defined in rfc9234_validate_test.go; it is
 // reused here rather than duplicated.
 
 // TestReconnectWithoutRoleCapabilityClearsStaleRole is the hole-3 regression

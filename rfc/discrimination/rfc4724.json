@@ -59,7 +59,7 @@
     {
       "rid": "RFC4724-4-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry",
       "unit-sha": "0961b72e389886b0",
       "claim-sha": "e53359c07bab6278",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC4724-4-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession",
+      "unit": "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession",
       "unit-sha": "54c0ede9da31256b",
       "claim-sha": "f8cb2866fb968d9a",
       "route": "revert",

@@ -62,8 +62,8 @@
       "note": "Sentence: NLRI encoding MUST be extended by prepending the four-octet Path Identifier field. Forbidden: no field, a field of other size, or the field placed after the prefix. TestWriteNLRI_WithStoredPathID asserts buf[0..3]==0000002a and n==4+Len() (red if absent, mis-sized, or appended, since buf[0] would then be the prefix length); TestWriteNLRI_AddPath disabled subtest asserts n==Len() without ADD-PATH; TestINETWithAddPath decodes 00000001 then 8,10 as id 1 and 10.0.0.0/8; test/plugin/adj-rib-in-replay-addpath-source.ci asserts exact wire hex 00000000180A0000 vs 180A0000 per destination negotiation.",
       "requirement_sha": "dcb729e55dfcd284",
       "tests": {
-        "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "26a71306610a9841",
-        "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "26a71306610a9841",
+        "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "26a71306610a9841",
+        "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "26a71306610a9841",
         "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath": "3c6772f5e0872a93",
         "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID": "3c6772f5e0872a93",
         "internal/core/bgp/nlri/rfc7911_inet_test.go::TestINETWithAddPath": "8bce51e9e1913405",
@@ -71,8 +71,8 @@
         "test/plugin/adj-rib-in-replay-addpath-source.ci#2": "abb27ebf50a5e2c5"
       },
       "units": {
-        "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "e1bd5b4cff58ace4",
-        "internal/component/bgp/plugins/cmd/update/addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "efcd852d178772a2",
+        "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "e1bd5b4cff58ace4",
+        "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "efcd852d178772a2",
         "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath": "8bcc4d3f1b7428b3",
         "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID": "5e8b6ff791a60f12",
         "internal/core/bgp/nlri/rfc7911_inet_test.go::TestINETWithAddPath": "df8dfeb8242762a2",

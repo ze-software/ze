@@ -10,16 +10,16 @@
       "note": "Both halves now tagged both ways. Community half: TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute (ipv4/flow and ipv4/flow-vpn with 65001:100 accepted) and TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute (denied community first-match and implicit deny reject a FlowSpec route); revert records on evaluateCommunities. Prefix half: filter_prefix flowspec_test.go pair (accept, reject, missing, mixed), no record. Both at the plugin entry point: no .ci drives a FlowSpec UPDATE through a configured community filter in the running daemon.",
       "requirement_sha": "fbdee418c968fb93",
       "tests": {
-        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "b9ec59934296330d",
-        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "b9ec59934296330d",
-        "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "2398e19751309ce3",
-        "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "2398e19751309ce3"
+        "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "b9ec59934296330d",
+        "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "b9ec59934296330d",
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "2398e19751309ce3",
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "2398e19751309ce3"
       },
       "units": {
-        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "47f004a0fcf48297",
-        "internal/component/bgp/plugins/filter_community_match/flowspec_rfc8955_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "1e85edbbd0b7a765",
-        "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "c03d8c74ac155178",
-        "internal/component/bgp/plugins/filter_prefix/flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "c03d8c74ac155178"
+        "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyAcceptsAPermittedFlowSpecRoute": "47f004a0fcf48297",
+        "internal/component/bgp/plugins/filter_community_match/rfc8955_flowspec_test.go::TestRFC8955CommunityPolicyRejectsADeniedFlowSpecRoute": "1e85edbbd0b7a765",
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination": "c03d8c74ac155178",
+        "internal/component/bgp/plugins/filter_prefix/rfc8955_flowspec_test.go::TestPrefixPolicyFiltersFlowSpecDestination#2": "c03d8c74ac155178"
       },
       "verdict": "enforced"
     },
@@ -269,9 +269,9 @@
       "tests": {
         "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "9e0728a5b41e7a0b",
         "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "9e0728a5b41e7a0b",
-        "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "254f93c358e4eb09",
-        "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "254f93c358e4eb09",
-        "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "254f93c358e4eb09",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "254f93c358e4eb09",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "254f93c358e4eb09",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "254f93c358e4eb09",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "ccc1d8fecf4d366d",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "ccc1d8fecf4d366d",
         "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
@@ -280,9 +280,9 @@
       "units": {
         "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "eab07fb95f9eec94",
         "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "eab07fb95f9eec94",
-        "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "5bdfdb080a6ce815",
-        "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "62d17b12c3c9d526",
-        "internal/component/bgp/plugins/nlri/flowspec/encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "62d17b12c3c9d526",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "5bdfdb080a6ce815",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "62d17b12c3c9d526",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "62d17b12c3c9d526",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "96c66870942d774e",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "96c66870942d774e",
         "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
@@ -294,12 +294,12 @@
       "note": "positive decodes RD 100:100 from the 8 octets after the length and the destination component after them, and re-encodes the exact wire; negative refuses a length too short to hold the RD with ErrFlowSpecTruncated",
       "requirement_sha": "eb3b19de7abaaff9",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure": "286526372c7293bd",
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure#2": "286526372c7293bd"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "286526372c7293bd",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "286526372c7293bd"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure": "a84c0880fd0a66da",
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure#2": "a84c0880fd0a66da"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "a84c0880fd0a66da",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "a84c0880fd0a66da"
       },
       "verdict": "enforced"
     },
@@ -307,12 +307,12 @@
       "note": "positive asserts Len and the encoded length octet count RD plus value (its first assertion checks the fixture against itself, the WriteTo one is the real check); negative refuses a length that counts only the value",
       "requirement_sha": "9d0035ea6b3b6b30",
       "tests": {
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD": "286526372c7293bd",
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD#2": "286526372c7293bd"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "286526372c7293bd",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "286526372c7293bd"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD": "3f0314682b047503",
-        "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD#2": "3f0314682b047503"
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "3f0314682b047503",
+        "internal/component/bgp/plugins/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "3f0314682b047503"
       },
       "verdict": "enforced"
     }

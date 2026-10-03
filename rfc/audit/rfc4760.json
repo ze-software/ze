@@ -129,12 +129,12 @@
       "note": "capability.Negotiate is the determination the sentence names: TestMUPSessionNegotiatesBothAFIs shows both families usable when both speakers advertise MP(1,85) and MP(2,85); TestMUPSessionMissingAFIIsNotNegotiated shows a family the peer did not advertise is not usable (v4-only peer drops ipv6/mup, no-MUP peer drops both). Exercised for SAFI 85 only; the gating of sends and receives on SupportsFamily is outside these units. Both records red on Negotiate",
       "requirement_sha": "c9017ec979d4bfe1",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "12ffd922c8adcd8a",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "12ffd922c8adcd8a"
+        "internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "12ffd922c8adcd8a",
+        "internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "12ffd922c8adcd8a"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "6b39e18f84480ea7",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "ec6af694b8ed3cb1"
+        "internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go::TestMUPSessionMissingAFIIsNotNegotiated": "6b39e18f84480ea7",
+        "internal/component/bgp/plugins/nlri/mup/rfc4760_mup_session_test.go::TestMUPSessionNegotiatesBothAFIs": "ec6af694b8ed3cb1"
       },
       "verdict": "enforced"
     }

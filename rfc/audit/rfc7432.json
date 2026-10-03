@@ -21,14 +21,14 @@
       "tests": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "8605ce648899c68f",
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETRefusesMissingRouteTarget": "8605ce648899c68f",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "4621c06037bf4489",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "4621c06037bf4489"
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "4621c06037bf4489",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "4621c06037bf4489"
       },
       "units": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "c11ee926c057d7b0",
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETRefusesMissingRouteTarget": "0ad1d0e4086f77e7",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "b7a50f8ca7c5eec4",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "71d4a350cee06a12"
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "b7a50f8ca7c5eec4",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "71d4a350cee06a12"
       },
       "verdict": "enforced"
     },
@@ -85,14 +85,14 @@
       "tests": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8d34438c7e721009",
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8d34438c7e721009",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "a75044c30fe875f6",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "a75044c30fe875f6"
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "a75044c30fe875f6",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "a75044c30fe875f6"
       },
       "units": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "094c5d0c42463642",
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "c161dc316412eb75",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "2c1235c4d2a7c555",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "8560495315e47c1f"
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "2c1235c4d2a7c555",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "8560495315e47c1f"
       },
       "verdict": "enforced"
     },
@@ -102,14 +102,14 @@
       "tests": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8d34438c7e721009",
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8d34438c7e721009",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "a75044c30fe875f6",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "a75044c30fe875f6",
         "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel": "d32d119380f51912",
         "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressRejectsVariableLengthADLabels": "d32d119380f51912"
       },
       "units": {
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "094c5d0c42463642",
         "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "c161dc316412eb75",
-        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "88137e914b762319",
+        "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "88137e914b762319",
         "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel": "d3988f1b4803c55b",
         "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressRejectsVariableLengthADLabels": "8a976b7f3fd0af7f"
       },

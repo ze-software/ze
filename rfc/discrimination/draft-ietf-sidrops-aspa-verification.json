@@ -4,7 +4,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate",
       "unit-sha": "2ba0c90bb047bc9e",
       "claim-sha": "39c434d207799356",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate",
       "unit-sha": "2ba0c90bb047bc9e",
       "claim-sha": "4ebe7b090d1b22c6",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
       "unit-sha": "ebb4b0462402041c",
       "claim-sha": "1640e2df77f0b79a",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard",
       "unit-sha": "ebb4b0462402041c",
       "claim-sha": "797725f8f282beb5",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid",
       "unit-sha": "570f2fc3bdbcb784",
       "claim-sha": "cad98c96f41a79b3",
       "route": "mutant",
@@ -59,7 +59,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops",
       "unit-sha": "7eabc5ee446a0c23",
       "claim-sha": "37d162baa35957cd",
       "route": "mutant",
@@ -70,7 +70,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
       "unit-sha": "bcde861a848c44e4",
       "claim-sha": "e546c742ddb7f2c7",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
       "unit-sha": "bcde861a848c44e4",
       "claim-sha": "8f67f7f3ceec5af5",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAStateForPath",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAStateForPath",
       "unit-sha": "1bf6458edbfb54ee",
       "claim-sha": "4c3c7367d2c029d9",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAVerifyASSet",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAVerifyASSet",
       "unit-sha": "1107231028aa4f2e",
       "claim-sha": "a1bba2b7f5f0008f",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast",
       "unit-sha": "6a729df836d53c91",
       "claim-sha": "0163c2add5bff11b",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast",
       "unit-sha": "a8eabe9f245d3ffc",
       "claim-sha": "8e21cc95f92b3a4e",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast",
       "unit-sha": "a8eabe9f245d3ffc",
       "claim-sha": "7efc5b0231e636e9",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPANotAppliedToOtherFamilies",
+      "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPANotAppliedToOtherFamilies",
       "unit-sha": "0bd2ddafe09c8d03",
       "claim-sha": "98a2bb15809e478d",
       "route": "revert",

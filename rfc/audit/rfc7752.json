@@ -82,14 +82,14 @@
       "note": "rejudge 2026-09-30: positive TestRFC7752NativeNLRIAnnouncedAsSAFI71 drives the native producer and asserts Node, Link and Prefix NLRI each announced under bgp-ls/bgp-ls, with BGPLSFamily pinned to (16388, 71); family-name to wire AFI/SAFI is the reactor registry's encode. Genuine negative is the receive-side refusal TestRFC7752NonLinkStateFamilyRefused (R1(a): non-(16388,71) carrier refused). The new TestRFC7752NativeNLRINeverAnnouncedAsVPN repeats the positive's assertion on the same input and adds no polarity.",
       "requirement_sha": "c02dc7b4d3d42fa3",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "58d7f6ee712871b3",
-        "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "58d7f6ee712871b3",
+        "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "58d7f6ee712871b3",
+        "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "58d7f6ee712871b3",
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "600df28992081178",
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "600df28992081178"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "dd48177406bb8a3d",
-        "internal/component/bgp/plugins/ls_export/export_rfc7752_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "145ff734a959fb97",
+        "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "dd48177406bb8a3d",
+        "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "145ff734a959fb97",
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "5e07d0147ccb6a0b",
         "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "1591b4fc9d42f8e8"
       },

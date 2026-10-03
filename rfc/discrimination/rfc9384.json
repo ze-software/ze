@@ -4,7 +4,7 @@
     {
       "rid": "RFC9384-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell",
+      "unit": "internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell",
       "unit-sha": "af4b264607e2edde",
       "claim-sha": "e9f3123dc28ceaed",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC9384-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell",
+      "unit": "internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell",
       "unit-sha": "af4b264607e2edde",
       "claim-sha": "e94e679bc028cbe2",
       "route": "revert",

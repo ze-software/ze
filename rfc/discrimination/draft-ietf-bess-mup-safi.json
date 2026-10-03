@@ -4,7 +4,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress",
       "unit-sha": "89b88ec9ffe85a7d",
       "claim-sha": "633bea8ae158526f",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress",
       "unit-sha": "fa218770b1893f53",
       "claim-sha": "90e58b47aa18f9d9",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected",
       "unit-sha": "eac84496ecc3b5ec",
       "claim-sha": "f8b01d832f34884a",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
       "unit-sha": "26cc05e69f179e47",
       "claim-sha": "a09575f83cccdaec",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
       "unit-sha": "26cc05e69f179e47",
       "claim-sha": "6944bc41d66f7023",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
       "unit-sha": "4df10c0e408dfc7b",
       "claim-sha": "f8a0b8300ecac0d9",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
       "unit-sha": "4df10c0e408dfc7b",
       "claim-sha": "62daac9ad538d491",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
       "unit-sha": "26cc05e69f179e47",
       "claim-sha": "5398ec8d03c859a1",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
       "unit-sha": "26cc05e69f179e47",
       "claim-sha": "6a4951a66e19dd1a",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress",
       "unit-sha": "9ffb186f6cabd2fe",
       "claim-sha": "f1265e35f075cf11",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress",
       "unit-sha": "1107bc55849ca719",
       "claim-sha": "e84c178d3cb212e9",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated",
       "unit-sha": "6ee3416946ed3577",
       "claim-sha": "27c7259481a49f14",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated",
       "unit-sha": "6ee3416946ed3577",
       "claim-sha": "7d93ea686860d505",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID",
       "unit-sha": "6051899fe212b889",
       "claim-sha": "d6e8db73fc0f72bb",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID",
       "unit-sha": "dbe3b0de2e5be83a",
       "claim-sha": "83ede197502267cd",
       "route": "revert",
@@ -169,7 +169,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID",
       "unit-sha": "9b187c68500e2326",
       "claim-sha": "26e7a5570e4fe7e1",
       "route": "revert",
@@ -180,7 +180,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID",
       "unit-sha": "9b187c68500e2326",
       "claim-sha": "4ff12f0b54d40192",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_applicability_test.go::TestMUPST1DoesNotInterpretInapplicableAddressTLV",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_applicability_test.go::TestMUPST1DoesNotInterpretInapplicableAddressTLV",
       "unit-sha": "da02d7fd35e75b56",
       "claim-sha": "f6b57323f897f916",
       "route": "revert",
@@ -202,7 +202,7 @@
     {
       "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_applicability_test.go::TestMUPST1IgnoresST2OnlyTLVs",
+      "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_applicability_test.go::TestMUPST1IgnoresST2OnlyTLVs",
       "unit-sha": "1012824af19aefcf",
       "claim-sha": "5ed2de3b1d187fec",
       "route": "revert",

@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md -- the YANG modules this test binary dispatches against
-// Related: dispatch_test.go -- the tests that type `request peer <addr> borr`
+// Related: rfc7313_dispatch_test.go -- the tests that type `request peer <addr> borr`
 
 package handler
 

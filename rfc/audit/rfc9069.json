@@ -39,12 +39,12 @@
       "note": "Re-judged 2026-09-29 after the D-8 fix. Producer read: fabricateLocRIBOpen now adds one Extended Next Hop capability (1,1,2), because rib entryNextHopAddr answers an IPv4 unicast next hop from MP_REACH_NLRI when no legacy NEXT_HOP exists and buildLocRIBUpdateBody then writes MP_REACH AFI 1 with a 16-octet next hop. 'All necessary': rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop encodes that route, reads AFI 1 and NH length 16 off the MP_REACH octets, and requires the ENH pair in the decoded OPEN. 'Only include': ::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses fails on any capability other than ASN4, Multiprotocol and ENH, and requires exactly one ASN4, Multiprotocol set == dumpFamilies, exactly one ENH naming only (1,1,2). {single-polarity: positive} holds: one list, no divergent input. bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities carries no discrimination record; the two recorded units carry the whole requirement.",
       "requirement_sha": "7b21af20b10bac12",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "fb27b88fc924ab93",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "fb27b88fc924ab93"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "a4ad6fefad4d3336",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "60ac7cec48f35afd"
       },
@@ -78,12 +78,12 @@
       "note": "Forbidden: 2-byte ASN encoding in Loc-RIB Route Monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs: AS_PATH length must be 2+4n (Fatal) and ASN 4200000001 must round-trip (Errorf). Both polarity tags on one unit, each clause asserted.",
       "requirement_sha": "a496e9aab9d9bca7",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "6c7c67660027ad63"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "e8233f0f8d9fecb8",
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "e8233f0f8d9fecb8"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "e8233f0f8d9fecb8",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "e8233f0f8d9fecb8"
       },
       "verdict": "enforced"
     },
@@ -132,10 +132,10 @@
       "note": "Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.",
       "requirement_sha": "94c63e0d5de6539c",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
       },
       "verdict": "enforced"
     },
@@ -143,10 +143,10 @@
       "note": "Forbidden: a Loc-RIB instance with no emulated peer, i.e. no Loc-RIB Peer Up. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance: peerUps != 1 is Errorf, red on zero (and on one per BGP peer). Single-polarity marker. Ze runs one Loc-RIB instance, so the 'such as with VRFs' plurality has no second instance to exercise.",
       "requirement_sha": "97426f7d41647786",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "6c7c67660027ad63"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "3eda43fed7591d14"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "3eda43fed7591d14"
       },
       "verdict": "enforced"
     },
@@ -154,10 +154,10 @@
       "note": "Forbidden: a received-OPEN field that is not a repeat of the sent OPEN. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM: len(up.SentOpenMsg)==0 is Fatal and !bytes.Equal(SentOpenMsg, ReceivedOpenMsg) is Errorf. Single-polarity marker. The fabricated-OPEN sentence is RFC9069-5.2-1's quote.",
       "requirement_sha": "3e9c25ed3e737992",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "6c7c67660027ad63"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "4a48461c2e40df46"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "4a48461c2e40df46"
       },
       "verdict": "enforced"
     },
@@ -165,11 +165,11 @@
       "note": "Re-judged 2026-09-29 (row prose rewritten, claim unchanged). rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring subscribes a stand-in RIB that answers startLocRIB's replay-request with one best change carrying its token, and requires after the Loc-RIB Peer Up a Route Monitoring of Peer Type 3 carrying 10.20.30.0/24: the initial synchronization arrives as Route Monitoring. bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts the trigger and its per-dump tokens; it carries no discrimination record, the delivery unit does (startLocRIB break). {single-polarity: positive} holds: no non-conformant input to refuse.",
       "requirement_sha": "b62aa6339f2e611b",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "6c7c67660027ad63",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "fb27b88fc924ab93"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "2681d339da8f1c51",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "2681d339da8f1c51",
         "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring": "aef303af6ceb3340"
       },
       "verdict": "enforced"
@@ -178,10 +178,10 @@
       "note": "Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.",
       "requirement_sha": "688398ffbc45c9e1",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
       },
       "verdict": "enforced"
     },
@@ -189,13 +189,13 @@
       "note": "Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.",
       "requirement_sha": "a3032001657ec349",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63",
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "6c7c67660027ad63",
         "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "904daa30c09ce18e"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115",
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115",
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da",
         "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20"
       },
       "verdict": "enforced"
@@ -204,10 +204,10 @@
       "note": "Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.",
       "requirement_sha": "0835222fb0c435e2",
       "tests": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
       },
       "units": {
-        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+        "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
       },
       "verdict": "enforced"
     }

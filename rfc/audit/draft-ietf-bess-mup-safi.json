@@ -9,14 +9,14 @@
       "note": "rfc_mup_ingress_test.go drives nlritype.Get(fam)+nlritype.Retain, the call typedNLRIEdit (reactor/session_validation_nlritype.go) makes at ingress. Positive TestMUPOtherRouteTypesSilentlyIgnoredAtIngress: route types 0/5/99/0xFFFF under arch 1 dropped (dropped==4), no error, ISD kept byte for byte, both AFIs; red on a recognizer that keeps them or on an error. Negative TestMUPDefinedRouteTypesSurviveIngress: types 1..4 kept whole, red on an over-broad ignore. The older ParseMUP positive (TestRFCMUPUnknownRouteTypeIsNotRejected) proves only the decode path skips the NLRI by its Length; it adds no clause. 'silently' is proven as no error from Retain; the Debug log line in typedNLRIEdit is not asserted, and the RFC 7606 Section 6 log is not a violation of silent ignore at protocol level. Revert records observed red for each unit",
       "requirement_sha": "67906b468e34c9bf",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "d62cf22d57a8031a"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "d62cf22d57a8031a"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "22f7eba5844edcf0",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "a6abd295ee9a4d69",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "02f586692359fc91"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "22f7eba5844edcf0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "a6abd295ee9a4d69",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "02f586692359fc91"
       },
       "verdict": "enforced"
     },
@@ -24,12 +24,12 @@
       "note": "asserts ParseMUP returns ErrMUPTLV for a TLV Length overrun on the decode path; nothing asserts Treat-as-withdraw, and ingress never walks TLVs, so the route is stored",
       "requirement_sha": "20d0ce7c2dfefab5",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
       },
       "verdict": "weak"
     },
@@ -37,12 +37,12 @@
       "note": "asserts ParseMUP returns ErrMUPTruncated, which is the decode path (DecodeNLRIHex, RunCLIDecode); nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) stores such a route, so the test would stay green with the MUST unmet",
       "requirement_sha": "e24f1fbf9098af39",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "6ad3461470a7d893"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "3d378f518f8e6810",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "3d378f518f8e6810"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "3d378f518f8e6810",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "3d378f518f8e6810"
       },
       "verdict": "weak"
     },
@@ -50,12 +50,12 @@
       "note": "asserts ParseMUP returns ErrMUPTLV for one leftover octet on the decode path; nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) never validates TLVs, so the route is stored",
       "requirement_sha": "3bffe26dbac60e46",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "6ad3461470a7d893"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
       },
       "verdict": "weak"
     },
@@ -63,18 +63,18 @@
       "note": "Propagate clause: TestMUPUnknownTLVPropagatedUnchangedAtIngress asserts the section kept by nlritype.Retain with the registered recognizer (the section typedNLRIEdit relays) equals the received T1ST with unknown TLV 0xF0, both unchanged and when a sibling unknown route type forces the rebuild; red on any re-encode that strips or rewrites the TLV. Local-processing clause: ParseMUP of the kept route yields the TEID and endpoint of the TLV-less route (and TestMUPT1STUnknownTLVIgnoredAndPropagated pins prefix, bits, TEID, QFI, endpoint, and that only a framing error refuses). Negatives: TestMUPUnknownTLVNotStrippedAtIngress pins length +5, Length octet +5, trailing TLV octets; the tlv_mup_test negative pins Bytes() is not the TLV-less form. The negatives are the complement of the positives' byte equality rather than an independent input, acceptable for a propagate-unchanged obligation. Records observed red for every unit (Retain, validateTLVs, ParseMUP)",
       "requirement_sha": "c620e18c21726490",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "6ad3461470a7d893"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "51238897887ca798",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "87985026e384a02b",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "da27b4d90bb6d0d1",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "da27b4d90bb6d0d1",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "da27b4d90bb6d0d1"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "51238897887ca798",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "87985026e384a02b",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "da27b4d90bb6d0d1",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "da27b4d90bb6d0d1",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "da27b4d90bb6d0d1"
       },
       "verdict": "enforced"
     },
@@ -82,16 +82,16 @@
       "note": "Encoder (the sender side the MUST NOT binds): TestMUPT2STEncoderKeepsEndpointLengthWithinTEID asserts EncodeNLRIHex writes Endpoint Length address bits + 0/16/32 (32 default) for IPv4 and IPv6; TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID asserts teid bits 33 and 40 (v4, v6), -8 and unreadable are refused with errTeidBits. Author observed all five negatives red on HEAD's parseTEIDWithBits (D-8 defect fixed in encode.go, re-checked at the producer: both callers propagate the error). Decode path: TestMUPT2STEndpointLengthBoundedByTEID, 64 parses, 72 refused ErrMUPEndpointTooLong. Not covered here: ingress (RecognizeNLRI) does not refuse an over-long Endpoint Length from a peer, so such a route is stored and relayed; that receive handling is the Section 3.1.4 malformed rule (3.1.4-1, a disclosed {gap}), not this sentence",
       "requirement_sha": "6f8aa7a201b2de95",
       "tests": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "946ae0f68bfc34f0",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "6ad3461470a7d893",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "6ad3461470a7d893"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "946ae0f68bfc34f0",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "6ad3461470a7d893",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "6ad3461470a7d893"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "9b156ea648b7bdd8",
-        "internal/component/bgp/plugins/nlri/mup/rfc_mup_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "621f3be132ec321a",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "34448cf8e7194f90",
-        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "34448cf8e7194f90"
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "9b156ea648b7bdd8",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "621f3be132ec321a",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "34448cf8e7194f90",
+        "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "34448cf8e7194f90"
       },
       "verdict": "enforced"
     },

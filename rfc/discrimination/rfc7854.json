@@ -180,7 +180,7 @@
     {
       "rid": "RFC7854-4.5-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/bmp/sender_queue_test.go::TestSenderStopSendsTerminationToCollector",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector",
       "unit-sha": "bff09ec8d6df5597",
       "claim-sha": "c7519dec429b5228",
       "route": "revert",
@@ -191,7 +191,7 @@
     {
       "rid": "RFC7854-4.5-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/bmp/termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination",
+      "unit": "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination",
       "unit-sha": "9658b7d6293bb3d1",
       "claim-sha": "d1948e8ff2b2e895",
       "route": "revert",

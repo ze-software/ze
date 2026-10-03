@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc4364.md -- Section 4.3.4 the VPN-IPv4 NLRI, Section 6.1 its next hop
 // Related: rib_bestchange.go -- checkBestPathChange, the producer under test
-// Related: srv6_transposition_test.go -- feedReceived, the ingest entry point these drive
+// Related: rfc9252_srv6_transposition_test.go -- feedReceived, the ingest entry point these drive
 
 package rib
 

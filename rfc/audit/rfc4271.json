@@ -433,8 +433,8 @@
       "note": "modify_test, forward_med_test and three .ci tests assert the del med directive runs on the import chain before the RIB stores the route, is refused on export, and removes only attribute 4",
       "requirement_sha": "ccf89bedacdc9dd9",
       "tests": {
-        "internal/component/bgp/plugins/filter_modify/modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "7efb8c2b00ee7de7",
-        "internal/component/bgp/plugins/filter_modify/modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "7efb8c2b00ee7de7",
+        "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "7efb8c2b00ee7de7",
+        "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "7efb8c2b00ee7de7",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "d216c0c86115d31f",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "d216c0c86115d31f",
         "test/plugin/med-removal-before-decision.ci": "40af84c9e9dc2878",
@@ -443,8 +443,8 @@
         "test/plugin/med-removal-export-refused.ci": "d81b417753833888"
       },
       "units": {
-        "internal/component/bgp/plugins/filter_modify/modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "b0e76e42bcdfcce5",
-        "internal/component/bgp/plugins/filter_modify/modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "b0e76e42bcdfcce5",
+        "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "b0e76e42bcdfcce5",
+        "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "b0e76e42bcdfcce5",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "a9ba4d2d27c4fa5a",
         "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "a9ba4d2d27c4fa5a",
         "test/plugin/med-removal-before-decision.ci": "40af84c9e9dc2878",
@@ -1375,14 +1375,14 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7e76ce2c3464e819",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
       },
       "verdict": "enforced"
     },
@@ -1390,12 +1390,12 @@
       "note": "Forbidden: a new NLRI not placed. handleReceivedStructured (the reactor UPDATE entry) asserts Len 1 then 2 and Get(10.0.0.0/8) with its own NEXT_HOP, red on a route not stored. Negative (the condition false, identical NLRI): Len stays 2 and the slot holds the newer NEXT_HOP, red on a route placed beside the existing one.",
       "requirement_sha": "120e0e1395960bdf",
       "tests": {
-        "internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "dee86a4c10627190",
-        "internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "dee86a4c10627190"
+        "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "dee86a4c10627190",
+        "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "dee86a4c10627190"
       },
       "units": {
-        "internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "fba8abfd85ae853d",
-        "internal/component/bgp/plugins/adj_rib_in/rib_rfc4271_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "fba8abfd85ae853d"
+        "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "fba8abfd85ae853d",
+        "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "fba8abfd85ae853d"
       },
       "verdict": "enforced"
     },
@@ -1433,14 +1433,14 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "5bffe3606413b2a8",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "5bffe3606413b2a8",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "4a1294ce00fd3415",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestLocRIBMirror": "ed76a4e75e4c5e3a",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "ed76a4e75e4c5e3a",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
       },
       "verdict": "enforced"
     },
@@ -1567,12 +1567,12 @@
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
       "requirement_sha": "04f270bb5549bd27",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
-        "internal/component/bgp/plugins/rib/rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
       },
       "verdict": "weak"
     },

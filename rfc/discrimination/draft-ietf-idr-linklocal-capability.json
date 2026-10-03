@@ -114,7 +114,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress",
+      "unit": "internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go::TestLinkLocalCapabilityAcceptedWithLinkLocalAddress",
       "unit-sha": "9957cbbe548a6e4d",
       "claim-sha": "f157c9ddcb7f3026",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/llnh/llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress",
+      "unit": "internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go::TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress",
       "unit-sha": "93a359911da30e5d",
       "claim-sha": "4b9c985045d8a275",
       "route": "revert",

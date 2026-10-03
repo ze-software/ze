@@ -7,7 +7,7 @@
 # WHAT THIS CASE DOES NOT PROVE. It exercises the config surface only. That the
 # declaration reaches the PRODUCER's stamp, which is the thing the whole change
 # turns on, is proven by TestBgpStampsTheDeclaredDistanceNotItsOwn
-# (internal/component/bgp/plugins/rib/rib_bestchange_test.go), which was observed
+# (internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go), which was observed
 # RED under a bypassed seam: 0x14 where 0xfa was required. Read that test, not
 # this one, for the cross-protocol behaviour.
 

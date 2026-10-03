@@ -18,12 +18,12 @@
       "note": "Forbidden: a non-zero Reserved word in an originated TLV 1038. TestRFC9514NativeSRv6ReservedCleared feeds source reserved 0xffff and require.Equal on the emitted value {0x40,0,0,0} goes red if any reserved byte leaks; the positive pins the clean encoding with the flags preserved.",
       "requirement_sha": "677e06e227fe3500",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
       },
       "verdict": "enforced"
     },
@@ -31,16 +31,16 @@
       "note": "rejudge 2026-09-30: receipt clause as before (TestRFC9514CapabilitiesReservedIgnored, exact map). Originate clause now tagged: ls_export TestRFC9514OriginatedReservedWordsZero (+) and TestRFC9514PoisonedSourceReservedNeverOriginated (-: source reserved 0xff, wire TLV 1038 = 40 00 00 00). Judge break (1038 clear removed in clearOriginatedReserved) turns the negative red.",
       "requirement_sha": "84dc54bd7e45450a",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesDecode": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesReservedIgnored": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "7a1d6ac0c2d3e3d7"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesDecode": "965ad0f8efd31710",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesReservedIgnored": "e2fe1f8d6eb464af"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "965ad0f8efd31710",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "e2fe1f8d6eb464af"
       },
       "verdict": "enforced"
     },
@@ -61,14 +61,14 @@
       "note": "rejudge 2026-09-30: receipt clause as before. Originate clause: isis TestRFC9514ISISEndXOriginatedReservedZero (+) and TestRFC9514ISISEndXAllOnesNeverReachReserved (-: native flags and weight 0xff) assert TLV 1106 Reserved octet 0 from adjacencySIDv6. Judge break (Reserved written from weight) turns both red.",
       "requirement_sha": "92c3b8bc9d969327",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
       },
@@ -91,14 +91,14 @@
       "note": "rejudge 2026-09-30: receipt clause as before. Originate clause: the same isis units assert TLV 1107 Reserved octet 0 from adjacencySIDv6 for ordinary and all-ones native flags and weight. Judge break (Reserved written from weight) turns both red.",
       "requirement_sha": "63e161c6ceabd73f",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
       },
@@ -108,12 +108,12 @@
       "note": "Forbidden: a non-zero Reserved word in an originated SRv6 Locator TLV 1162. TestRFC9514NativeSRv6ReservedCleared feeds reserved 0xffff and require.Equal on the whole emitted value goes red on a leak or on damage to following fields.",
       "requirement_sha": "03fa4d76e1c476a1",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
       },
       "verdict": "enforced"
     },
@@ -121,16 +121,16 @@
       "note": "rejudge 2026-09-30: receipt clause as before (TestRFC9514LocatorReservedIgnored). Originate clause: ls_export units assert TLV 1162 Reserved word 0 with flags, algorithm, metric and sub-TLVs intact, from a zero and a 0xff-poisoned source. Judge break (1162 clear removed) turns the negative red.",
       "requirement_sha": "fefc787ab84df78c",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorDecode": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorReservedIgnored": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorDecode": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorReservedIgnored": "7a1d6ac0c2d3e3d7"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorDecode": "d1d277dc9064e01f",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorReservedIgnored": "717646b02a665a32"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorDecode": "d1d277dc9064e01f",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514LocatorReservedIgnored": "717646b02a665a32"
       },
       "verdict": "enforced"
     },
@@ -138,10 +138,10 @@
       "note": "Forbidden: SRv6 SID Descriptors with zero or several SID Information TLVs. TestRFC9514NativeSRv6Advertisements require.Equal(t, [][]byte{sid[:]}, exportTLVValues(..., 518)) goes red on none or two; the row carries a {single-polarity} marker because the encoder writes one field.",
       "requirement_sha": "b6b4ea2ecd2e864c",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
       },
       "verdict": "enforced"
     },
@@ -149,12 +149,12 @@
       "note": "Forbidden: an SRv6 SID NLRI whose attribute lacks TLV 1250. Positive require.Equal on the 1250 values goes red if absent; TestRFC9514NativeSIDRequiresEndpointBehavior require.Error on a replacement without 1250 and Len(commands,3) go red if it is advertised.",
       "requirement_sha": "4360b23352cee3b3",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "7d3a493ffb46e118",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "e13778e6707c4418",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "e13778e6707c4418",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
       },
       "verdict": "enforced"
     },
@@ -186,14 +186,14 @@
       "note": "rejudge 2026-09-30: receipt clause as before. Originate clause: isis TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero (+) and ...NativeFlagsNeverOriginated (-: native End flags 0xff) assert TLV 1250 exactly 00 01 00 00 (no flag is defined, so every flag is undefined). Judge break (native flags copied into the Flags octet in endSID) turns the negative red.",
       "requirement_sha": "4911510c5aec9d08",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "7a1d6ac0c2d3e3d7",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "8dc79db14f32fa32",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "8dc79db14f32fa32"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "6df1040e2d4e0632",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "6df1040e2d4e0632",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "6df1040e2d4e0632",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "6df1040e2d4e0632",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "cb96011879421996",
         "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "5753445e3b72489c"
       },
@@ -206,12 +206,12 @@
       "note": "Independent BGPHighJudge 2026-10-02. RFC 9514 Section 7.2: \"Other bits are reserved for future use and MUST be set to 0 when originated and ignored on receipt.\" Tested selector \"ignored on receipt.\" is supported by TestRFC9514PeerNodeSIDReservedIgnored: well-formed 12-byte TLV values differing only in low five Flags bits (0xe0 versus 0xff) must both decode, preserve Weight/PeerAS/PeerBGPID and retain exact AS 65000. The rejection negative and meaningful-field equality positive cover distinct failures; raw Flags display is not interpretation of reserved bits. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID is registered for 1251 and reached by AttrTLVsToJSON/offline UPDATE decoding; the propagator intentionally performs no semantic TLV interpretation. Gap selector \"MUST be set to 0 when originated\" remains unmet: native EPE publishLocked originates MPLS PeerNode 1101 only, no SRv6 EPE assignment/origination. Offline encoding and exporter masking cannot prove that clause. Existing two native receive revert records retained; partial earns zero whole-requirement proof credit.",
       "requirement_sha": "e5fefbe264fb1b9a",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
       },
       "verdict": "partial"
     },
@@ -222,12 +222,12 @@
       "note": "Independent BGPHighJudge 2026-10-02. RFC 9514 Section 7.2: \"Reserved: 2-octet field. The value MUST be set to 0 when originated and ignored on receipt.\" Tested selector \"ignored on receipt.\" is supported by TestRFC9514PeerNodeSIDReservedIgnored: the 12-byte value with Reserved 0xffff is accepted and equals the complete decoded zero-Reserved object, independently detecting rejection and field leakage. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4; it is registered in the operator-facing AttrTLVsToJSON/offline decoder path. Gap selector \"MUST be set to 0 when originated\" remains unmet because no live native SRv6 BGP EPE assignment/origination produces TLV 1251. Neither offline WriteTo zeroes nor export masking establish a live originator. Full quote, existing receive tags and both native receive revert records remain; partial is a finding, not enforced conformance.",
       "requirement_sha": "fc8121b1658ba7ec",
       "tests": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
       },
       "units": {
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
-        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
+        "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
       },
       "verdict": "partial"
     },
@@ -235,12 +235,12 @@
       "note": "Forbidden: advertising a SID Structure whose four lengths sum above 128. TestRFC9514NativeSIDStructureBoundary accepts 32+32+16+48=128 (require.Equal on the emitted 1252) and require.Error plus Len(commands,3) go red if 129 is accepted or advertised.",
       "requirement_sha": "f61aaf4b69dd9570",
       "tests": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary": "7d3a493ffb46e118",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7d3a493ffb46e118"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7d3a493ffb46e118"
       },
       "units": {
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary": "7094a2e46b150b1f",
-        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7094a2e46b150b1f"
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary": "7094a2e46b150b1f",
+        "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7094a2e46b150b1f"
       },
       "verdict": "enforced"
     }

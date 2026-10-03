@@ -4,7 +4,7 @@
     {
       "rid": "RFC7999-3.2-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity",
+      "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity",
       "unit-sha": "787dce190e404270",
       "claim-sha": "f158f7dc2652efa8",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC7999-3.2-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity",
+      "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity",
       "unit-sha": "ba6280991ccae375",
       "claim-sha": "87b450841a5f4911",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "RFC7999-3.2-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf",
+      "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf",
       "unit-sha": "f5ac9780a5000dbb",
       "claim-sha": "61975dbc4f84b3eb",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "RFC7999-3.2-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/filter_community/blackhole_rfc7999_test.go::TestRFC7999PropagationCommunityIsNeverForced",
+      "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced",
       "unit-sha": "a4fdc984020de341",
       "claim-sha": "5d28abf25f8a5dd4",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC7999-3.3-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/rib/rib_blackhole_rfc7999_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix",
+      "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix",
       "unit-sha": "58ceeccffb345cde",
       "claim-sha": "7d9ceca858e1d6a1",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC7999-3.3-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/rib/rib_blackhole_rfc7999_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix",
+      "unit": "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix",
       "unit-sha": "1642b5a8449c2a13",
       "claim-sha": "275c9e8e20d9acb8",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "RFC7999-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/filter_modify/match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement",
+      "unit": "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement",
       "unit-sha": "7e54cec7dcd1ef1e",
       "claim-sha": "064a549405471995",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC7999-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/filter_modify/match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed",
+      "unit": "internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go::TestBlackholeCommunityRewritesNextHopWhenAgreed",
       "unit-sha": "b23193fc3b77374a",
       "claim-sha": "1aed6b081191f257",
       "route": "revert",

@@ -1,7 +1,7 @@
 // Design: docs/guide/graceful-restart.md -- Long-Lived Graceful Restart, per-family configuration
 // RFC: rfc/short/rfc9494.md -- Section 5, procedures not enabled by default
 // Overview: gr_llgr_exchange.go -- exchangedLLGRLocked, the families both OPENs declared
-// Related: gr_event_test.go -- buildOpenBody, buildCapabilityParam, buildGRCapTLV, buildLLGRCapTLV
+// Related: rfc9494_gr_event_test.go -- buildOpenBody, buildCapabilityParam, buildGRCapTLV, buildLLGRCapTLV
 // Related: rfc9494_llgr_entry_test.go -- rfc9494Paths, the two production event paths
 
 package gr

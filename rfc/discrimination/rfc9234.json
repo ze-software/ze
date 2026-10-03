@@ -4,7 +4,7 @@
     {
       "rid": "RFC9234-4.1-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
       "unit-sha": "77ba5b4ba36ec6a8",
       "claim-sha": "93f95e3186667c1c",
       "route": "mutant",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC9234-4.1-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
       "unit-sha": "77ba5b4ba36ec6a8",
       "claim-sha": "c41ac2ae1b5847a0",
       "route": "revert",
@@ -98,7 +98,7 @@
     {
       "rid": "RFC9234-4.2-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/role/validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict",
       "unit-sha": "ded1538137ca802b",
       "claim-sha": "0c4f0c0c997f02f5",
       "route": "revert",
@@ -121,7 +121,7 @@
     {
       "rid": "RFC9234-5-11",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings",
       "unit-sha": "f001585ad184b2e8",
       "claim-sha": "a61fef83e23d897c",
       "route": "revert",
@@ -132,7 +132,7 @@
     {
       "rid": "RFC9234-5-12",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw",
       "unit-sha": "8df9f7515bd84783",
       "claim-sha": "0088620f5f0f903d",
       "route": "revert",
@@ -143,7 +143,7 @@
     {
       "rid": "RFC9234-5-12",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/role/otc_malformed_rfc9234_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw",
       "unit-sha": "e6466410e373a7a9",
       "claim-sha": "d72d3b6c70abc7fb",
       "route": "revert",
@@ -154,7 +154,7 @@
     {
       "rid": "RFC9234-5-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCNotStampedOutsideTheDownstreamScope",
       "unit-sha": "0344de1cd3bf3767",
       "claim-sha": "fb4f2aa127b94801",
       "route": "revert",
@@ -165,7 +165,7 @@
     {
       "rid": "RFC9234-5-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/role/otc_procedures_rfc9234_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCStampedToEveryDownstreamDestination",
       "unit-sha": "ebf6b6987c04c260",
       "claim-sha": "2bfbc41ecc07b255",
       "route": "revert",
@@ -176,7 +176,7 @@
     {
       "rid": "RFC9234-5-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/role/otc_test.go::TestOTCEgressNoStampProvider",
+      "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNoStampProvider",
       "unit-sha": "a988c485f46418e7",
       "claim-sha": "38de6da7dfe55d3c",
       "route": "revert",

@@ -14,7 +14,7 @@ import (
 // The spec's claim is the sentence an operator would use for the whole feature:
 // raise the eBGP distance above OSPF's and the OSPF route is the one that wins.
 // Until now that was INFERRED. TestBgpStampsTheDeclaredDistanceNotItsOwn
-// (internal/component/bgp/plugins/rib/rib_bestchange_test.go) proves the
+// (internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go) proves the
 // declaration reaches the stamp, and stops there; it inserts no OSPF path and
 // asserts only that the stamped value exceeds 110. Three independent closure
 // gates in a row faulted the proof for stopping one layer above the behavior,

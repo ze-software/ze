@@ -49,12 +49,12 @@
       "note": "Forbidden: honouring code 71 received without code 64. TestHandleStructuredOpenLLGRNoGR sends an OPEN with only code 71 and fails if peerLLGRCaps holds the peer (assert.False llgrOK), which is the map onSessionDown reads. Negative: TestHandleStructuredOpenGRPlusLLGR keeps both capabilities when code 64 is present, with families, F bits and LLST 7200/3600 asserted.",
       "requirement_sha": "c9df9da8f9bbf93f",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "e921a209356a7dad",
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "e921a209356a7dad"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "e921a209356a7dad",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "e921a209356a7dad"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "9d7f7987bdd005ed",
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "0e96b58e8f93ab83"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "9d7f7987bdd005ed",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "0e96b58e8f93ab83"
       },
       "verdict": "enforced"
     },
@@ -115,12 +115,12 @@
       "tests": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "edfdb44e1c3eb08c",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "e5d6319873861ae8",
-        "internal/component/bgp/plugins/rib/rib_gr_test.go::TestAttachCommunity": "86fd60e2db71589a"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "86fd60e2db71589a"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a2f00612c091011a",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "7232e3ca91a2765f",
-        "internal/component/bgp/plugins/rib/rib_gr_test.go::TestAttachCommunity": "518180aadd409d26"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "518180aadd409d26"
       },
       "verdict": "enforced"
     },
@@ -132,14 +132,14 @@
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "e60d254188c8f1f0",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "e60d254188c8f1f0",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "e5d6319873861ae8",
-        "internal/component/bgp/plugins/rib/rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a2f00612c091011a",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "c168de6e2c60822d",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "a08a43a4dcd95e09",
         "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "41bdc95fe854ca44",
-        "internal/component/bgp/plugins/rib/rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451"
       },
       "verdict": "weak"
     },
@@ -186,13 +186,13 @@
       "note": "Forbidden: advertising the stale route to a neighbor whose LLGR capability was not received. TestLLGREgressFilter_NilStateWithdrawsEBGP fails unless mods.IsWithdraw() for an external destination with no capability recorded; llgr-egress-state-unloaded.ci proves the Section 4.6 exception in the daemon (the internal neighbor receives the route only with FFFFFF01). Negative: a destination in peerLLGRCaps gets no withdraw and zero mods.",
       "requirement_sha": "76231582d0f155d2",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "27afa9d1b8ebacc9",
         "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "b406251374d69f4f",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "967976e8d70ce683",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "b406251374d69f4f",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "967976e8d70ce683",
         "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
       },
       "verdict": "enforced"
@@ -214,12 +214,12 @@
       "note": "Forbidden: honouring an LLGR capability that arrives without GR. TestHandleEventOpenLLGR_NoGR sends an OPEN with code 71 and no code 64 and fails if peerLLGRCaps holds the peer (assert.False llgrOK). Negative: the same OPEN with code 64 keeps the decoded LLGR capability (Families, F bit, LLST 3600 asserted), so the removal is conditional on GR being absent.",
       "requirement_sha": "cbb5de307607c9dd",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR": "e921a209356a7dad",
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "e921a209356a7dad"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "e921a209356a7dad",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "e921a209356a7dad"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR": "be6469aa934cdde6",
-        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "a3dd810ebc2a1db9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "be6469aa934cdde6",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "a3dd810ebc2a1db9"
       },
       "verdict": "enforced"
     },
@@ -227,12 +227,12 @@
       "note": "Forbidden: applying the partial-deployment delivery to a non-internal neighbor. TestLLGREgressFilter_EBGPNonLLGR (PeerAS!=LocalAS, no LLGR) fails unless mods.IsWithdraw(). Positive: the internal neighbor (PeerAS==LocalAS) keeps the announce with NO_EXPORT 0xFFFFFF01 added and LOCAL_PREF set to 0, each value asserted.",
       "requirement_sha": "e7ee81b6b57096e6",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "84dc8716c970c2bd",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "84dc8716c970c2bd",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b"
       },
       "verdict": "enforced"
     },
@@ -240,14 +240,14 @@
       "note": "Forbidden: a stale route delivered on the partial-deployment branch without NO_EXPORT. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a COMMUNITIES AttrModAdd with value 0xFFFFFF01 is emitted for an internal non-LLGR neighbor (hasCommunityAdd asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if any modification is emitted for an LLGR-capable neighbor.",
       "requirement_sha": "bc3c13cb72f95a87",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "27afa9d1b8ebacc9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "27afa9d1b8ebacc9"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "f4daecfb8bae7d3d",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "949e6a14a5382ce5"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "f4daecfb8bae7d3d",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "949e6a14a5382ce5"
       },
       "verdict": "enforced"
     },
@@ -255,14 +255,14 @@
       "note": "Forbidden: a stale route delivered on the partial-deployment branch with its LOCAL_PREF kept. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a LOCAL_PREF AttrModSet with value 0 is emitted (hasLocalPrefSet asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if an LLGR-capable neighbor receives any modification.",
       "requirement_sha": "310c89079f9c8e98",
       "tests": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "27afa9d1b8ebacc9",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "27afa9d1b8ebacc9"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "27afa9d1b8ebacc9"
       },
       "units": {
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "f4daecfb8bae7d3d",
-        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "949e6a14a5382ce5"
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "f4daecfb8bae7d3d",
+        "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "949e6a14a5382ce5"
       },
       "verdict": "enforced"
     },

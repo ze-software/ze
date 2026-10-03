@@ -1,7 +1,7 @@
 // Design: docs/guide/graceful-restart.md -- Receiving Speaker procedures
 // RFC: rfc/short/rfc4724.md -- Section 4.2, re-establishment without the Graceful Restart Capability
 // Overview: gr.go -- handleStructuredOpen and handleStructuredState, the DirectBridge path
-// Related: gr_event_test.go -- buildOpenBody, buildCapabilityParam, buildGRCapTLV
+// Related: rfc9494_gr_event_test.go -- buildOpenBody, buildCapabilityParam, buildGRCapTLV
 
 package gr
 

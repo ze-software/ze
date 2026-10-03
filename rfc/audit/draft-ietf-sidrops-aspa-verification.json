@@ -5,16 +5,16 @@
       "note": "Forbidden: AS 0 beside other providers changing the verification outcome. TestASPAZeroDoesNotAuthorizeOrInvalidate: {0,200} Valid, {0} alone Invalid. TestASPAZeroBesideProvidersIsNoWildcard: {0,200} = {200} = Valid (AS 0 does not invalidate) and {0,999} = {999} = Invalid for a path whose provider 200 is unlisted (AS 0 is no wildcard).",
       "requirement_sha": "d55f8f05bafd195c",
       "tests": {
-        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "5ab96eda55fb7b07",
-        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "5ab96eda55fb7b07",
-        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "9e3164ba99cd9f6a",
-        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "9e3164ba99cd9f6a"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "5ab96eda55fb7b07",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "5ab96eda55fb7b07",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "9e3164ba99cd9f6a",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "9e3164ba99cd9f6a"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "ff102393b4854d9e",
-        "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "ff102393b4854d9e",
-        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "7b6676da86907295",
-        "internal/component/bgp/plugins/rpki/aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "7b6676da86907295"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "ff102393b4854d9e",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "ff102393b4854d9e",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "7b6676da86907295",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "7b6676da86907295"
       },
       "verdict": "enforced"
     },
@@ -22,12 +22,12 @@
       "note": "Forbidden: a COMPRESSED_AS_PATH that keeps consecutive duplicates, removes non-consecutive ones, or reverses origin and neighbor. TestASPACompressedUpdatePrependsValid asserts state valid and accepted for prepends within a segment, across a segment boundary and on a single AS, red if a duplicate survives as an unauthorized self-hop; with 100 as neighbor and 300 as origin, a reversed order also turns it Invalid. TestASPACompressedUpdatePreservesHops asserts invalid and rejected for the separated repeat [100 200 300 200], red if non-consecutive ASNs are dropped.",
       "requirement_sha": "ce16f687be627a1e",
       "tests": {
-        "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid": "71dc1a61ef748f29",
-        "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops": "71dc1a61ef748f29"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid": "71dc1a61ef748f29",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops": "71dc1a61ef748f29"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid": "14b122057531b1e3",
-        "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops": "67bfa1a7a310688a"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid": "14b122057531b1e3",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops": "67bfa1a7a310688a"
       },
       "verdict": "enforced"
     },
@@ -35,12 +35,12 @@
       "note": "Forbidden: a route from a Customer or Peer, by an RS from an RS-client, or by an RS-client from an RS verified other than by the upstream algorithm. TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes asserts configuredASPAMode == aspaUpstream for local roles provider, peer, rs and rs-client (one per listed case) and that the down-ramp path is Invalid under each, red if any maps to downstream; local role customer maps to aspaDownstream and verifies the same path Valid.",
       "requirement_sha": "8ee4f1f0c3eb1dc5",
       "tests": {
-        "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes": "f901793e0c148412",
-        "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes#2": "f901793e0c148412"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes": "f901793e0c148412",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes#2": "f901793e0c148412"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes": "3aedd280e68c8365",
-        "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes#2": "3aedd280e68c8365"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes": "3aedd280e68c8365",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes#2": "3aedd280e68c8365"
       },
       "verdict": "enforced"
     },
@@ -48,16 +48,16 @@
       "note": "Forbidden: an Invalid route selected, or an Invalid route dropped from the Adj-RIB-In. TestASPARetentionReceiveRecovery asserts after an i decision that the stored route is Ineligible with its full attribute, NLRI and next-hop bytes (red if dropped) and validationSelection(false): not in Loc-RIB and not in best-path replay (red if selectable), then selectable after an a decision without another UPDATE. TestASPARetentionReplacementWithdrawal asserts a rejected replacement removes the old selection and retains the new bytes. adj_rib_in TestASPARetainedPathReplayRecovery covers retention on the Adj-RIB-In plugin.",
       "requirement_sha": "9b88e417b1a9c145",
       "tests": {
-        "internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "ee6ca3bfa879904d",
-        "internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "ee6ca3bfa879904d",
-        "internal/component/bgp/plugins/rib/rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "e0a9d42f8f404d05",
-        "internal/component/bgp/plugins/rib/rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "e0a9d42f8f404d05"
+        "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "ee6ca3bfa879904d",
+        "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "ee6ca3bfa879904d",
+        "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "e0a9d42f8f404d05",
+        "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "e0a9d42f8f404d05"
       },
       "units": {
-        "internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "4459e09f801977f6",
-        "internal/component/bgp/plugins/adj_rib_in/rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "4459e09f801977f6",
-        "internal/component/bgp/plugins/rib/rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "4ede615b4b082ab9",
-        "internal/component/bgp/plugins/rib/rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "be0a4ceca4ebf4a0"
+        "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "4459e09f801977f6",
+        "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "4459e09f801977f6",
+        "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "4ede615b4b082ab9",
+        "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "be0a4ceca4ebf4a0"
       },
       "verdict": "enforced"
     },
@@ -65,12 +65,12 @@
       "note": "Forbidden: an IPv4 unicast or IPv6 unicast route left unverified. TestASPAAppliesToIPv6Unicast asserts family ipv6/unicast reaches the decision path with aspaState ASPAInvalid and is tracked, red if MP_REACH IPv6 unicast is skipped. TestASPAAppliesToIPv4Unicast asserts ipv4/unicast carries ASPAInvalid, red if the plain-NLRI branch is skipped.",
       "requirement_sha": "63dc6a29e604f4e9",
       "tests": {
-        "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast": "9500465b3797ee52",
-        "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast": "9500465b3797ee52"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast": "9500465b3797ee52",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast": "9500465b3797ee52"
       },
       "units": {
-        "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast": "e868c8765fba4e18",
-        "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast": "3afa2f84080fbfcd"
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast": "e868c8765fba4e18",
+        "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast": "3afa2f84080fbfcd"
       },
       "verdict": "enforced"
     }

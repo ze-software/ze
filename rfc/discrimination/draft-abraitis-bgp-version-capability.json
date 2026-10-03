@@ -4,7 +4,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionDisables",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverConfigOptionDisables",
       "unit-sha": "a2b6864fd5672e8a",
       "claim-sha": "a454bd9e94eebf3f",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionEnables",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverConfigOptionEnables",
       "unit-sha": "4f2cdb24ca414471",
       "claim-sha": "d90274421dd6d2e4",
       "route": "revert",
@@ -26,7 +26,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultIsNotABlanketRefusal",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverDefaultIsNotABlanketRefusal",
       "unit-sha": "0729b5c603e1772a",
       "claim-sha": "98a3f73c1a0a5203",
       "route": "revert",
@@ -37,7 +37,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultsToDisabled",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverDefaultsToDisabled",
       "unit-sha": "7ad5cf84845e5c7f",
       "claim-sha": "82aff66d8041c744",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverCapabilityLengthIsGreaterThanZero",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverCapabilityLengthIsGreaterThanZero",
       "unit-sha": "96dc8a84dfb5b8e6",
       "claim-sha": "6a9860c79cebcc4f",
       "route": "revert",
@@ -59,7 +59,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroCapabilityLengthIsRefused",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroCapabilityLengthIsRefused",
       "unit-sha": "aa99c618c92be7d7",
       "claim-sha": "ce6a939e047d42e2",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedValueIsNotAnEncodingError",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverWellFormedValueIsNotAnEncodingError",
       "unit-sha": "80fe7ea7ddee500f",
       "claim-sha": "e99555e1517cab59",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueIsAnEncodingError",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroValueIsAnEncodingError",
       "unit-sha": "96d336d46dfbe9c5",
       "claim-sha": "9b3a708a5e267f09",
       "route": "revert",
@@ -92,7 +92,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedCapabilityIsNotIgnored",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverWellFormedCapabilityIsNotIgnored",
       "unit-sha": "7faba521d97565c6",
       "claim-sha": "7361e103585c7e86",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueCapabilityIsIgnored",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroValueCapabilityIsIgnored",
       "unit-sha": "877c8208022e1015",
       "claim-sha": "e27a45d3091cb150",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonUTF8VersionFieldIsRefused",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNonUTF8VersionFieldIsRefused",
       "unit-sha": "3a519e1e8a802bfd",
       "claim-sha": "b0c54858dd193d56",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverVersionFieldIsUTF8",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverVersionFieldIsUTF8",
       "unit-sha": "31d02a702603c697",
       "claim-sha": "4fd86c7e989f166b",
       "route": "revert",
@@ -136,7 +136,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverInvalidUTF8IsNotInterpreted",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverInvalidUTF8IsNotInterpreted",
       "unit-sha": "2a908e69eb0b4caa",
       "claim-sha": "25b1564bdc00efa0",
       "route": "revert",
@@ -147,7 +147,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverValidMultiByteUTF8IsInterpreted",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverValidMultiByteUTF8IsInterpreted",
       "unit-sha": "670a48d1476d8f4d",
       "claim-sha": "1e32e2f4d29e229f",
       "route": "revert",
@@ -158,7 +158,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverProductIdentifierCarriesNothingNonessential",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverProductIdentifierCarriesNothingNonessential",
       "unit-sha": "e5f06472d10588a0",
       "claim-sha": "150787a5e5fe27df",
       "route": "revert",
@@ -213,7 +213,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration",
       "unit-sha": "1cb6f969649b6045",
       "claim-sha": "f681fb467585b017",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
       "polarity": "negative",
-      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration",
+      "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration",
       "unit-sha": "9894978c98cd9592",
       "claim-sha": "36de39b54616626f",
       "route": "revert",
