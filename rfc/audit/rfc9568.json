@@ -11,6 +11,7 @@
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -276,8 +277,8 @@
       "tests": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "79601b5d0b42a204",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "79601b5d0b42a204"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "f9e1bb72cffca4dc",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "f9e1bb72cffca4dc"
       },
       "units": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
@@ -365,8 +366,8 @@
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
         "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice": "9bad609fe413a369",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "79601b5d0b42a204",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "79601b5d0b42a204"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "f9e1bb72cffca4dc",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "f9e1bb72cffca4dc"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
@@ -446,8 +447,8 @@
       "tests": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "79601b5d0b42a204",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "79601b5d0b42a204"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "f9e1bb72cffca4dc",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "f9e1bb72cffca4dc"
       },
       "units": {
         "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
@@ -744,8 +745,8 @@
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "68d1b42d022039f9",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
         "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "79601b5d0b42a204",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "79601b5d0b42a204"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "f9e1bb72cffca4dc",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "f9e1bb72cffca4dc"
       },
       "units": {
         "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
@@ -786,8 +787,8 @@
       "tests": {
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "68d1b42d022039f9",
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "68d1b42d022039f9",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "79601b5d0b42a204",
-        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "79601b5d0b42a204"
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "f9e1bb72cffca4dc",
+        "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "f9e1bb72cffca4dc"
       },
       "units": {
         "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "1dc83cc933132bee",
