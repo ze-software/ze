@@ -113,7 +113,8 @@ gate, peer-own NEXT_HOP, RR Link-Local-only, RFC 8950, Link-Local-only refused,
 RFC 1997 well-known communities, RFC 7947 control communities, and a genuine
 egress policy reject (a step that could not run stays a drop, unchanged). Reuse:
 mods.SetWithdraw() and buildWithdrawalPayload, the RFC 9494 LLGR conversion;
-wireu.WithdrawalsOnly loses its forward-rail callers. The reactor rail holds no
+wireu.WithdrawalsOnly lost its forward-rail callers and was deleted with its
+test (owner approval, Thomas, 2026-10-03: "Delete both"). The reactor rail holds no
 per-peer Adj-RIB-Out, so the withdrawal is unconditional: RFC 7606 Section 2
 treat-as-withdraw, which BIRD also does. A withdrawal of a route the destination
 never held is a no-op for it, and its family is one the announcement would have
