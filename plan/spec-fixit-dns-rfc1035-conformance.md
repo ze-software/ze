@@ -135,7 +135,7 @@ TTL and its `Minttl`.
 The floor WAS implemented on 2026-08-12 and reverted the same day. What it cost
 while it stood is worth recording, because it is what the deprecation is about:
 the default MINIMUM of 300 raised every record configured below 300 seconds, and
-`TestRFC2181_RRSetEqualTTL` (`internal/plugins/geodns/server_test.go`) went red
+`TestRFC2181_RRSetEqualTTL` (`internal/plugins/geodns/rfc2181_server_test.go`) went red
 with `RRSet TTL = 300, want the configured 120`. Ze's own YANG leaf is already
 described as `"SOA minimum / negative-cache TTL seconds"`, the RFC 2308 reading.
 
