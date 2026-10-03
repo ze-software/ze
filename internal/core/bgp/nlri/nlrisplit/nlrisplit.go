@@ -99,7 +99,22 @@ func Supported(fam family.Family) bool {
 // Splitter's: a malformed input returns the NLRIs parsed before the
 // corruption plus a non-nil error.
 func Split(fam family.Family, data []byte, addPath bool) ([][]byte, error) {
-	fn := Get(fam)
+	return splitWith(Get(fam), data, addPath)
+}
+
+// SplitWithdrawn is Split for the NLRIs of a withdrawal, framed by the
+// family's withdrawal splitter (GetWithdraw). A labeled unicast withdrawal
+// carries one Compatibility field where its announcement carried a label
+// stack, so the announcement's S-bit walk cannot frame it.
+//
+// RFC 8277 Section 2.4 says it of that field: "Upon reception, the value of
+// the Compatibility field MUST be ignored." This framing is how it is ignored.
+func SplitWithdrawn(fam family.Family, data []byte, addPath bool) ([][]byte, error) {
+	return splitWith(GetWithdraw(fam), data, addPath)
+}
+
+// splitWith is Split over one splitter, nil when the family has none.
+func splitWith(fn Splitter, data []byte, addPath bool) ([][]byte, error) {
 	if fn == nil {
 		return nil, ErrUnsupported
 	}

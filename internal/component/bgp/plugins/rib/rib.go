@@ -1123,7 +1123,7 @@ func (r *RIBManager) removePoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 	if !nlrisplit.Supported(fam) {
 		return
 	}
-	withdrawns, err := nlrisplit.Split(fam, wdBytes, addPath)
+	withdrawns, err := nlrisplit.SplitWithdrawn(fam, wdBytes, addPath)
 	if err != nil {
 		logger().Warn("pool: withdrawal split error", "peer", peerRIB.PeerAddr(), "family", famStr, "error", err, "parsed", len(withdrawns))
 	}

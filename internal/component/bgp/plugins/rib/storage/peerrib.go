@@ -473,23 +473,6 @@ func (r *PeerRIB) SetLabelsIfRouteExists(fam family.Family, nlriBytes []byte, h 
 	return rib.SetLabels(pathID, pfx, h)
 }
 
-// RemoveLabels deletes MPLS label side-data for a CIDR NLRI, of the one path
-// the NLRI's path id names under ADD-PATH.
-func (r *PeerRIB) RemoveLabels(fam family.Family, nlriBytes []byte) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	rib, exists := r.families[fam]
-	if !exists || !rib.isLabeled() {
-		return
-	}
-	pathID, pfx, ok := rib.parseNLRIKey(nlriBytes)
-	if !ok {
-		return
-	}
-	rib.RemoveLabels(pathID, pfx)
-}
-
 // LookupLabels returns the MPLS label handle for a CIDR NLRI, of the path the
 // NLRI's path id names under ADD-PATH, or InvalidHandle.
 func (r *PeerRIB) LookupLabels(fam family.Family, nlriBytes []byte) attrpool.Handle {

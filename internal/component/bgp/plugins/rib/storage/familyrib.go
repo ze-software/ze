@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/store"
 )
@@ -331,13 +332,51 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 // Withdraw removes the path a received withdrawal names. Returns true if the
 // path existed. It differs from Remove for a family whose withdrawal frames
 // the route differently: RFC 8277 Section 2.4 puts one Compatibility field
-// where the announcement carried its label stack, and "Upon reception, the
-// value of the Compatibility field MUST be ignored."
+// where the announcement carried its label stack, so a labeled unicast
+// withdrawal reaches its prefix through LabeledWithdrawnPrefix and an opaque
+// route through its route key. The quoted rule, RFC 8277 Section 2.4: "Upon
+// reception, the value of the Compatibility field MUST be ignored." holds for
+// both.
 func (r *FamilyRIB) Withdraw(nlriBytes []byte) bool {
 	if !r.cidr {
 		return r.removeOpaque(nlriBytes, true)
 	}
-	return r.removeCIDR(nlriBytes)
+	if !r.labeled {
+		return r.removeCIDR(nlriBytes)
+	}
+	var buf [4 + nlrisplit.PrefixKeyScratchSize]byte
+	prefixNLRI, ok := LabeledWithdrawnPrefix(r.fam, nlriBytes, r.addPath, buf[:0])
+	if !ok {
+		return false
+	}
+	return r.removeCIDR(prefixNLRI)
+}
+
+// LabeledWithdrawnPrefix appends to dst the NLRI a labeled unicast (SAFI 4)
+// route is stored under, read from one NLRI of a received withdrawal:
+// [path-id(4)?][prefix length][prefix], the path identifier kept when addPath
+// is set. nlri MUST come from withdrawal framing (nlrisplit.SplitWithdrawn).
+// Returns false for an NLRI too short for its framing.
+//
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." The three octets after the Length are skipped whatever
+// they hold, so 0x800000, with its S bit clear, reaches the route as any
+// label value does.
+func LabeledWithdrawnPrefix(fam family.Family, nlri []byte, addPath bool, dst []byte) ([]byte, bool) {
+	route := nlri
+	if addPath {
+		if len(nlri) < 4 {
+			return dst, false
+		}
+		dst = append(dst, nlri[:4]...)
+		route = nlri[4:]
+	}
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	key, err := nlrisplit.GetPrefixKey(fam)(route, scratch[:], true)
+	if err != nil {
+		return dst, false
+	}
+	return append(dst, key...), true
 }
 
 // removeCIDR removes the path of a CIDR prefix an NLRI names.
@@ -646,23 +685,6 @@ func (r *FamilyRIB) LookupLabels(pathID uint32, pfx netip.Prefix) attrpool.Handl
 		return attrpool.InvalidHandle
 	}
 	return ps.lookupLabels(pathID)
-}
-
-// RemoveLabels releases the label handle bound to the path (pathID, pfx) and
-// leaves every other path's binding in place. Without ADD-PATH, pathID is
-// ignored.
-func (r *FamilyRIB) RemoveLabels(pathID uint32, pfx netip.Prefix) {
-	if !r.labeled {
-		return
-	}
-	if r.labels != nil {
-		r.removePrefixLabels(pfx)
-		return
-	}
-	if r.multi == nil {
-		return
-	}
-	r.multi.Modify(pfx, func(ps *pathSet) { ps.removeLabels(pathID) })
 }
 
 // removePrefixLabels deletes and releases the one label binding a prefix holds

@@ -853,9 +853,18 @@ in its `pathEntry` beside the `RouteEntry`. RFC 8277 Section 2.5 binds a label
 per path: an UPDATE for the same path id replaces that path's binding
 (`pathSet.upsert` releases it), and an UPDATE or a withdrawal for another path
 id leaves it in place. Without ADD-PATH the family keeps one handle per prefix in
-a parallel trie.
-<!-- source: internal/component/bgp/plugins/rib/storage/pathset.go -- pathEntry, upsert, setLabels -->
-<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- SetLabels, LookupLabels, RemoveLabels -->
+a parallel trie. Removing the route releases its binding with it, so no caller
+removes a label alone.
+
+A withdrawal frames its NLRI as `[Length][Compatibility(3)][Prefix]` (RFC 8277
+Section 2.4), never as a label stack: the 0x800000 the RFC recommends has its S
+bit clear, and the announcement's walk to the bottom of the stack would read past
+the NLRI. Every RIB withdrawal path splits with `nlrisplit.SplitWithdrawn`, and
+`LabeledWithdrawnPrefix` skips the three octets whatever they hold, so the
+withdrawal reaches the prefix the route was stored under.
+<!-- source: internal/component/bgp/plugins/rib/storage/pathset.go -- pathEntry, upsert, setLabels, remove -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- SetLabels, LookupLabels, Withdraw, LabeledWithdrawnPrefix -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/nlrisplit.go -- SplitWithdrawn -->
 
 See `DirectNLRISet.nlriLen()` for parsing implementation.
 

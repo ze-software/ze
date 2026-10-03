@@ -444,6 +444,28 @@ With ADD-PATH (RFC 7911):
 +---------------------------+
 ```
 
+A withdrawal (RFC 8277 Section 2.4) carries one Compatibility field where the
+announcement carried its label stack:
+
+```
++---------------------------+
+|   Path ID (4 octets)      |  ADD-PATH only
++---------------------------+
+|   Length (1 octet)        |  = 24 + prefix_bits
++---------------------------+
+|   Compatibility (3 oct.)  |  SHOULD be 0x800000 on send, ignored on receipt
++---------------------------+
+|   Prefix (variable)       |
++---------------------------+
+```
+
+The RECOMMENDED 0x800000 has its S bit clear, so the announcement's walk to the
+bottom of the stack would read past the NLRI. A withdrawal is therefore framed
+by its Length alone (`nlrisplit.GetWithdraw`, `nlrisplit.SplitWithdrawn`), and
+the three octets are skipped whatever they hold (`keyLabeled` with `withdraw`).
+<!-- source: internal/core/bgp/nlri/nlrisplit/nlrisplit.go -- SplitWithdrawn -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- GetWithdraw, keyLabeled -->
+
 ### Ze Implementation
 
 ```go

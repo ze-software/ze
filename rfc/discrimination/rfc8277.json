@@ -145,6 +145,28 @@
       "break": "body of WriteLabelStack replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility",
+      "unit-sha": "c04d68dee8dfc911",
+      "claim-sha": "76796bebd18db40b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix",
+      "producer-sha": "0b7ea75853f3f46d",
+      "break": "body of LabeledWithdrawnPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility",
+      "unit-sha": "69670219b06fe75b",
+      "claim-sha": "da5f630c5ec79e51",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::LabeledWithdrawnPrefix",
+      "producer-sha": "0b7ea75853f3f46d",
+      "break": "body of LabeledWithdrawnPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8277-2.5-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute",

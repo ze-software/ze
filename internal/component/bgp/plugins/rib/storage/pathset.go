@@ -108,16 +108,6 @@ func (s *pathSet) lookupLabels(pathID uint32) attrpool.Handle {
 	return attrpool.InvalidHandle
 }
 
-// removeLabels releases the label handle bound to pathID, keeping the route.
-func (s *pathSet) removeLabels(pathID uint32) {
-	for i := range s.entries {
-		if s.entries[i].pathID == pathID {
-			releaseLabels(&s.entries[i])
-			return
-		}
-	}
-}
-
 // releaseLabels releases e's label handle and leaves e with none.
 func releaseLabels(e *pathEntry) {
 	if e.labels.IsValid() {

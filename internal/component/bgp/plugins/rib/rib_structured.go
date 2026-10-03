@@ -212,14 +212,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			wdBytes := mpUnreach.WithdrawnBytes()
 			if len(wdBytes) > 0 {
 				addPath := ctx != nil && ctx.AddPath(fam)
-				withdrawns, _ := nlrisplit.Split(fam, wdBytes, addPath)
+				// RFC 8277 Section 2.4: a withdrawal frames its label field as
+				// one Compatibility field, so it is split and read as such.
+				withdrawns, _ := nlrisplit.SplitWithdrawn(fam, wdBytes, addPath)
 				isLabeled := fam.SAFI == family.SAFIMPLSLabel
 				for _, wd := range withdrawns {
 					if isLabeled {
 						r.removeLabeled(peerRIB, fam, wd, addPath, &affected)
 					} else {
-						// RFC 8277 Section 2.4: a withdrawal frames its label
-						// field as a Compatibility field, read as such.
 						peerRIB.Withdraw(fam, wd)
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath, withdraw: true})
 					}
@@ -631,13 +631,17 @@ func (r *RIBManager) insertLabeledEntry(peerRIB *storage.PeerRIB, fam family.Fam
 	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
 }
 
-// removeLabeled handles a single labeled unicast NLRI withdrawal.
+// removeLabeled handles a single labeled unicast NLRI withdrawal, wireEntry
+// framed by nlrisplit.SplitWithdrawn. The route goes with its label binding,
+// and the election runs on the prefix the route was stored under.
+//
+// RFC 8277 Section 2.4: "Upon reception, the value of the Compatibility field
+// MUST be ignored." storage.LabeledWithdrawnPrefix skips it whatever it holds.
 func (r *RIBManager) removeLabeled(peerRIB *storage.PeerRIB, fam family.Family, wireEntry []byte, addPath bool, affected *[]affectedPrefix) {
-	_, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
-	if err != nil || len(cidrBytes) == 0 {
+	prefixNLRI, ok := storage.LabeledWithdrawnPrefix(fam, wireEntry, addPath, nil)
+	if !ok {
 		return
 	}
-	peerRIB.Remove(fam, cidrBytes)
-	peerRIB.RemoveLabels(fam, cidrBytes)
-	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
+	peerRIB.Remove(fam, prefixNLRI)
+	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: prefixNLRI, addPath: addPath})
 }
