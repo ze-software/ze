@@ -6,11 +6,11 @@
       "requirement_sha": "75ffaa10a6a26d83",
       "tests": {
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NSTargetIsNotAnAlias": "8e2a11ccd7fe5573",
-        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "462d70baffe48085"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "462d70baffe48085"
       },
       "units": {
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NSTargetIsNotAnAlias": "249fad351188da50",
-        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
       },
       "verdict": "enforced"
     },
@@ -18,10 +18,10 @@
       "note": "TestRFC2181_NSCanonicalWithGlue asserts every synthesized NS target has an A record in the additional section of the same answer.",
       "requirement_sha": "1db0bcd911557a99",
       "tests": {
-        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "462d70baffe48085"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "462d70baffe48085"
       },
       "units": {
-        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
       },
       "verdict": "enforced"
     },
@@ -31,12 +31,12 @@
       "tests": {
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound": "8e2a11ccd7fe5573",
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound#2": "8e2a11ccd7fe5573",
-        "internal/plugins/geodns/server_test.go::TestRFC2181_WireNameLimits": "462d70baffe48085"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_WireNameLimits": "462d70baffe48085"
       },
       "units": {
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound": "3b657383f7d5a21b",
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound#2": "3b657383f7d5a21b",
-        "internal/plugins/geodns/server_test.go::TestRFC2181_WireNameLimits": "6073646896eb83a9"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_WireNameLimits": "6073646896eb83a9"
       },
       "verdict": "enforced"
     },
@@ -45,11 +45,11 @@
       "requirement_sha": "84c208957ee84346",
       "tests": {
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181ReplySourcedFromTheQueriedAddress": "8e2a11ccd7fe5573",
-        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "462d70baffe48085"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "462d70baffe48085"
       },
       "units": {
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181ReplySourcedFromTheQueriedAddress": "22e8c7d7c0e20043",
-        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "ae9591c46acae9f9"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "ae9591c46acae9f9"
       },
       "verdict": "enforced"
     },
@@ -57,10 +57,10 @@
       "note": "TestRFC2181_UDPReplySourceAndPort reads the reply on the client's own ephemeral socket and matches the query id; a reply sent to any other destination port never arrives and the read fails.",
       "requirement_sha": "6c75ce71dc5f1e92",
       "tests": {
-        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "462d70baffe48085"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "462d70baffe48085"
       },
       "units": {
-        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "ae9591c46acae9f9"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "ae9591c46acae9f9"
       },
       "verdict": "enforced"
     },
@@ -68,10 +68,10 @@
       "note": "TestRFC2181_RRSetEqualTTL drives answerQuestions for a three-address host and asserts every A record in the emitted RRSet carries the one configured TTL (120).",
       "requirement_sha": "4c7cf3e64f87228d",
       "tests": {
-        "internal/plugins/geodns/server_test.go::TestRFC2181_RRSetEqualTTL": "462d70baffe48085"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_RRSetEqualTTL": "462d70baffe48085"
       },
       "units": {
-        "internal/plugins/geodns/server_test.go::TestRFC2181_RRSetEqualTTL": "922b30324bbe96bc"
+        "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_RRSetEqualTTL": "922b30324bbe96bc"
       },
       "verdict": "enforced"
     },
@@ -79,12 +79,12 @@
       "note": "Re-judged 2026-09-30. Positive: an overlapping response {B} replaces the cached A RRSet {A,B,C} with exactly {B}, so neither a union nor a remainder passes. Negative: the condition's false arm, data that forms no RRSet (AAAA of the same name, A of another name), leaves those sets whole. Records: cache.put reverts, both polarities observed red.",
       "requirement_sha": "c4c14a1cf07a1756",
       "tests": {
-        "internal/component/resolve/dns/cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "a285c638f6f3738a",
+        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "a285c638f6f3738a",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "82cd74bc7cef234b",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "82cd74bc7cef234b"
       },
       "units": {
-        "internal/component/resolve/dns/cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c",
+        "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet": "c10f1be8b1784b6d",
         "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet#2": "c10f1be8b1784b6d"
       },
@@ -94,13 +94,13 @@
       "note": "Re-judged 2026-09-30. Positive: parseTTL('0') is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value <= 2^31-1, closing the earlier 'when transmitted' gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.",
       "requirement_sha": "0ede5207edff953a",
       "tests": {
-        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound": "609bb27b7d22e156",
-        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound#2": "609bb27b7d22e156",
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "609bb27b7d22e156",
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "609bb27b7d22e156",
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "8e2a11ccd7fe5573"
       },
       "units": {
-        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
-        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8",
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
+        "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8",
         "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "896360c00e8310a0"
       },
       "verdict": "enforced"

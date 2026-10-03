@@ -15,7 +15,7 @@
     {
       "rid": "RFC2181-10.3-1",
       "polarity": "positive",
-      "unit": "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue",
+      "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue",
       "unit-sha": "916ec93b26bb4304",
       "claim-sha": "c7c6278875e5d1cd",
       "route": "revert",
@@ -48,7 +48,7 @@
     {
       "rid": "RFC2181-11-1",
       "polarity": "positive",
-      "unit": "internal/plugins/geodns/server_test.go::TestRFC2181_WireNameLimits",
+      "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_WireNameLimits",
       "unit-sha": "c5622436973575b8",
       "claim-sha": "de8a55aa0f663839",
       "route": "revert",
@@ -70,7 +70,7 @@
     {
       "rid": "RFC2181-4.1-1",
       "polarity": "positive",
-      "unit": "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort",
+      "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort",
       "unit-sha": "7f69d4d4f94f621d",
       "claim-sha": "9f59427ac6efddef",
       "route": "revert",
@@ -81,7 +81,7 @@
     {
       "rid": "RFC2181-5.4-2",
       "polarity": "positive",
-      "unit": "internal/component/resolve/dns/cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge",
+      "unit": "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge",
       "unit-sha": "104a32380f88701a",
       "claim-sha": "63a895d1fd0c0992",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC2181-8-1",
       "polarity": "negative",
-      "unit": "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound",
+      "unit": "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound",
       "unit-sha": "a11bcc0f8dc4a064",
       "claim-sha": "3f187952ae9f2259",
       "route": "revert",
@@ -125,7 +125,7 @@
     {
       "rid": "RFC2181-8-1",
       "polarity": "positive",
-      "unit": "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound",
+      "unit": "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound",
       "unit-sha": "a11bcc0f8dc4a064",
       "claim-sha": "f2b7aecde1a5b152",
       "route": "revert",
