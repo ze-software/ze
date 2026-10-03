@@ -113,12 +113,12 @@
       "note": "Forbidden: no RFC 9072 Extended Optional Parameters Length support. TestSoftwareVersionCapabilityUsesExtendedOptionalParameters packs an OPEN whose capabilities exceed 255 octets with code 75 inside and asserts the FF FF markers, the two-octet length, and UnpackOpen reporting ExtendedParams with identical parameters, red if either direction lacks the extended form. Negative: under 255 octets the classic form is used.",
       "requirement_sha": "68c21be0bd61f844",
       "tests": {
-        "internal/component/bgp/message/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling": "f4c521e61747f952",
-        "internal/component/bgp/message/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityUsesExtendedOptionalParameters": "f4c521e61747f952"
+        "internal/component/bgp/message/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling": "f4c521e61747f952",
+        "internal/component/bgp/message/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityUsesExtendedOptionalParameters": "f4c521e61747f952"
       },
       "units": {
-        "internal/component/bgp/message/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling": "4e1546b41e872350",
-        "internal/component/bgp/message/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityUsesExtendedOptionalParameters": "2d1ac66f0c338db5"
+        "internal/component/bgp/message/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling": "4e1546b41e872350",
+        "internal/component/bgp/message/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityUsesExtendedOptionalParameters": "2d1ac66f0c338db5"
       },
       "verdict": "enforced"
     },

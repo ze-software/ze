@@ -86,7 +86,7 @@ var AllocCeilings = map[string]int{
 	"BenchmarkFilterDispatch_ZeroAlloc": 0,
 	// The RFC 6793 ingest collapse on the four-octet fast path, per RECEIVED
 	// UPDATE from every peer (BenchmarkCollapseAS4FastPath,
-	// internal/component/bgp/wireu/aspath_collapse_test.go).
+	// internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go).
 	//
 	// AC-9 of spec-forwarded-as-path-obeys-rfc6793-for-every-destination is
 	// zero allocations: a NEW speaker sends neither AS4 attribute, so the

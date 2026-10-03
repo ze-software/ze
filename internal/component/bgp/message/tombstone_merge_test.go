@@ -12,10 +12,10 @@ import (
 // attrCodeAttrDiscard is a test-only alias for the single canonical ATTR_TOMBSTONE code
 // point, attribute.AttrTombstone (252). The message tier's own second constant (253) was
 // deleted when the code point was unified (spec-fixit-tombstone-code-point-split); the
-// pre-existing tests in attr_discard_test.go reference this name, so it is retained here as
+// pre-existing tests in rfc7606_attr_discard_test.go reference this name, so it is retained here as
 // an alias to the one canonical value, keeping those tests tracking the unified code. It is
 // not itself a code-point declaration (it derives from attribute.AttrTombstone), and it is
-// kept rather than renamed in attr_discard_test.go because that file is a hook-protected
+// kept rather than renamed in rfc7606_attr_discard_test.go because that file is a hook-protected
 // RFC-tagged test that must not be edited without user approval.
 const attrCodeAttrDiscard = uint8(attribute.AttrTombstone)
 

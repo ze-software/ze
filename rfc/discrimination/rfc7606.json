@@ -92,7 +92,7 @@
     {
       "rid": "RFC7606-4-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
+      "unit": "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
       "unit-sha": "04e753872be540ad",
       "claim-sha": "179bab881186f9ff",
       "route": "revert",
@@ -103,7 +103,7 @@
     {
       "rid": "RFC7606-4-3",
       "polarity": "negative",
-      "unit": "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
+      "unit": "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
       "unit-sha": "04e753872be540ad",
       "claim-sha": "c1f0bdeaed19b4e6",
       "route": "revert",

@@ -56,7 +56,7 @@
       "tests": {
         "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "468f4d4a5f404a50",
         "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "468f4d4a5f404a50",
-        "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "e87970ac24f6e98d",
+        "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "e87970ac24f6e98d",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "ced3ad313c9ae5a7",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "ced3ad313c9ae5a7",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "ced3ad313c9ae5a7",
@@ -67,7 +67,7 @@
       "units": {
         "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "98db371592636a58",
         "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "934405b4511f63b2",
-        "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "4efbe639d79d5b32",
+        "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "4efbe639d79d5b32",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "4aee02fb9c072981",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "9cd898c03e20535a",
         "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "39a63c8b63ac95f4",

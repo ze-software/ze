@@ -57,8 +57,8 @@
       "note": "Positives: sendInitialRoutes puts one End-of-RIB per negotiated family on the wire, including a silent family and a no-MP session. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: while a plugin producing the initial update has not acknowledged peer-up, sendInitialRoutes is observed waiting and nothing is on the wire (EORSent 0); after the acknowledgement exactly the IPv4 unicast marker is written. Red on a marker sent ahead of the initial update or not sent after it. TestIsEndOfRIBAnyFamily is a neighbouring detector rule.",
       "requirement_sha": "3b50556b505890d9",
       "tests": {
-        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "02487edfbf589113",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "02487edfbf589113",
@@ -68,8 +68,8 @@
         "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "f04334a58fd00e7c"
       },
       "units": {
-        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "60545c5d079b485c",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "bb281df1bb3cb7e8",
@@ -114,14 +114,14 @@
       "note": "Re-judged 2026-10-02 (BGP c25 judge). rfc4724_restart_state_test.go builds the OPEN through Session.buildOpen with Peer.getPluginCapabilities wired as peer_run.go wires it, a bgp-gr code 64 value with R clear served by the test-only Reactor.pluginCapabilitySeam (nil in production; with it nil getPluginCapabilities behaves as at HEAD), and parses the sent capability: inside the restart window R is set with Restart Time and the IPv4 unicast tuple unchanged (positive); cold start and passed deadline leave R clear (negative, the bit is not blanket). Overlay probes: SetRBit removed reds only the positive, window forced true reds only the negative. Records: restartFlagsFor revert (+), getPluginCapabilities revert (-). The grmarker units stay as supplementary. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units' tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller's caps keep R=0) and names the production gate Peer.getPluginCapabilities -> restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.",
       "requirement_sha": "869c311ad2e0caaa",
       "tests": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "44c716d6e34b104e",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "44c716d6e34b104e",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability": "44c716d6e34b104e",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern": "44c716d6e34b104e",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "2f635516005267d9",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "2f635516005267d9"
       },
       "units": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "fd70be72ebae4fd8",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "a186dce965271faa",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability": "fd70be72ebae4fd8",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern": "a186dce965271faa",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "b6bfef2470cdbbfb",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "be3ceba3049e2527"
       },
@@ -131,14 +131,14 @@
       "note": "New unit TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete drives peer.sendInitialRoutes on an established peer and reads the socket. Positive: empty table -> the wire is exactly the IPv4 unicast EoR (the RFC's \"including the case that there is no routing update to send\"); with default-originate -> [UPDATE 0.0.0.0/0, EoR], EORSent 1. Negative: no EoR precedes the route and exactly one follows it (a marker before completion violates \"Once the initial update is complete\"). Observed-red records +/- (revert peer_initial_sync.go::sendEORFamilies); both polarities share one break, which reddens the unit as a whole rather than the ordering clause alone. Message-level EoR encoding units stay as supplementary.",
       "requirement_sha": "53683d3892cd3a1e",
       "tests": {
-        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
         "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete": "dd37c4251f3d4722",
         "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete#2": "dd37c4251f3d4722"
       },
       "units": {
-        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
         "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete": "a332b94df7832b59",
         "internal/component/bgp/reactor/rfc4724_initial_update_eor_test.go::TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete#2": "a332b94df7832b59"
       },
@@ -227,14 +227,14 @@
       "note": "Re-judged 2026-10-02 (BGP c25 judge). Positive TestRFC4724OpenOutsideTheRestartWindowClearsRestartState: the OPEN built through the production getter on a cold start and after the deadline carries R clear; the overlay probe forcing the window true turns both subtests red. Negative TestRFC4724OpenInsideTheRestartWindowSetsRestartState pins the 'unless restarted' exception (R set inside the window), so the positive cannot pass by a getter that never sets R. Records: getPluginCapabilities revert (+), restartFlagsFor revert (-). Same seam and same supplementary grmarker units as RFC4724-4.1-4. Re-judged 2026-10-02 (BGP c26 judge): the grmarker supplementary units' tag prose now states what each body asserts (TestSetRBitOnCapability: SetRBit sets 0x80 and keeps Restart Time 120; TestSetRBitTimeGatePattern: SetRBit edits a copy, the caller's caps keep R=0) and names the production gate Peer.getPluginCapabilities -> restartFlagsFor (peer_gr_flags.go), proven by the reactor units above; bodies unchanged, read against the prose and found accurate. Both grmarker units carry SetRBit-revert records, observed red. Verdict rests on the reactor units, unchanged.",
       "requirement_sha": "3f66e2036378a8e6",
       "tests": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "44c716d6e34b104e",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "44c716d6e34b104e",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability": "44c716d6e34b104e",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern": "44c716d6e34b104e",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "2f635516005267d9",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "2f635516005267d9"
       },
       "units": {
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "fd70be72ebae4fd8",
-        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "a186dce965271faa",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability": "fd70be72ebae4fd8",
+        "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern": "a186dce965271faa",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState": "b6bfef2470cdbbfb",
         "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState": "be3ceba3049e2527"
       },
@@ -280,14 +280,14 @@
       "note": "Positive TestInitialSyncEORReachesTheSilentFamilyToo proves the marker is sent including for a family with no routes. Negative TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes: no End-of-RIB before the initial update for IPv4 unicast completes (plugin barrier held, sendInitialRoutes observed waiting, wire empty), then exactly that marker once it does. TestBuildEOR_IPv4Unicast proves encoding only.",
       "requirement_sha": "29d7f4477d6938f6",
       "tests": {
-        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
         "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "e72eb4d8a404ce48"
       },
       "units": {
-        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
-        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
+        "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
         "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2",
         "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "3d544c29b0d3f7a9"
       },

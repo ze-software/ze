@@ -27,8 +27,8 @@
       "requirement_sha": "328f6e02c6ab0927",
       "tests": {
         "internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "d2eeb2e25557e522",
-        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "e95a22c6a645c4b7",
-        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "e95a22c6a645c4b7",
+        "internal/component/bgp/rib/rfc4760_commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "e95a22c6a645c4b7",
+        "internal/component/bgp/rib/rfc4760_commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "e95a22c6a645c4b7",
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "2d5c4702ca88dcc3",
         "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "2d5c4702ca88dcc3",
         "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "2d5c4702ca88dcc3",
@@ -37,8 +37,8 @@
       },
       "units": {
         "internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "78903c0eef755206",
-        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "b70843ccf60a1782",
-        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "8db455227021d870",
+        "internal/component/bgp/rib/rfc4760_commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "b70843ccf60a1782",
+        "internal/component/bgp/rib/rfc4760_commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "8db455227021d870",
         "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "25748e2690ae75be",
         "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "f8a2e70b53e57961",
         "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "7a3d2d2e2acca2ba",

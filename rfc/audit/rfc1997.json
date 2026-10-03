@@ -21,8 +21,8 @@
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "13c5ebffb9631cf5",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "13c5ebffb9631cf5",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "13c5ebffb9631cf5",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "f04334a58fd00e7c",
         "test/plugin/wellknown-no-export-egress.ci": "5b9242c9c2a6c679",
@@ -33,8 +33,8 @@
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "beb2711142d7872a",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "54a0341db126a505",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "858b88657ee735a1",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "3226720fb2478e07",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "91be597450cbc865",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "3226720fb2478e07",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "91be597450cbc865",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "7ab3be1dbdd8af41",
         "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "7ab3be1dbdd8af41",
         "test/plugin/wellknown-no-export-egress.ci": "5b9242c9c2a6c679",
@@ -48,15 +48,15 @@
       "requirement_sha": "50a97592f8c45bed",
       "tests": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "13c5ebffb9631cf5",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "dec76563936c7c9c",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "dec76563936c7c9c",
         "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
         "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
       },
       "units": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "f195af0ab88d74eb",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "0a72268fe1be4335",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "c98d7a73b890617d",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "0a72268fe1be4335",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "c98d7a73b890617d",
         "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
         "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
       },
@@ -67,15 +67,15 @@
       "requirement_sha": "2e97581e9ff97478",
       "tests": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSubconfedSkipsExternalPeerOnly": "13c5ebffb9631cf5",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "dec76563936c7c9c",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "dec76563936c7c9c",
         "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
         "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
       },
       "units": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSubconfedSkipsExternalPeerOnly": "a241dcab4770c262",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "9a5811345372fbe9",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "8fd1df316654acf4",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "9a5811345372fbe9",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "8fd1df316654acf4",
         "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
         "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
       },
@@ -87,14 +87,14 @@
       "tests": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardOtherReservedCommunitiesReachExternalPeer": "13c5ebffb9631cf5",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWellKnownNeedsNoOperatorPolicy": "13c5ebffb9631cf5",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownAllThreeOperationsImplemented": "dec76563936c7c9c",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities": "dec76563936c7c9c"
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownAllThreeOperationsImplemented": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities": "dec76563936c7c9c"
       },
       "units": {
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardOtherReservedCommunitiesReachExternalPeer": "2623f6891b6d1d27",
         "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWellKnownNeedsNoOperatorPolicy": "ba2100bdc24109ac",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownAllThreeOperationsImplemented": "438c2e23ce7e28a8",
-        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities": "cadbd62f63463f10"
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownAllThreeOperationsImplemented": "438c2e23ce7e28a8",
+        "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities": "cadbd62f63463f10"
       },
       "verdict": "enforced"
     }

@@ -4,7 +4,7 @@
     {
       "rid": "RFC4684-4-1",
       "polarity": "positive",
-      "unit": "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength",
+      "unit": "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength",
       "unit-sha": "0514cb5c6a90718e",
       "claim-sha": "70f9cea42ed5734f",
       "route": "revert",
@@ -15,7 +15,7 @@
     {
       "rid": "RFC4684-4-1",
       "polarity": "negative",
-      "unit": "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength",
+      "unit": "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength",
       "unit-sha": "0514cb5c6a90718e",
       "claim-sha": "4312a23770dda0e1",
       "route": "revert",

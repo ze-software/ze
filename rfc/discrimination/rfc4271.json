@@ -323,7 +323,7 @@
     {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent",
+      "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent",
       "unit-sha": "8dce6521b37b65bc",
       "claim-sha": "6c1a55fae6669a98",
       "route": "revert",
@@ -334,7 +334,7 @@
     {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet",
+      "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet",
       "unit-sha": "c67a744713dc355e",
       "claim-sha": "df23ad2138b496c7",
       "route": "revert",
@@ -345,7 +345,7 @@
     {
       "rid": "RFC4271-5.1.2-3",
       "polarity": "positive",
-      "unit": "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull",
+      "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull",
       "unit-sha": "f3b4e5a0d42285df",
       "claim-sha": "2f8ba6d86d081716",
       "route": "revert",

@@ -5,16 +5,16 @@
       "note": "(a) forbidden: a 4-octet RTC next hop read as anything but IPv4, or a 16-octet one read as anything but IPv6 (for instance by keying on AFI 1). (b) TestRFC4684RTCNextHopByLength builds MP_REACH_NLRI for AFI 1 SAFI 132 and t.Fatalf's unless MPReachWire.NextHop returns exactly 192.0.2.1 and not Is6 for 4 octets, and exactly 2001:db8::1 and not Is4 for 16 octets. Both clauses carry both polarities.",
       "requirement_sha": "9516f228232da5df",
       "tests": {
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength": "77d8fa1b3dfe11e6",
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength#2": "77d8fa1b3dfe11e6",
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength#3": "77d8fa1b3dfe11e6",
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength#4": "77d8fa1b3dfe11e6"
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength": "77d8fa1b3dfe11e6",
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength#2": "77d8fa1b3dfe11e6",
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength#3": "77d8fa1b3dfe11e6",
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength#4": "77d8fa1b3dfe11e6"
       },
       "units": {
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength": "d7baf4a288038c4e",
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength#2": "d7baf4a288038c4e",
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength#3": "d7baf4a288038c4e",
-        "internal/component/bgp/wireu/nexthop_rtc_rfc4684_test.go::TestRFC4684RTCNextHopByLength#4": "d7baf4a288038c4e"
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength": "d7baf4a288038c4e",
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength#2": "d7baf4a288038c4e",
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength#3": "d7baf4a288038c4e",
+        "internal/component/bgp/wireu/rfc4684_nexthop_rtc_test.go::TestRFC4684RTCNextHopByLength#4": "d7baf4a288038c4e"
       },
       "verdict": "enforced"
     },

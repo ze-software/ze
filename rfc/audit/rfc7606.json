@@ -82,13 +82,13 @@
       "note": "TestApplyAttrDiscardMultipleEntries (attr_discard_test.go:256) asserts findAttrByCode(6)/(7) are nil (discarded) while ORIGIN/AS_PATH/NEXT_HOP survive (continues processing); TestSessionRFC7606AttributeDiscardContinues (session_test.go:1990) drives eBGP LOCAL_PREF and requires callbackCount==1 with session Established (UPDATE still dispatched). Positive TestApplyAttrDiscardEmptyEntries (:337) guards against unconditional discard. Both halves observed exactly. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "12ea471639e7fb04",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "c6ef70edfa51afe7",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "933b3c0fcb7d9bad"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",
-        "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "a9f7f462159da4b8",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "a9f7f462159da4b8",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "28e6044ff96091b1"
       },
       "verdict": "enforced"
@@ -224,15 +224,15 @@
       "note": "TestRFC7606MalformedAtomicAggregate (rfc7606_test.go:91, len 1) and TestRFC7606AggregatorLen8NoASN4Invalid (:1208) assert require.Equal(AttributeDiscard) AttrCode 6/7; TestRFC7606DiscardEntryReasonCodes cases (attr_discard_test.go:421/435) re-pin AttributeDiscard with the exact discard entry. Positive baseline (:1495) keeps well-formed ATOMIC_AGGREGATE/AGGREGATOR at ActionNone. Exact assertions fail if TAW or None substituted. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The stray list letter \"g.\" that the backfill carried from the next item was removed; the quote ends at \"AGGREGATOR.\" Verdict unchanged.",
       "requirement_sha": "b5770d944f035125",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes#2": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes#2": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "41fae6472d6a1c4d"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes#2": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes#2": "37b93f552b985f8b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "0a79fa12d7dc7b87",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "b035dba2219e6d42",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "826916eb61da357d"
@@ -379,12 +379,12 @@
       "note": "Forbidden: locating the NLRI from an overrunning attribute's own length instead of the Total Attribute Length. TestRFC7606NLRILocatedByTotalAttributeLength builds an UPDATE whose COMMUNITY declares 8 octets where 4 remain, confirms the validator returns TreatAsWithdraw at code 8, and fails unless SynthesizeWithdraw's Withdrawn Routes equal the two prefixes at the Total Attribute Length offset (assert.Equal nlri); the negative assert.NotEqual rejects the tail the overrun would have pointed at. SynthesizeWithdraw is SynthesizeWithdrawFamilies(body, nil), the same locator the receive path calls in session_read.go.",
       "requirement_sha": "28b6c6bea6a31eef",
       "tests": {
-        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "3fecff6fd636a994",
-        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "3fecff6fd636a994"
+        "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "3fecff6fd636a994",
+        "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "3fecff6fd636a994"
       },
       "units": {
-        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "2a3919fd56715e92",
-        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "2a3919fd56715e92"
+        "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "2a3919fd56715e92",
+        "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "2a3919fd56715e92"
       },
       "verdict": "enforced"
     },
@@ -409,7 +409,7 @@
         "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "9e24dda4092c3525",
         "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateCompliantShapeUntouched": "416a192d23139e4d",
         "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "416a192d23139e4d",
-        "internal/component/bgp/wireu/split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "af6e6610cb544b99",
+        "internal/component/bgp/wireu/rfc7606_split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "af6e6610cb544b99",
         "test/plugin/rfc7606-relay-one-field.ci": "ebc07445e585b8c0"
       },
       "units": {
@@ -421,7 +421,7 @@
         "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "6f63d3c0b046f19f",
         "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateCompliantShapeUntouched": "23997f3825d6f88f",
         "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "2c77d524af9a9afc",
-        "internal/component/bgp/wireu/split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "7df1c7da3cd9f958",
+        "internal/component/bgp/wireu/rfc7606_split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "7df1c7da3cd9f958",
         "test/plugin/rfc7606-relay-one-field.ci": "ebc07445e585b8c0"
       },
       "verdict": "enforced"
@@ -639,12 +639,12 @@
       "note": "Negative attr_discard_test.go:462 (cluster_list_ebgp_reason_1, isIBGP=false) asserts AttributeDiscard + Code 10 + Reason DiscardReasonEBGPInvalid; rfc7606_test.go:979 repeats AttributeDiscard+AttrCode 10+\"7.10\". Positive rfc7606_test.go:1001 sends the same CLUSTER_LIST from iBGP and asserts ActionNone. Pins the eBGP-context discard of validateClusterListAttr (rfc7606.go:530). 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "e558837ba8a237b3",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListEBGPDiscard": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "41fae6472d6a1c4d"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListEBGPDiscard": "7eac9432f78e9c41",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "56318d1811c98fd3"
       },
@@ -833,13 +833,13 @@
       "note": "Negative rfc7606_test.go:846 TestRFC7606LocalPrefEBGPDiscard sends a valid-LENGTH (4) LOCAL_PREF over eBGP and asserts require.Equal AttributeDiscard + AttrCode 5 + '7.5', so the discard is attributable purely to eBGP not to length. The positive at :868 sends the identical bytes over iBGP and gets Action None, isolating the eBGP rule. Reinforced by attr_discard_test.go:408 (exact AttributeDiscard + Code 5 + Reason EBGPInvalid) and reactor test session_test.go:1990 which proves the session stays Established (not reset) and the UPDATE is still dispatched. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "30203e9dd56aa914",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "41fae6472d6a1c4d",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "933b3c0fcb7d9bad"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "470dcd36e8096ff2",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "71e48a00f5c5aa6d",
         "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "28e6044ff96091b1"
@@ -863,12 +863,12 @@
       "note": "Negative rfc7606_test.go:91 TestRFC7606MalformedAtomicAggregate sends ATOMIC_AGGREGATE len 1 and asserts require.Equal AttributeDiscard + AttrCode 6 + '7.6', with the rest of the attribute set valid (isolated). Positive baseline at :1495 accepts ATOMIC_AGGREGATE len 0 (exact require.Equal Action None over the full set). Reinforced by attr_discard_test.go:422 (exact AttributeDiscard + Code 6 + Reason InvalidLength). 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "30af924767938614",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "41fae6472d6a1c4d"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "b035dba2219e6d42",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "826916eb61da357d"
       },
@@ -878,7 +878,7 @@
       "note": "Both length variants are pinned in both directions: positives accept len 6 without asn4 (TestRFC7606AggregatorLen6NoASN4) and len 8 with asn4 (TestRFC7606AggregatorLen8WithASN4), each Action None; negatives assert require.Equal AttributeDiscard + AttrCode 7 + '7.7' for len 8 without asn4 and len 6 with asn4, so the capability-dependent expected length is genuinely exercised. Reinforced by attr_discard_test.go (exact AttributeDiscard + Code 7 + Reason InvalidLength). INDEPENDENT RE-AUDIT 2026-09-20, after a new tagged carrier made the verdict stale: reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth. It is genuine added evidence and it reaches a clause the message-level units cannot. Section 7.7 sends a malformed AGGREGATOR to 'attribute discard', and Section 2 defines that as 'the malformed attribute MUST be discarded and the UPDATE message continues to be processed'. Until this unit, every tagged carrier stopped at the CLASSIFICATION ValidateUpdateRFC7606 returns; nothing asserted that the octets are absent from the body ze rebuilds for a peer. This one drives ASPathEdit.Record and buildModifiedPayload over a 7-octet and a 1-octet AGGREGATOR at a four-octet/four-octet width pair, asserts the AGGREGATOR code is gone from the rebuilt payload and that the route is not suppressed, which is the 'continues to be processed' half. Both lengths are malformed under the second bullet of Section 7.7 and neither trips a structural error first, so the buffer isolates the rule. The verdict stays enforced: the message-level pair is exact and unchanged, and this unit only strengthens it. FINDING, recorded rather than fixed because the carrier is another session's uncommitted work. Its tag reads 'RFC7606-7.7-1 positive' and the unit is a NEGATIVE. parseTagRest (internal/le/rfc/tags.go) fixes the meaning: 'a negative-only test passes if the code rejects everything and a positive-only one passes if it accepts everything'. This unit feeds a MALFORMED AGGREGATOR and asserts it is discarded, so an implementation that accepted everything fails it and one that discarded every AGGREGATOR passes it. The sibling tags in rfc7606_test.go use the word the same way the gate does: len 6 without asn4 accepted is 'positive', len 8 without asn4 discarded is 'negative'. The row is not deceived today, because the two genuine positives are still tagged, but the relay path itself now carries a negative and no positive: nothing tagged asserts that a WELL-FORMED AGGREGATOR survives the rebuild, so a recordAggregatorDiscard that fired on every AGGREGATOR would keep this row green. The tag word wants correcting to 'negative', and the relay path wants a positive beside it. RE-AUDIT 2026-09-20 (second pass), by a reader who wrote neither unit. The FINDING the paragraph above recorded is CLOSED IN THE CODE, not waived. The relay-rail carrier now reads 'RFC7606-7.7-1 negative', which is the word parseTagRest gives that polarity and the word its assertions earn, and TestForwardRelaysWellFormedAggregatorAtMatchingWidth is the positive that was missing. It is a genuine opposite input on the same rail rather than the negative's assertion in another hat: an eight-octet AGGREGATOR under SrcASN4 and DstASN4 both true, which RFC 7606 Section 7.7 leaves well-formed ('Its length is not 8 (when the 4-octet AS number capability is both advertised to and received from the peer)'), driven through the same ASPathEdit.Record then buildModifiedPayload path, asserting the value survives byte for byte, the flags stay 0xC0, and no ATTR_TOMBSTONE is written. That closes the hole the previous entry named: a recordAggregatorDiscard firing on EVERY AGGREGATOR now reddens this unit. Both relay units carry a discrimination record in rfc/discrimination/rfc7606.json observed by reverting recordAggregatorDiscard. SCOPE, recorded and not a downgrade: the relay rail's positive covers the four-octet/four-octet width arm alone, which is the arm its name claims, so the two-octet-width and cross-width relay arms still carry a negative and no positive there. Both length arms of the requirement itself stay proven in both polarities by the message-level units above. The verdict stays enforced. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote carries both length variants (6 without, 8 with the 4-octet AS capability); both are pinned in both directions. Verdict unchanged.",
       "requirement_sha": "59d3a534cda7c029",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6NoASN4": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6WithASN4Invalid": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "41fae6472d6a1c4d",
@@ -887,7 +887,7 @@
         "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardRelaysWellFormedAggregatorAtMatchingWidth": "ec40e05c3ba8c587"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6NoASN4": "af527e77c4d97da6",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6WithASN4Invalid": "fa43988ec27ddb1b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "0a79fa12d7dc7b87",
@@ -916,12 +916,12 @@
       "note": "Negative pins the exact eBGP-context discard: attr_discard_test.go:449 (originator_id_ebgp_reason_1, isIBGP=false, code 9) asserts Action==AttributeDiscard, DiscardEntries len 1, Code==9, Reason==DiscardReasonEBGPInvalid; rfc7606_test.go:913 repeats AttributeDiscard+AttrCode 9+\"7.9\". Positive rfc7606_test.go:935 sends the identical ORIGINATOR_ID from iBGP and asserts ActionNone, pinning the context dependence. Fails if the code stopped discarding eBGP ORIGINATOR_ID. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
       "requirement_sha": "6e604485fdbefbc9",
       "tests": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDEBGPDiscard": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "41fae6472d6a1c4d"
       },
       "units": {
-        "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDEBGPDiscard": "ecc81e533fdf2495",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "0e505e33edab1f63"
       },

@@ -180,14 +180,14 @@
       "note": "Session level: handleOpen+handleKeepalive with a 1 s configured keepalive. Positive: negotiated hold 9 -> timers hold 9, KeepaliveTimer running, >=1 KEEPALIVE in 1.6 s. Negative: negotiated zero from either side -> timers hold 0, KeepaliveTimer stopped, zero octets in 1.6 s. Judge break: negotiateWith feeding the configured hold into the timers when the peer offers 0 turned the negative red. Old fsm timer_test.go tags are supplementary.",
       "requirement_sha": "3842d65d888c9e9e",
       "tests": {
-        "internal/component/bgp/fsm/timer_test.go::TestKeepaliveWithZeroHoldTime": "c1acf4c219f9cfb6",
-        "internal/component/bgp/fsm/timer_test.go::TestTimersKeepaliveTimer": "c1acf4c219f9cfb6",
+        "internal/component/bgp/fsm/rfc4271_timer_test.go::TestKeepaliveWithZeroHoldTime": "c1acf4c219f9cfb6",
+        "internal/component/bgp/fsm/rfc4271_timer_test.go::TestTimersKeepaliveTimer": "c1acf4c219f9cfb6",
         "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives": "5f8f67ef39a01742",
         "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive": "5f8f67ef39a01742"
       },
       "units": {
-        "internal/component/bgp/fsm/timer_test.go::TestKeepaliveWithZeroHoldTime": "b5085232cd78eb17",
-        "internal/component/bgp/fsm/timer_test.go::TestTimersKeepaliveTimer": "9d12c289d62cd299",
+        "internal/component/bgp/fsm/rfc4271_timer_test.go::TestKeepaliveWithZeroHoldTime": "b5085232cd78eb17",
+        "internal/component/bgp/fsm/rfc4271_timer_test.go::TestTimersKeepaliveTimer": "9d12c289d62cd299",
         "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives": "5dead24ec81737fd",
         "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive": "cef3ce72f71f752a"
       },
@@ -273,7 +273,7 @@
       "tests": {
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "65ed9271dab3a1ea",
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "65ed9271dab3a1ea",
-        "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "125e31687892a371",
+        "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "125e31687892a371",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "775d197b2c06317e",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "775d197b2c06317e",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "775d197b2c06317e"
@@ -281,7 +281,7 @@
       "units": {
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "1b2ce2e6c980df3e",
         "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "1b2ce2e6c980df3e",
-        "internal/component/bgp/message/update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "8d9d9ce35844f8cf",
+        "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "8d9d9ce35844f8cf",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "2ad378772013fadb",
         "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "073483cbcad85930"
@@ -321,22 +321,22 @@
       "tests": {
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "35bb93fe81f0bf3d",
-        "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "6da7ca3641c9fc13",
-        "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
-        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "52bf19846926dcc3",
-        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "52bf19846926dcc3",
-        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "52bf19846926dcc3",
+        "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "6da7ca3641c9fc13",
+        "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "6da7ca3641c9fc13",
+        "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "52bf19846926dcc3",
+        "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "52bf19846926dcc3",
+        "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "52bf19846926dcc3",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "f04334a58fd00e7c",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "f04334a58fd00e7c"
       },
       "units": {
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "f40bdaebab6d5328",
         "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS": "15816d2dbe772dca",
-        "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "de030e26301a9b3a",
-        "internal/component/bgp/wireu/advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "de030e26301a9b3a",
-        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "62d51cc914f09baf",
-        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "fd860fa8f88bf938",
-        "internal/component/bgp/wireu/aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "2f4519d040567ccb",
+        "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising": "de030e26301a9b3a",
+        "internal/component/bgp/wireu/rfc4271_advertise_test.go::TestASPathSlotPrependOnlyWhenAdvertising#2": "de030e26301a9b3a",
+        "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotInsertsWhenAbsent": "62d51cc914f09baf",
+        "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet": "fd860fa8f88bf938",
+        "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull": "2f4519d040567ccb",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape": "cac36dd872b4096e",
         "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2": "cac36dd872b4096e"
       },

@@ -59,7 +59,7 @@
     {
       "rid": "RFC8654-4-2",
       "polarity": "positive",
-      "unit": "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize",
+      "unit": "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize",
       "unit-sha": "2c171b19e485ba0a",
       "claim-sha": "507d5e495918a2ca",
       "route": "revert",

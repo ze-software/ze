@@ -525,7 +525,7 @@
     {
       "rid": "RFC6793-6-5",
       "polarity": "positive",
-      "unit": "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator",
+      "unit": "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator",
       "unit-sha": "7c0ea727667bd809",
       "claim-sha": "8595f308e9450191",
       "route": "revert",
@@ -536,7 +536,7 @@
     {
       "rid": "RFC6793-6-5",
       "polarity": "negative",
-      "unit": "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423",
+      "unit": "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423",
       "unit-sha": "f6a3fb9e750313a0",
       "claim-sha": "be6941ee96bd5285",
       "route": "revert",

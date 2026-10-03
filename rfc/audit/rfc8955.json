@@ -205,12 +205,12 @@
       "note": "positive pins the exact IEEE 754 bits for byte and packet rates; negative asserts '-1 packets' is refused. The negative input is packets only, but both subtypes share the one guard in flowspec_encode.go (rate < 0). Test doc names parseFlowSpecTrafficRateBits in route_community.go, which does not exist",
       "requirement_sha": "8c9845407f2122ee",
       "tests": {
-        "internal/component/bgp/route/route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets": "b3ed1464deb27a9e",
-        "internal/component/bgp/route/route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets#2": "b3ed1464deb27a9e"
+        "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets": "b3ed1464deb27a9e",
+        "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets#2": "b3ed1464deb27a9e"
       },
       "units": {
-        "internal/component/bgp/route/route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets": "3a3f6b12839bc1d7",
-        "internal/component/bgp/route/route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets#2": "3a3f6b12839bc1d7"
+        "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets": "3a3f6b12839bc1d7",
+        "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets#2": "3a3f6b12839bc1d7"
       },
       "verdict": "enforced"
     },
@@ -218,12 +218,12 @@
       "note": "positive decodes 1000.0 to rate-limit:1000; negative decodes -1000.0 to rate-limit:0 for both subtype 0x06 and 0x0c",
       "requirement_sha": "6ce9c01c5365f2dd",
       "tests": {
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "1713f369e08f6db2",
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "1713f369e08f6db2"
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "1713f369e08f6db2",
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "1713f369e08f6db2"
       },
       "units": {
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "490a9bdb50aed2bf",
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "490a9bdb50aed2bf"
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero": "490a9bdb50aed2bf",
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficRateNegativeDecodesAsZero#2": "490a9bdb50aed2bf"
       },
       "verdict": "enforced"
     },
@@ -231,8 +231,8 @@
       "note": "encode: config actions leave octets 2-6 zero and only 0x03 in the last octet; decode: every reserved bit set renders the same as clear for all four S/T combinations, and a pair differing only in S changes the render, so a renderer reading no bit fails; the .ci repeats it end to end to a plugin",
       "requirement_sha": "f730f52d8678d610",
       "tests": {
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "1713f369e08f6db2",
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "1713f369e08f6db2",
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "1713f369e08f6db2",
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "1713f369e08f6db2",
         "internal/component/bgp/config/routeattr_test.go::TestRFC8955TrafficActionUnusedBitsZero": "7f15c74c8a2ccc2b",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "ccc1d8fecf4d366d",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "ccc1d8fecf4d366d",
@@ -240,8 +240,8 @@
         "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
       },
       "units": {
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "f383cf4b1f167750",
-        "internal/component/bgp/cli/decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "f383cf4b1f167750",
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "f383cf4b1f167750",
+        "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "f383cf4b1f167750",
         "internal/component/bgp/config/routeattr_test.go::TestRFC8955TrafficActionUnusedBitsZero": "2492773979cdeba1",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "dd8142e893fcabe3",
         "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "dd8142e893fcabe3",
@@ -267,8 +267,8 @@
       "note": "encode through config and EncodeRoute pins every reserved octet and the two reserved bits zero for DSCP 0, 46, 63, and refuses 64 and above; decode renders 0xEE as mark:46 and 0x40 as mark:0; the .ci carries the reserved-bit community to a plugin",
       "requirement_sha": "5cc7cd59aa99daeb",
       "tests": {
-        "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "9e0728a5b41e7a0b",
-        "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "9e0728a5b41e7a0b",
+        "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "9e0728a5b41e7a0b",
+        "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "9e0728a5b41e7a0b",
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "254f93c358e4eb09",
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "254f93c358e4eb09",
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "254f93c358e4eb09",
@@ -278,8 +278,8 @@
         "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
       },
       "units": {
-        "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "eab07fb95f9eec94",
-        "internal/component/bgp/config/routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "eab07fb95f9eec94",
+        "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "eab07fb95f9eec94",
+        "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "eab07fb95f9eec94",
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "5bdfdb080a6ce815",
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "62d17b12c3c9d526",
         "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "62d17b12c3c9d526",

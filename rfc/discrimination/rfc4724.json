@@ -103,7 +103,7 @@
     {
       "rid": "RFC4724-4.1-4",
       "polarity": "positive",
-      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability",
+      "unit": "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability",
       "unit-sha": "f521f8662fae7f15",
       "claim-sha": "2fd4534d4d2b071d",
       "route": "revert",
@@ -114,7 +114,7 @@
     {
       "rid": "RFC4724-4.1-4",
       "polarity": "negative",
-      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern",
+      "unit": "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern",
       "unit-sha": "51f50c2462a313c4",
       "claim-sha": "e3eb2c5e62f8bfdb",
       "route": "revert",
@@ -224,7 +224,7 @@
     {
       "rid": "RFC4724-4.2-6",
       "polarity": "negative",
-      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability",
+      "unit": "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability",
       "unit-sha": "f521f8662fae7f15",
       "claim-sha": "6e4d33c0043c2bc1",
       "route": "revert",
@@ -235,7 +235,7 @@
     {
       "rid": "RFC4724-4.2-6",
       "polarity": "positive",
-      "unit": "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern",
+      "unit": "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern",
       "unit-sha": "51f50c2462a313c4",
       "claim-sha": "4ba48850739a0243",
       "route": "revert",
