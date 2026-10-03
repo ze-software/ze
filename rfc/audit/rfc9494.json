@@ -2,6 +2,7 @@
   "audited": "2026-10-02",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -114,13 +115,13 @@
       "requirement_sha": "22bb80e0584de1a8",
       "tests": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "edfdb44e1c3eb08c",
-        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "e5d6319873861ae8",
-        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "86fd60e2db71589a"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "86fd60e2db71589a",
+        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "e5d6319873861ae8"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a2f00612c091011a",
-        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "7232e3ca91a2765f",
-        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "518180aadd409d26"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestAttachCommunity": "518180aadd409d26",
+        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_FreshRoutesDoNotGetLLGRStale": "7232e3ca91a2765f"
       },
       "verdict": "enforced"
     },
@@ -131,15 +132,15 @@
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "edfdb44e1c3eb08c",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "e60d254188c8f1f0",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "e60d254188c8f1f0",
-        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "e5d6319873861ae8",
-        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a",
+        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "e5d6319873861ae8"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "a2f00612c091011a",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "c168de6e2c60822d",
         "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "a08a43a4dcd95e09",
-        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "41bdc95fe854ca44",
-        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451"
+        "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451",
+        "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "41bdc95fe854ca44"
       },
       "verdict": "weak"
     },
@@ -270,8 +271,8 @@
       "note": "Re-judged 2026-10-02 (BGP c28 judge, c27 test defect fixed). Speaker side unchanged: TestRFC9494_LLGRNotEnabledByDefault fails if GR-only config declares code 71 or the YANG leaf long-lived-stale-time gains a default; TestRFC9494_LLGREnabledByExplicitConfig shows explicit config emits it (parseLLGRCapValue revert records +/-). Helper side: the gr plugin records the families of Ze's own sent code 71 and exchangedLLGRLocked hands session-down/up only received families Ze declared. The shared fixture rfc9494Opens now lists IPv4 AND IPv6 unicast in both GR Capabilities (TLV and JSON 00000001018000020180), so IPv6 reaches the LLGR decision. Negative TestRFC9494HelperProceduresOffWithoutLocalConfig (no code 71, or IPv6 only): no ffff0007/ffff0006 for ipv4. Positive TestRFC9494HelperProceduresOnPerConfiguredFamily (Ze declares IPv4, peer IPv4+IPv6): both LLGR commands for ipv4/unicast, exactly neither delete-with-community ffff0007 nor attach-community ffff0006 for ipv6/unicast, and purge-stale ipv6/unicast. Judge overlay (exchangedLLGRLocked returning every received family) now reds the positive on BOTH event paths with all three new assertions, and all four negative subcases; before the fixture change it left the positive green. Records: exchangedLLGRLocked revert +/-, re-recorded. Residual: the per-AFI/SAFI configuration clause is RFC9494-5-2, still a {gap} (LLGR configured per peer).",
       "requirement_sha": "958b52a20a2fc2ed",
       "tests": {
-        "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig": "c262a515ef564422",
-        "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily": "c262a515ef564422",
+        "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig": "9441ce41d77c3f99",
+        "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily": "9441ce41d77c3f99",
         "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig": "53201cebd4f22233",
         "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault": "53201cebd4f22233"
       },

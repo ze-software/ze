@@ -1,6 +1,7 @@
 {
   "audited": "2026-10-02",
   "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -98,8 +99,8 @@
       "tests": {
         "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "ce3c5eff2f3d3893",
         "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "ce3c5eff2f3d3893",
-        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "81cb1be2900d94ab",
-        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "81cb1be2900d94ab"
+        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityKeepsEveryFamilyTheRIBStores": "f7dddb8375cb8b7c",
+        "internal/component/bgp/plugins/gr/rfc4724_rib_families_test.go::TestRFC4724GRCapabilityOmitsAFamilyNoRIBStores": "f7dddb8375cb8b7c"
       },
       "units": {
         "internal/component/bgp/plugins/gr/rfc4724_gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "4035e6d18bdb61eb",
@@ -262,7 +263,7 @@
       "tests": {
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "0c7f565215e037ef",
         "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "0c7f565215e037ef",
-        "internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go::TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath": "e56a3275c03bf64c",
+        "internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go::TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath": "8ce3d1800e39f6e4",
         "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes": "02daf774960d8500",
         "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily": "02daf774960d8500"
       },
