@@ -496,12 +496,64 @@ func TestVPNLinkLocalOnlyNextHopWithdrawnFromMultihopPeer(t *testing.T) {
 	}
 }
 
+// TestASPathResolveFailureCostsWithheldDestinationNothing relays, on both rails,
+// a Link-Local-only route whose AS_PATH this speaker cannot re-encode to two
+// external destinations: one more than one IP hop away, which a withhold gate
+// refuses, and one on the link, which the gates pass.
+//
+// The AS_PATH is one AS_SET that declares five four-octet AS numbers and holds
+// one. tryShift takes only a leading AS_SEQUENCE, so ASPathEdit.Record parses
+// the path (recordPrepend) and fails, which is the resolve failure both rails
+// answer by suppressing the route for that destination.
+//
+// VALIDATES: the multihop destination is still written the withdrawal of
+// 2001:db8:7::/64 and announced nothing, and the on-link destination is sent
+// nothing at all. A withdrawal carries no AS_PATH, so the path is never
+// resolved for it.
+// PREVENTS: a rail that resolves the AS_PATH before it asks whether the
+// destination is withdrawn, which drops the withdrawal RFC 7606 Section 2
+// treat-as-withdraw owes the refused destination and leaves its stale route.
+func TestASPathResolveFailureCostsWithheldDestinationNothing(t *testing.T) {
+	offLink := netip.MustParseAddr(llnhOffSegmentAddr)
+	onLink := netip.MustParseAddr(llnhOnSegmentAddr)
+	attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 6, 1, 5, 0, 0, 0xfd, 0xe9}
+	attrs = append(attrs, mixedReach(2, 1, mixedLLNH, mixedV6Prefix)...)
+	payload := buildUpdatePayload(attrs, nil)
+
+	for _, run := range mixedRails(t, nil) {
+		rail := railName(run)
+		got := mixedForward(t, run, payload, mixedDest(t, offLink.String()), mixedDest(t, onLink.String()))
+
+		msgs := got[offLink]
+		require.NotEmpty(t, msgs, "%s: the multihop destination is written the withdrawal", rail)
+		var unreach []byte
+		for _, m := range msgs {
+			assert.False(t, m.hasReach, "%s: the multihop destination is announced nothing: %x", rail, m.reachNH)
+			unreach = append(unreach, m.unreach...)
+		}
+		assert.Equal(t, mixedUnreachValue(2, 1, mixedV6Prefix), unreach, "%s: the route is withdrawn", rail)
+		assert.Empty(t, got[onLink], "%s: the unresolvable AS_PATH suppresses the route on the link", rail)
+	}
+}
+
+// llnhTwoSegments is an interface table that holds the advertiser's segment and
+// the off-segment client's, so every client is directly attached to the speaker.
+var llnhTwoSegments = []netip.Prefix{
+	netip.MustParsePrefix("2001:db8:1::/64"),
+	netip.MustParsePrefix("2001:db8:9::/64"),
+}
+
 // TestRouteServerReflectedLinkLocalOnlyWithdrawnFromClientOffTheSegment is the
 // route-server twin of
 // TestReflectedLinkLocalOnlyRouteWithdrawnFromClientOffTheSegment: an internal
 // route-reflector client advertises a Link-Local-only next hop, and the
 // route-server rail reflects it to a client off the advertiser's segment and to
 // one on it.
+//
+// The speaker is attached to both segments (llnhTwoSegments), so the client off
+// the advertiser's segment is still one hop from this speaker. The off-link gate
+// (egressNextHopLinkLocalOnlyOffLink) then passes it, and only the reflection
+// gate can withhold the route: a rail that stopped asking it would send fe80::1.
 //
 // VALIDATES: the client off the segment is announced nothing and written the
 // withdrawal of 2001:db8:7::/64; the client on the segment is announced fe80::1
@@ -512,9 +564,10 @@ func TestVPNLinkLocalOnlyNextHopWithdrawnFromMultihopPeer(t *testing.T) {
 // asks.
 func TestRouteServerReflectedLinkLocalOnlyWithdrawnFromClientOffTheSegment(t *testing.T) {
 	payload := llnhReflectedPayload("fe80::1")
-	offSegment := llnhClient(t, llnhOffSegmentAddr, llnhSegment, false /*nextHopSelf*/)
-	onSegment := llnhClient(t, llnhOnSegmentAddr, llnhSegment, false /*nextHopSelf*/)
-	advertiser := llnhClient(t, llnhAdvertiserAddr, llnhSegment, false /*nextHopSelf*/)
+	offSegment := llnhClient(t, llnhOffSegmentAddr, llnhTwoSegments, false /*nextHopSelf*/)
+	onSegment := llnhClient(t, llnhOnSegmentAddr, llnhTwoSegments, false /*nextHopSelf*/)
+	advertiser := llnhClient(t, llnhAdvertiserAddr, llnhTwoSegments, false /*nextHopSelf*/)
+	require.True(t, destOnLink(offSegment), "the client off the segment is directly attached")
 
 	got := mixedForward(t, mixedRun{rs: true, source: advertiser}, payload, offSegment, onSegment)
 
