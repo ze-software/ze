@@ -642,7 +642,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	// been withdrawn". A withdrawal of a route the destination never held changes
 	// nothing for it. The route-server rail (reactorForwardRS) answers the same.
 	var withdrawals fwdWithdrawal
-	var bySection []*Peer
+	var sectionBase *wireu.WireUpdate
+	var sectionWires []*wireu.WireUpdate
 	for _, peer := range matchingPeers {
 		nextHopWithheld := false
 		facts := peer.forwardFacts()
@@ -748,6 +749,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				}
 				if res.wireOverride != nil {
 					exportWireOverride = res.wireOverride
+					// A policy replaces bytes, never the ingress path identity.
+					exportWireOverride.SetSourceID(sourceWire.SourceID())
 				}
 			}
 			// A step that could not run (filter IPC error or unparseable
@@ -780,7 +783,13 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
-		applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
+		// A raw policy can introduce a second next hop even when the received
+		// UPDATE was single-field. Its AIGP decision needs each output section,
+		// but always the original received metric and next hop.
+		aigpBySection := len(srcAIGP) != 0 && peerBaseWire.MixesNLRIFields()
+		if !aigpBySection {
+			applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
+		}
 
 		// draft-ietf-idr-linklocal-capability Section 4: "When sending a message
 		// to an external peer X, and the peer is multiple IP hops away from the
@@ -815,13 +824,15 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// RFC 4271 Section 5.1.3, RFC 8950 Section 4,
 			// draft-ietf-idr-linklocal-capability Sections 2 and 4.
 			if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
-				nextHopWithheld = true
-				// A mixed UPDATE is judged again per section
-				// (withdrawalBySection), and the section logs the refusal.
-				if !peerBaseWire.MixesNLRIFields() {
+				// A mixed output must retain its allowed sibling announcement.
+				// Finish its edits, then judge the resulting sections without
+				// running policy again.
+				if peerBaseWire.MixesNLRIFields() {
+					nextHopWithheld = true
+				} else {
 					gate.warn(facts, srcAddr, &mods, baseNextHop)
+					mods.SetWithdraw()
 				}
-				mods.SetWithdraw()
 			}
 		}
 
@@ -860,214 +871,289 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		}
 		applyFactsMED(facts, srcMED, baseMED, peerBaseWire.Payload(), &mods)
 
-		// The AS-path family is recorded as INTENT, so the exactly-sized one-pass
-		// writer emits it into the destination buffer alongside every other edit.
-		// It used to be produced as a whole rewritten payload first, which made an
-		// EBGP destination carrying any policy pay two full payload copies.
-		//
-		// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
-		// Set wins, and the override winning is the order these two have always had.
-		peerBaseSrcASN4 := srcASN4
-		// Only a policy chain's wire override can change the width the rebuild
-		// must read.
-		if peerBaseWire != sourceWire {
-			if c := bgpctx.Registry.Get(peerBaseWire.SourceCtxID()); c != nil {
-				peerBaseSrcASN4 = c.ASN4()
-			}
-		}
-		aspathWidthChanged := false
-		// A destination sent the withdrawal carries no AS_PATH, so the path is
-		// not resolved for it: a resolve failure must not cost it the withdrawal.
-		if facts.isEBGP && !mods.IsWithdraw() {
-			intent := wireu.ASPathIntent{SrcASN4: peerBaseSrcASN4, DstASN4: facts.sendASN4}
-			if !facts.rsClient {
-				// RFC 7705 Section 3.3: the globally configured AS is appended first
-				// and the override immediately after, so the override ends up
-				// outermost. The intent carries innermost first.
-				if facts.secondaryAS == 0 {
-					prependBuf[0] = facts.localAS
-					intent.Prepend = prependBuf[:1]
-				} else {
-					prependBuf[0] = facts.secondaryAS
-					prependBuf[1] = facts.localAS
-					intent.Prepend = prependBuf[:2]
-				}
-			}
-			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
-			// Prepend stays empty and Record transcodes only -- which RFC 6793
-			// Section 4.2.2 still requires when the widths differ.
-			changed, aspErr := aspathEdit.Record(&mods, peerBaseWire.Payload(), intent)
-			if aspErr != nil {
-				// Fail closed: an EBGP peer receiving an unprepended path is a
-				// routing-loop risk, and a two-octet peer reads a four-octet path as
-				// garbage (ai/rules/evidence.md).
-				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
-					"id", updateID, "peer", facts.addr, "localAS", facts.localAS,
-					"secondaryAS", facts.secondaryAS, "asn4", facts.sendASN4, "err", aspErr)
-				continue
-			}
-			aspathWidthChanged = changed && peerBaseSrcASN4 != facts.sendASN4
-		}
-
-		if facts.asOverride && facts.isEBGP {
-			applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)
-		}
-
-		// The prepend and the transcode are already recorded as intent above, so no
-		// intermediate rewritten payload is produced here, no read buffer is
-		// borrowed, and nothing is adopted onto the entry.
-		peerWire := peerBaseWire
-
-		var modBufIdx int
-		var modPoolRef *peerPool
-
-		// A destination refused the announcement is sent the withdrawal of the
-		// routes instead: RFC 9494 (the LLGR egress filter, toward an EBGP peer
-		// that did not negotiate LLGR) and every withhold gate above (RFC 7606
-		// Section 2 treat-as-withdraw). The conversion reads only the base
-		// payload, so it is built once per base and shared (fwdWithdrawal), and
-		// the shared wire lets the body cache below build its body once too.
-		if mods.IsWithdraw() {
-			if withdrawalBySection(peerWire, nextHopWithheld) {
-				bySection = append(bySection, peer)
-				continue
-			}
-			withdrawal := withdrawals.of(update, peerWire)
-			if withdrawal == nil {
-				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-					"id", updateID, "peer", facts.addr)
-				continue
-			}
-			peerWire = withdrawal
-		} else if mods.HasModifications() {
-			peerKey := fwdKey{peerAddr: facts.peerKey}
-			modPool := a.r.fwdPool.outgoingPool(peerKey)
-
-			// Ask, before rebuilding, whether an earlier destination in this
-			// same fan-out already produced exactly these bytes. A route server
-			// or reflector sends one route to every client in a group, and the
-			// group's members share their policy by construction, so the answer
-			// is usually yes and the rebuild it skips is the most expensive step
-			// on this path.
-			//
-			// The reuse is a COPY into this destination's own buffer, not a
-			// shared one: the rebuild costs 416ns and the copy 2ns
-			// (BenchmarkFanoutRebuildOnly), so the entire ownership question --
-			// one buffer, several items, released after the last worker -- buys
-			// 0.5% and is not worth its blast radius.
-			var modified []byte
-			var bufIdx int
-			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire}, &mods)
-			if shared != nil {
-				modified, bufIdx = copyMaterialization(shared, modPool)
-			} else {
-				var modFail modifyFailure
-				modified, bufIdx, modFail = buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil)
-				// Counts AND says it, once per reason per second; see
-				// recordModifyFailure. This fires once per DESTINATION, so an
-				// unbounded line here scaled with fan-out.
+		withdrawAll := mods.IsWithdraw()
+		partitioned := nextHopWithheld || (withdrawAll && withdrawalBySection(peerBaseWire, false)) ||
+			(aigpBySection && !withdrawAll)
+		oneWire := [1]*wireu.WireUpdate{peerBaseWire}
+		wires := oneWire[:]
+		var splitBufIdx int
+		var splitPool *peerPool
+		if partitioned {
+			// Materialize policy before partitioning, but not AS_PATH: a bad
+			// announcement path must not consume a sibling's withdrawal.
+			if !withdrawAll && mods.HasModifications() {
+				splitPool = a.r.fwdPool.outgoingPool(fwdKey{peerAddr: facts.peerKey})
+				modified, bufIdx, modFail := buildModifiedPayload(peerBaseWire.Payload(), &mods, a.r.attrModHandlers, splitPool, nil)
 				a.r.recordModifyFailureAddr(modFail, modifySiteEgressForward, facts.addr)
 				if modFail.failed() {
-					// Fail closed. The policy asked for a change we could not make,
-					// so forwarding this route sends exactly what the policy exists
-					// to prevent (ai/rules/evidence.md). This is a step
-					// that COULD NOT RUN, not a policy decision, so it is not
-					// counted as a policy suppression -- same distinction the
-					// egress chain draws with egressStepResult.failed.
-					dedup.abandon(cand)
 					continue
 				}
 				if modified != nil {
-					recordMaterialization()
+					base := wireu.NewWireUpdate(modified, peerBaseWire.SourceCtxID())
+					base.SetSourceID(peerBaseWire.SourceID())
+					peerBaseWire = base
+					splitBufIdx = bufIdx
 				}
-				dedup.commit(cand, modified)
 			}
-			if modified != nil {
-				// An ASN4 transcode folded into the rebuild changed the AS number
-				// width of these bytes, so the wire must carry the DESTINATION's
-				// context. Labeling it with the source context would let buildFwdBody
-				// read the two as matching and forward re-encoded bytes as if they were
-				// still the source's, or transcode them a second time.
-				ctxID := peerWire.SourceCtxID()
-				if aspathWidthChanged {
-					ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
+			if sectionBase != peerBaseWire {
+				// RFC 7606 Section 5.1: "An UPDATE message MUST NOT contain
+				// more than one of the following: non-empty Withdrawn Routes
+				// field, non-empty Network Layer Reachability Information
+				// field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute."
+				var splitErr error
+				sectionWires, splitErr = wireu.SplitWireUpdate(peerBaseWire,
+					len(peerBaseWire.Payload()), bgpctx.Registry.Get(peerBaseWire.SourceCtxID()))
+				sectionBase = peerBaseWire
+				if splitErr != nil {
+					fwdLogger().Warn("withdrawal conversion failed, suppressing route",
+						"id", updateID, "peer", facts.addr, "err", splitErr)
 				}
-				srcID := peerWire.SourceID()
-				peerWire = wireu.NewWireUpdate(modified, ctxID)
-				// The rebuild changes the BYTES, never the peer they came from.
-				// buildFwdBody keys ze's RFC 7911 Path Identifier on the ingress
-				// path (source, received identifier), so a rebuilt wire that lost
-				// its source would key every source's paths under the singleton
-				// config source: two clients that both chose identifier 1 for
-				// different prefixes would reach an ADD-PATH destination under one
-				// identifier, and RFC 7911 Section 5 makes the second replace the
-				// first. Every other rebuild site preserves it (wireu/split.go,
-				// session_validation.go).
-				peerWire.SetSourceID(srcID)
-				modBufIdx = bufIdx
-				modPoolRef = modPool
 			}
+			// SplitWireUpdate MUST own the sections before the intermediate
+			// buffer is returned. A policy edit can remove the other fields:
+			// its single-field fast path aliases base, so that item MUST keep
+			// the buffer until its rebuild or dispatch releases it.
+			sectionOwnsBytes := len(sectionWires) != 1 || sectionWires[0] != peerBaseWire
+			if sectionOwnsBytes && splitBufIdx > 0 && splitPool != nil {
+				splitPool.Return(splitBufIdx)
+				splitBufIdx, splitPool = 0, nil
+			}
+			wires = sectionWires
 		}
 
-		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
-		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
-		item.aigpOrigin = announceOrigin(srcInfo.sender)
-		item.aigpRevision = metricRevision
-		item.aigpReplay = update.aigpReplay
-
-		extendedMessage := facts.extendedMsg
-		maxMsgSize := facts.maxMsgSize
-
-		destCtxID := facts.sendCtxID
-		if groupsEnabled {
-			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
-			if cached, ok := fwdBodyCache[cacheKey]; ok {
-				item.rawBodies = cached.rawBodies
-				item.updates = cached.updates
-				item.supersedeKey = cached.supersedeKey
-				goto dispatch
+		// Bounded by the NLRI-bearing fields of the actual judged output.
+		// No continuation invokes policy or recreates a mixed section.
+		for _, peerBaseWire := range wires {
+			modBufIdx, modPoolRef := splitBufIdx, splitPool
+			if partitioned {
+				mods.Reset()
+				baseNextHop := aigpNextHop(peerBaseWire.Payload())
+				if withdrawAll {
+					mods.SetWithdraw()
+				} else if gate := egressNextHopWithheld(peer, facts, &mods, baseNextHop, isReflected, srcAddr); gate != withholdNone {
+					gate.warn(facts, srcAddr, &mods, baseNextHop)
+					mods.SetWithdraw()
+				}
+				if aigpBySection && !mods.IsWithdraw() && baseNextHop.valid() {
+					applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), srcAddr, srcAIGPLinkMetric, &mods)
+				}
 			}
-		}
 
-		{
-			// RFC 4271 Section 5: the cache key and builder MUST use one treatment.
-			effectiveWire, attrErr := parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes)
-			if attrErr != nil {
-				fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
-				a.r.fwdPool.releaseItem(&item)
-				continue
+			// The AS-path family is recorded as INTENT, so the exactly-sized one-pass
+			// writer emits it into the destination buffer alongside every other edit.
+			// It used to be produced as a whole rewritten payload first, which made an
+			// EBGP destination carrying any policy pay two full payload copies.
+			//
+			// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
+			// Set wins, and the override winning is the order these two have always had.
+			peerBaseSrcASN4 := srcASN4
+			// Only a policy chain's wire override can change the width the rebuild
+			// must read.
+			if peerBaseWire != sourceWire {
+				if c := bgpctx.Registry.Get(peerBaseWire.SourceCtxID()); c != nil {
+					peerBaseSrcASN4 = c.ASN4()
+				}
 			}
-			body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
-			if !ok {
-				// A failed build MUST release any outgoing-pool buffer acquired by
-				// the rebuild, just as a failed attribute treatment above does.
-				a.r.fwdPool.releaseItem(&item)
-				continue
+			aspathWidthChanged := false
+			// A destination sent the withdrawal carries no AS_PATH, so the path is
+			// not resolved for it: a resolve failure must not cost it the withdrawal.
+			if facts.isEBGP && !mods.IsWithdraw() {
+				intent := wireu.ASPathIntent{SrcASN4: peerBaseSrcASN4, DstASN4: facts.sendASN4}
+				if !facts.rsClient {
+					// RFC 7705 Section 3.3: the globally configured AS is appended first
+					// and the override immediately after, so the override ends up
+					// outermost. The intent carries innermost first.
+					if facts.secondaryAS == 0 {
+						prependBuf[0] = facts.localAS
+						intent.Prepend = prependBuf[:1]
+					} else {
+						prependBuf[0] = facts.secondaryAS
+						prependBuf[1] = facts.localAS
+						intent.Prepend = prependBuf[:2]
+					}
+				}
+				// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
+				// Prepend stays empty and Record transcodes only -- which RFC 6793
+				// Section 4.2.2 still requires when the widths differ.
+				changed, aspErr := aspathEdit.Record(&mods, peerBaseWire.Payload(), intent)
+				if aspErr != nil {
+					// Fail closed: an EBGP peer receiving an unprepended path is a
+					// routing-loop risk, and a two-octet peer reads a four-octet path as
+					// garbage (ai/rules/evidence.md).
+					fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
+						"id", updateID, "peer", facts.addr, "localAS", facts.localAS,
+						"secondaryAS", facts.secondaryAS, "asn4", facts.sendASN4, "err", aspErr)
+					if modBufIdx > 0 && modPoolRef != nil {
+						modPoolRef.Return(modBufIdx)
+					}
+					continue
+				}
+				aspathWidthChanged = changed && peerBaseSrcASN4 != facts.sendASN4
 			}
-			// Site 7: body.transcodeBuf backs the cross-context RFC 6793 transcode,
-			// whose sections body.updates aliases zero-copy -- and the body cache
-			// below hands those same sections to later destinations. Adopt onto the
-			// entry, return at eviction (D-1/D-2).
-			update.adoptFwdHandle(body.transcodeBuf)
-			item.rawBodies = body.rawBodies
-			item.updates = body.updates
-			item.supersedeKey = body.supersedeKey
 
+			if facts.asOverride && facts.isEBGP {
+				applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)
+			}
+
+			// The prepend and the transcode are already recorded as intent above, so no
+			// intermediate rewritten payload is produced here, no read buffer is
+			// borrowed, and nothing is adopted onto the entry.
+			peerWire := peerBaseWire
+
+			// A destination refused the announcement is sent the withdrawal of the
+			// routes instead: RFC 9494 (the LLGR egress filter, toward an EBGP peer
+			// that did not negotiate LLGR) and every withhold gate above (RFC 7606
+			// Section 2 treat-as-withdraw). The conversion reads only the base
+			// payload, so it is built once per base and shared (fwdWithdrawal), and
+			// the shared wire lets the body cache below build its body once too.
+			if mods.IsWithdraw() {
+				withdrawal := withdrawals.of(update, peerWire)
+				if modBufIdx > 0 && modPoolRef != nil {
+					modPoolRef.Return(modBufIdx)
+					modBufIdx, modPoolRef = 0, nil
+				}
+				if withdrawal == nil {
+					fwdLogger().Warn("withdrawal conversion failed, suppressing route",
+						"id", updateID, "peer", facts.addr)
+					continue
+				}
+				peerWire = withdrawal
+			} else if mods.HasModifications() {
+				peerKey := fwdKey{peerAddr: facts.peerKey}
+				modPool := a.r.fwdPool.outgoingPool(peerKey)
+
+				// Ask, before rebuilding, whether an earlier destination in this
+				// same fan-out already produced exactly these bytes. A route server
+				// or reflector sends one route to every client in a group, and the
+				// group's members share their policy by construction, so the answer
+				// is usually yes and the rebuild it skips is the most expensive step
+				// on this path.
+				//
+				// The reuse is a COPY into this destination's own buffer, not a
+				// shared one: the rebuild costs 416ns and the copy 2ns
+				// (BenchmarkFanoutRebuildOnly), so the entire ownership question --
+				// one buffer, several items, released after the last worker -- buys
+				// 0.5% and is not worth its blast radius.
+				var modified []byte
+				var bufIdx int
+				shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire}, &mods)
+				if shared != nil {
+					modified, bufIdx = copyMaterialization(shared, modPool)
+				} else {
+					var modFail modifyFailure
+					modified, bufIdx, modFail = buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil)
+					// Counts AND says it, once per reason per second; see
+					// recordModifyFailure. This fires once per DESTINATION, so an
+					// unbounded line here scaled with fan-out.
+					a.r.recordModifyFailureAddr(modFail, modifySiteEgressForward, facts.addr)
+					if modFail.failed() {
+						// Fail closed. The policy asked for a change we could not make,
+						// so forwarding this route sends exactly what the policy exists
+						// to prevent (ai/rules/evidence.md). This is a step
+						// that COULD NOT RUN, not a policy decision, so it is not
+						// counted as a policy suppression -- same distinction the
+						// egress chain draws with egressStepResult.failed.
+						dedup.abandon(cand)
+						if modBufIdx > 0 && modPoolRef != nil {
+							modPoolRef.Return(modBufIdx)
+						}
+						continue
+					}
+					if modified != nil {
+						recordMaterialization()
+					}
+					dedup.commit(cand, modified)
+				}
+				if modified != nil {
+					if modBufIdx > 0 && modPoolRef != nil {
+						modPoolRef.Return(modBufIdx)
+					}
+					// An ASN4 transcode folded into the rebuild changed the AS number
+					// width of these bytes, so the wire must carry the DESTINATION's
+					// context. Labeling it with the source context would let buildFwdBody
+					// read the two as matching and forward re-encoded bytes as if they were
+					// still the source's, or transcode them a second time.
+					ctxID := peerWire.SourceCtxID()
+					if aspathWidthChanged {
+						ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
+					}
+					srcID := peerWire.SourceID()
+					peerWire = wireu.NewWireUpdate(modified, ctxID)
+					// The rebuild changes the BYTES, never the peer they came from.
+					// buildFwdBody keys ze's RFC 7911 Path Identifier on the ingress
+					// path (source, received identifier), so a rebuilt wire that lost
+					// its source would key every source's paths under the singleton
+					// config source: two clients that both chose identifier 1 for
+					// different prefixes would reach an ADD-PATH destination under one
+					// identifier, and RFC 7911 Section 5 makes the second replace the
+					// first. Every other rebuild site preserves it (wireu/split.go,
+					// session_validation.go).
+					peerWire.SetSourceID(srcID)
+					modBufIdx = bufIdx
+					modPoolRef = modPool
+				}
+			}
+
+			item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+			item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
+			item.aigpOrigin = announceOrigin(srcInfo.sender)
+			item.aigpRevision = metricRevision
+			item.aigpReplay = update.aigpReplay
+
+			extendedMessage := facts.extendedMsg
+			maxMsgSize := facts.maxMsgSize
+
+			destCtxID := facts.sendCtxID
 			if groupsEnabled {
 				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
-				fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
-					rawBodies:    body.rawBodies,
-					updates:      body.updates,
-					supersedeKey: body.supersedeKey,
+				if cached, ok := fwdBodyCache[cacheKey]; ok {
+					item.rawBodies = cached.rawBodies
+					item.updates = cached.updates
+					item.supersedeKey = cached.supersedeKey
+					goto dispatch
 				}
 			}
-		}
-	dispatch:
 
-		pending = append(pending, pendingFwd{
-			item: item,
-			key:  fwdKey{peerAddr: facts.peerKey},
-		})
+			{
+				// RFC 4271 Section 5: the cache key and builder MUST use one treatment.
+				effectiveWire, attrErr := parseCache.forwardWire(peerWire, facts.preserveOpaqueAttributes)
+				if attrErr != nil {
+					fwdLogger().Warn("normalizing forwarding attributes", "peer", facts.addr, "error", attrErr)
+					a.r.fwdPool.releaseItem(&item)
+					continue
+				}
+				body, ok := buildFwdBody(effectiveWire, maxMsgSize, destCtxID, peer, facts.addr, &parseCache)
+				if !ok {
+					// A failed build MUST release any outgoing-pool buffer acquired by
+					// the rebuild, just as a failed attribute treatment above does.
+					a.r.fwdPool.releaseItem(&item)
+					continue
+				}
+				// Site 7: body.transcodeBuf backs the cross-context RFC 6793 transcode,
+				// whose sections body.updates aliases zero-copy -- and the body cache
+				// below hands those same sections to later destinations. Adopt onto the
+				// entry, return at eviction (D-1/D-2).
+				update.adoptFwdHandle(body.transcodeBuf)
+				item.rawBodies = body.rawBodies
+				item.updates = body.updates
+				item.supersedeKey = body.supersedeKey
+
+				if groupsEnabled {
+					cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage, preserveOpaque: facts.preserveOpaqueAttributes}
+					fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
+						rawBodies:    body.rawBodies,
+						updates:      body.updates,
+						supersedeKey: body.supersedeKey,
+					}
+				}
+			}
+		dispatch:
+
+			pending = append(pending, pendingFwd{
+				item: item,
+				key:  fwdKey{peerAddr: facts.peerKey},
+			})
+		}
 	}
 
 	if len(pending) > 0 {
@@ -1103,13 +1189,6 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			}
 			// dispatchOverflow false = pool stopped; done() already called (releasing cache ref).
 		}
-	}
-
-	// A refused destination of a mixed UPDATE that withdrawalBySection holds
-	// back is forwarded again one field at a time, each section meeting the
-	// gates on its own.
-	if len(bySection) > 0 && a.forwardBySection(update, updateID, bySection, srcInfo, sourceWire) {
-		dispatchedCount++
 	}
 
 	if dispatchedCount == 0 {

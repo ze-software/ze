@@ -17,12 +17,12 @@ import (
 
 // frrMultihopLoopback is FRR's session address in the Link-Local-only multihop
 // scenario: on FRR's loopback (frr.conf), outside every subnet Ze is attached
-// to, so Ze's link scope answers that FRR is more than one IP hop away.
+// to, so Ze's link scope classifies FRR as off-link.
 const frrMultihopLoopback = "10.255.0.3"
 
 // checkLinkLocalOnlyMultihopWithdraw proves, at FRR, that Ze withdraws a route
-// whose only next hop is Link-Local instead of relaying it to a peer more than
-// one IP hop away.
+// whose only next hop is Link-Local instead of relaying it to a peer whose
+// session address is outside Ze's connected subnets.
 //
 // draft-ietf-idr-linklocal-capability Section 4: "If, after completing these
 // procedures, there are no IPv6 next hop addresses included in the next hop,
@@ -53,9 +53,9 @@ func checkLinkLocalOnlyMultihopWithdraw(ctx context.Context, check *interoplab.C
 	}
 	zeAddress := networkHostAddress(check.Network, 2)
 
-	// Assertion 1. Ze reaches FRR's loopback through FRR, one routed hop, and
-	// FRR's session comes up on it. The route is a host route, so it adds no
-	// connected subnet and the link scope still answers multihop.
+	// Assertion 1. Ze reaches FRR's loopback through FRR's adjacent interface.
+	// No transit router is present. The host route adds no connected subnet,
+	// so the link scope classifies the session address as off-link.
 	route := operation{kind: opExec, peer: "ze", command: []string{"ip", ipObjectRoute, "add", frrMultihopLoopback + "/32", "via", networkHostAddress(check.Network, 3)}}
 	if err := runOperation(ctx, check.Network, check.Lab, &route); err != nil {
 		return fail(1, err)
@@ -93,8 +93,8 @@ func checkLinkLocalOnlyMultihopWithdraw(ctx context.Context, check *interoplab.C
 	}
 
 	// Assertion 5. FRR decoded exactly one announcement of the subject, generation
-	// 1. A second is generation 2 relayed with its Link-Local next hop to a peer
-	// more than one hop away.
+	// 1. A second is generation 2 relayed with its Link-Local next hop to the
+	// off-link session address.
 	if announcements := frrDecodedAnnouncements(frrLog, zeAddress, subjectPrefix); announcements != 1 {
 		return fail(5, fmt.Errorf("FRR decoded %d announcements of %s, expected 1 (generation 1 only)", announcements, subjectPrefix))
 	}
@@ -105,7 +105,7 @@ func checkLinkLocalOnlyMultihopWithdraw(ctx context.Context, check *interoplab.C
 	// withdrawn decode. Its attribute decode, which prints the next hop, is what
 	// tells the two apart.
 	if strings.Contains(frrLog, linkLocalNextHop) {
-		return fail(5, fmt.Errorf("FRR decoded the Link-Local next hop %s, which Ze relayed to a peer more than one hop away", linkLocalNextHop))
+		return fail(5, fmt.Errorf("FRR decoded the Link-Local next hop %s, which Ze relayed to an off-link session address", linkLocalNextHop))
 	}
 
 	// Assertion 6. FRR's table holds no path for the subject.

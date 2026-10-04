@@ -10,7 +10,6 @@ package reactor
 
 import (
 	"net/netip"
-	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -191,6 +190,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 // refused whose withdrawal must be sent one field at a time
 // (withdrawalBySection); wire is single-field when only is non-nil, so that list
 // is then empty.
+// Selection scans current peers once for source reflection facts and skipped
+// policies, then visits only directly on a retry: O(current peers + selected
+// destinations), with no membership map. The retry MUST recheck current peer
+// identity and live facts before accepting a pointer from the previous pass.
 func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int, []*Peer) {
 	// Get source session for deferred flush tracking.
 	// Stable because we're on this session's read goroutine; RLock for formal correctness.
@@ -225,10 +228,29 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
-		if only != nil && !slices.Contains(only, peer) {
+		if only != nil {
 			continue
 		}
 		matchingPeers = append(matchingPeers, peer)
+	}
+	if only != nil {
+		for _, peer := range only {
+			settings := peer.Settings()
+			if r.peers[settings.PeerKey()] != peer {
+				continue
+			}
+			if settings.Address == sourcePeerAddr {
+				continue
+			}
+			pf := peer.forwardFacts()
+			if pf == nil {
+				continue
+			}
+			if hasActiveFilter(pf.exportFilters) {
+				continue
+			}
+			matchingPeers = append(matchingPeers, peer)
+		}
 	}
 	r.mu.RUnlock()
 

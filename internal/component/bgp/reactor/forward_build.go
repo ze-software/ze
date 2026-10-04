@@ -755,17 +755,16 @@ func withdrawalLayout(payload []byte) (withdrawn, announced []byte, mp withdrawa
 }
 
 // withdrawalBySection reports whether a destination refused base must be sent
-// its withdrawal one NLRI-bearing field at a time, by forwarding each section of
-// base again (forwardBySection, reactorForwardRS), rather than as the one
-// merged withdrawal fwdWithdrawal builds.
+// its withdrawal one NLRI-bearing field at a time (forwardUpdateSection,
+// reactorForwardRS), rather than as the merged withdrawal fwdWithdrawal builds.
 //
 // Only an UPDATE that mixes NLRI-bearing fields can need it, and it does in two
 // cases:
 //   - a next-hop gate refused it (nextHopWithheld). The legacy NEXT_HOP and the
 //     MP_REACH_NLRI next hop are separate fields, so the gate judged one
 //     family's routes; the other field's routes are owed to the destination.
-//     Re-forwarded per section, each meets the gates on its own, so only the
-//     refused field is withdrawn.
+//     Each section meets the gates on its own, so only the refused field is
+//     withdrawn.
 //   - its MP_REACH_NLRI and MP_UNREACH_NLRI name two families. One merged
 //     withdrawal would need two MP_UNREACH_NLRI attributes, which RFC 7606
 //     Section 3(g) answers with a NOTIFICATION ("If the MP_REACH_NLRI attribute

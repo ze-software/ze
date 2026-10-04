@@ -240,11 +240,14 @@ naming no image, or two, is an error.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
 <!-- source: internal/le/interoplab/bgp/run.go -- pinnedFRRImages -->
 
-`bgp-linklocal-only-multihop-withdraw-frr` is also the multihop topology on the
-one lab network: FRR's session address is on its loopback (10.255.0.3), outside
-every subnet Ze is attached to, and the checker gives Ze a host route to it
-through FRR. Ze's link scope reads the interface table, not the TTL, so a peer
-on the lab bridge is one hop away whatever `ebgp-multihop` says.
+`bgp-linklocal-only-multihop-withdraw-frr` exercises the off-connected-subnet
+gate on one lab network: FRR's session address is on its loopback (10.255.0.3),
+outside every subnet Ze is attached to, and the checker gives Ze a host route
+via FRR's adjacent interface. There is no intervening router. This proves the
+gate and FRR's received withdrawal, not a physically multihop path.
+`test/plugin/linklocal-only-multihop-withdraw.ci` supplies the separate routed
+IPv6-hop proof through a transit namespace. Ze's link scope reads the interface
+table, not the configured BGP TTL.
 <!-- source: internal/le/interoplab/bgp/check_linklocal_multihop.go -- checkLinkLocalOnlyMultihopWithdraw -->
 
 A BMP scenario with no `pmbmpd.conf` starts `le test interop-bgp bmp-collector`. Announcement and

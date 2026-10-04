@@ -127,8 +127,8 @@
       "note": "Re-judged 2026-10-04 after f93a30fbfc (downgraded from enforced). Forbidden: an RR advertising a Link-Local-only route to a client off the original advertiser's segment. TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment drives forwardUpdateCore and asserts the off-segment client is written no MP_REACH next hop (assert.Empty, which does not distinguish the withdrawal from nothing; the withdrawal is proven by the untagged TestReflectedLinkLocalOnlyRouteWithdrawnFromClientOffTheSegment). The refusal side would go red. Weak because the only tagged control asserts the on-segment client receives the Link-Local-only next hop. The fixture (llnhExternalPeer/llnhClient) negotiates no Link-Local Next Hop capability, and draft Section 2 says 'When the capability has not been negotiated, the procedures in this document do not apply', while Section 3 says 'A Link-Local-only Next Hop received without the Link-Local Next Hop Capability having been negotiated is not conformant with [RFC2545]'. So the control asserts a delivery the RFC does not sanction on that session: it would go red the day Ze stops relaying a received Link-Local-only next hop to a peer without capability 77 (egressNextHopLinkLocalOnlyRefused, forward_next_hop.go, deliberately asks only a next hop recorded in mods). Fix: negotiate LinkLocalNextHop in the fixture; the positive needs no change.",
       "requirement_sha": "01dd2f11bbcb64db",
       "tests": {
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "8b18e25788739de1",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "8b18e25788739de1"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "756597dcc90b7d10",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "756597dcc90b7d10"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "74758ae76571fa16",
@@ -140,8 +140,8 @@
       "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: for an off-segment client, sending the Link-Local-only route neither rewritten nor ineligible. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives exactly 2001:db8:1::254 and not a Link-Local-only field, and the client without rewrite is written no MP_REACH next hop (now the withdrawal under the owner's decision; assert.Empty does not distinguish withdrawal from nothing, which the sentence does not require). Negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld: a Global next hop reaches the same off-segment client unchanged. No assertion delivers a Link-Local-only next hop, so the capability-77 fixture gap does not touch this pair.",
       "requirement_sha": "3878bc1d729469f9",
       "tests": {
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "8b18e25788739de1",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "8b18e25788739de1"
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "756597dcc90b7d10",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients": "756597dcc90b7d10"
       },
       "units": {
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld": "657bbc397ffff782",
@@ -168,10 +168,10 @@
       "note": "Re-judged 2026-10-02 (BGP c22 judge). The route-server rail the c21 judge named is now driven: TestLinkLocalRouteServerStripsReceivedPairForMultihopClient relays the received 32-octet 2001:db8:1::1+fe80::9 through reactorForwardRS to an off-link external client under next hop unchanged and auto and asserts the 16-octet Global alone; TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient keeps the pair for a client on the connected /64. The author's overlay disabling only the forward_rs.go call (strip && false, job-c22-nocut log, read by the judge) turns the RS positive red, so the RS call is pinned on its own. General rail unchanged from c21 (forwardUpdateCore units, both polarities). Revert records on egressNextHopGlobalHalf observed red for all four units.",
       "requirement_sha": "7a157c343d0362b5",
       "tests": {
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "23787ae23d680369",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "23787ae23d680369",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "23787ae23d680369",
-        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "23787ae23d680369",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer": "6eb3ccb11f02de13",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer": "6eb3ccb11f02de13",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient": "6eb3ccb11f02de13",
+        "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient": "6eb3ccb11f02de13",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer": "8b6df8728f9a616d",
         "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer": "8b6df8728f9a616d"
       },

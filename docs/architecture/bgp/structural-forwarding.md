@@ -300,9 +300,9 @@ and it is built once per UPDATE and shared by every refused destination
 (`fwdWithdrawal`), so the body is built once too. The body builder sends each
 NLRI-bearing field of it in its own message (RFC 7606 Section 5.1).
 
-A source that mixes NLRI-bearing fields is forwarded again one field at a time
-to a refused destination in two cases (`withdrawalBySection`). A next-hop gate
-judged one field's next hop, so the other fields' routes are still owed: an
+A mixed UPDATE is partitioned one field at a time for a refused destination in
+two cases (`withdrawalBySection`). A next-hop gate judged one field's next hop,
+so the other fields' routes are still owed: an
 UPDATE carrying IPv4 routes with a NEXT_HOP and IPv6 routes with a
 Link-Local-only next hop withdraws the IPv6 routes from a multihop peer and
 announces it the IPv4 ones. And a source whose MP_UNREACH_NLRI and MP_REACH_NLRI
@@ -310,12 +310,31 @@ name different families cannot merge into one withdrawal (RFC 7606 Section
 3(g) refuses a repeated MP_UNREACH_NLRI), so each family is withdrawn in its own
 message. Each section meets the gates on its own. The two rails ask the
 next-hop gates through one function, so they cannot answer differently.
+
+On the general rail, that partition consumes the actual output judged for the
+destination, including a raw export filter's replacement and preceding
+in-process edits. The export chain runs once for the original decision, even
+when it turns a single-field source into a mixed UPDATE. The bounded
+continuation asks the next-hop gates of each output section; it never reruns
+policy to recreate that output. Announcement-only AS-path resolution follows
+those gates, so a malformed path cannot consume a sibling's withdrawal. Source
+identity and the received AIGP baseline remain those of the original UPDATE.
+AIGP on a policy-produced mixed output is computed per section, before dispatch.
+Intermediate pooled bytes are returned after the split owns its section bytes.
+If an edit leaves only one field, the unsplit buffer stays with its item until
+rebuild or dispatch releases it. All sections use the same pending-item retain
+and dispatch path as an unsplit output.
+
+The route-server retry scans current peers once for source reflection facts and
+active-policy skips, then visits selected destinations directly. It accepts only
+current peer identities with live forwarding facts: selection costs
+O(current peers + selected destinations), without a membership map allocation.
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopWithheld -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- withdrawalBySection -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->
-<!-- source: internal/component/bgp/reactor/forward_aigp.go -- forwardBySection -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopGlobalHalf -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- applyLinkLocalNextHop -->

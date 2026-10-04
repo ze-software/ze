@@ -58,35 +58,6 @@ func (a *reactorAPIAdapter) forwardUpdateSelected(update *ReceivedUpdate, update
 	return errAllDestinationsSuppressed
 }
 
-// forwardBySection forwards a mixed UPDATE again, one NLRI-bearing field per
-// section, to the destinations a withhold gate refused (withdrawalBySection),
-// so each section meets the gates on its own: a destination is withdrawn only
-// the field a gate refused, and each message it is written carries one field.
-// RFC 7606 Section 5.1: "An UPDATE message MUST NOT contain more than one of
-// the following: non-empty Withdrawn Routes field, non-empty Network Layer
-// Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI
-// attribute." It reports whether any section reached a destination. Sections
-// are single-field, so this never recurses further.
-func (a *reactorAPIAdapter) forwardBySection(update *ReceivedUpdate, updateID uint64, dests []*Peer, srcInfo forwardSourceInfo, sourceWire *wireu.WireUpdate) bool {
-	sections, err := wireu.SplitWireUpdate(sourceWire, len(sourceWire.Payload()), bgpctx.Registry.Get(sourceWire.SourceCtxID()))
-	if err != nil {
-		fwdLogger().Warn("withdrawal conversion failed, suppressing route",
-			"id", updateID, "peers", len(dests), "err", err)
-		return false
-	}
-	// The first section's worker can finish before the remaining sections have
-	// borrowed their buffers. This retain MUST survive the whole split fan-out.
-	a.r.recentUpdates.retainN(updateID, 1)
-	defer a.r.recentUpdates.Release(updateID)
-	delivered := false
-	for _, section := range sections {
-		if a.forwardUpdateSection(update, updateID, dests, srcInfo, section) == nil {
-			delivered = true
-		}
-	}
-	return delivered
-}
-
 // aigpNextHop ignores attributes that govern no announced route. The caller
 // MUST split mixed legacy and MP announcements before accumulating AIGP.
 func aigpNextHop(body []byte) nextHopValue {
