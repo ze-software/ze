@@ -750,8 +750,10 @@ func (a *Admission) stream(argv []string, dir string, environ []string, logFile 
 		a.note("error: a job declared no command to run")
 		return gaterun.CannotStart
 	}
-	if environ == nil {
-		environ = os.Environ()
+	environ, err := commandEnvironment(argv, dir, environ)
+	if err != nil {
+		a.note(errorLine(err))
+		return gaterun.CannotStart
 	}
 
 	out := a.Out
@@ -779,7 +781,7 @@ func (a *Admission) stream(argv []string, dir string, environ []string, logFile 
 	}
 
 	stop := forwardSignals(cmd)
-	err := cmd.Wait()
+	err = cmd.Wait()
 	stop()
 
 	if err != nil {

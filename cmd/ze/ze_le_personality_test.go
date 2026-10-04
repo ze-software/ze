@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	coreenv "github.com/ze-software/ze/internal/core/env"
 	_ "github.com/ze-software/ze/internal/le"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
@@ -103,6 +104,43 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 		[]string{"repo", "package-map", "update", "|", "json"})
 }
 
+// TestPersonalityChildOwnsItsBuildIdentity builds a real le fixture under
+// conflicting outer identities, then proves explicit child guards still apply.
+func TestPersonalityChildOwnsItsBuildIdentity(t *testing.T) {
+	t.Cleanup(coreenv.ResetCache)
+	root := personalityRepoRoot(t)
+	for _, name := range []string{
+		"ZE_REPO_ROOT", "ze.repo.root", "Ze.RePo_Root",
+		"ZE_LE_BUILD_NAME", "ze.le.build.name", "Ze.Le_Build.Name",
+	} {
+		t.Setenv(name, "outer-"+name)
+	}
+	binary := filepath.Join(t.TempDir(), "le")
+	tags := append([]string{"ze_le"}, personalityFeatureTags(t, root)...)
+	buildPersonality(t, root, binary, tags)
+	for _, one := range []struct {
+		name string
+		env  []string
+		code int
+	}{
+		{name: "fixture owns its identity", code: 0},
+		{name: "matching explicit identity", env: []string{"ze.le.build.name=le"}, code: 0},
+		{name: "mismatching explicit identity", env: []string{"ZE_LE_BUILD_NAME=another-build"}, code: 2},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			got := invokePersonality(t, binary, one.env, "--help")
+			if got.code != one.code {
+				t.Fatalf("child exit = %d, want %d: %s%s", got.code, one.code, got.stdout, got.stderr)
+			}
+			if one.code == 2 {
+				if !strings.Contains(got.stderr, "another-build") {
+					t.Errorf("guard refusal omitted the requested identity: %q", got.stderr)
+				}
+			}
+		})
+	}
+}
+
 // TestLeDispatchesNoProductCommand preserves the standalone boundary: a root
 // owned by ze must not become reachable because the le process shares the
 // registry.
@@ -182,7 +220,7 @@ func invokePersonality(t *testing.T, binary string, extraEnv []string, args ...s
 	ctx, cancel := context.WithTimeout(t.Context(), leArtifactTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Env = append(os.Environ(), extraEnv...)
+	cmd.Env = append(launcherEnv(), extraEnv...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

@@ -440,6 +440,10 @@ func joinTags(features, extras []string) string {
 
 // EnvOptions says which of the optional overrides a command needs.
 type EnvOptions struct {
+	// Test removes the launching le's checkout and build identity. Go tests
+	// discover their source checkout from cwd and own their fixture overrides.
+	// Every caller running Go tests MUST set this, including fuzz and benchmarks.
+	Test bool
 	// CGO turns CGO_ENABLED on, which the race detector cannot run without.
 	CGO bool
 	// Procs adds the GOMAXPROCS cap, which belongs on a test run rather than
@@ -496,11 +500,14 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 	return over
 }
 
-// Environment answers the whole environment a Go command runs under: this
-// process's, with the overrides appended. Later entries win in os/exec, so an
-// inherited GOCACHE does not survive.
+// Environment answers the whole environment a Go command runs under. Test
+// children do not inherit the launching le's checkout or build identity.
+// Toolchain overrides follow inherited entries, so os/exec uses their values.
 func (t Toolchain) Environment(opts EnvOptions) []string {
 	inherited := os.Environ()
+	if opts.Test {
+		inherited = env.Without(inherited, "ze.repo.root", "ze.le.build.name")
+	}
 	overrides := t.Overrides(opts)
 	full := make([]string, 0, len(inherited)+len(overrides))
 	full = append(full, inherited...)

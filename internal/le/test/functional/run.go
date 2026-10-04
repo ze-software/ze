@@ -312,7 +312,7 @@ func warmCITestPackages(tc gotoolchain.Toolchain) error {
 	gaterun.Note(tb.Str("Warming build cache for ").Int(int64(len(packages))).
 		Str(" .ci-invoked package(s)...").String())
 	argv := append([]string{"go", "test", "-run", "^$", "-count=1"}, packages...)
-	if code := gaterun.Stream(argv, tc.Root, tc.Environment(gotoolchain.EnvOptions{Procs: true})); code != 0 {
+	if code := gaterun.Stream(argv, tc.Root, tc.Environment(gotoolchain.EnvOptions{Test: true, Procs: true})); code != 0 {
 		return fmt.Errorf("warm .ci Go packages: exit %d", code)
 	}
 	return nil

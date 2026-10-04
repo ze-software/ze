@@ -157,5 +157,5 @@ func (g Group) crossTargeted() bool {
 // concurrency. A group naming a platform pins GOOS, so its files are selected
 // by that platform's build constraints rather than by the host's.
 func (g Group) EnvOptions() gotoolchain.EnvOptions {
-	return gotoolchain.EnvOptions{CGO: g.Race, Procs: true, GOOS: g.GOOS}
+	return gotoolchain.EnvOptions{Test: true, CGO: g.Race, Procs: true, GOOS: g.GOOS}
 }

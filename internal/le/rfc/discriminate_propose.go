@@ -462,7 +462,7 @@ func unitCoverage(tree string, toolchain gotoolchain.Toolchain, module string, t
 	defer cancel()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) //nolint:gosec // the unit and its package come from ScanTree and UnitAt
 	cmd.Dir = tree
-	cmd.Env = toolchain.Environment(gotoolchain.EnvOptions{Procs: true})
+	cmd.Env = toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true})
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

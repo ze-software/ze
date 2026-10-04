@@ -13,8 +13,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 const testModulePath = "github.com/ze-software/ze"
@@ -138,10 +140,10 @@ func TestUnitCachedPlanPreservesPackageAndTagPopulations(t *testing.T) {
 	assertOverride(t, plan.Commands[0], "GOMAXPROCS=4")
 }
 
-// VALIDATES: a child failure stops a multi-command stage and preserves the
-// first external exit code.
+// VALIDATES: a child failure preserves the first external exit code without
+// omitting the compile-out population.
 // PREVENTS: a later compile-out check hiding the full-pass failure.
-func TestUnitCachedStopsAtTheFirstFailureCode(t *testing.T) {
+func TestUnitCachedPreservesTheFirstFailureCode(t *testing.T) {
 	root := t.TempDir()
 	deps := fakeDependencies(root)
 	calls := 0
@@ -160,11 +162,11 @@ func TestUnitCachedStopsAtTheFirstFailureCode(t *testing.T) {
 	if code != 23 || report.Code != 23 {
 		t.Fatalf("stage answered %d / report %d, want 23", code, report.Code)
 	}
-	if calls != 2 {
-		t.Fatalf("executed %d commands, want discovery plus first test only", calls)
+	if calls != 3 {
+		t.Fatalf("executed %d commands, want discovery and both test populations", calls)
 	}
-	if len(report.Children) != 2 {
-		t.Fatalf("reported %d children, want 2", len(report.Children))
+	if len(report.Children) != 3 {
+		t.Fatalf("reported %d children, want 3", len(report.Children))
 	}
 }
 
@@ -174,6 +176,7 @@ func TestUnitCachedStopsAtTheFirstFailureCode(t *testing.T) {
 // confusing a race run with the non-cgo cached pass.
 func TestRaceChangedDerivesTheExactPopulationAndEnvironment(t *testing.T) {
 	root := t.TempDir()
+	verifiedBaseline(t, root)
 	deps := fakeDependencies(root)
 	unmapped := filepath.Join(root, "internal", "le", "verify", "deps")
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
@@ -206,8 +209,12 @@ func TestRaceChangedDerivesTheExactPopulationAndEnvironment(t *testing.T) {
 // PREVENTS: a failed git query being read as no changed Go files.
 func TestRaceChangedFailsClosedOnPopulationFailure(t *testing.T) {
 	root := t.TempDir()
+	verifiedBaseline(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if strings.Join(plan.Command, " ") == "git cat-file -t verified" {
+			return "commit\n", childFrom(plan, 0)
+		}
 		return "", childFrom(plan, 7)
 	}
 	report, code := run(context.Background(), root, VerbUnitRaceChanged, deps)
@@ -220,13 +227,14 @@ func TestRaceChangedFailsClosedOnPopulationFailure(t *testing.T) {
 }
 
 // VALIDATES: a genuinely empty changed population runs no race command, reports
-// the three successful git queries, and says on the report that it executed no
+// baseline validation and four successful git queries, and says it executed no
 // test.
 // PREVENTS: treating fail-closed discovery as permission to skip, running broad
 // race tests when nothing changed, or leaving the skip in a stderr note that no
 // certificate holds.
 func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 	root := t.TempDir()
+	verifiedBaseline(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
 		"git diff --name-only -- *.go":                     {},
@@ -237,8 +245,8 @@ func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 	if code != 0 || report.Code != 0 {
 		t.Fatalf("empty population answered %d / %d", code, report.Code)
 	}
-	if len(report.Children) != 3 {
-		t.Fatalf("reported %d children, want three git queries", len(report.Children))
+	if len(report.Children) != 5 {
+		t.Fatalf("reported %d children, want baseline validation and four change queries", len(report.Children))
 	}
 	if !report.Skipped || report.Reason == "" {
 		t.Fatalf("report says skipped=%v reason=%q, want a stated skip", report.Skipped, report.Reason)
@@ -252,6 +260,7 @@ func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 // (plan/journal/gate-excludes-part-of-its-population.md).
 func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
 	root := t.TempDir()
+	verifiedBaseline(t, root)
 
 	quiet := fakeDependencies(root)
 	quiet.execute = scriptedExecutor(map[string]scriptedResult{
@@ -294,6 +303,7 @@ func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
 // a package the toolchain failed on all reach the selector as an empty answer.
 func TestRaceChangedRefusesAChangeSetThatResolvedToNoPackage(t *testing.T) {
 	root := t.TempDir()
+	verifiedBaseline(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
 		"git diff --name-only -- *.go":                                      {output: "internal/le/gone/gone.go\n"},
@@ -497,6 +507,9 @@ type scriptedResult struct {
 func scriptedExecutor(results map[string]scriptedResult) commandExecutor {
 	return func(_ context.Context, plan CommandPlan, writer io.Writer) (string, ChildReport) {
 		key := strings.Join(plan.Command, " ")
+		if key == "git cat-file -t verified" {
+			return "commit\n", childFrom(plan, 0)
+		}
 		result, ok := results[key]
 		if !ok {
 			return "", childFrom(plan, 0)
@@ -567,6 +580,19 @@ func assertContainsSequence(t *testing.T, values []string, sequence ...string) {
 func mkdir(t *testing.T, root, relative string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(relative)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func verifiedBaseline(t *testing.T, root string) {
+	t.Helper()
+	t.Setenv("ZE_VERIFY_STATUS_FILE", filepath.Join(root, "tmp", "ze-verify.status"))
+	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", "")
+	t.Setenv(repochanged.ScopeFileKey, "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	mkdir(t, root, "tmp")
+	if err := os.WriteFile(filepath.Join(root, "tmp", "ze-verify.status"), []byte("exit=0\ngit_sha=verified\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

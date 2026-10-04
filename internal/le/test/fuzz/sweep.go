@@ -268,7 +268,7 @@ func (s *Sweeper) exec(argv []string) int {
 func (s *Sweeper) fork(argv []string) int {
 	cmd := exec.CommandContext(s.context(), argv[0], argv[1:]...) //nolint:gosec // the argv is built here from the toolchain and the target
 	cmd.Dir = s.Root
-	cmd.Env = s.Chain.Environment(gotoolchain.EnvOptions{Procs: true})
+	cmd.Env = s.Chain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true})
 	cmd.Stdout = s.progress()
 	cmd.Stderr = s.progress()
 

@@ -59,6 +59,24 @@ func InNamespace(name, namespace string) bool {
 	return strings.HasPrefix(normalize(name), normalize(namespace))
 }
 
+// Without returns a child environment with every case/separator spelling of
+// keys removed. It leaves environ unchanged. Keys are exact names, not prefixes;
+// callers MUST name distinct registered aliases too when excluding those.
+func Without(environ []string, keys ...string) []string {
+	norms := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		norms[normalize(key)] = true
+	}
+	kept := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		name, _, _ := strings.Cut(entry, "=")
+		if !norms[normalize(name)] {
+			kept = append(kept, entry)
+		}
+	}
+	return kept
+}
+
 // ensureCache populates the cache from os.Environ() on first call.
 func ensureCache() {
 	cacheOnce.Do(func() {
@@ -122,17 +140,32 @@ func Get(key string) string {
 }
 
 // Set updates a Ze environment variable in both the cache and os environment.
-// key is the canonical dot-notation form. The os env var is set using the
-// dot-notation key so that child processes inherit a canonical form.
+// key is the canonical dot-notation form. Other case/separator spellings are
+// removed so a cache reset and a child process read the same canonical value.
 // Aborts if the key was not registered via MustRegister (programming error).
 func Set(key, value string) error {
 	canonical := resolveAlias(key)
 	mustBeRegistered(canonical)
 	ensureCache()
 	cacheMu.Lock()
-	cache[normalize(canonical)] = value
-	cacheMu.Unlock()
-	return os.Setenv(canonical, value)
+	defer cacheMu.Unlock()
+	if err := os.Setenv(canonical, value); err != nil {
+		return err
+	}
+	norm := normalize(canonical)
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if name == canonical {
+			continue
+		}
+		if normalize(name) == norm {
+			if err := os.Unsetenv(name); err != nil {
+				return err
+			}
+		}
+	}
+	cache[norm] = value
+	return nil
 }
 
 // SetInt sets an integer Ze environment variable.

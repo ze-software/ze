@@ -3,16 +3,14 @@
 // Related: scope.go -- the scoped-verify question this area also answers
 // Related: report.go -- the two renderings of one selection
 //
-// Package repochanged answers "what did I edit" for two callers. The changed-group
-// race pass uses the answer to size its test run. Every scoped verify stage
-// does the same.
+// Package repochanged sizes verification from the last proven commit and the
+// working tree. Scope resolves packages and feature tags; Selector resolves the
+// Go-only race groups. Both use greenBaseline, so an unproven history cannot
+// become an empty selection merely because its latest commit changes no Go.
 //
-// The answer is a GUARD that fails closed. A run can fail to read the checkout
-// or resolve a package directory. In either case, it MUST NOT answer "nothing
-// changed." Both callers treat an empty answer as permission to run no tests
-// and report success. internal/le/repo/changed/actions.go currently returns that
-// answer when git or `go list` fails. This port closes that defect
-// (plan/journal/zero-value-as-valid-answer.md, 2026-08-26).
+// A git failure is an error, never permission to skip. A directory the
+// toolchain cannot resolve is named in Selection.Unresolved, so the race stage
+// can refuse rather than certify the portion it happened to select.
 package repochanged
 
 import (
@@ -301,12 +299,36 @@ func (s Selector) relative(dir string) (string, bool) {
 	return out.Str(relativePrefix).Str(strings.TrimPrefix(dir, prefix)).String(), true
 }
 
-// Select answers the whole selection for this checkout.
+// Select answers the race groups since the last proven commit, including the
+// working tree. With no proven baseline, every package needs a race judgment.
 func (s Selector) Select() (Selection, error) {
 	files, err := s.ChangedFiles()
 	if err != nil {
 		return Selection{}, err
 	}
+	scope := newScope(s.Root)
+	if scope.File != "" {
+		if published, mine := scope.fromFile(); mine {
+			if slices.Contains(published.Packages, everyPackage) {
+				return Selection{Rest: []string{everyPackage}}, nil
+			}
+		}
+	}
+	baseline, err := greenBaseline(s.Root, func(root string, args ...string) (string, error) {
+		return s.run(root, append([]string{gitCommand}, args...))
+	})
+	if err != nil {
+		if errors.Is(err, errNoGreenBaseline) {
+			full := widen(err.Error())
+			return Selection{Rest: full.Packages}, nil
+		}
+		return Selection{}, err
+	}
+	committed, err := s.run(s.Root, []string{gitCommand, gitDiff, gitNameOnly, baseline, "HEAD", "--", goFiles})
+	if err != nil {
+		return Selection{}, err
+	}
+	files = append(files, lines([]byte(committed))...)
 
 	grouped := groupFiles(files)
 	rest, err := s.Packages(grouped.unmapped)

@@ -7,14 +7,21 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 func TestRootLaunchersBuildMissingBinary(t *testing.T) {
@@ -67,20 +74,22 @@ func TestRootLaunchersBuildMissingBinary(t *testing.T) {
 				t.Fatalf("launcher exit = %v, want built binary's 37", err)
 			}
 
-			wantBuild := []string{
-				"cwd=" + fixture,
-				"GOCACHE=" + filepath.Join(fixture, "cache", "go-cache"),
-				"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "tmp", "golangci-lint-cache"),
-				"CGO_ENABLED=0",
-				"GOTOOLCHAIN=go1.27.0",
-				"arg=build",
-				"arg=-tags",
-				"arg=" + tt.wantTags,
-				"arg=-o",
-				"arg=" + filepath.Join(fixture, "bin", tt.launcher),
-				"arg=./cmd/ze",
+			if tt.launcher == "ze" {
+				wantBuild := []string{
+					"cwd=" + fixture,
+					"GOCACHE=" + filepath.Join(fixture, "cache", "go-cache"),
+					"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "tmp", "golangci-lint-cache"),
+					"CGO_ENABLED=0",
+					"GOTOOLCHAIN=go1.27.0",
+					"arg=build",
+					"arg=-tags",
+					"arg=" + tt.wantTags,
+					"arg=-o",
+					"arg=" + filepath.Join(fixture, "bin", tt.launcher),
+					"arg=./cmd/ze",
+				}
+				assertLauncherRecord(t, goRecord, wantBuild)
 			}
-			assertLauncherRecord(t, goRecord, wantBuild)
 			assertLauncherRecord(t, execRecord, args)
 
 			admissionRecord := filepath.Join(fixture, "admission.record")
@@ -215,10 +224,244 @@ func TestLeLauncherNameBuildsPrivateBinary(t *testing.T) {
 				t.Fatalf("launcher exit = %d, want the named build's 37", exitCode)
 			}
 
-			assertLauncherRecord(t, goRecord, wantNamedBuild(fixture, named))
 			assertLauncherRecord(t, execRecord, args)
 			assertSharedStubUntouched(t, shared)
 		})
+	}
+}
+
+// TestLeLauncherPreparationFailureNeverPublishes uses a real compiled feature
+// probe: ignoring manifest refusal would publish a feature-stripped generation.
+func TestLeLauncherPreparationFailureNeverPublishes(t *testing.T) {
+	root := personalityRepoRoot(t)
+	cache := t.TempDir()
+	for _, mode := range []string{"cold", "named", "update"} {
+		for _, failure := range []string{"empty manifest", "missing manifest", "missing module", "unusable caches"} {
+			t.Run(mode+"/"+failure, func(t *testing.T) {
+				fixture := launcherFixture(t, root, "le")
+				if err := os.Symlink(cache, filepath.Join(fixture, "cache")); err != nil {
+					t.Fatal(err)
+				}
+				writeProbe := func(generation string) {
+					t.Helper()
+					writeExecutable(t, filepath.Join(fixture, "cmd", "ze", "main.go"), `package main
+import "fmt"
+var feature = "feature-disabled"
+func main() { fmt.Println("`+generation+`", feature) }
+`)
+					writeExecutable(t, filepath.Join(fixture, "cmd", "ze", "feature.go"), `//go:build ze_alpha && ze_beta
+
+package main
+func init() { feature = "feature-enabled" }
+`)
+				}
+				writeProbe("old")
+				target := filepath.Join(fixture, "bin", "le")
+				var args []string
+				switch mode {
+				case "named":
+					target = filepath.Join(fixture, "bin", "le-"+buildNameProbe, "le")
+					args = []string{"--name", buildNameProbe}
+				case "update":
+					args = []string{"--update", "probe"}
+				}
+				if mode != "cold" {
+					initial := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), args...)
+					initial.Dir = fixture
+					initial.Env = launcherEnv()
+					if output, err := initial.CombinedOutput(); err != nil || string(output) != "old feature-enabled\n" {
+						t.Fatalf("initial published feature probe: %v, %q", err, output)
+					}
+				}
+				writeProbe("new")
+				switch failure {
+				case "empty manifest":
+					if err := os.WriteFile(filepath.Join(fixture, "feature-gates.txt"), nil, 0o600); err != nil {
+						t.Fatal(err)
+					}
+				case "missing manifest":
+					if err := os.Remove(filepath.Join(fixture, "feature-gates.txt")); err != nil {
+						t.Fatal(err)
+					}
+				case "missing module":
+					if err := os.Remove(filepath.Join(fixture, "go.mod")); err != nil {
+						t.Fatal(err)
+					}
+				case "unusable caches":
+					if err := os.Remove(filepath.Join(fixture, "cache")); err != nil {
+						t.Fatal(err)
+					}
+					for _, name := range []string{"cache", "tmp"} {
+						if err := os.WriteFile(filepath.Join(fixture, name), nil, 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+				cmd := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), args...)
+				cmd.Dir = fixture
+				cmd.Env = launcherEnv()
+				if output, err := cmd.CombinedOutput(); err == nil {
+					t.Errorf("invalid preparation succeeded: %s", output)
+				}
+				if mode == "cold" {
+					if _, err := os.Stat(target); !errors.Is(err, os.ErrNotExist) {
+						t.Fatalf("preparation failure published a target: %v", err)
+					}
+				} else {
+					consumer := exec.CommandContext(t.Context(), target)
+					consumer.Env = launcherEnv()
+					if output, err := consumer.CombinedOutput(); err != nil || string(output) != "old feature-enabled\n" {
+						t.Fatalf("published feature probe after refusal: %v, %q", err, output)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestLeLauncherPublishesOverRunningELF exercises the tracked launcher and the
+// real Go compiler, not a script standing in for its output. The first named
+// process stays alive on stdin while the second invocation rebuilds its path.
+func TestLeLauncherPublishesOverRunningELF(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux enforces ETXTBSY on an executing ELF inode")
+	}
+	fixture := launcherFixture(t, personalityRepoRoot(t), "le")
+	source := filepath.Join(fixture, "cmd", "ze", "main.go")
+	writeProbe := func(generation string) {
+		t.Helper()
+		writeExecutable(t, source, `//go:build ze_le && ze_alpha && ze_beta
+
+package main
+import ("fmt"; "os"; "path/filepath")
+func main() {
+	fmt.Println("`+generation+`", filepath.Base(os.Args[0]), os.Getenv("ZE_LE_BUILD_NAME"))
+	var release [1]byte
+	if _, err := os.Stdin.Read(release[:]); err != nil { os.Exit(2) }
+	fmt.Println("`+generation+` released")
+}
+`)
+	}
+	writeProbe("first")
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
+	first := exec.CommandContext(ctx, filepath.Join(fixture, "le"), "--name", buildNameProbe)
+	first.Dir = fixture
+	first.Env = launcherEnv()
+	stdin, err := first.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdin.Close()
+	stdout, err := first.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stderr strings.Builder
+	first.Stderr = &stderr
+	if err := first.Start(); err != nil {
+		t.Fatal(err)
+	}
+	// The process MUST be reaped even when a publication assertion fails.
+	defer func() {
+		cancel()
+		if first.ProcessState == nil {
+			_ = first.Wait()
+		}
+	}()
+	reader := bufio.NewReader(stdout)
+	if line, err := reader.ReadString('\n'); err != nil || line != "first le "+buildNameProbe+"\n" {
+		t.Fatalf("first named process: %q, %v", line, err)
+	}
+	binary := filepath.Join(fixture, "bin", "le-"+buildNameProbe, "le")
+	before, err := os.Stat(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeProbe("second")
+	realGo, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Hold the real compiler's output open at its publication boundary. No
+	// output is fabricated: this only makes the writable-inode window stable.
+	writeExecutable(t, filepath.Join(fixture, "fakebin", "go"), `#!/bin/sh
+set -eu
+"$ZE_REAL_GO" "$@"
+out=
+previous=
+for arg do
+	if [ "$previous" = -o ]; then out=$arg; fi
+	previous=$arg
+done
+exec 3>>"$out"
+printf 'publication pending\n'
+read release
+exec 3>&-
+`)
+	second := exec.CommandContext(ctx, filepath.Join(fixture, "le"), "--name", buildNameProbe)
+	second.Dir = fixture
+	second.Env = append(launcherEnv(),
+		"PATH="+filepath.Join(fixture, "fakebin")+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"ZE_REAL_GO="+realGo,
+	)
+	second.Stderr = os.Stderr
+	secondInput, err := second.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer secondInput.Close()
+	secondOutput, err := second.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := second.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		cancel()
+		if second.ProcessState == nil {
+			_ = second.Wait()
+		}
+	}()
+	secondReader := bufio.NewReader(secondOutput)
+	if line, err := secondReader.ReadString('\n'); err != nil || line != "publication pending\n" {
+		t.Fatalf("compiler publication barrier: %q, %v", line, err)
+	}
+	consumer := exec.CommandContext(ctx, binary)
+	consumer.Env = append(launcherEnv(), "ZE_LE_BUILD_NAME="+buildNameProbe)
+	consumer.Stdin = strings.NewReader("x")
+	if output, err := consumer.CombinedOutput(); err != nil || string(output) != "first le "+buildNameProbe+"\nfirst released\n" {
+		t.Fatalf("consumer during publication: %v, %q", err, output)
+	}
+	if _, err := secondInput.Write([]byte("publish\nx")); err != nil {
+		t.Fatal(err)
+	}
+	output, err := io.ReadAll(secondReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := second.Wait(); err != nil {
+		t.Fatalf("rebuild while ELF is running: %v\n%s", err, output)
+	}
+	if string(output) != "second le "+buildNameProbe+"\nsecond released\n" {
+		t.Fatalf("rebuilt named process output = %q", output)
+	}
+	after, err := os.Stat(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, after) {
+		t.Fatal("publication reused the executing inode")
+	}
+	if _, err := stdin.Write([]byte("x")); err != nil {
+		t.Fatalf("release original process: %v", err)
+	}
+	if line, err := reader.ReadString('\n'); err != nil || line != "first released\n" {
+		t.Fatalf("original process after publication: %q, %v", line, err)
+	}
+	if err := first.Wait(); err != nil {
+		t.Fatalf("original process exit: %v; stderr: %s", err, stderr.String())
 	}
 }
 
@@ -247,8 +490,6 @@ func TestLeLauncherCarriesTheBuildNameToNestedCalls(t *testing.T) {
 		if exitCode != 37 {
 			t.Fatalf("launcher exit = %d, want the named build's 37", exitCode)
 		}
-		named := filepath.Join(fixture, "bin", "le-"+buildNameProbe, "le")
-		assertLauncherRecord(t, goRecord, wantNamedBuild(fixture, named))
 		assertLauncherRecord(t, execRecord, args)
 		assertSharedStubUntouched(t, shared)
 	})
@@ -438,11 +679,10 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 	return fixture
 }
 
-// launcherEnv is the parent environment with the launcher's own variable
-// cleared. A session that runs the whole suite under `./le --name <name>`
-// exports it, and an inherited value would change what every case measures.
+// launcherEnv removes every spelling of the outer launcher's identity and root.
+// Fixture-specific overrides are appended only after this isolation boundary.
 func launcherEnv() []string {
-	return append(os.Environ(), "ZE_LE_BUILD_NAME=")
+	return env.Without(os.Environ(), "ze.repo.root", "ze.le.build.name")
 }
 
 // runLauncher runs one launcher inside its fixture and answers the exit code.
@@ -462,24 +702,6 @@ func runLauncher(t *testing.T, fixture, launcher string, args, extraEnv []string
 		return exitErr.ExitCode()
 	}
 	return 0
-}
-
-// wantNamedBuild is the go invocation a named build owes: the same tags, caches
-// and toolchain pin as the shared build, with the named output path.
-func wantNamedBuild(fixture, output string) []string {
-	return []string{
-		"cwd=" + fixture,
-		"GOCACHE=" + filepath.Join(fixture, "cache", "go-cache"),
-		"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "tmp", "golangci-lint-cache"),
-		"CGO_ENABLED=0",
-		"GOTOOLCHAIN=go1.27.0",
-		"arg=build",
-		"arg=-tags",
-		"arg=ze_le,ze_alpha,ze_beta",
-		"arg=-o",
-		"arg=" + output,
-		"arg=./cmd/ze",
-	}
 }
 
 func assertSharedStubUntouched(t *testing.T, shared string) {

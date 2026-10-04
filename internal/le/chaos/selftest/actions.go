@@ -76,9 +76,9 @@ func (g Action) envOptions() gotoolchain.EnvOptions {
 	case commandLint:
 		return gotoolchain.EnvOptions{MemLimit: true}
 	case commandUnit:
-		return gotoolchain.EnvOptions{CGO: true, Procs: true}
+		return gotoolchain.EnvOptions{Test: true, CGO: true, Procs: true}
 	case commandCLI:
-		return gotoolchain.EnvOptions{Procs: true}
+		return gotoolchain.EnvOptions{Test: true, Procs: true}
 	case commandUnspecified:
 		panic("BUG: chaosselftest.Action has no command kind")
 	default:

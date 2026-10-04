@@ -226,6 +226,20 @@ YANG-aligned key is registered as an alias (or vice versa). `Get()` and
 `Set()` resolve aliases to the canonical key transparently. Precedence:
 canonical key value > alias key value. See `ai/rules/config.md`.
 
+**OS spellings:** Lookup ignores case and treats dots and underscores as the
+same separator. When several spellings occur in the inherited environment, the
+last entry wins. This is separate from registered alias precedence.
+`Set()` removes other spellings of the canonical key and publishes one canonical
+OS entry, so a cache reset or a child process sees the value just written.
+`ResetCache()` rereads the environment; it does not remove inherited values.
+Tests that use `t.Setenv` directly MUST replace every conflicting spelling before
+resetting the cache, and MUST reset it again after restoring the environment.
+
+`Without()` creates a child environment with all case/separator spellings of
+the requested exact keys removed. It leaves the parent environment unchanged
+and does not remove neighboring keys or distinct registered aliases.
+<!-- source: internal/core/env/env.go -- ensureCache, Set, ResetCache, Without -->
+
 **Deprecation:** When an env var is superseded (e.g., `ze.fwd.pool.size` by
 `ze.fwd.pool.maxbytes`), mark it with `Deprecated: "replacement.key"`.
 The warning only fires when the deprecated var is actually set (non-empty),

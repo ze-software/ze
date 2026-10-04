@@ -8,12 +8,14 @@ root=$(CDPATH= cd "$(dirname "$0")" && pwd)
 # binary and a session-private one.
 build_le() {
 	out=$1
+	# update_le tests this function's status, disabling sh's implicit errexit
+	# inside it. Each required preparation step MUST propagate its own failure.
 
 	# One reader of the manifest for every shell caller, and one Go reader beside
 	# it (feature-tags). An empty answer is an error there, so no branch here
 	# tolerates a feature-less build.
-	. "$root/feature-tags"
-	tags=ze_le,$(feature_tags "$root/feature-gates.txt" ",")
+	. "$root/feature-tags" || return 1
+	tags=ze_le,$(feature_tags "$root/feature-gates.txt" ",") || return 1
 
 	# cache/ is a SYMLINK onto another filesystem on the development hosts, so
 	# it resolves for them and dangles anywhere the checkout is shared without
@@ -25,7 +27,7 @@ build_le() {
 	GOCACHE=$root/cache/go-cache
 	if ! mkdir -p "$GOCACHE" 2>/dev/null; then
 		GOCACHE=$root/tmp/go-cache
-		mkdir -p "$GOCACHE"
+		mkdir -p "$GOCACHE" || return 1
 		echo "le: $root/cache is not usable here, building through $GOCACHE" >&2
 	fi
 	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache
@@ -34,23 +36,23 @@ build_le() {
 	# A toolchain line wins; the go directive is the fallback, because a module
 	# stating `go 1.27.0` and no toolchain line still pins go1.27.0. Reading only
 	# the toolchain line left this build with no pin at all.
-	toolchain=$(awk '$1 == "toolchain" { print $2; exit }' "$root/go.mod")
+	toolchain=$(awk '$1 == "toolchain" { print $2; exit }' "$root/go.mod") || return 1
 	if [ -z "$toolchain" ]; then
-		toolchain=$(awk '$1 == "go" { print "go" $2; exit }' "$root/go.mod")
+		toolchain=$(awk '$1 == "go" { print "go" $2; exit }' "$root/go.mod") || return 1
 	fi
 	if [ -n "$toolchain" ]; then
 		GOTOOLCHAIN=$toolchain
 		export GOTOOLCHAIN
 	fi
 
-	mkdir -p "$(dirname "$out")"
+	mkdir -p "$(dirname "$out")" || return 1
 	(cd "$root" && go build -tags "$tags" -o "$out" ./cmd/ze)
 }
 
-# Replaces $1 with a fresh build without writing through the file a peer session
-# may be executing. go build truncates its output in place, which corrupts a
-# running process; building beside the target and renaming leaves that process
-# on the old inode until it exits.
+# Publishes $1 without exposing the compiler's writable output to another caller.
+# A direct build can leave the target open for writing when a peer tries to exec
+# it, which Linux rejects with ETXTBSY. Building beside the target and renaming
+# also leaves an existing process on its old inode until it exits.
 update_le() {
 	# Not `out`: sh has no local scope, so build_le's own `out=$1` would rewrite
 	# this one and the rename below would name the staging path twice.
@@ -245,7 +247,7 @@ if [ -n "$name" ]; then
 	# Built on EVERY call, so the toolchain decides what is stale and the session
 	# reads its own edits. Sessions share this checkout, so this never writes
 	# bin/le and never waits for a peer to stop using it.
-	build_le "$binary"
+	update_le "$binary"
 else
 	binary=$root/bin/le
 	# This is an existence cache, not a freshness check. An existing binary is
@@ -264,7 +266,7 @@ else
 		binary=$root/bin/le-$(uname -s)-$(uname -m)/le
 	fi
 	if [ ! -x "$binary" ]; then
-		build_le "$binary"
+		update_le "$binary"
 	elif [ -n "$update" ]; then
 		update_le "$binary"
 	fi

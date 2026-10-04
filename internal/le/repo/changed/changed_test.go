@@ -222,13 +222,16 @@ func TestADirectoryWhoseGoFilesAreAllBuildIgnoredIsDropped(t *testing.T) {
 // changed-group race pass reads the second as permission to test nothing
 // (plan/journal/gate-excludes-part-of-its-population.md).
 func TestADroppedDirectoryIsNamedRatherThanForgotten(t *testing.T) {
+	root := t.TempDir()
+	selectionBaseline(t, root)
 	const listQuery = "go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/gone"
 	rec := &recorder{answers: map[string]string{
-		unstagedQuery: "internal/le/gone/gone.go\n",
-		listQuery:     "",
+		"git cat-file -t verified": "commit\n",
+		unstagedQuery:              "internal/le/gone/gone.go\n",
+		listQuery:                  "",
 	}}
 
-	selection, err := Selector{Root: t.TempDir(), Run: rec.run}.Select()
+	selection, err := Selector{Root: root, Run: rec.run}.Select()
 	if err != nil {
 		t.Fatalf("Select: %v", err)
 	}
@@ -244,10 +247,12 @@ func TestADroppedDirectoryIsNamedRatherThanForgotten(t *testing.T) {
 // unresolved, so a caller reading Unresolved is reading a real drop.
 func TestAResolvedDirectoryLeavesNothingUnresolved(t *testing.T) {
 	root := t.TempDir()
+	selectionBaseline(t, root)
 	const listQuery = "go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/repo/changed"
 	rec := &recorder{answers: map[string]string{
-		unstagedQuery: "internal/le/repo/changed/changed.go\n",
-		listQuery:     filepath.Join(root, "internal", "le", "repo", "changed") + "\n",
+		"git cat-file -t verified": "commit\n",
+		unstagedQuery:              "internal/le/repo/changed/changed.go\n",
+		listQuery:                  filepath.Join(root, "internal", "le", "repo", "changed") + "\n",
 	}}
 
 	selection, err := Selector{Root: root, Run: rec.run}.Select()

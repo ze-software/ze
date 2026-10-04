@@ -104,8 +104,9 @@ func (b BinarySet) lePath() string { return filepath.Join(b.Dir, LE) }
 func (b BinarySet) Environment(tc gotoolchain.Toolchain) []string {
 	// The suite runs as the set's own le, which is not the build a
 	// `./le --name x` launcher named, so refuseWrongBuildName would refuse it.
-	// An empty value wins because os/exec uses the last duplicate key.
-	base := append(tc.Environment(gotoolchain.EnvOptions{}), leBuildNameCleared)
+	// Drop every spelling rather than masking only the shell spelling.
+	base := env.Without(tc.Environment(gotoolchain.EnvOptions{}), "ze.le.build.name")
+	base = append(base, leBuildNameCleared)
 	if b.Canonical {
 		return base
 	}

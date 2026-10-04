@@ -67,6 +67,24 @@ a question and the area's own parser owns the line. That is what `command
 <argv...>` means: `./le job run label encode-list command bin/le test bgp encode
 --list` hands `--list` to the child.
 
+## Launcher builds do not overwrite running binaries
+
+`./le` keeps an existence cache: a compatible executable is reused until
+`--update` requests a rebuild. If the shared executable belongs to another
+platform, the launcher selects `bin/le-<OS>-<architecture>/le` instead.
+`--name <name>` rebuilds `bin/le-<name>/le` on every invocation and exports
+`ZE_LE_BUILD_NAME` so nested calls select the same private build.
+
+Every build, including a cold start and a named rebuild, writes a sibling
+`<target>.new.<pid>` and then renames it onto the target. A process already
+running keeps its old inode; another caller never opens a partially written
+target. Concurrent builders need no lock or retry. The final filename stays
+`le`, preserving personality dispatch. A failed build removes its staging file
+and leaves any published target unchanged. Preparation failures, including a
+missing or empty feature manifest, stop before the compiler runs.
+
+<!-- source: le -- build_le, update_le -->
+
 ## A bare `go test` is not `./le test unit`
 
 Ze compiles features out behind build tags (`//go:build ze_isis`, `ze_ospf`,
@@ -568,6 +586,31 @@ The command adds no build tags, no `-race`, no
 package pattern and no timeout of its own, so write each of them yourself. The
 `PKG=` and `RUN=` spellings belong to `./le test fuzz`, which declares them as
 argument aliases; `go test` reads `PKG=./x` as an import path and refuses it.
+
+For a direct `go test` child, the job boundary selects `CGO_ENABLED=1` when the
+Go build flags enable `-race`, and `CGO_ENABLED=0` otherwise. This overrides the
+launcher's build-only `CGO_ENABLED=0`; no `env` wrapper is needed. Effective
+`GOFLAGS` is applied first using Go's whole-field quoting, then explicit argv
+wins. If argv does not determine race mode and the OS `GOFLAGS` is absent or
+empty, the job asks the selected Go executable for `go env GOFLAGS` in the same
+directory/environment, preserving any leading `-C`. This includes persistent
+`GOENV` configuration and its platform-specific default location without a
+second configuration-file parser. A failed lookup stops the command rather
+than inventing a CGO mode. Explicit race flags and nonempty OS `GOFLAGS` need
+no configuration subprocess.
+
+An explicit `-race=false` disables the detector and repeated race flags
+use the last value. Flags after `-args`, or in a positional test-argument tail
+after the completed package list, belong to the test binary rather than the
+Go build. Values of other Go flags, such as the pattern in `-run -race`, do not
+enable instrumentation. The child's argv and `GOFLAGS` are unchanged and Go
+still validates them.
+
+The same direct-child boundary removes every spelling of the outer checkout
+root and named-build identity, while preserving the parent job setting. Keep
+`go test` as the direct command (an optional leading Go `-C` is supported);
+`job` does not parse shell commands or `env` wrappers.
+<!-- source: internal/le/job/process.go -- commandEnvironment, goTestDefaults, goTestRace, goFlagsRace -->
 
 Carry the feature tags from the recipe at the top of this page, or the run
 judges a tree in which no gated plugin registers.

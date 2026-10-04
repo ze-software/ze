@@ -14,10 +14,14 @@ package gotoolchain
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/env"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // valueOf answers the LAST value a KEY=VALUE list carries for one key, which is
@@ -298,6 +302,77 @@ func TestTheOverridesWinOverTheInheritedEnvironment(t *testing.T) {
 
 	if got := valueOf(full, "GOCACHE"); got != want {
 		t.Errorf("the last GOCACHE is %q, want %q", got, want)
+	}
+}
+
+// TestTestEnvironmentDropsLauncherIdentity proves conflicting root/name
+// spellings cannot enter Go fixtures, while build commands keep their context.
+func TestTestEnvironmentDropsLauncherIdentity(t *testing.T) {
+	t.Cleanup(env.ResetCache)
+	names := []string{
+		"ZE_REPO_ROOT", "ze.repo.root", "Ze.RePo_Root",
+		"ZE_LE_BUILD_NAME", "ze.le.build.name", "Ze.Le_Build.Name",
+	}
+	for _, name := range names {
+		t.Setenv(name, "outer-"+name)
+	}
+	t.Setenv("ZE_REPO_ROOT_EXTRA", "neighbor")
+	chain := Toolchain{Root: t.TempDir()}
+	isolated := chain.Environment(EnvOptions{Test: true})
+	build := chain.Environment(EnvOptions{})
+	for _, name := range names {
+		if got := valueOf(isolated, name); got != "" {
+			t.Errorf("test inherits %s=%q", name, got)
+		}
+		if got := valueOf(build, name); got != "outer-"+name {
+			t.Errorf("build lost %s=%q", name, got)
+		}
+		if got := os.Getenv(name); got != "outer-"+name {
+			t.Errorf("parent lost %s=%q", name, got)
+		}
+	}
+	if got := valueOf(isolated, "ZE_REPO_ROOT_EXTRA"); got != "neighbor" {
+		t.Errorf("neighbor value = %q, want neighbor", got)
+	}
+	if got := valueOf(isolated, "GOCACHE"); got != GoCache(chain.Root) {
+		t.Errorf("isolated GOCACHE = %q, want checkout cache", got)
+	}
+}
+
+// TestTestEnvironmentProtectsFixtureRoot runs this test binary as the native
+// toolchain's child and proves Root reads its fixture, not the launching le.
+func TestTestEnvironmentProtectsFixtureRoot(t *testing.T) {
+	t.Cleanup(env.ResetCache)
+	const marker = "LETOOLCHAIN_FIXTURE_ROOT"
+	if fixtureRoot := os.Getenv(marker); fixtureRoot != "" {
+		t.Setenv("ZE_REPO_ROOT", fixtureRoot)
+		env.ResetCache()
+		got, err := lepath.Root()
+		if err != nil || got != fixtureRoot {
+			t.Fatalf("child Root = %q, %v, want fixture %q", got, err, fixtureRoot)
+		}
+		for _, name := range []string{"ZE_LE_BUILD_NAME", "ze.le.build.name", "Ze.Le_Build.Name"} {
+			if value := os.Getenv(name); value != "" {
+				t.Errorf("child inherited %s=%q", name, value)
+			}
+		}
+		return
+	}
+	for _, name := range []string{
+		"ZE_REPO_ROOT", "ze.repo.root", "Ze.RePo_Root",
+		"ZE_LE_BUILD_NAME", "ze.le.build.name", "Ze.Le_Build.Name",
+	} {
+		t.Setenv(name, "outer-"+name)
+	}
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	cmd := exec.CommandContext(t.Context(), binary, "-test.run=^TestTestEnvironmentProtectsFixtureRoot$")
+	cmd.Env = append(Toolchain{Root: root}.Environment(EnvOptions{Test: true}), marker+"="+root)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("isolated fixture child: %v\n%s", err, output)
 	}
 }
 

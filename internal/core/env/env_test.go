@@ -29,6 +29,62 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TestSetReplacesEverySpelling proves a Set survives cache reset with the same
+// value a child inherits, even when conflicting spellings predate the write.
+func TestSetReplacesEverySpelling(t *testing.T) {
+	const key = "ze.test.set.val"
+	t.Cleanup(ResetCache)
+	for _, name := range []string{key, "ZE_TEST_SET_VAL", "Ze.Test_Set.Val"} {
+		t.Setenv(name, "inherited-"+name)
+	}
+	ResetCache()
+	if err := Set(key, "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	if got := Get(key); got != "fixture" {
+		t.Fatalf("cached value = %q, want fixture", got)
+	}
+	ResetCache()
+	if got := Get(key); got != "fixture" {
+		t.Fatalf("reset value = %q, want fixture", got)
+	}
+	for _, entry := range os.Environ() {
+		name, value, _ := strings.Cut(entry, "=")
+		if normalize(name) == normalize(key) {
+			if value != "fixture" {
+				t.Errorf("child inherits conflicting %s", entry)
+			}
+			if name != key {
+				t.Errorf("Set retained noncanonical spelling %s", name)
+			}
+		}
+	}
+}
+
+// TestWithoutRemovesEverySpelling proves child isolation drops exact keys under
+// every accepted spelling without changing neighbors or the parent's entries.
+func TestWithoutRemovesEverySpelling(t *testing.T) {
+	inherited := []string{
+		"ze.repo.root=canonical", "ZE_REPO_ROOT=uppercase", "Ze.RePo_Root=mixed",
+		"ze.le.build.name=canonical", "ZE_LE_BUILD_NAME=uppercase", "Ze.Le_Build.Name=mixed",
+		"ze.repo.root.extra=keep-root-neighbor", "ze.le.build.name.extra=keep-name-neighbor",
+		"PATH=/keep", "ZE_TEST_ENV_CHECK=keep-setting",
+	}
+	got := Without(inherited, "ze.repo.root", "ze.le.build.name")
+	want := inherited[6:]
+	if len(got) != len(want) {
+		t.Fatalf("Without = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("entry %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+	if inherited[0] != "ze.repo.root=canonical" {
+		t.Fatal("Without changed the parent's environment")
+	}
+}
+
 // unsetAll clears all notation forms for a dot-notation key and resets the cache.
 // Also clears any mixed-case variants by scanning os.Environ().
 func unsetAll(t *testing.T, dotKey string) {

@@ -287,6 +287,16 @@ them. `TestAllCoversEveryGoDirectoryOfTheCheckout` walks the checkout and refuse
 a population that leaves a Go directory out, so the day a component is created is
 the day `all` covers it.
 
+The whole-checkout command is race-instrumented. `Group.EnvOptions` explicitly
+enables cgo for each race command, so an inherited `CGO_ENABLED=0` on the launcher
+does not disable its child. Test children also request the toolchain's test
+environment boundary, which removes inherited checkout-root and launcher
+build-name aliases before a fixture supplies its own. `all` continues through
+its compile-out groups after a failure and returns the first non-zero code.
+
+<!-- source: internal/le/test/unit/groups.go -- Group.EnvOptions, allGroups -->
+<!-- source: internal/le/test/unit/actions.go -- runner, allRunner -->
+
 **The closed vocabularies the gate reads are EXPORTED, and every publisher of a
 verdict reads them rather than spelling one.** The polarities, the annotation
 kinds, the audit verdicts with the sentence each one means, the four

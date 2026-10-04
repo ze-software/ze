@@ -465,7 +465,7 @@ func changedPaths(root, pathsFrom string) ([]string, error) {
 // guard on a path the traffic does not take does not exist).
 func gitChangedPaths(root string) ([]string, error) {
 	queries := workingTreeQueries()
-	baseline, err := greenBaseline(root)
+	baseline, err := greenBaseline(root, runGit)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +547,7 @@ func runGitQueries(root string, queries [][]string) ([]string, error) {
 //
 // The wide answer clears itself: the first passing verify writes exit=0 and a
 // SHA, and every later run narrows again.
-func greenBaseline(root string) (string, error) {
+func greenBaseline(root string, query func(string, ...string) (string, error)) (string, error) {
 	statusPath := os.Getenv("ZE_VERIFY_STATUS_FILE")
 	if statusPath == "" {
 		statusPath = filepath.Join("tmp", "ze-verify.status")
@@ -580,7 +580,7 @@ func greenBaseline(root string) (string, error) {
 	if sha == "unknown" {
 		return "", fmt.Errorf("%w: %s records git_sha=unknown", errNoGreenBaseline, statusPath)
 	}
-	kind, err := runGit(root, "cat-file", "-t", sha)
+	kind, err := query(root, "cat-file", "-t", sha)
 	if err != nil {
 		return "", fmt.Errorf("%w: %s records git_sha=%s, which this repository does not hold", errNoGreenBaseline, statusPath, sha)
 	}

@@ -60,6 +60,8 @@ func gitIn(t *testing.T, dir string, args ...string) {
 func TestTheGroupVerbsAnswerTheSelectionOfTheCheckoutNamed(t *testing.T) {
 	goToolchain(t)
 	root := gitFixture(t)
+	selectionBaseline(t, root)
+	writeFile(t, root, "tmp/ze-verify.status", "exit=0\ngit_sha="+gitOut(t, root, "rev-parse", "HEAD")+"\n")
 	useCheckout(t, root)
 
 	payload, code := Answer([]string{"groups"})

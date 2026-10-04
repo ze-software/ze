@@ -556,7 +556,7 @@ func setGoFlagsOverlay(overlay string) (func(), error) {
 // share.
 func (o *observationRunner) environment(overlay string) []string {
 	if o.carrier.Kind == kindUnit {
-		return o.toolchain.Environment(gotoolchain.EnvOptions{Procs: true})
+		return o.toolchain.Environment(gotoolchain.EnvOptions{Test: true, Procs: true})
 	}
 	environ := os.Environ()
 	if overlay != "" {

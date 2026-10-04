@@ -25,6 +25,36 @@ import (
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
+// TestBinarySetDropsEveryInheritedBuildName proves isolated suite binaries own
+// their identity while retaining the checkout selected for the functional run.
+func TestBinarySetDropsEveryInheritedBuildName(t *testing.T) {
+	t.Cleanup(env.ResetCache)
+	for _, name := range []string{"ZE_LE_BUILD_NAME", "ze.le.build.name", "Ze.Le_Build.Name"} {
+		t.Setenv(name, "outer-"+name)
+	}
+	root := t.TempDir()
+	t.Setenv("ze.repo.root", root)
+	for _, canonical := range []bool{false, true} {
+		set := BinarySet{Dir: filepath.Join(root, "bin"), Canonical: canonical}
+		environ := set.Environment(gotoolchain.Toolchain{Root: root})
+		foundRoot := false
+		for _, entry := range environ {
+			name, value, _ := strings.Cut(entry, "=")
+			if strings.EqualFold(strings.ReplaceAll(name, "_", "."), "ze.le.build.name") {
+				if value != "" {
+					t.Errorf("canonical=%v child inherits %s", canonical, entry)
+				}
+			}
+			if entry == "ze.repo.root="+root {
+				foundRoot = true
+			}
+		}
+		if !foundRoot {
+			t.Errorf("canonical=%v child lost selected checkout", canonical)
+		}
+	}
+}
+
 // TestEveryGatingNameIsASuite verifies that each run-list name has a recipe.
 // `ipsec` was in the Makefile run list without a recipe.
 // It increased the denominator, ran nothing, and still gave test/ipsec/*.ci a merge-gate tier.

@@ -56,7 +56,7 @@ func nativeRunner(
 func commandRunner(tc gotoolchain.Toolchain, action Action) func() (any, int) {
 	return func() (any, int) {
 		return gaterun.Run(action.Verb, action.Argv(), tc.Root,
-			tc.Environment(gotoolchain.EnvOptions{CGO: action.needsCgo()}))
+			tc.Environment(gotoolchain.EnvOptions{Test: true, CGO: action.needsCgo()}))
 	}
 }
 

@@ -259,15 +259,14 @@ func runUnitCached(ctx context.Context, plan Plan, report Report, execute comman
 	gaterun.Note("Unit tests: full pass (cacheable, no -race)...")
 	_, child := execute(ctx, plan.Commands[0], os.Stdout)
 	report.Children = append(report.Children, child)
-	if child.Code != 0 {
-		report.Code = child.Code
-		return report, report.Code
-	}
+	report.Code = child.Code
 
 	gaterun.Note("Unit tests: bare ze_core compile-out checks...")
 	_, child = execute(ctx, plan.Commands[1], os.Stdout)
 	report.Children = append(report.Children, child)
-	report.Code = child.Code
+	if report.Code == 0 {
+		report.Code = child.Code
+	}
 	return report, report.Code
 }
 
@@ -282,17 +281,15 @@ func runUnitRaceChanged(ctx context.Context, plan Plan, report Report, execute c
 		gaterun.Note(report.Error)
 		return report, report.Code
 	}
+	if len(plan.Changed.Unresolved) > 0 {
+		return skipUnitRaceChanged(plan, report)
+	}
 	if plan.Changed.Empty() {
 		return skipUnitRaceChanged(plan, report)
 	}
-	if len(plan.Changed.Unresolved) > 0 {
-		// The pass runs, and these changed directories are outside it. Naming
-		// them is what stops a partial population from reading as the whole
-		// one, since the race command says nothing about a package it was
-		// never given.
-		var dropped textbuf.Buffer
-		gaterun.Note(dropped.Str("Unit tests: changed directories the toolchain calls no package: ").
-			Join(plan.Changed.Unresolved, " ").Slice())
+	report, ok := requireCommands(plan, report, 2)
+	if !ok {
+		return report, report.Code
 	}
 
 	var text textbuf.Buffer
@@ -300,38 +297,33 @@ func runUnitRaceChanged(ctx context.Context, plan Plan, report Report, execute c
 		Join(plan.Packages, " ").Slice())
 	_, child := execute(ctx, plan.Commands[0], os.Stdout)
 	report.Children = append(report.Children, child)
-	if child.Code != 0 {
-		report.Code = child.Code
-		return report, report.Code
-	}
+	report.Code = child.Code
 
 	gaterun.Note("Unit tests: bare ze_core compile-out checks (race-instrumented)...")
 	_, child = execute(ctx, plan.Commands[1], os.Stdout)
 	report.Children = append(report.Children, child)
-	report.Code = child.Code
+	if report.Code == 0 {
+		report.Code = child.Code
+	}
 	return report, report.Code
 }
 
-// skipUnitRaceChanged answers a selection that names no package to race.
-//
-// An empty change set is a legitimate skip and exits 0. A change set that
-// dropped every directory it held is NOT: Go files changed, and the toolchain
-// called none of their directories a package, so this stage has no population
-// and cannot judge the tree. A deleted package and a package `go list` failed
-// to load answer the selector the same way, so the stage refuses rather than
-// certify a change it never tested.
+// skipUnitRaceChanged answers a selection with no complete population to race.
+// An empty Go change set since a proven baseline is a legitimate skip. Any
+// unresolved directory is a refusal, including beside resolved groups: running
+// only those groups would still certify a change this stage never tested.
 func skipUnitRaceChanged(plan Plan, report Report) (Report, int) {
 	if len(plan.Changed.Unresolved) > 0 {
 		var text textbuf.Buffer
 		report.Code = 1
-		report.Error = text.Str("changed Go files resolved to no test package: ").
+		report.Error = text.Str("changed Go directories did not resolve to a test package: ").
 			Join(plan.Changed.Unresolved, " ").String()
 		gaterun.Note(report.Error)
 		return report, report.Code
 	}
 	report.Skipped = true
-	report.Reason = "no changed .go file, so no group carries a test to race"
-	gaterun.Note("No changed .go files -- skipping changed-group pass")
+	report.Reason = "no changed .go file since the green baseline, so no group carries a test to race"
+	gaterun.Note("No changed .go files since the green baseline -- skipping changed-group pass")
 	return report, 0
 }
 
@@ -506,8 +498,8 @@ func planUnitCached(ctx context.Context, root string, chain gotoolchain.Toolchai
 	}
 	plan.Packages = packages
 	plan.Commands = []CommandPlan{
-		commandPlan(planName(actionUnitCached, "full"), chain.GoTest(gotoolchain.TestOptions{}, packages...), chain, gotoolchain.EnvOptions{Procs: true}),
-		commandPlan(planName(actionUnitCached, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true}, "./cmd/ze/hub"), chain, gotoolchain.EnvOptions{Procs: true}),
+		commandPlan(planName(actionUnitCached, "full"), chain.GoTest(gotoolchain.TestOptions{}, packages...), chain, gotoolchain.EnvOptions{Test: true, Procs: true}),
+		commandPlan(planName(actionUnitCached, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true}, "./cmd/ze/hub"), chain, gotoolchain.EnvOptions{Test: true, Procs: true}),
 	}
 	return plan, children, 0, nil
 }
@@ -526,7 +518,7 @@ func planUnitRaceChanged(ctx context.Context, root string, chain gotoolchain.Too
 	if selection.Empty() {
 		return plan, children, 0, nil
 	}
-	options := gotoolchain.EnvOptions{CGO: true, Procs: true}
+	options := gotoolchain.EnvOptions{Test: true, CGO: true, Procs: true}
 	plan.Commands = []CommandPlan{
 		commandPlan(planName(actionUnitRaceChanged, "changed"), chain.GoTest(gotoolchain.TestOptions{Race: true}, plan.Packages...), chain, options),
 		commandPlan(planName(actionUnitRaceChanged, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true, Race: true}, "./cmd/ze/hub"), chain, options),
@@ -560,7 +552,7 @@ func planAlloc(root string, chain gotoolchain.Toolchain, plan Plan, getenv func(
 		planName(actionAlloc, "benchmarks"),
 		chain.GoTest(gotoolchain.TestOptions{}, args...),
 		chain,
-		gotoolchain.EnvOptions{Procs: true},
+		gotoolchain.EnvOptions{Test: true, Procs: true},
 	)}
 	return plan, nil, 0, nil
 }

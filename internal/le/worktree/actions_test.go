@@ -9,18 +9,70 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-// useCheckout points every command in this test at one checkout.
-//
-// env.Get uses a cache built from os.Environ, so t.Setenv alone does not change lepath.Root.
-// Without a reset, the test would resolve the developer's repository and rebase its worktrees.
-// The reset activates the value, and cleanup prevents that value from outliving the test.
+// useCheckout replaces every inherited root spelling, then refuses to proceed
+// unless Root identifies this fixture. Callers MUST use it before any git action.
 func useCheckout(t *testing.T, root string) {
 	t.Helper()
+	t.Cleanup(env.ResetCache)
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.EqualFold(strings.ReplaceAll(name, "_", "."), lepath.RootKey) {
+			t.Setenv(name, root)
+		}
+		// Git's repository/index overrides can defeat even an explicit -C.
+		if strings.HasPrefix(name, "GIT_") {
+			t.Setenv(name, "")
+			if err := os.Unsetenv(name); err != nil {
+				t.Fatalf("isolate git environment %s: %v", name, err)
+			}
+		}
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("ZE_REPO_ROOT", root)
 	env.ResetCache()
+	got, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve fixture root: %v", err)
+	}
+	want, err := filepath.Abs(root)
+	if err != nil {
+		t.Fatalf("resolve expected fixture root: %v", err)
+	}
+	if got != want {
+		t.Fatalf("refuse git action: root %q is not fixture %q", got, want)
+	}
+}
+
+// TestCheckoutFixtureOverridesEveryInheritedSpelling proves the safety boundary
+// with disposable directories and no git subprocess, including cleanup order.
+func TestCheckoutFixtureOverridesEveryInheritedSpelling(t *testing.T) {
 	t.Cleanup(env.ResetCache)
+	for _, name := range []string{"ZE_REPO_ROOT", "ze.repo.root", "Ze.RePo_Root"} {
+		t.Setenv(name, t.TempDir())
+	}
+	t.Setenv("GIT_DIR", "/must-not-open-inherited-git")
+	env.ResetCache()
+	inherited, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("fixture", func(t *testing.T) {
+		root := t.TempDir()
+		useCheckout(t, root)
+		if got, err := lepath.Root(); err != nil || got != root {
+			t.Fatalf("fixture root = %q, %v, want %q", got, err, root)
+		}
+		if _, exists := os.LookupEnv("GIT_DIR"); exists {
+			t.Fatal("fixture retained GIT_DIR")
+		}
+	})
+	if restored, err := lepath.Root(); err != nil || restored != inherited {
+		t.Fatalf("restored root = %q, %v, want %q", restored, err, inherited)
+	}
 }
 
 // VALIDATES: every required git command is checked.
@@ -223,7 +275,11 @@ func TestTheAllKeywordUpdatesEveryLinkedWorktreeAndNotTheMainOne(t *testing.T) {
 	if err := os.Mkdir(main, 0o750); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
+	// Root identity MUST be established before even fixture initialization.
+	useCheckout(t, main)
 	runGit(t, main, "init", "-q", "-b", mainBranch, ".")
+	runGit(t, main, "config", "user.email", "t@ze")
+	runGit(t, main, "config", "user.name", "t")
 	commit(t, main, "base.txt", "base\n", "base")
 
 	side := filepath.Join(base, "side")
