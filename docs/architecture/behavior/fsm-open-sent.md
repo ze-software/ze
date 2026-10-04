@@ -27,20 +27,25 @@ On entry, three things happen in fixed order inside
 
 1. The FSM event is fired (Connect/Active -> OpenSent).
 2. `sendOpen(conn)` writes the OPEN message onto the TCP connection.
-3. `timers.StartHoldTimer()` starts the hold timer with the
-   pre-negotiation value (`settings.ReceiveHoldTime`, seeded at session
-   construction).
+3. `timers.StartHoldTimer()` starts the hold timer with `ze.bgp.openwait`
+   (default 120 seconds), independently of the configured receive hold time.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished FSM event + sendOpen + StartHoldTimer -->
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer -->
 
-A variant path exists: `acceptWithOpen` goes through
-`connectionEstablished` (Active -> OpenSent) and then immediately calls
-`processOpen`, which fires `EventBGPOpen` (OpenSent -> OpenConfirm) in
-the same synchronous call. In that case OpenSent is observed for only
-as long as it takes the process to cross the two function boundaries.
+A variant path exists: the peer run loop gives a retained collision winner
+to a fresh Session after the losing cycle's cleanup. `acceptWithOpen` goes
+through `connectionEstablished`, observes the original received OPEN bytes,
+and calls `processOpen`. Validation and negotiation precede `advanceAfterOpen`;
+the BFD strict-mode wait described below can keep this path in OpenSent too.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen, processOpen -->
+<!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
+
+The normal reader also observes the complete original packet before semantic
+validation. Both paths preserve wire evidence rather than reconstructing an
+OPEN from parsed capabilities.
+<!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage -->
 
 ## Events handled in OpenSent
 

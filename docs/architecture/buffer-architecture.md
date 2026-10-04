@@ -453,7 +453,7 @@ none of them is a defect until this table names the new trigger.
 | The destination has other capabilities | A `ContextID` mismatch (RFC 6793 ASN4 width) needs a re-encode | `buildFwdBody`, `fwdUpdateForDestination` |
 | The destination negotiated ADD-PATH | RFC 7911 Section 2: the source's Path Identifiers are rewritten, into a copy, even when the contexts match | `fwdRegenerateRawPathIDs` |
 | A per-destination attribute rewrite | Filter output, AS-path intent and ASN4, AS override, or next hop change the attributes. With no free `peerPool` slot, the `sync.Pool` fallback copies twice | `buildModifiedPayload` |
-| An announce becomes a withdrawal | RFC 9494: an EBGP peer without LLGR receives a withdrawal for stale routes. The NLRI moves into a new payload | `buildWithdrawalPayload` |
+| An announce becomes a withdrawal | LLGR or a destination withhold gate converts all named routes, retaining existing withdrawals as well as announcements. Legacy NLRI and matching-family MP NLRI move into a new payload; incompatible MP families are refused by this builder | `buildWithdrawalPayload` |
 | The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several | `SplitWireUpdate`, and `fwdSplitParsedUpdate` for the cross-context branch |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |

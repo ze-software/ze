@@ -67,6 +67,12 @@ The state-change callback in `peer_run.go`:
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive, handleUpdate, handleNotification, handleUnknownType -->
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage, handleConnectionClose -->
+
+The reader observes complete original packets before semantic processing.
+Wire observers therefore see the received UPDATE, not a synthesized withdrawal
+or rewritten attribute set produced later by `processMessage`.
+<!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage -->
+
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires callbacks -->
 
 ### `handleUpdate` restarts the HoldTimer via the FSM
@@ -183,8 +189,9 @@ grants no reprieve to a CPU-congested daemon.
   the error and starts the teardown.
   <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires signals errChan -->
 - **On a second TCP connection:** retain it until its OPEN arrives, then
-  reject it with Cease / Connection Collision. The established connection
-  remains usable throughout.
+  reject it with Cease / Connection Collision. The pending reader bounds the
+  OPEN length before reading its body. The established connection remains
+  usable throughout; no replacement Session is installed for a rejected socket.
   <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
 
 ## Code map

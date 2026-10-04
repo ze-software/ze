@@ -127,9 +127,13 @@ When both peers initiate a connection simultaneously (RFC 4271 Section 6.8):
 2. Higher ID keeps its outgoing connection
 3. Lower ID's connection is dropped
 
-If the existing session is in OpenConfirm, Ze reads the OPEN from the pending
-connection to compare BGP IDs before deciding which connection to close.
+Ze reads and length-checks the pending OPEN before collision resolution.
+If it wins, the peer retains the socket and original OPEN bytes, closes the
+losing Session, and accepts the winner in a fresh Session after cleanup.
+An existing Established session instead retains its connection.
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, acceptOrReject -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go -- resolvePendingCollision -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
 
 ## Connection Modes
 
@@ -144,7 +148,9 @@ Each peer has a `connection` setting:
 
 ## Ze Implementation
 
-Each peer's FSM runs as a goroutine with a `switch` on `fsm.state`. The FSM
+Each peer has a run-loop goroutine and creates a new Session and FSM per
+connection cycle. Session publication checks the stopping flag under the peer
+lock; socket publication separately rejects a sealed Session. The FSM callback
 notifies the reactor on ESTABLISHED transitions (triggering initial route sends)
 and on session close (triggering peer-down events to plugins).
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer, StartWithContext -->
@@ -155,6 +161,12 @@ TCP sockets are tuned for BGP: `TCP_NODELAY` (messages are application-framed),
 `DSCP CS6` (RFC 4271 S5.1 IP precedence for network control), and half-close on
 shutdown to ensure the remote peer reads pending NOTIFICATIONs.
 <!-- source: internal/component/bgp/reactor/session_connection.go -- connectionEstablished, closeConn -->
+
+Socket setup also installs an observed buffered writer. The receive path and
+collision-winner handoff preserve original complete wire messages for observers;
+parsed or transformed message callbacks are not a substitute for that wire feed.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- acceptWithOpen -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage -->
 
 Hold timer expiry: Ze grants no reprieve. Every expiry runs the action list of
 RFC 4271 Section 8.2.2, Event 10. Ze sends NOTIFICATION code 4 (Hold Timer

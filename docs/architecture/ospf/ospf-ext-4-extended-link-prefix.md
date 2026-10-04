@@ -70,9 +70,12 @@ label and no SRGB. Segment Routing attaches to them. The byte layout is in
   without allocating decoded attributes. A TLV/sub-TLV overrun or undersized
   trailing header rejects the LSA before storage, acknowledgement, reflooding,
   self-originated fight-back or MaxAge handling, for every opaque scope.
-  Rejections increment `ze_ospf_ext_malformed_total`. Other opaque applications
-  retain their uninterpreted carrier behaviour; unknown TLVs within applications
-  7 and 8 are skipped by their declared length.
+  Rejections by the typed validator increment `ze_ospf_ext_malformed_total`.
+  The LSDB first discards bad checksums and opaque bodies that are not
+  32-bit aligned; those discards do not reach the typed validator or its
+  counter. Other opaque applications retain their uninterpreted carrier
+  behaviour; unknown TLVs within applications 7 and 8 are skipped by their
+  declared length.
   <!-- source: internal/plugins/ospf/opaque.go -- wireOpaqueDelivery -->
   <!-- source: internal/plugins/ospf/ext.go -- validateExtLSA -->
   <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- ReceiveValidator, SetReceiveValidator -->

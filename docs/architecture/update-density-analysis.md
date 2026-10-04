@@ -39,6 +39,14 @@ maps nearly directly to UPDATEs absorbed.
 
 <!-- source: internal/analyze/density.go — countUpdateNLRIs -->
 
+The current counter parses the complete `mrt.BGPMessage` through
+`mrt.ParseBGPMessage`. It counts legacy announce/withdraw fields and both MP
+attributes, selecting ADD-PATH separately for each MP family via
+`update.AddPathFor`. Damaged sections return an error alongside any salvaged
+counts; a count alone is not evidence of an intact UPDATE. The sample numbers
+above are the recorded March analysis, not a new measurement with this parser.
+<!-- source: internal/analyze/density.go — countUpdateNLRIs -->
+
 ## Setup vs Maintenance: Two Traffic Modes
 
 BGP traffic from any peer operates in two distinct modes:

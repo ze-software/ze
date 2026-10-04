@@ -64,9 +64,11 @@ Idle).
 ## Wire side effects
 
 - **On `EventTCPConnectionConfirmed` (transition to OpenSent):** the session
-  layer immediately sends the OPEN message via `sendOpen(conn)`, after
-  tuning socket options (`TCP_NODELAY`, `IP_TOS` DSCP CS6, SO_RCVBUF,
-  SO_SNDBUF) and creating buffered reader/writer wrappers.
+  layer sends the OPEN message via `sendOpen(conn)` after tuning socket
+  options and snapshotting local addresses for NEXT_HOP validation.
+  Socket publication installs an observed buffered writer and rejects a
+  sealed Session under the same lock. The OPEN-wait hold timer then uses
+  `ze.bgp.openwait` (default 120 seconds), not the configured receive hold time.
   <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished socket tuning and sendOpen call -->
 - **On `EventTCPConnectionFails`:** no NOTIFICATION is sent. The caller
   simply returns the dial error to the peer run loop.

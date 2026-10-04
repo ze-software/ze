@@ -175,9 +175,13 @@ stub-network metrics.
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateRouter, OriginateNetwork -->
 
 The flooding path follows RFC 2328 Section 13: LS Updates arrive through the
-packet dispatcher, newer LSAs install into the LSDB, flood to other eligible
-interfaces, and queue per-neighbour retransmit entries until an LS Ack or
-implicit acknowledgement clears them. The aging tick applies Section 14 MaxAge
+packet dispatcher. Before installation or acknowledgement, the receive path
+discards LSAs with bad checksums, opaque bodies that are not 32-bit aligned,
+and bodies rejected by the registered receive validator. Accepted newer LSAs
+install into the LSDB, flood to eligible interfaces, and queue per-neighbour
+retransmit entries until an LS Ack or implicit acknowledgement clears them.
+An instance newer than the stored copy, received within MinLSArrival of the
+previous flooding install, is discarded without acknowledgement. The aging tick applies Section 14 MaxAge
 purge retention and LSRefreshTime refresh for self-originated LSAs.
 <!-- source: internal/plugins/ospf/instance.go -- handleLSUpdate, handleLSAck -->
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck, RetransmitTick -->

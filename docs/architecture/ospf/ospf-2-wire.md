@@ -30,7 +30,9 @@ behind them.
   <!-- source: internal/plugins/ospf/packet/lsa_opaque.go -- OpaqueTypeOf, OpaqueIDOf -->
 - **Counts are bounded before allocation.** The LS Update count is untrusted
   input. It is checked against the maximum possible number of 20-byte LSA
-  headers before any `[]LSA` is allocated.
+  headers before any `[]LSA` is allocated. The decoder then consumes the body
+  by each LSA's length and requires the decoded and skipped-unknown LSA counts
+  together to match the advertised count.
   <!-- source: internal/plugins/ospf/packet/lsupdate.go -- DecodeLSUpdate -->
 
 ## Traps

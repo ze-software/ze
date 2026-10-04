@@ -286,11 +286,13 @@ only for the peers the template builds.
 
 The capability chain is gated on `PeerSettings.IsDynamic`. A statically
 configured peer can never draw a capability declared for a group of the same
-name.
+name. The name, address and eligible group selectors are queried together,
+so a plugin's global capabilities cannot hide its peer-specific declaration
+by ending a sequence of separate lookups early.
 
 <!-- source: internal/component/bgp/configjson/traverse.go -- ForEachPeer, CapabilitySelector -->
 <!-- source: internal/component/bgp/plugins/role/config.go -- extractPeerRoleConfigs -->
 <!-- source: internal/component/bgp/plugins/role/role.go -- getFilterConfig, applyValidateOpen -->
-<!-- source: internal/component/bgp/reactor/peer.go -- getPluginCapabilities -->
+<!-- source: internal/component/bgp/reactor/peer.go -- getPluginCapabilities, capabilitySelectors -->
 <!-- source: internal/component/bgp/config/resolve.go -- resolveDynamicGroup -->
 

@@ -66,8 +66,10 @@ be called from the reactor's inbound connection plumbing. Accept runs
 
 - **On `EventTCPConnectionConfirmed`:** after `Accept` wires the socket
   into the session, `connectionEstablished` tunes TCP (nodelay, TOS,
-  buffer sizes), fires the FSM event, sends OPEN, and starts the hold
-  timer.
+  buffer sizes), snapshots local addresses for NEXT_HOP validation, and
+  publishes the socket and its observed buffered writer together. Only then
+  does it fire the FSM event, send OPEN, and start the OPEN-wait hold timer
+  (`ze.bgp.openwait`, default 120 seconds). A sealed Session refuses setup.
   <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished -->
 - **On `EventManualStop`:** if a partial connection exists, the caller
   (`Teardown`) sends a Cease NOTIFICATION before invoking the FSM event.
@@ -78,21 +80,24 @@ be called from the reactor's inbound connection plumbing. Accept runs
 ## `acceptWithOpen` variant
 
 When inbound collision resolution has already read the peer's OPEN from
-a competing socket, the reactor calls `acceptWithOpen(conn, peerOpen)`.
+a competing socket, the reactor retains the socket, parsed OPEN, and original
+wire bytes for a fresh peer-owned Session after the losing cycle is cleaned up.
+The run loop calls `acceptWithOpen(conn, peerOpen, wire)` on that Session.
 This path:
 
-1. Calls `connectionEstablished` which fires
-   `EventTCPConnectionConfirmed` (Active -> OpenSent).
-2. Then calls `processOpen(peerOpen)` which fires `EventBGPOpen`
-   (OpenSent -> OpenConfirm).
-3. Then sends our KEEPALIVE.
+1. Calls `connectionEstablished`, which refuses a sealed Session before
+   publishing the socket, otherwise fires `EventTCPConnectionConfirmed`
+   (Active -> OpenSent) and sends the local OPEN.
+2. Observes the original received OPEN bytes on the winning Session.
+3. Calls `processOpen(peerOpen)` to validate and negotiate the OPEN, then
+   `advanceAfterOpen` to enter OpenConfirm and send KEEPALIVE when permitted.
 
 So from the outside, a single incoming connection with a pre-buffered
 OPEN can drive the FSM from Active through OpenSent to OpenConfirm in
 one synchronous sequence.
 
-Steps 2 and 3 are one call, `Session.advanceAfterOpen`, and under BFD
-strict mode it does neither: the KEEPALIVE is withheld, no `EventBGPOpen`
+The transition and KEEPALIVE share `Session.advanceAfterOpen`; under BFD
+strict mode it does neither: KEEPALIVE is withheld, no `EventBGPOpen`
 is fired, and the session waits in OpenSent carrying a sub-state until the
 BFD session is Up (draft-ietf-idr-bgp-bfd-strict-mode Section 8.5.5). The
 collision winner gets the same wait as any other connection, because the
@@ -101,6 +106,8 @@ whole fork.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — resolvePendingCollision -->
+<!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
 
 ## Code map
 

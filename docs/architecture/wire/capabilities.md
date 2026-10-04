@@ -565,6 +565,16 @@ reads. `ze bgp decode capability 75 <hex>` is the operator path into it.
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, the per-side implicit ipv4/unicast default before the family intersection -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family, sent without waiting for an attached process -->
 
+The automatic initial-sync marker follows Ze's own routes, without waiting for
+an attached process to supply routes. A separate bounded peer-up acknowledgement
+barrier still runs before the operation-queue drain. Initial sync captures a
+Session for config-static sends, serializes the static set with reload under
+`staticMu`, and passes the captured Session through queued announcement splitting.
+`manual-eor` suppresses the automatic marker only: the write hold and pending
+marker state are released even when no marker is sent. A failed marker send
+returns its family claim and does not increment the sent counter.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+
 ### Negotiated State
 
 Defined in `internal/core/bgp/capability/negotiated.go`:

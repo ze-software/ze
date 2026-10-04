@@ -253,6 +253,12 @@ value, and `runOnce` hands the same pointer to each cycle's FSM through
 `FSM.SetConnectRetryCounter`. The FSM handlers own every mutation; nothing
 else writes it.
 
+The first cycle uses `Session.Start`; later cycles use `startDamped`.
+Before publishing each Session, `runOnce` checks the peer's stopping flag
+under the publication lock. Collision winners wait in a peer-owned inbound
+slot until the losing cycle has cleared its negotiated state and initial-sync
+facts; their OPEN is processed by the next Session, not the sealed loser.
+
 <!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
 

@@ -31,16 +31,13 @@ if !kept: s.returnReadBuffer(buf) ← Return only if not cached
 ```
 
 **Buffer pools (size-appropriate):**
-```go
-// internal/component/bgp/reactor/session.go
-var readBufPool4K = sync.Pool{...}   // 4096 bytes (before Extended Message)
-var readBufPool64K = sync.Pool{...}  // 65535 bytes (after Extended Message)
-
-func returnReadBuffer(buf []byte)    // Exported for cache eviction
-```
+`bufMuxStd` and `bufMuxExt` are block-backed multiplexers with a shared byte
+budget, not `sync.Pool` instances. Read ownership travels as a `BufHandle`;
+`returnReadBuffer` returns pooled handles to the size-appropriate multiplexer
+and ignores non-pool handles.
 
 **Files involved:**
-- `internal/component/bgp/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `returnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
+- `internal/component/bgp/reactor/session.go` - `Session`, read multiplexers, and `returnReadBuffer()`
 - `internal/component/bgp/wireu/wire_update.go` - `WireUpdate` struct with derived accessors
 - `internal/component/bgp/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
 - `internal/component/bgp/reactor/recent_cache.go` - Returns buf to pool on eviction
@@ -393,6 +390,15 @@ adj-rib-out alone. `nlriUnitLen` turns it into framing, and the batch API rails
 read it there: with `group-updates false` a batch of N prefixes leaves as N
 UPDATE messages carrying one prefix each.
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- nlriUnitLen, announceBatchToPeers, withdrawBatchFromPeers -->
+
+The announce batch retains an `announceTarget` containing both peer and Session.
+Shared build facts include the destination family's ADD-PATH send mode from
+`peer.sendCtx`; receive mode does not decide outbound NLRI framing. Every split
+chunk goes through that captured Session, with the batch's replay flag, rather
+than moving to a replacement connection during the send.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- announceTarget, announceFactsFor, announceBatchToPeers -->
+<!-- source: internal/component/bgp/reactor/peer.go -- addPathFor -->
+<!-- source: internal/component/bgp/reactor/peer_send.go -- sendUpdateWithSplit -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- the config-driven sync reads the same leaf -->
 
 ---
@@ -453,6 +459,13 @@ Each peer keeps a table of what the API rails have sent it. A second announce of
 | What an operator sees | A debug line on `subsystem=bgp.routes` naming the peer, the family and the count, and a per-peer counter beside it |
 
 `Replay` is what keeps a re-send reaching the wire. Such a rail resends routes the peer already holds, over a session that is still up, so without the marker it would answer a request to re-send with silence. Two RIB producers set it, and both had to: `resendRoutesWithCursor` carries `clear bgp rib out`, and `sendRoutes` carries the re-advertisement a ROUTE-REFRESH from the peer asks for. The peer-up replay needs no marker, because the teardown already emptied the table.
+
+Cursor replay clears prior cursor state before its first group and after its
+last group. Each emitted command carries `replay: true` and the group's stale
+level when present. ADD-PATH framing remains explicit even for a zero path
+identifier: `formatCursorCommands` emits `path-information` when the stored
+route has ADD-PATH enabled, not only when its numeric identifier is nonzero.
+<!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- resendRoutesWithCursor, formatCursorCommands -->
 
 RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." That "shall" is why the refresh rail outranks Section 9.2 here. Until 2026-09-14 `sendRoutes` set no marker, so a refresh on an up session sent the RFC 7313 BoRR and EoRR with no UPDATE between them, and RFC 7313 Section 4 has the receiver purge on the EoRR every route the BoRR marked stale: the refresh withdrew the family instead of restoring it. `test/plugin/plugin-refresh.ci` is the recording.
 
@@ -599,7 +612,8 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 
 > **Wire-Level Split (Implemented)**
 >
-> The send path uses `Splitter.Split` for oversized UPDATEs. Same-context
+> The send path uses `Splitter.Split` for oversized UPDATEs and keeps every
+> chunk on the Session captured for the build. Same-context
 > forwarding uses `wireu.SplitWireUpdate`. Cross-context forwarding re-encodes
 > the UPDATE and uses `Splitter.SplitCompliant` to separate mixed NLRI-bearing
 > fields. See `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and

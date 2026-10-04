@@ -12,9 +12,19 @@ pool, buffer ownership, weighted access, and backpressure.
 
 ## Invariant
 
-**Routes are never dropped.** If the system cannot deliver a route to a peer,
-it must either buffer the route or tear down the session. Silent discard is
-never acceptable.
+**Congestion does not silently discard a current route.** If the system cannot
+deliver a current route to a peer, it buffers the route or tears down the
+session. Work from an ended source session is different: it is no longer a
+current route and is discarded before writing.
+
+Each live `fwdItem` retains the source peer and its receive-time forwarding
+generation. The worker checks that the source is still Established, is not
+stopping, and still has that generation. Publishing Established advances the
+generation, so queued traffic from the previous connection cannot become live
+traffic from its replacement. Items without a live source peer, such as local
+origination, do not use this source-session check.
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem, forwardSourceCurrent, fwdBatchHandler -->
+<!-- source: internal/component/bgp/reactor/peer.go -- setState -->
 
 ## Two-Tier Pool Model
 

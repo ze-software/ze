@@ -377,10 +377,12 @@ means either an unusual peer or an attribute set worth raising the inline size
 for.
 
 The count is taken over the attributes Ze publishes, not over the attributes the
-peer sent. Unrecognized non-transitive attributes are dropped first, as RFC 4271
-Section 5 requires, so a peer that sends nine attributes of which two Ze does not
-recognize and must not pass on never reaches the inline limit and never appears
-here.
+peer sent. Ordinary sessions first drop unrecognized non-transitive attributes;
+route-server client sessions retain them. Thus a nine-attribute UPDATE with two
+such attributes stays below the inline limit on an ordinary session, but not
+necessarily on a route-server client session. Partial-bit normalization and
+other publication-time repairs also precede index construction. This counter
+does not measure the untouched wire attribute set.
 <!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 

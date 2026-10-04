@@ -141,7 +141,7 @@ the bytes shared with other route-server clients. Explicit operator policy may
 modify route-server attributes; malformed attributes still follow their
 error-handling rules.
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
-<!-- source: internal/component/bgp/reactor/forward_body.go -- ordinaryPeerWire, buildFwdBody -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- forwardWire, buildFwdBody -->
 
 ### Forwarding and Congestion
 
