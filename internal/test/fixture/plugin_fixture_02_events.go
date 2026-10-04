@@ -24,6 +24,7 @@ func init() {
 	Register("plugin/wait-file", dynamicGroupWait02)
 	Register("plugin/attach-process-receive-filter-state", eventObserver02("receive-filter-state", []string{eventUpdate, eventState}, receiveFilterState02))
 	Register("plugin/attach-process-receive-filter-update", eventObserver02("receive-filter-update", []string{eventUpdate, eventState}, receiveFilterUpdate02))
+	Register("plugin/labeled-withdraw-event", eventObserver02("labeled-withdraw-event", []string{eventUpdate}, labeledWithdrawEvent02))
 	Register("plugin/attach-process-reload-kept", eventObserver02("reload-kept", []string{eventState}, reloadKept02))
 	Register("plugin/attach-process-reload-added", eventObserver02("reload-added", []string{eventState}, reloadAdded02))
 	Register("plugin/attach-process-reload-trigger", reloadTrigger02)
@@ -656,4 +657,62 @@ func runtimeSubscribeTrigger02(ctx context.Context, args []string) error {
 		return err
 	}
 	return os.WriteFile("reloaded.marker", nil, 0o600)
+}
+
+// labeledWithdrawEvent02 decodes every received UPDATE event and prints one
+// line for each ipv4/mpls-label entry to stderr, "LABELED-EVENT: <action>"
+// followed by each NLRI element, until an entry with action del arrives. A bare
+// string element prints as the prefix itself; an object element prints as
+// "object", so a withdrawal handed over in the announcement shape cannot match
+// "LABELED-EVENT: del 10.0.0.0/8". The line carries no quote because ze relays
+// plugin stderr through its logger, which escapes quotes.
+func labeledWithdrawEvent02(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
+	for {
+		event, ok := nextEvent02(ctx, events, shutdown, 20*time.Second)
+		if !ok {
+			return fmt.Errorf("LABELED-EVENT: no ipv4/mpls-label withdrawal event arrived")
+		}
+		_, kind, direction := eventFacts02(event)
+		if kind != eventUpdate || direction != directionReceived {
+			continue
+		}
+		if labeledEntries02(eventBody02(event)) {
+			break
+		}
+	}
+	if err := quiesce02(ctx, plugin); err != nil {
+		return err
+	}
+	requestShutdownAsync02(ctx, plugin)
+	return waitForShutdown02(ctx, shutdown, 15*time.Second)
+}
+
+// labeledEntries02 prints one LABELED-EVENT line per ipv4/mpls-label entry of
+// the update in body and reports whether any entry was a del.
+func labeledEntries02(body map[string]any) bool {
+	update, _ := body["update"].(map[string]any)
+	nlri, _ := update["nlri"].(map[string]any)
+	entries, _ := nlri["ipv4/mpls-label"].([]any)
+	withdrawn := false
+	for _, raw := range entries {
+		entry, _ := raw.(map[string]any)
+		action, _ := entry["action"].(string)
+		var line strings.Builder
+		line.WriteString("LABELED-EVENT: ")
+		line.WriteString(action)
+		elements, _ := entry["nlri"].([]any)
+		for _, element := range elements {
+			line.WriteByte(' ')
+			prefix, isString := element.(string)
+			if !isString {
+				prefix = "object"
+			}
+			line.WriteString(prefix)
+		}
+		fmt.Fprintln(os.Stderr, line.String())
+		if action == "del" {
+			withdrawn = true
+		}
+	}
+	return withdrawn
 }
