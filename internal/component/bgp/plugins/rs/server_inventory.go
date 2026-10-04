@@ -12,6 +12,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -29,6 +30,11 @@ type nlriRecord struct {
 	nlriStr    string // non-empty only for non-unicast families
 	wireForm   bool   // nlriStr is hex of one NLRI, not a text token
 	addPath    bool   // wireForm hex carries a 4-octet path identifier
+	// cidrKeyed says the route is keyed by prefix and pathID, because its
+	// family names routes by a CIDR (nlrisplit.KeysByCIDR). An announcement
+	// keeps its hex in nlriStr for the peer-down withdrawal.
+	cidrKeyed bool
+	pathID    uint32
 }
 
 // nlriRecordPool amortizes slice allocation for NLRI extraction.
@@ -184,9 +190,24 @@ func appendAllocatingUnreachRecords(records []nlriRecord, fam family.Family, nlr
 // as "update hex" (sendBatchedWithdrawals).
 func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.NLRI, action string) []nlriRecord {
 	famStr := fam.String()
+	cidrKeyed := nlrisplit.KeysByCIDR(fam)
 	for _, n := range nlris {
 		if w, ok := n.(*nlri.WireNLRI); ok {
 			records = appendOpaqueRecords(records, fam, famStr, w, action)
+			continue
+		}
+		// A withdrawal of a CIDR-keyed family arrives as an INET of the prefix
+		// it names (wireu.ParseWithdrawnNLRIs), and is keyed the way
+		// appendOpaqueRecords keys its announcement.
+		if inet, ok := n.(*nlri.INET); ok && cidrKeyed {
+			records = append(records, nlriRecord{
+				fam:        fam,
+				familyName: famStr,
+				action:     action,
+				prefix:     inet.Prefix(),
+				pathID:     inet.PathID(),
+				cidrKeyed:  true,
+			})
 			continue
 		}
 		records = append(records, nlriRecord{
@@ -211,6 +232,12 @@ func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.N
 //
 // The hex is a copy, which the buffer lifetime requires: the caller runs before
 // ForwardCached and the wire buffer can be freed after it.
+//
+// A family that names its routes by a CIDR (nlrisplit.RouteCIDR) is keyed by
+// that prefix and the path identifier rather than the hex, so its withdrawal,
+// which carries a Compatibility field where this carried a label stack, keys
+// the same (RFC 8277 Section 2.4), and a relabel replaces the entry (Section
+// 2.5). The hex stays in the record: the peer-down withdrawal is sent as it.
 func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string, w *nlri.WireNLRI, action string) []nlriRecord {
 	data := w.Bytes()
 	if len(data) == 0 {
@@ -231,26 +258,65 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 				"family", famStr, "offset", offset, "remaining", len(data)-offset, "error", err)
 			size = len(data) - offset
 		}
-		records = append(records, nlriRecord{
+		part := data[offset : offset+size]
+		rec := nlriRecord{
 			fam:        fam,
 			familyName: famStr,
 			action:     action,
-			nlriStr:    tb.Reset().Hex(data[offset : offset+size]).String(),
+			nlriStr:    tb.Reset().Hex(part).String(),
 			wireForm:   true,
 			addPath:    addPath,
-		})
+		}
+		rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, part, addPath)
+		records = append(records, rec)
 		offset += size
 	}
 	return records
 }
 
+// opaqueRouteCIDR answers the prefix and path identifier one framed
+// announcement of fam names, and false when fam does not name its routes by a
+// CIDR or the bytes do not hold one. A malformed NLRI then stays keyed by its
+// hex, as every opaque family's is.
+func opaqueRouteCIDR(fam family.Family, part []byte, addPath bool) (netip.Prefix, uint32, bool) {
+	pathID, payload, err := nlri.SplitPathID(part, addPath)
+	if err != nil {
+		return netip.Prefix{}, 0, false
+	}
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	cidr, err := nlrisplit.RouteCIDR(fam, payload, scratch[:], false)
+	if err != nil {
+		return netip.Prefix{}, 0, false
+	}
+	prefix, ok := nlri.WirePrefixToKey(cidr, fam)
+	if !ok {
+		return netip.Prefix{}, 0, false
+	}
+	if !prefix.IsValid() {
+		return netip.Prefix{}, 0, false
+	}
+	return prefix, pathID, true
+}
+
 // recordKey derives the withdrawal-set key for one record. The add and the del
 // arm MUST derive it the same way, or a withdrawal never cancels its announce.
 func recordKey(rec *nlriRecord) withdrawalKey {
+	if rec.cidrKeyed {
+		return withdrawalKey{fam: rec.fam, prefix: rec.prefix, pathID: rec.pathID}
+	}
 	if rec.nlriStr != "" {
 		return withdrawalKey{fam: rec.fam, nlriStr: rec.nlriStr, wireForm: rec.wireForm, addPath: rec.addPath}
 	}
 	return withdrawalKey{fam: rec.fam, prefix: rec.prefix}
+}
+
+// recordEntry is what the withdrawal set holds for an announced record: the
+// hex its peer-down withdrawal goes out as when the key is not that hex.
+func recordEntry(rec *nlriRecord) withdrawalEntry {
+	if rec.cidrKeyed {
+		return withdrawalEntry{wire: rec.nlriStr, addPath: rec.addPath}
+	}
+	return withdrawalEntry{}
 }
 
 // applyNLRIRecords updates the withdrawal map from pre-extracted NLRI records.
@@ -262,9 +328,9 @@ func (rs *routeServer) applyNLRIRecords(sourcePeer string, records []nlriRecord)
 		switch rec.action {
 		case actionAdd:
 			if rs.withdrawals[sourcePeer] == nil {
-				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]struct{})
+				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 			}
-			rs.withdrawals[sourcePeer][recordKey(rec)] = struct{}{}
+			rs.withdrawals[sourcePeer][recordKey(rec)] = recordEntry(rec)
 		case actionDel:
 			if rs.withdrawals[sourcePeer] != nil {
 				delete(rs.withdrawals[sourcePeer], recordKey(rec))

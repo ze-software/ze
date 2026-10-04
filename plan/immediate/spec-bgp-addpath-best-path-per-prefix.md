@@ -417,6 +417,19 @@ Design documents changed with the code: `docs/architecture/plugin/rib-storage-de
 | R2-N2 | The B-2 row said the approvals were carried as `RFC-approved:` trailers | Corrected here: b28b95a85d carries no `RFC-approved:` trailer (`git log -1 --format=%B b28b95a85d`: 0), because `./le commit create` attaches a row only for a unit the commit changes. The audit lines for the four files are the tooling defect journaled in `plan/journal/check-cannot-see-the-change-it-looks-for.md` | |
 | R2-N3 | `insertPoolNLRIs`/`removePoolNLRIs` (`rib.go`) have no SAFI 4 branch | Journaled: `plan/journal/silent-fall-through.md`, 2026-10-04 row; no existing row covered it | |
 
+## Review Round 3 (2026-10-04)
+
+| ID | Finding | Disposition | Evidence |
+|----|---------|-------------|----------|
+| R3-B1 | No functional or interop test drives a SAFI 4 withdrawal with Compatibility 0x800000 through a real daemon | Open at this commit: the `.ci` and the interop scenario land separately | |
+| R3-I1 | The route server keyed a labelled announcement by its hex (`appendOpaqueRecords`) and its INET withdrawal by `"10.0.0.0/8"` (`appendParsedRecords`), so the withdrawal never cancelled it | Fixed: both arms of a family `nlrisplit.KeysByCIDR` answers for are keyed by the `RouteCIDR` prefix and the Path Identifier (`recordKey`); the set's value (`withdrawalEntry`) keeps the latest announcement's hex for the peer-down withdrawal, so a relabel replaces it. The 14fc101e1d journal row's route server sentence corrected | Reviewer probe `scratch/mut/rsprobe.log` red at HEAD (2 entries after withdrawing one of two); `TestLabeledWithdrawalLeavesTheRouteServerSet` and `TestLabeledRelabelReplacesTheRouteServerEntry` green; record RFC8277-2.4-1 positive (revert `opaqueRouteCIDR`) |
+| R3-I2 | No labelled withdrawal test prefix had the low bit of its last octet set, so mutant M4 (the `!isINET` guard in `appendNLRIJSONValue` disabled) survived | Fixed: `TestLabeledWithdrawalEventNeverReachesTheLabelDecoder` withdraws 10.1.3.0/24 | Red under M4 (`event lacks ... 10.1.3.0/24`, rendered as a label stack), green on the real code; record RFC8277-2.4-1 positive |
+| R3-I3 | `json-format.md` had no withdrawal shape for labelled unicast; `nlri.md` said the default arm wraps the whole section in one `WireNLRI` and said nothing of the withdrawal framing | Fixed: both pages | |
+| R3-I4 | Two RFC8955-6-5 records no longer verified (producer changed) | Re-recorded: the negative on `comparePair`; the positive on `checkRouteBestChange`, because the unit no longer executes `checkBestPathChange` (the tool refused it). STALE audit verdicts are left for an independent re-judge | `scratch/r3-records.log`, `r3-records2.log` |
+| R3-N1 | `withdrawIfUnheld` created the family's shards to answer for a family that never elected | Fixed: `familyShards(fam, false)`; no shards answers "not held" with no removal | rib/... `-race` green |
+| R3-N2 | `wrapNLRI` allocated a byte slice per withdrawn NLRI | Fixed: `ParseINET` over a stack array, and one scratch per section, since `RouteCIDR`'s indirect call moves it to the heap. `NewINET` was not used: it reports `HasAddPath` false, and the event then loses the `path-id` (`TestLabeledWithdrawalEventNamesThePrefix`) | `-gcflags=-m`: only the section scratch moves to the heap |
+| R3-N3 | `test/weakened/1d41415e.md` miscounted the assertions of `TestPurgeBestPrevForPeerAddPath` | Fixed: four assertions became three, and the departed path id assertion named | |
+
 ## Design Insights
 <!-- LIVE: write immediately when you learn something. Route each lesson to its
      governing surface under ai/rules/planning.md. A problem-class journal row

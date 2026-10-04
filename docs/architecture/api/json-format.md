@@ -298,6 +298,21 @@ the stack, so its entry is `200 << 4 | 1`.
 <!-- source: internal/component/bgp/plugins/nlri/labeled/json.go -- AppendJSON -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/encode.go -- labelPairs -->
 
+A withdrawal names the route by its prefix alone, with no `labels`:
+
+```json
+"ipv4/mpls-label": [{"action": "del", "nlri": ["10.0.0.0/8"]}]
+```
+
+Under ADD-PATH the member is `{"prefix": "10.0.0.0/8", "path-id": 7}`. The
+withdrawn NLRI carries a Compatibility field where the announcement carried its
+label stack, and RFC 8277 Section 2.4 says "Upon reception, the value of the
+Compatibility field MUST be ignored". The event is the same whatever the field
+held: 0x800000, zero, or a value that reads as a label.
+
+<!-- source: internal/component/bgp/wireu/mpwire.go -- ParseWithdrawnNLRIs -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->
+
 ### IPVPN (VPNv4/VPNv6)
 
 ```json

@@ -43,7 +43,7 @@ func newIntegrationRouteServer(t *testing.T) (*routeServer, *rpc.Conn) {
 	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[withdrawalKey]struct{}),
+		withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item)
@@ -1186,7 +1186,7 @@ func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 
 	// Populate withdrawal map for multiple families.
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
 		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}:   {},
 		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.1.0/24"}:   {},
 		{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}: {},

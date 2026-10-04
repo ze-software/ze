@@ -584,8 +584,35 @@ nlri.WriteNLRI(n, buf, 0, ctx)  // Prepends path ID when ctx.AddPath=true
 
 A family with no dedicated in-process parser (mpls-vpn, evpn, flowspec, mup,
 vpls, rtc, sr-policy, labeled, bgp-ls) reaches `ParseNLRIs` through its default
-arm, which wraps the whole remaining section in one opaque `*nlri.WireNLRI` and
-hands the detailed decode to the plugin registered for the family.
+arm, which frames the section with the family's registered splitter
+(`nlrisplit.Split`), wraps each NLRI in one opaque `*nlri.WireNLRI`, and hands
+the detailed decode to the plugin registered for the family.
+
+A withdrawal goes through `ParseWithdrawnNLRIs` instead (MP_UNREACH_NLRI and the
+IPv4 Withdrawn Routes field). It frames the section with the family's
+withdrawal splitter (`nlrisplit.SplitWithdrawn`), and `wrapNLRI` turns each
+NLRI of a family that names its routes by a CIDR (`nlrisplit.RouteCIDR`, the
+labeled families today) into an `*nlri.INET` of that prefix and its Path
+Identifier. A labeled withdrawal carries the Compatibility field where its
+announcement carried a label stack, and RFC 8277 Section 2.4 says "Upon
+reception, the value of the Compatibility field MUST be ignored": framed as an
+announcement, 0x800000 reads as a label entry with the S bit clear and the
+reader runs past the NLRI. Any other family's withdrawal stays an opaque
+`WireNLRI`.
+
+An `INET` is never handed to a plugin family's decoder (`appendNLRIJSONValue`).
+Its `Bytes` are the CIDR, not the family's wire form, so a labeled decoder would
+read the prefix octets as a label stack. `WireNLRI.String` names a route of a
+CIDR-keyed family by its prefix, the way `INET.String` does, so a consumer keyed
+on the name (the route reflector's withdrawal map) pairs a SAFI 4 announcement,
+held as a `WireNLRI`, with its withdrawal, held as an `INET`. The route server
+keys both arms by the prefix and Path Identifier (`appendOpaqueRecords`,
+`appendParsedRecords`) and keeps the announcement's hex for its peer-down
+withdrawal.
+
+<!-- source: internal/component/bgp/wireu/mpwire.go -- ParseWithdrawnNLRIs, wrapNLRI -->
+<!-- source: internal/core/bgp/nlri/wire.go -- WireNLRI.String -->
+<!-- source: internal/component/bgp/plugins/rs/server_inventory.go -- appendOpaqueRecords -->
 
 `WireNLRI.Bytes()` returns those octets as they arrived, Path Identifier
 included, and nothing in the octets says whether the first four are one. So the

@@ -196,7 +196,7 @@ type withdrawalGroup struct {
 // type as an opaque object, and that is exactly what the text form cannot
 // carry: sending it as text failed with route.ErrFamilyNotSupported and left
 // the departing peer's Link-State routes announced to every other client.
-func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]struct{}) {
+func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]withdrawalEntry) {
 	if len(entries) == 0 {
 		return
 	}
@@ -205,7 +205,13 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 	// path only.
 	var tb textbuf.Buffer
 	byGroup := make(map[withdrawalGroup][]string)
-	for wk := range entries {
+	for wk, entry := range entries {
+		// A CIDR-keyed route goes out as the hex of its latest announcement.
+		if entry.wire != "" {
+			g := withdrawalGroup{fam: wk.fam.String(), wireForm: true, addPath: entry.addPath}
+			byGroup[g] = append(byGroup[g], entry.wire)
+			continue
+		}
 		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath}
 		if wk.nlriStr == "" {
 			byGroup[g] = append(byGroup[g], tb.Reset().Str("prefix ").Prefix(wk.prefix).String())

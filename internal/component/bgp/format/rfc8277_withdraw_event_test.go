@@ -104,3 +104,59 @@ func TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues(t *testing.T) {
 		}
 	}
 }
+
+// labeledWithdrawEventFor renders the JSON event for a received UPDATE whose
+// only attribute is an MP_UNREACH_NLRI carrying withdrawn, the NLRI section of
+// one ipv4/mpls-label withdrawal, with no ADD-PATH.
+func labeledWithdrawEventFor(t *testing.T, withdrawn []byte) string {
+	t.Helper()
+
+	value := append([]byte{0, 1, 4}, withdrawn...) // AFI 1, SAFI 4
+	attrs := append([]byte{0x80, 15, byte(len(value))}, value...)
+	body := append([]byte{0, 0, 0, byte(len(attrs))}, attrs...)
+
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{labeledIPv4: false})
+	ctxID, err := bgpctx.Registry.Register(ctx)
+	if err != nil {
+		t.Fatalf("register context: %v", err)
+	}
+	wu := wireu.NewWireUpdate(body, ctxID)
+	attrsWire, err := wu.Attrs()
+	if err != nil {
+		t.Fatalf("attributes: %v", err)
+	}
+	msg := bgptypes.RawMessage{
+		Type:       msgtype.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wu,
+	}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001}
+	content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatParsed}
+	return string(AppendMessage(nil, &peer, msg, content))
+}
+
+// TestLabeledWithdrawalEventNeverReachesTheLabelDecoder renders the event for a
+// labeled withdrawal of 10.1.3.0/24 with Compatibility 0x800000. Framed as a
+// withdrawal, the route is an INET whose Bytes are the CIDR [24][10][1][3]. The
+// last octet has its low bit set, so the family's label decoder, handed those
+// bytes, reads 0x0a0103 as a label entry with the S bit set and answers a route
+// rather than an error.
+//
+// VALIDATES: the del operation names 10.1.3.0/24 and carries no label.
+// PREVENTS: an INET handed to the plugin family decoder, which turns the
+// prefix octets into a label stack and the event into a route nobody sent.
+//
+// RFC requirement: RFC8277-2.4-1 positive -- the JSON event for an ipv4/mpls-label withdrawal of 10.1.3.0/24 whose Compatibility field is 0x800000 names 10.1.3.0/24 in its del operation and carries no label.
+func TestLabeledWithdrawalEventNeverReachesTheLabelDecoder(t *testing.T) {
+	t.Parallel()
+
+	// [Length 24+24][Compatibility 0x800000][10 1 3].
+	event := labeledWithdrawEventFor(t, []byte{48, 0x80, 0x00, 0x00, 10, 1, 3})
+	if want := `"ipv4/mpls-label":[{"action":"del","nlri":["10.1.3.0/24"]}]`; !strings.Contains(event, want) {
+		t.Fatalf("event lacks %s:\n%s", want, event)
+	}
+	if strings.Contains(event, `"labels"`) {
+		t.Fatalf("withdrawal event carries a label:\n%s", event)
+	}
+}

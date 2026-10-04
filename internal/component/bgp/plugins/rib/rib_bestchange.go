@@ -700,8 +700,15 @@ func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeE
 // one hold and removed under another, the route could be recorded and
 // mirrored in between, and the removal would then delete a best the bgp-rib
 // still records from the Loc-RIB the kernel FIB reads.
+//
+// A family with no shards has never recorded a best, so nothing holds the
+// route and the Loc-RIB holds nothing this RIB mirrored for it: the answer is
+// "not held" with no removal, and no shards are created to give it.
 func (r *RIBManager) withdrawIfUnheld(fam family.Family, pfx netip.Prefix, route []byte) bool {
-	fs := r.bestPrev.familyShards(fam, true)
+	fs := r.bestPrev.familyShards(fam, false)
+	if fs == nil {
+		return true
+	}
 	var routeKey []byte
 	var sh *bestPrevShard
 	if pfx.IsValid() {

@@ -44,24 +44,24 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 		{
 			name: "retained IPv4 with unretained IPv6 and opaque families", provider: true,
 			retainedPeer: source, retainedFam: family.IPv4Unicast,
-			wantEntries: []withdrawalKey{v6, opaque, opaquePath},
+			wantEntries:  []withdrawalKey{v6, opaque, opaquePath},
 			wantCommands: []string{v6Command, opaqueCommand, opaquePathCommand},
 		},
 		{
 			name: "retained opaque family covers both wire forms", provider: true,
 			retainedPeer: source, retainedFam: linkState,
-			wantEntries: []withdrawalKey{v4a, v4b, v6},
+			wantEntries:  []withdrawalKey{v4a, v4b, v6},
 			wantCommands: []string{v4Command, v6Command},
 		},
 		{
 			name: "another peer retention does not suppress withdrawals", provider: true,
 			retainedPeer: other, retainedFam: family.IPv4Unicast,
-			wantEntries: []withdrawalKey{v4a, v4b, v6, opaque, opaquePath},
+			wantEntries:  []withdrawalKey{v4a, v4b, v6, opaque, opaquePath},
 			wantCommands: []string{v4Command, v6Command, opaqueCommand, opaquePathCommand},
 		},
 		{
-			name: "no in-process provider preserves ordinary withdrawals",
-			wantEntries: []withdrawalKey{v4a, v4b, v6, opaque, opaquePath},
+			name:         "no in-process provider preserves ordinary withdrawals",
+			wantEntries:  []withdrawalKey{v4a, v4b, v6, opaque, opaquePath},
 			wantCommands: []string{v4Command, v6Command, opaqueCommand, opaquePathCommand},
 		},
 	} {
@@ -83,8 +83,8 @@ func TestPeerDownRetainedFamilies(t *testing.T) {
 				owner.Close()
 			}
 
-			entries := map[withdrawalKey]struct{}{v4a: {}, v4b: {}, v6: {}, opaque: {}, opaquePath: {}}
-			otherEntries := map[withdrawalKey]struct{}{v4a: {}}
+			entries := map[withdrawalKey]withdrawalEntry{v4a: {}, v4b: {}, v6: {}, opaque: {}, opaquePath: {}}
+			otherEntries := map[withdrawalKey]withdrawalEntry{v4a: {}}
 			rs.withdrawals[source] = entries
 			rs.withdrawals[other] = otherEntries
 			type withdrawal struct {

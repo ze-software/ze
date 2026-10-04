@@ -73,6 +73,16 @@ func RouteCIDR(fam family.Family, raw, scratch []byte, withdraw bool) ([]byte, e
 	return key(raw, scratch, withdraw)
 }
 
+// KeysByCIDR reports whether fam names its routes by a CIDR that RouteCIDR
+// answers. A consumer that keys an announcement by RouteCIDR asks this to key
+// the family's withdrawal, which wireu hands over as an INET of that prefix,
+// the same way.
+func KeysByCIDR(fam family.Family) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return cidrKeys[fam] != nil
+}
+
 func keyOpaque(raw, _ []byte, _ bool) ([]byte, error) {
 	return raw, nil
 }

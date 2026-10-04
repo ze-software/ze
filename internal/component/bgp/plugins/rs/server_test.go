@@ -38,7 +38,7 @@ func newTestRouteServer(t *testing.T) *routeServer {
 	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[withdrawalKey]struct{}),
+		withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item)
@@ -109,7 +109,7 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 
 	// Pre-populate withdrawal map (simulating prior add).
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
 		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}: {},
 	}
 	rs.withdrawalMu.Unlock()
@@ -140,7 +140,7 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 
 	// Pre-populate withdrawal map with route that will be withdrawn.
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
 		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.2.0/24"}: {},
 	}
 	rs.withdrawalMu.Unlock()
@@ -174,7 +174,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 
 	// Populate withdrawal map (replaces old rs.rib.Insert).
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
 		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}: {},
 		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.1.0/24"}: {},
 	}
@@ -1504,7 +1504,7 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 
 	// Populate withdrawal map directly.
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]withdrawalEntry{
 		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {},
 		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")}: {},
 	}

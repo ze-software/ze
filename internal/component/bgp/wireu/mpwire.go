@@ -506,8 +506,11 @@ func parseNLRISection(data []byte, fam family.Family, hasAddPath, withdraw bool)
 				split = nlrisplit.SplitWithdrawn
 			}
 			parts, splitErr := split(fam, data, hasAddPath)
+			// One scratch for the section: RouteCIDR's indirect call moves it
+			// to the heap, so a scratch per NLRI would be an allocation each.
+			var scratch [nlrisplit.PrefixKeyScratchSize]byte
 			for _, part := range parts {
-				n, nErr := wrapNLRI(fam, part, hasAddPath, withdraw)
+				n, nErr := wrapNLRI(fam, part, hasAddPath, withdraw, scratch[:])
 				if nErr != nil {
 					return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, nErr)
 				}
@@ -534,8 +537,9 @@ func parseNLRISection(data []byte, fam family.Family, hasAddPath, withdraw bool)
 // announcement stays opaque for the family's decoder. A withdrawal of a family
 // that names its routes by a CIDR becomes an INET of that prefix, because the
 // field in front of it is the Compatibility field and carries nothing to decode
-// (RFC 8277 Section 2.4); any other withdrawal stays opaque too.
-func wrapNLRI(fam family.Family, part []byte, hasAddPath, withdraw bool) (nlri.NLRI, error) {
+// (RFC 8277 Section 2.4); any other withdrawal stays opaque too. scratch has
+// nlrisplit.PrefixKeyScratchSize bytes and is reused by the caller.
+func wrapNLRI(fam family.Family, part []byte, hasAddPath, withdraw bool, scratch []byte) (nlri.NLRI, error) {
 	if !withdraw {
 		return nlri.NewWireNLRI(fam, part, hasAddPath)
 	}
@@ -543,19 +547,24 @@ func wrapNLRI(fam family.Family, part []byte, hasAddPath, withdraw bool) (nlri.N
 	if err != nil {
 		return nil, err
 	}
-	var scratch [nlrisplit.PrefixKeyScratchSize]byte
-	cidr, err := nlrisplit.RouteCIDR(fam, payload, scratch[:], true)
+	cidr, err := nlrisplit.RouteCIDR(fam, payload, scratch, true)
 	if errors.Is(err, nlrisplit.ErrUnsupported) {
 		return nlri.NewWireNLRI(fam, part, hasAddPath)
 	}
 	if err != nil {
 		return nil, err
 	}
-	prefixed := make([]byte, 0, 4+len(cidr)) // one owned NLRI: cidr aliases scratch
+	// The INET is parsed from a stack copy of [path id][CIDR], so the one
+	// allocation per NLRI is the INET itself. ParseINET, not NewINET, builds it:
+	// it records that the wire carried a path identifier (HasAddPath), which a
+	// locally built INET reports false and the JSON event reads to print it.
+	var framed [4 + nlrisplit.PrefixKeyScratchSize]byte
+	off := 0
 	if hasAddPath {
-		prefixed = binary.BigEndian.AppendUint32(prefixed, pathID)
+		binary.BigEndian.PutUint32(framed[:4], pathID)
+		off = 4
 	}
-	prefixed = append(prefixed, cidr...)
-	n, _, err := nlri.ParseINET(fam.AFI, fam.SAFI, prefixed, hasAddPath)
+	off += copy(framed[off:], cidr)
+	n, _, err := nlri.ParseINET(fam.AFI, fam.SAFI, framed[:off], hasAddPath)
 	return n, err
 }

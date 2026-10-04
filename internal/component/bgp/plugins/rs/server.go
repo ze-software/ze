@@ -139,12 +139,32 @@ func SetLogger(l *slog.Logger) {
 // text spelling of those bytes exists. addPath records whether the hex carries
 // a 4-octet path identifier (RFC 7911 Section 3), which the sizer on the
 // receiving side needs to frame each NLRI.
+//
+// A family that names its routes by a CIDR behind fields that do not identify
+// the route (nlrisplit.RouteCIDR: a label stack in an announcement, the
+// Compatibility field in a withdrawal) is keyed by that prefix and its path
+// identifier on both arms, so a withdrawal cancels its announcement whatever
+// label or Compatibility value either carried (RFC 8277 Sections 2.4 and 2.5).
+// Its peer-down withdrawal still goes out as the announcement's hex, which the
+// set keeps in the entry rather than the key (withdrawalEntry).
 type withdrawalKey struct {
 	fam      family.Family
 	prefix   netip.Prefix
+	pathID   uint32
 	nlriStr  string
 	wireForm bool
 	addPath  bool
+}
+
+// withdrawalEntry is what the withdrawal set holds for one key: the token its
+// peer-down withdrawal names the route by, when the key is not that token. For
+// a CIDR-keyed route, wire is the hex of the latest announcement and addPath
+// says it carries a path identifier; for every other route both are zero and
+// the key alone names it. A re-announcement overwrites the entry, so a relabel
+// replaces the bytes the withdrawal goes out with.
+type withdrawalEntry struct {
+	wire    string
+	addPath bool
 }
 
 // routeServer implements a BGP Route Server API plugin.
@@ -190,7 +210,7 @@ type routeServer struct {
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
 	// Populated by processForward from NLRI parsing. Cleared by handleStateDown.
 	// sourcePeer → withdrawalKey → struct{}.
-	withdrawals map[string]map[withdrawalKey]struct{}
+	withdrawals map[string]map[withdrawalKey]withdrawalEntry
 
 	// updateRouteHook is called before each updateRoute RPC for test inspection.
 	// Nil in production (zero overhead).
@@ -265,7 +285,7 @@ func RunRouteServer(conn net.Conn) int {
 	rs := &routeServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[withdrawalKey]struct{}),
+		withdrawals: make(map[string]map[withdrawalKey]withdrawalEntry),
 		clk:         clock.RealClock{},
 	}
 

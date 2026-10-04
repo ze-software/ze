@@ -152,12 +152,12 @@ func (rs *routeServer) updateWithdrawalMapText(sourcePeer string, ops map[string
 			switch op.Action {
 			case actionAdd:
 				if rs.withdrawals[sourcePeer] == nil {
-					rs.withdrawals[sourcePeer] = make(map[withdrawalKey]struct{})
+					rs.withdrawals[sourcePeer] = make(map[withdrawalKey]withdrawalEntry)
 				}
 				for _, n := range op.NLRIs {
 					if s, ok := n.(string); ok && s != "" {
 						wk := withdrawalKey{fam: fam, nlriStr: s}
-						rs.withdrawals[sourcePeer][wk] = struct{}{}
+						rs.withdrawals[sourcePeer][wk] = withdrawalEntry{}
 					}
 				}
 			case actionDel:
