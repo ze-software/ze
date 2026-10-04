@@ -11,6 +11,7 @@ directives ## Directives
   ask-how-to-fix-it-never-whether-to-skip-it
   tell-deferral-from-parking-by-whether-the-goal-holds
   close-the-work-first-then-ask-about-the-unrelated-defect
+  start-a-fix-agent-for-an-investigated-defect-without-asking
   record-only-what-you-tried-and-failed-to-reproduce
   simplicity-cuts-machinery-never-correctness
   never-let-the-ladder-override-a-rule-s-subject-matter
