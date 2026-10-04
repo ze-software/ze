@@ -19,6 +19,7 @@ func TestProposedWriteRequiresMatchingWeakeningRow(t *testing.T) {
 	newText := strings.Replace(oldText, "\trequire.NoError", "\tt.Skip(\"later\")\n\trequire.NoError", 1)
 	writeProposedFile(t, root, path, oldText)
 	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader)
+	commitProposedFixture(t, root)
 
 	report, err := proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Write", ToolInput: ProposedToolInput{Content: newText},
@@ -43,6 +44,7 @@ func TestProposedEditAndMultiEditReconstructWholeFile(t *testing.T) {
 	oldText := "package a\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n\trequire.Equal(t, 1, got)\n}\n"
 	writeProposedFile(t, root, path, oldText)
 	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader+"| TestA | fixture accepts weakening |\n")
+	commitProposedFixture(t, root)
 
 	edit, err := proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Edit", ToolInput: ProposedToolInput{
@@ -107,6 +109,7 @@ func TestProposedNewWriteAndCountOnlyEditStayNonBlocking(t *testing.T) {
 	path := "pkg/count_test.go"
 	oldText := "package a\nfunc TestCount(t *testing.T) {\n\trequire.Equal(t, 1, a)\n\trequire.Equal(t, 2, b)\n}\n"
 	writeProposedFile(t, root, path, oldText)
+	commitProposedFixture(t, root)
 	countReport, err := proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Edit", ToolInput: ProposedToolInput{
 			OldString: "\trequire.Equal(t, 2, b)\n", NewString: "",

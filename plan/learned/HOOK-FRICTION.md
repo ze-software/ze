@@ -1719,6 +1719,12 @@ relying on, is false for a file git has never seen.
 `rfc-test-change-approved`, which was the right call. It moved its draft to
 scratch and rewrote the file complete in one `Write`.
 
+**Status, 2026-10-05.** Fixed at the producer: `Proposed`
+(`internal/le/test/weakened/proposed.go`) now locks a tagged unit only when the
+edit changes it AND HEAD records it with its tag (`committedRFCChanges`), so an
+untracked file, an appended unit and a tag written since HEAD stay the author's
+to repair. The suggestions below are kept as the record.
+
 **Suggested fixes.**
 
 1. Exempt a path untracked in git. `git ls-files --error-unmatch <path>` is one

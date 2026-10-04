@@ -694,6 +694,23 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
   Changing its behavior needs the owner's approval.
+- **The lock holds what HEAD records.** The Write/Edit hook refuses an edit to
+  a tagged unit only when the edit changes that unit and the unit carries its
+  tag at HEAD. A unit is one Go function, or the whole file when the file is
+  not Go or carries a tag outside every function, in the working tree or at
+  HEAD; both sides are cut the same way. A file HEAD does not record (an
+  untracked or only staged one), a unit appended since the last commit, and a
+  tag written since then are still the author's to repair: no claim has been
+  counted from them. A committed tagged unit stays locked
+  whatever the working tree holds. Where the unit is one Go function, another
+  session's uncommitted change to it does not lock an edit to another
+  function. Where the unit is the whole file (a `.ci` or other non-Go
+  carrier, or Go with a file-scope tag), that change makes every edit to the
+  file refuse until the file matches HEAD again or the owner approves. The
+  commit gate,
+  `rfcChangeProblems` in `internal/le/commit/rfcchange.go`, reads its baseline
+  from HEAD too.
+  <!-- source: internal/le/test/weakened/proposed.go -- committedRFCChanges -->
 
 ### The owner's approval lives in the commit
 

@@ -160,7 +160,7 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 			return report, nil
 		}
 	}
-	oldText, newText, err := proposedTexts(root, path, request)
+	oldText, newText, wholeFile, err := proposedTexts(root, path, request)
 	if err != nil {
 		return ProposedReport{}, err
 	}
@@ -168,6 +168,19 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 		(strings.HasSuffix(path, ".ci") || strings.HasSuffix(path, ".et")) &&
 			(strings.HasPrefix(path, "test/") || strings.Contains(path, "/test/"))
 	taggedCarrier := rfc.IsTagCarrier(path) && strings.Contains(oldText, "RFC requirement:")
+	// The owner's lock protects what HEAD records, so a carrier's HEAD text is
+	// read even when the working tree has lost its tag: a tag removed by Bash
+	// or by another session still locks its committed unit.
+	var committedText string
+	if wholeFile && rfc.IsTagCarrier(path) {
+		committedText, err = proposedCommitted(root, path)
+		if err != nil {
+			return ProposedReport{}, err
+		}
+		if strings.Contains(committedText, "RFC requirement:") {
+			taggedCarrier = true
+		}
+	}
 	if !hookTest && !taggedCarrier {
 		return report, nil
 	}
@@ -180,7 +193,12 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 		return ProposedReport{}, errors.New(problem)
 	}
 
-	rfcChanges := proposedRFCChanges(path, oldText, newText)
+	var rfcChanges []ProposedRFCChange
+	if wholeFile {
+		rfcChanges = committedRFCChanges(path, oldText, newText, committedText)
+	} else {
+		rfcChanges = proposedRFCChanges(path, oldText, newText, proposedWholeFileUnit(path, oldText))
+	}
 	report.RFCChanges = rfcChanges
 	if len(rfcChanges) != 0 {
 		names := make([]string, 0, len(rfcChanges))
@@ -243,43 +261,48 @@ func decodeProposedRequest(input io.Reader) (ProposedRequest, error) {
 	return request, nil
 }
 
-func proposedTexts(root, path string, request ProposedRequest) (string, string, error) {
+// proposedTexts answers the old and new text the request judges, and whether
+// the old text is the whole working-tree file. Only a whole working-tree file
+// can be set beside its HEAD text: a caller's explicit old/new pair states its
+// own baseline, and an Edit hunk that the file does not hold is judged as
+// hunks, because the tool refuses that edit anyway.
+func proposedTexts(root, path string, request ProposedRequest) (string, string, bool, error) {
 	hasText := request.Old != nil || request.New != nil
 	hasBase64 := request.OldBase64 != nil || request.NewBase64 != nil
 	if hasText || hasBase64 {
 		if hasText && hasBase64 || (request.Old == nil) != (request.New == nil) ||
 			(request.OldBase64 == nil) != (request.NewBase64 == nil) {
-			return "", "", errors.New("fully reconstructed input requires exactly one old/new or old-base64/new-base64 pair")
+			return "", "", false, errors.New("fully reconstructed input requires exactly one old/new or old-base64/new-base64 pair")
 		}
 		if hasText {
-			return boundedProposedText(*request.Old, *request.New)
+			return partProposedText(*request.Old, *request.New)
 		}
 		oldBytes, err := base64.StdEncoding.DecodeString(*request.OldBase64)
 		if err != nil {
-			return "", "", fmt.Errorf("decode old-base64: %w", err)
+			return "", "", false, fmt.Errorf("decode old-base64: %w", err)
 		}
 		newBytes, err := base64.StdEncoding.DecodeString(*request.NewBase64)
 		if err != nil {
-			return "", "", fmt.Errorf("decode new-base64: %w", err)
+			return "", "", false, fmt.Errorf("decode new-base64: %w", err)
 		}
-		return boundedProposedText(validUTF8(oldBytes), validUTF8(newBytes))
+		return partProposedText(validUTF8(oldBytes), validUTF8(newBytes))
 	}
 	current, currentErr := proposedCurrent(root, path)
 	switch request.Tool {
 	case "Write":
 		if currentErr != nil && !errors.Is(currentErr, os.ErrNotExist) {
-			return "", "", currentErr
+			return "", "", false, currentErr
 		}
-		return boundedProposedText(current, request.ToolInput.Content)
+		return wholeProposedText(current, request.ToolInput.Content)
 	case "Edit":
 		if currentErr == nil && request.ToolInput.OldString != "" && strings.Contains(current, request.ToolInput.OldString) {
 			count := 1
 			if request.ToolInput.ReplaceAll {
 				count = -1
 			}
-			return boundedProposedText(current, strings.Replace(current, request.ToolInput.OldString, request.ToolInput.NewString, count))
+			return wholeProposedText(current, strings.Replace(current, request.ToolInput.OldString, request.ToolInput.NewString, count))
 		}
-		return boundedProposedText(request.ToolInput.OldString, request.ToolInput.NewString)
+		return partProposedText(request.ToolInput.OldString, request.ToolInput.NewString)
 	case "MultiEdit":
 		if currentErr == nil {
 			after := current
@@ -293,22 +316,22 @@ func proposedTexts(root, path string, request ProposedRequest) (string, string, 
 				}
 				after = strings.Replace(after, edit.OldString, edit.NewString, count)
 			}
-			return boundedProposedText(current, after)
+			return wholeProposedText(current, after)
 		}
 		return proposedJoinedHunks(request.ToolInput.Edits)
 	default:
-		return "", "", fmt.Errorf("unsupported tool %q; want Write, Edit, or MultiEdit", request.Tool)
+		return "", "", false, fmt.Errorf("unsupported tool %q; want Write, Edit, or MultiEdit", request.Tool)
 	}
 }
 
-func proposedJoinedHunks(edits []ProposedEdit) (string, string, error) {
+func proposedJoinedHunks(edits []ProposedEdit) (string, string, bool, error) {
 	oldParts := make([]string, len(edits))
 	newParts := make([]string, len(edits))
 	for index, edit := range edits {
 		oldParts[index] = edit.OldString
 		newParts[index] = edit.NewString
 	}
-	return boundedProposedText(strings.Join(oldParts, "\n"), strings.Join(newParts, "\n"))
+	return partProposedText(strings.Join(oldParts, "\n"), strings.Join(newParts, "\n"))
 }
 
 func proposedCurrent(root, path string) (string, error) {
@@ -327,11 +350,55 @@ func proposedCurrent(root, path string) (string, error) {
 	return validUTF8(content), nil
 }
 
+// wholeProposedText answers a bounded pair whose old text is the whole
+// working-tree file.
+func wholeProposedText(oldText, newText string) (string, string, bool, error) {
+	oldText, newText, err := boundedProposedText(oldText, newText)
+	return oldText, newText, err == nil, err
+}
+
+// partProposedText answers a bounded pair whose old text is not the whole
+// working-tree file.
+func partProposedText(oldText, newText string) (string, string, bool, error) {
+	oldText, newText, err := boundedProposedText(oldText, newText)
+	return oldText, newText, false, err
+}
+
 func boundedProposedText(oldText, newText string) (string, string, error) {
 	if len(oldText) > proposedFileLimit || len(newText) > proposedFileLimit {
 		return "", "", fmt.Errorf("proposed old/new file exceeds %d bytes", proposedFileLimit)
 	}
 	return oldText, newText, nil
+}
+
+// errCommittedUnreadable marks every failure to read a path's HEAD text. The
+// hook refuses the edit on it rather than judging against an empty text.
+var errCommittedUnreadable = errors.New("the committed text is unreadable")
+
+// proposedCommitted answers the text HEAD records at path, and the empty text
+// when HEAD records no such path: an untracked file has no committed evidence
+// to weaken. A Git failure is an error, never an empty text, because an empty
+// text would unlock every tagged unit in the file.
+func proposedCommitted(root, path string) (string, error) {
+	listed, stderr, code, started := gitCapture(root, "ls-tree", "--name-only", headRevision, "--", path)
+	if !started {
+		return "", fmt.Errorf("%w: git could not start for %s", errCommittedUnreadable, path)
+	}
+	if code != 0 {
+		return "", fmt.Errorf("%w: git ls-tree %s failed for %s: %s",
+			errCommittedUnreadable, headRevision, path, strings.TrimSpace(stderr))
+	}
+	if strings.TrimSpace(listed) == "" {
+		return "", nil
+	}
+	content, problem := revisionText(root, headRevision, path)
+	if problem != "" {
+		return "", fmt.Errorf("%w: %s", errCommittedUnreadable, problem)
+	}
+	if len(content) > proposedFileLimit {
+		return "", fmt.Errorf("%w: committed %s exceeds %d bytes", errCommittedUnreadable, path, proposedFileLimit)
+	}
+	return strings.ToValidUTF8(content, "\uFFFD"), nil
 }
 
 func validUTF8(content []byte) string {
@@ -380,12 +447,16 @@ func proposedFindings(path, oldText, newText string) []Finding {
 	return findings
 }
 
-func proposedRFCChanges(path, oldText, newText string) []ProposedRFCChange {
+// proposedRFCChanges answers the tagged units newText changes in oldText.
+// wholeFileUnit makes the file one unit named after its stem; otherwise each
+// Go function is a unit. The caller decides the cut, so two calls it compares
+// name their units the same way.
+func proposedRFCChanges(path, oldText, newText string, wholeFileUnit bool) []ProposedRFCChange {
 	if !rfc.IsTagCarrier(path) {
 		return nil
 	}
 	fallback := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	if rfc.ScopeReader(path) != rfc.ScopeGo || proposedTagOutsideFunction(path, oldText) {
+	if wholeFileUnit {
 		tags := rfc.ChangedTags(path, oldText, newText)
 		if len(tags) == 0 {
 			return nil
@@ -414,6 +485,64 @@ func proposedRFCChanges(path, oldText, newText string) []ProposedRFCChange {
 	}
 	sort.Slice(changes, func(left, right int) bool { return changes[left].Name < changes[right].Name })
 	return changes
+}
+
+// committedRFCChanges answers the units tagged at HEAD that differ from their
+// committed text in newText and that this edit touches, oldText being the
+// working-tree file. The owner's lock protects committed evidence: a unit the
+// author tagged or wrote since HEAD is still theirs to repair, a committed
+// unit this edit leaves alone is not this edit's change, whoever changed it in
+// the working tree, and a committed tag the working tree has lost still
+// counts. The tags reported are the committed ones.
+//
+// One cut serves all three texts: a file-scope tag in the working tree or at
+// HEAD makes the whole file the unit, so a tag written or removed since HEAD
+// cannot move a committed unit out from under the lock.
+func committedRFCChanges(path, oldText, newText, committedText string) []ProposedRFCChange {
+	wholeFileUnit := proposedWholeFileUnit(path, oldText)
+	if !wholeFileUnit {
+		wholeFileUnit = proposedWholeFileUnit(path, committedText)
+	}
+	committed := proposedRFCChanges(path, committedText, newText, wholeFileUnit)
+	if wholeFileUnit {
+		if oldText == newText {
+			return nil
+		}
+		return committed
+	}
+	fallback := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	kept := make([]ProposedRFCChange, 0, len(committed))
+	for _, change := range committed {
+		if !slices.Equal(proposedUnitTexts(oldText, change.Name, fallback), proposedUnitTexts(newText, change.Name, fallback)) {
+			kept = append(kept, change)
+		}
+	}
+	return kept
+}
+
+// proposedUnitTexts answers the text of every Go function in content that
+// proposedRFCChanges would report under name.
+func proposedUnitTexts(content, name, fallback string) []string {
+	var texts []string
+	for _, unit := range rfc.FunctionUnits(content) {
+		unitName := unit.Name
+		if unitName == "" {
+			unitName = fallback
+		}
+		if unitName == name {
+			texts = append(texts, unit.Text)
+		}
+	}
+	return texts
+}
+
+// proposedWholeFileUnit answers whether content is judged as one unit: a
+// carrier that is not Go, or Go carrying a tag at file scope.
+func proposedWholeFileUnit(path, content string) bool {
+	if rfc.ScopeReader(path) != rfc.ScopeGo {
+		return true
+	}
+	return proposedTagOutsideFunction(path, content)
 }
 
 func proposedTagOutsideFunction(path, content string) bool {

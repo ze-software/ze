@@ -1062,7 +1062,9 @@ Rules the gate enforces:
   tagged test moves needs no regeneration and owes no commit.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag its behavior cannot change without the owner's approval.
-  Fix the code instead. Once the owner has answered, record his words with
+  The lock covers the tagged units HEAD records, so a test you have not
+  committed yet stays yours to repair. Fix the code instead. Once the owner
+  has answered, record his words with
   `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"`: the
   native weakening check reads that session file and blocks the edit until a
   row names the unit, and the commit carries the row as an `RFC-approved:`
