@@ -1913,9 +1913,9 @@
       "unit-sha": "dffc8ddabe9ec147",
       "claim-sha": "8d45c615d5cc7703",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkBestPathChange",
-      "producer-sha": "d3e6b24680f0e6f7",
-      "break": "body of checkBestPathChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "8c57c97e8f7b4428",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9-3",
@@ -1924,9 +1924,9 @@
       "unit-sha": "50668259f959ece4",
       "claim-sha": "680b5dc542888dcd",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkBestPathChange",
-      "producer-sha": "d3e6b24680f0e6f7",
-      "break": "body of checkBestPathChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "8c57c97e8f7b4428",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9-4",
@@ -2035,7 +2035,7 @@
       "claim-sha": "ff5c22e2f5b70940",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
-      "producer-sha": "3301692037860930",
+      "producer-sha": "a25995d8706e455b",
       "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -2133,9 +2133,9 @@
       "unit-sha": "20fc5d06b7413916",
       "claim-sha": "102463e5427a435a",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkBestPathChange",
-      "producer-sha": "d3e6b24680f0e6f7",
-      "break": "body of checkBestPathChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "8c57c97e8f7b4428",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9.2-4",
@@ -2144,9 +2144,9 @@
       "unit-sha": "6fecc40a68181ea3",
       "claim-sha": "6f5a3b4534472341",
       "route": "revert",
-      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkBestPathChange",
-      "producer-sha": "d3e6b24680f0e6f7",
-      "break": "body of checkBestPathChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+      "producer-sha": "8c57c97e8f7b4428",
+      "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9.2-4",

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-29",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC2918-2-1": {
       "note": "Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestRFC2918RouteRefreshCapabilityOctetsInSentOpen walks the octets sendOpen writes and asserts exactly one TLV with code 2 and an empty value, and none when not configured; red on another code, a payload, or a duplicate. Negative TestOpenRejectsMalformedKnownCapability: a received code 2 with length 1 (a violation of this definition by the peer) is refused with OPEN Message Error before negotiation. TestCapabilityWriteTo remains a self-consistency check only.",
@@ -94,17 +94,29 @@
       "verdict": "enforced"
     },
     "RFC2918-4-3": {
-      "note": "Forbidden: not re-advertising the Adj-RIB-Out of the requested <AFI, SAFI>, or re-advertising another family. TestHandleRefresh_InternalState asserts both IPv4 routes are sent with meta replay and the IPv6 route is not, red on either. The negative TestHandleRefresh_PeerNotUp installs no updateHook and asserts only that peerUp stays false, so a send to a down peer stays green; and no tagged unit exercises the outbound route filtering policy clause.",
+      "note": "Read all of RFC 2918 Section 4, including the advertised-family precondition: 'Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy.' Read all seven tagged carriers, including both policy polarities. rib_test.go::TestHandleRefresh_InternalState seeds two IPv4 routes plus an IPv6 control, requests IPv4, parses every emitted command with the production update parser, and asserts exactly the two requested routes plus replay metadata. It also checks both markers and retained families; its separate marker capture does not itself prove ordering. rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh ingests a real sent UPDATE through handleSentStructured, invokes handleRefreshStructured, parses its replay, and checks the exact prefix and packed attributes. It also distinguishes refresh ownership feedback from an ordinary replacement. The same file's TestRFC2918RefreshDoesNotSendToDownPeer observes both output hooks and forbids routes and markers. The older rib_test.go::TestHandleRefresh_PeerNotUp remains weak by itself: it asserts only peerUp remains false and cannot detect a send. Its weakness is not used as negative evidence. reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy supplies an established peer and negotiated IPv4 family, sends the same Replay batch with policy accept then reject, and asserts one policy call plus new wire bytes for acceptance, then a second policy call and byte-identical wire for rejection. These are two distinct assertions, not one wearing both polarities; current export rejection is the meaningful negative of the policy clause. TestRefreshSentFeedbackRetainsReplayOrigin checks [true,false] sent-event metadata for immediate and queued refresh, followed by an ordinary announcement; it observes feedback rather than decoding socket bytes. test/plugin/refresh-config-static.ci supplies the independent full-stack proof boundary: exact initial UPDATE, live ROUTE-REFRESH, then exact BoRR, identical configured UPDATE, and EoRR. Producers read: rib.go::handleRefresh and rib_structured.go::handleRefreshStructured select the peer/family inventory through ribout_entry.go::collectRibOutRoutes; sendRoutes applies replay metadata to FormatAnnounceCommand output; handleSentStructured retains configured advertisements and ignores replay ownership feedback; reactor_api_batch.go::AnnounceNLRIBatch and announceBatchToPeers, peer_initial_sync.go::sendInitialRoutes, session_write.go::sendUpdateCounted/writeUpdateGated and egress_inject_filter.go::exportFilterForBody carry replay through current egress policy. Together the tests discriminate omitted replay, wrong-family replay, configured-route omission, ownership loss and bypassed current policy, covering the whole sentence rather than storage-only state. This is a source-based semantic rejudgment, not a claim of new execution. Parent's observed gate reports stale positive records for TestRFC2918ConfigStaticRetainedForRefresh against handleSentStructured, TestHandleRefresh_InternalState against sendRoutes, and refresh-config-static.ci against handleSentStructured; native renewals are owed after the ADD-PATH changes. The down-peer and reactor replay/policy records are not reported stale for this row in that gate, and unrelated reactor records must not be refreshed on this judgment. No tests, mutations, builds, stamping, resealing or checks were run here.",
       "requirement_sha": "b02d09aa24b01702",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "67323a140596dd23",
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "67323a140596dd23"
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "857d38630f0f9349",
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "857d38630f0f9349",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "ff76afb9ec2aecc5",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "ff76afb9ec2aecc5",
+        "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "1654b83c6a8e3987",
+        "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "1654b83c6a8e3987",
+        "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin": "1654b83c6a8e3987",
+        "test/plugin/refresh-config-static.ci": "a47a68452effb62e"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "87ee559293b51931",
-        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "4c887e880b608592"
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh": "a1db7c1aafac5200",
+        "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer": "5a750a8e400fa6c6",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "01df5e87fd409338",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "4c887e880b608592",
+        "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy": "e64a05489559e813",
+        "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2": "e64a05489559e813",
+        "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin": "1dfad1560ea4187a",
+        "test/plugin/refresh-config-static.ci": "a47a68452effb62e"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc2918"

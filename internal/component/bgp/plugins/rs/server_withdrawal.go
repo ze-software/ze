@@ -77,7 +77,7 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	// Extract compact NLRI records BEFORE forwarding. For wire UPDATEs, uses
 	// netip.PrefixFrom (zero string allocation per prefix). String keys are
 	// deferred to the withdrawal map update after forwarding.
-	var wireRecords *[]nlriRecord
+	var wireRecords *nlriRecords
 	if item.msg != nil {
 		wireRecords = extractWireNLRIRecords(item.msg)
 	}
@@ -101,7 +101,7 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	// String keys are produced here, off the forward critical path.
 	rs.withdrawalMu.Lock()
 	if wireRecords != nil {
-		rs.applyNLRIRecords(item.sourcePeer, *wireRecords)
+		rs.applyNLRIRecords(item.sourcePeer, wireRecords.records)
 	} else {
 		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload))
 	}

@@ -860,9 +860,11 @@ compared in one best-path election (RFC 8277 Section 3.1).
 
 Each path of a labeled unicast (SAFI 4) prefix holds its own MPLS label handle,
 in its `pathEntry` beside the `RouteEntry`. RFC 8277 Section 2.5 binds a label
-per path: an UPDATE for the same path id replaces that path's binding
-(`pathSet.upsert` releases it), and an UPDATE or a withdrawal for another path
-id leaves it in place. Without ADD-PATH the family keeps one handle per prefix in
+per path: an UPDATE for the same path id replaces that path's binding.
+`pathSet.upsert` keeps the old handle until `setLabels` replaces and releases
+it, so a concurrent election cannot see an unbound path between insert and
+rebind. An UPDATE or withdrawal for another path id leaves it in place.
+Without ADD-PATH the family keeps one handle per prefix in
 a parallel trie. Removing the route releases its binding with it, so no caller
 removes a label alone.
 

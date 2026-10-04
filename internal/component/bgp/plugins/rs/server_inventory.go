@@ -37,31 +37,37 @@ type nlriRecord struct {
 	pathID    uint32
 }
 
-// nlriRecordPool amortizes slice allocation for NLRI extraction.
+// nlriRecords holds one extraction's records and CIDR scratch together so the
+// registered CIDR decoder cannot make a scratch allocation for each NLRI.
+type nlriRecords struct {
+	records []nlriRecord
+	scratch [nlrisplit.PrefixKeyScratchSize]byte
+}
+
+// nlriRecordPool amortizes records and scratch allocation for NLRI extraction.
 // Typical grouped UPDATEs carry 100-200 IPv4 prefixes; initial capacity 256
 // covers the common case without resize.
 var nlriRecordPool = sync.Pool{
 	New: func() any {
-		s := make([]nlriRecord, 0, 256)
-		return &s
+		return &nlriRecords{records: make([]nlriRecord, 0, 256)}
 	},
 }
 
 // extractWireNLRIRecords extracts compact NLRI records from a raw wire UPDATE.
-// Must be called BEFORE forwarding (buffer lifetime safety: cache eviction can
+// MUST be called BEFORE forwarding (buffer lifetime safety: cache eviction can
 // free the pool buffer backing msg.WireUpdate after ForwardCached).
-// Returns a pooled handle -- caller must call returnNLRIRecords when done.
-func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
+// The caller MUST call returnNLRIRecords when done with the pooled handle.
+func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 	if msg.WireUpdate == nil {
 		return nil
 	}
 	wu := msg.WireUpdate
 
-	sp, ok := nlriRecordPool.Get().(*[]nlriRecord)
+	sp, ok := nlriRecordPool.Get().(*nlriRecords)
 	if !ok {
 		return nil
 	}
-	*sp = (*sp)[:0]
+	sp.records = sp.records[:0]
 
 	var encCtx *bgpctx.EncodingContext
 	if msg.AttrsWire != nil {
@@ -83,16 +89,16 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 		fam := mp.Family()
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
-			*sp = appendUnicastRecords(*sp, fam, fam.String(), mp.NLRIIterator(addPath), actionDel)
+			sp.records = appendUnicastRecords(sp.records, fam, fam.String(), mp.NLRIIterator(addPath), actionDel)
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
-			*sp = appendAllocatingUnreachRecords(*sp, fam, nlris, nlriErr)
+			sp.records = appendAllocatingUnreachRecords(sp.records, fam, nlris, nlriErr, sp.scratch[:])
 		}
 	}
 
 	// IPv4 body Withdrawn -- withdrawn routes.
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
-		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionDel)
+		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, actionDel)
 	}
 
 	// MP_REACH_NLRI -- announced routes.
@@ -100,26 +106,27 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 		fam := mp.Family()
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
-			*sp = appendUnicastRecords(*sp, fam, fam.String(), mp.NLRIIterator(addPath), actionAdd)
+			sp.records = appendUnicastRecords(sp.records, fam, fam.String(), mp.NLRIIterator(addPath), actionAdd)
 		} else {
-			*sp = appendAllocatingRecords(*sp, fam, mp, addPath, actionAdd)
+			sp.records = appendAllocatingRecords(sp.records, fam, mp, addPath, actionAdd, sp.scratch[:])
 		}
 	}
 
 	// IPv4 body NLRIs -- announced routes.
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionAdd)
+		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, actionAdd)
 	}
 
 	return sp
 }
 
-// returnNLRIRecords returns the pooled record handle.
-func returnNLRIRecords(sp *[]nlriRecord) {
+// returnNLRIRecords MUST be called after extractWireNLRIRecords. The caller MUST
+// stop using the handle and its records before returning it to the pool.
+func returnNLRIRecords(sp *nlriRecords) {
 	if sp == nil {
 		return
 	}
-	*sp = (*sp)[:0]
+	sp.records = sp.records[:0]
 	nlriRecordPool.Put(sp)
 }
 
@@ -164,20 +171,20 @@ func appendUnicastRecords(records []nlriRecord, f family.Family, famName string,
 // Falls back to NLRIs() which allocates -- acceptable for rare non-unicast traffic.
 func appendAllocatingRecords(records []nlriRecord, fam family.Family, mp interface {
 	NLRIs(bool) ([]nlri.NLRI, error)
-}, addPath bool, action string) []nlriRecord {
+}, addPath bool, action string, scratch []byte) []nlriRecord {
 	nlris, err := mp.NLRIs(addPath)
 	if err != nil || len(nlris) == 0 {
 		return records
 	}
-	return appendParsedRecords(records, fam, nlris, action)
+	return appendParsedRecords(records, fam, nlris, action, scratch)
 }
 
 // appendAllocatingUnreachRecords appends records for non-unicast MP_UNREACH families.
-func appendAllocatingUnreachRecords(records []nlriRecord, fam family.Family, nlris []nlri.NLRI, err error) []nlriRecord {
+func appendAllocatingUnreachRecords(records []nlriRecord, fam family.Family, nlris []nlri.NLRI, err error, scratch []byte) []nlriRecord {
 	if err != nil || len(nlris) == 0 {
 		return records
 	}
-	return appendParsedRecords(records, fam, nlris, actionDel)
+	return appendParsedRecords(records, fam, nlris, actionDel, scratch)
 }
 
 // appendParsedRecords turns parsed NLRIs into inventory records.
@@ -188,12 +195,12 @@ func appendAllocatingUnreachRecords(records []nlriRecord, fam family.Family, nlr
 // neither identify the route in the withdrawal set nor be re-parsed by any
 // command grammar. Those go in as hex instead, and their withdrawal goes out
 // as "update hex" (sendBatchedWithdrawals).
-func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.NLRI, action string) []nlriRecord {
+func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.NLRI, action string, scratch []byte) []nlriRecord {
 	famStr := fam.String()
 	cidrKeyed := nlrisplit.KeysByCIDR(fam)
 	for _, n := range nlris {
 		if w, ok := n.(*nlri.WireNLRI); ok {
-			records = appendOpaqueRecords(records, fam, famStr, w, action)
+			records = appendOpaqueRecords(records, fam, famStr, w, action, cidrKeyed, scratch)
 			continue
 		}
 		// A withdrawal of a CIDR-keyed family arrives as an INET of the prefix
@@ -223,12 +230,10 @@ func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.N
 // appendOpaqueRecords appends one hex record per NLRI carried by an opaque
 // wire blob.
 //
-// wireu.ParseNLRIs hands back the WHOLE NLRI section as a single *WireNLRI for
-// any family with no dedicated parser, so the blob has to be split here or one
-// key would stand for every NLRI in the UPDATE: a later MP_UNREACH naming one
-// of them would miss the key and leave the rest of the section un-withdrawn on
-// peer-down. message.GetNLRISizeFunc is the same sizer the wire command parser
-// uses to split them again (splitWireNLRIs), so the two agree by construction.
+// wireu.ParseNLRIs frames registered families as one WireNLRI per NLRI. A
+// carrier can still hold a whole section when its family has no registered
+// splitter, so split each carrier with the same sizer the wire command parser
+// uses (splitWireNLRIs). One key must never stand for several framed routes.
 //
 // The hex is a copy, which the buffer lifetime requires: the caller runs before
 // ForwardCached and the wire buffer can be freed after it.
@@ -238,7 +243,7 @@ func appendParsedRecords(records []nlriRecord, fam family.Family, nlris []nlri.N
 // which carries a Compatibility field where this carried a label stack, keys
 // the same (RFC 8277 Section 2.4), and a relabel replaces the entry (Section
 // 2.5). The hex stays in the record: the peer-down withdrawal is sent as it.
-func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string, w *nlri.WireNLRI, action string) []nlriRecord {
+func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string, w *nlri.WireNLRI, action string, cidrKeyed bool, scratch []byte) []nlriRecord {
 	data := w.Bytes()
 	if len(data) == 0 {
 		return records
@@ -267,7 +272,9 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 			wireForm:   true,
 			addPath:    addPath,
 		}
-		rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, part, addPath)
+		if cidrKeyed {
+			rec.prefix, rec.pathID, rec.cidrKeyed = opaqueRouteCIDR(fam, part, addPath, scratch)
+		}
 		records = append(records, rec)
 		offset += size
 	}
@@ -277,14 +284,14 @@ func appendOpaqueRecords(records []nlriRecord, fam family.Family, famStr string,
 // opaqueRouteCIDR answers the prefix and path identifier one framed
 // announcement of fam names, and false when fam does not name its routes by a
 // CIDR or the bytes do not hold one. A malformed NLRI then stays keyed by its
-// hex, as every opaque family's is.
-func opaqueRouteCIDR(fam family.Family, part []byte, addPath bool) (netip.Prefix, uint32, bool) {
+// hex, as every opaque family's is. scratch is the pooled extraction's
+// nlrisplit.PrefixKeyScratchSize-byte buffer and MUST NOT be retained.
+func opaqueRouteCIDR(fam family.Family, part []byte, addPath bool, scratch []byte) (netip.Prefix, uint32, bool) {
 	pathID, payload, err := nlri.SplitPathID(part, addPath)
 	if err != nil {
 		return netip.Prefix{}, 0, false
 	}
-	var scratch [nlrisplit.PrefixKeyScratchSize]byte
-	cidr, err := nlrisplit.RouteCIDR(fam, payload, scratch[:], false)
+	cidr, err := nlrisplit.RouteCIDR(fam, payload, scratch, false)
 	if err != nil {
 		return netip.Prefix{}, 0, false
 	}

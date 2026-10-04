@@ -152,7 +152,7 @@
       "claim-sha": "7fb81d0308296c4d",
       "route": "revert",
       "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
-      "producer-sha": "89cf393565db492c",
+      "producer-sha": "2f44d929356e14e0",
       "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "553f279236aba1fc",
       "route": "revert",
       "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
-      "producer-sha": "89cf393565db492c",
+      "producer-sha": "2f44d929356e14e0",
       "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "4e73927d30171fa8",
       "route": "revert",
       "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
-      "producer-sha": "89cf393565db492c",
+      "producer-sha": "2f44d929356e14e0",
       "break": "body of wrapNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "89be433d7ceb18c7",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rs/server_inventory.go::opaqueRouteCIDR",
-      "producer-sha": "7124700a53d5942a",
+      "producer-sha": "e0fac1c4e988d2c3",
       "break": "body of opaqueRouteCIDR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -257,9 +257,42 @@
     {
       "rid": "RFC8277-2.5-2",
       "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels",
+      "unit-sha": "d87036deda894922",
+      "claim-sha": "e84a396b0cfc7edd",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
+      "producer-sha": "0942c1ada067298a",
+      "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.5-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels",
+      "unit-sha": "d87036deda894922",
+      "claim-sha": "3c0927b8d2f01e53",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
+      "producer-sha": "0942c1ada067298a",
+      "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.5-2",
+      "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath",
       "unit-sha": "138226a7a344adcf",
       "claim-sha": "e96864f59012e3e5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
+      "producer-sha": "0942c1ada067298a",
+      "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-2.5-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels",
+      "unit-sha": "d87036deda894922",
+      "claim-sha": "e56157f6a01a23e1",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
       "producer-sha": "0942c1ada067298a",
@@ -297,6 +330,28 @@
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesLocked",
       "producer-sha": "27bd98677c852b43",
       "break": "body of gatherPrefixCandidatesLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable",
+      "unit-sha": "822938264a027d60",
+      "claim-sha": "0a7fa01e80e19c04",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
+      "producer-sha": "a25995d8706e455b",
+      "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8277-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable",
+      "unit-sha": "822938264a027d60",
+      "claim-sha": "f71e815fc5d0eed1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
+      "producer-sha": "a25995d8706e455b",
+      "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8277-3.1-1",

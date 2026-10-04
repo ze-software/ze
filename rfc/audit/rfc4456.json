@@ -84,9 +84,9 @@
       "note": "SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero",
       "requirement_sha": "faa27e8e903e22c1",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength": "fe2b08786b65b24e",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength#2": "fe2b08786b65b24e",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestClusterListEntries": "fe2b08786b65b24e",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength#2": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestClusterListEntries": "dbcc36d32357abae",
         "internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak": "661206ea3ba6327b"
       },
       "units": {

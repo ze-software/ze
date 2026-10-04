@@ -537,8 +537,8 @@
       "note": "SelectBest cases: higher wins, lower loses, equal falls through to AS_PATH; an inverted comparison fails two cases",
       "requirement_sha": "348658b3349e1f64",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "fe2b08786b65b24e",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref#2": "fe2b08786b65b24e"
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref#2": "dbcc36d32357abae"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "e03b2a69b22d9639",
@@ -1376,8 +1376,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "f4c592b6164d9e4a",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "f4c592b6164d9e4a"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
@@ -1434,8 +1434,8 @@
       "tests": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "5bffe3606413b2a8",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "f4c592b6164d9e4a",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "f4c592b6164d9e4a"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
@@ -1459,34 +1459,34 @@
       "verdict": "enforced"
     },
     "RFC4271-9.1.2.2-1": {
-      "note": "New positive TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified pits each adjacent pair a)..f) (LOCAL_PREF/AS_PATH, AS_PATH/ORIGIN, ORIGIN/MED, MED/EBGP, EBGP/IGP cost, IGP cost/BGP Identifier) with the later step favoring the other route, both argument orders, asserting result and deciding step. Judge mutants 2026-09-30 (go test -overlay, tree untouched): LOCAL_PREF after AS_PATH, ORIGIN before AS_PATH, EBGP before MED, IGP cost before EBGP, Router ID before IGP cost: every swap reddens it. HEAD negatives (f/g fall-through, MED skipped across neighbor ASes) unchanged.",
+      "note": "Read the complete RFC 4271 Section 9.1.2.2: 'The criteria MUST be applied in the order specified.' The section starts with all equally preferable routes, eliminates candidates at each criterion, and permits another algorithm only when it produces the same results. All seven tagged units were read. rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified isolates adjacent conflicting preferences from LOCAL_PREF through BGP Identifier in both argument orders and asserts the exact winner and step. The structured and JSON rfc4271_bgp_identifier tests drive real received-UPDATE ingestion, then SelectBestExplain: TestBestPathStepFComparesThePeerBGPIdentifier and its OnTheJSONRail counterpart make identifier and peer-address preferences conflict; TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress and TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress separately assert the tied-identifier fall-through. Metadata producers handleReceivedStructured, updatePeerMetadata, appendPeerJSON, GetPeerRouterID and extractCandidate preserve the remote identifier. bestpath_test.go::TestBestPath_MED_SameNeighborAS genuinely rejects cross-AS MED comparison, but its same-AS examples cannot distinguish MED from peer-address selection; TestBestPath_FullTiebreak proves final peer-address selection only, not its claimed whole ordering. These are distinct positive and negative assertions over valid candidates, but every tagged unit has only two candidates. Whole-set order remains unproved: bestpath.go::SelectBest and SelectBestExplain fold pairwise comparisons; rib_bestchange.go::checkRouteBestChange calls SelectMultipath, which calls SelectBest. Source-read inference, not an executed reproduction: with all earlier criteria, session class and interior cost tied, A(FirstAS=65001, MED=0, BGP Identifier=198.51.100.3), B(65002,0,198.51.100.2), C(65001,100,198.51.100.1), input [A,B,C] selects C by two cross-AS identifier comparisons. Section 9.1.2.2(c) first eliminates C against A; step f) then selects B. The tagged pair-only tests cannot detect this existing-capability defect. Add a six-permutation three-candidate regression over ordinary and explained selection and received-UPDATE selection before any upgrade. The recorded positive proof for TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified against bestpath.go::comparePair is stale after the ADD-PATH final tiebreak; its native discrimination renewal is owed. The four changed identifier test units have no records in rfc/discrimination/rfc4271.json and need their change-scoped proofs. No test, mutation, build, stamp, reseal or check was run for this judgment; no partial or gap annotation is claimed.",
       "requirement_sha": "25f4bd3bf4eea6fc",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "fe2b08786b65b24e",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "fe2b08786b65b24e",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "b3ad2ff4c32b9353",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "b3ad2ff4c32b9353",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "f906866608450971",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "f906866608450971",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "8c4db5bd430ee149",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "8c4db5bd430ee149",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "a0c9bda6436eea78",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "a0c9bda6436eea78",
         "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "a129dac3a74eb33f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "b5d24bd8d66b29b4",
         "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "6bf15b9f3232cdc2",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "770624e70c62ce0f",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "fec8400f8162b5d9",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "ee9282cc8eb081bb",
-        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "e605e49bd0397162",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "1dcc4742498675f3",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "058d6dce56eb7689",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "237e192d49745dde",
+        "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "4a2cdf6fb365084e",
         "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "28fa129380d74765"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC4271-9.1.2.2-3": {
       "note": "Re-judged 2026-10-01 (BGP c13 judge). The MISSING clause (b) of Section 9.1.2.2 (c) is closed at the producer: firstASInPath answers 0 for a path that begins with an AS_SET (quote above the statement), and neighborAS turns 0 into the local AS for an IBGP route (PeerASN == LocalASN). Positive TestRFC4271IBGPAggregatesLedByASSetsCompareMED: two IBGP aggregates led by different AS_SETs share neighbor AS = local AS, MED 10 beats MED 20 at BestStepMED against IGP cost 50 vs 5, and SelectBest agrees. Negative TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS: an AS_SEQUENCE-led IBGP route keeps neighbor AS 65010 against an aggregate led by AS_SET {65010, 65020}, MED is skipped and the IGP cost decides, so the local-AS rule is not over-applied. Both build candidates from wire bytes through firstASInPath and asPathLength, the calls extractCandidate (rib_commands.go) makes. Their records break the producer with a panic (reach only); a judge overlay (tree untouched) removing only the AS_SET check reddens both units and TestFirstASInPath, whose wrong expectation (65003, the set's first member) was corrected to 0 under D-15, so the clause is discriminated. HEAD units unchanged: empty-AS_PATH IBGP positive and the later-steps negative (2026-09-30 judge mutants). Side effect read: an EBGP route led by an AS_SET now compares no MED (route-selection.md); such a path breaks Section 5.1.2 b) at its sender, and MED is owed only between routes of one known neighbor AS, so not comparing it stays conformant. Residual outside this row's RFC 4271 reading: the RIB classifies IBGP by PeerASN == LocalASN, not the reactor's RFC 7705-aware rule (journal helper-bypassed-by-an-open-coded-copy.md).",
       "requirement_sha": "fdfea00e26b43b37",
       "tests": {
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "fe2b08786b65b24e",
-        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "fe2b08786b65b24e",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "dbcc36d32357abae",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS#2": "dbcc36d32357abae",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPAggregatesLedByASSetsCompareMED": "9ddf979a7afb0b01",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS": "9ddf979a7afb0b01",
         "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPLocallyOriginatedRoutesCompareMED": "cda8464969d77ee0",
@@ -1568,8 +1568,8 @@
       "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
       "requirement_sha": "04f270bb5549bd27",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "5bffe3606413b2a8",
-        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "5bffe3606413b2a8"
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "f4c592b6164d9e4a",
+        "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "f4c592b6164d9e4a"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",

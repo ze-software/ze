@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "reaudit_history": [
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -164,24 +164,28 @@
       "verdict": "enforced"
     },
     "RFC8955-6-1": {
-      "note": "rejudge 2026-10-02 (c35 judge; stale because the doc comment of TestFlowSpecAuthorizationFromReceivedUpdates changed with the RFC8955-6-2 -> RFC9117 tag move, body unchanged). The table over the received-UPDATE path asserts eligibility, candidate availability and install for: (a) missing destination and missing covering unicast refused; (b) originator mismatch refused, matching ORIGINATOR_ID and the RFC 9117 local-domain cases installed; (c) foreign-AS more-specific refused, same-AS more-specific installed. Missing: rule (a)'s best-match route is the unicast route with the longest prefix covering the destination, and every case has exactly one covering route, so judge probe j35/shortest (flowSpecAuthorized picks the SHORTEST covering prefix, go -overlay) leaves every rib test green. Owed: two covering unicast routes of different lengths with different originators; a rule matching only the shorter route's originator must not install.",
+      "note": "RFC 8955 Section 6: 'In the absence of explicit configuration, a Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all of the conditions below are true:' The complete conditions read are: 'a) A destination prefix component is embedded in the Flow Specification.' 'b) The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification).' 'c) There are no \"more-specific\" unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in rule b.' Condition b is judged under its replacement in RFC 9117 Section 4.1, allowing an empty/confederation-only local-domain AS_PATH; Section 4.2 replaces the old session-neighbor AS comparison. All tagged functions read: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates and internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute. The former separately refuses missing destination, missing covering unicast, foreign transport/originator, and foreign-AS more-specific, while accepting matched originators, both confederation segment types, empty internal AS_PATH, and same-AS more-specific. Each refusal has the other prerequisites present, so no earlier guard explains it. The latter adds /8 and /16 covering routes with different originators and first ASNs; its internal pair isolates longest-prefix originator matching, and its external pair fixes the /16 originator while varying only the first AS. Both functions inspect current eligibility, retention, actual gatherCandidatesLocked candidate results and exact selected actions or absent install events. These additions close the previous weak verdict's best-match omission. Producer chain read: handleReceivedStructured -> checkRouteBestChange -> reconcileFlowSpecs -> flowSpecDestination/flowSpecASPath/flowSpecOriginator/flowSpecAuthorized, plus gatherKeyCandidatesLocked and candidateAdmitted. No explicit destination-relaxation configuration exists in this producer; optional configuration is not required for this default rule. The existing longest-match revert records prove reach only. No test, mutation or gate was run for this source judgment.",
       "requirement_sha": "c2145bef30dd5201",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ae78183347926044",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ae78183347926044"
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "8037f84d89527ba0",
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "8037f84d89527ba0",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "9cd1a26af442a6a1",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "9cd1a26af442a6a1"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "f56f1a529417e04e",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "f56f1a529417e04e"
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "b7e34ad60a517978",
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "b7e34ad60a517978",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ec6a424c09c479ab",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ec6a424c09c479ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8955-6-3": {
       "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
       "requirement_sha": "508626fc308dfc4f",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "ae78183347926044",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "ae78183347926044"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "9cd1a26af442a6a1",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "9cd1a26af442a6a1"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "c358ea038139731d",

@@ -53,7 +53,7 @@ func rsApplyLabeled(t *testing.T, rs *routeServer, code byte, nlris []byte) {
 	if records == nil {
 		t.Fatal("no records extracted")
 	}
-	rs.applyNLRIRecords(rsLabeledPeer, *records)
+	rs.applyNLRIRecords(rsLabeledPeer, records.records)
 	returnNLRIRecords(records)
 }
 

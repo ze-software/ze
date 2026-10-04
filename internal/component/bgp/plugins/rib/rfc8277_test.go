@@ -272,22 +272,27 @@ func TestRFC8277AddPathSameIdentifierRebinds(t *testing.T) {
 // PREVENTS: labels splitting one prefix into two independent best paths (which
 // would install both and break MPLS forwarding), or a label value tie-breaking
 // best-path selection.
+// Both sessions are iBGP with an empty AS_PATH, so MED is compared in the
+// local AS. Peer A's larger address opposes the peer-address fallback.
+// MUTATION: skipping comparePair's MED step elects peer B before and after
+// the label swap; partitioning best storage by label creates a second record.
 //
 // RFC requirement: RFC8277-3.1-1 positive -- two routes for the same prefix with different labels are gathered as candidates for a single best-path selection.
 // RFC requirement: RFC8277-3.1-1 negative -- the label value is not a selection input: swapping the two labels leaves the same peer winning, and no second best path appears.
 func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerA := netip.MustParseAddr("192.0.2.21")
-	peerB := netip.MustParseAddr("192.0.2.22")
-	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	peerA := netip.MustParseAddr("192.0.2.22")
+	peerB := netip.MustParseAddr("192.0.2.21")
+	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
+	require.NoError(t, err)
 
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 	cidr := []byte{8, 10}
 
 	// Peer A: label 100, MED 10 (the better MED). Peer B: label 200, MED 20.
-	feedReceived(r, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceivedIBGP(r, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, pfx, []uint32{100})))
-	feedReceived(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+	feedReceivedIBGP(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(0, false, pfx, []uint32{200})))
 
 	candidates := gatherCandidatesHeld(r, labeledFamily, cidr, false)
@@ -297,12 +302,14 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 	best := SelectBest(candidates)
 	require.NotNil(t, best)
 	assert.Equal(t, peerA.String(), best.PeerAddr, "the lower MED wins")
+	assert.Equal(t, uint32(10), best.MED, "MED beats the lower peer-address fallback")
+	assert.Equal(t, 1, bestRecordCount(r, labeledFamily), "different labels create only one stored best")
 
 	// Negative: swap the labels only. Nothing about the selection may move,
 	// which is what "comparable" means -- the label is not a tie-break.
-	feedReceived(r, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
+	feedReceivedIBGP(r, peerA, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 1}, 10,
 		labeledNLRI(0, false, pfx, []uint32{200})))
-	feedReceived(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
+	feedReceivedIBGP(r, peerB, ctxID, labeledUpdateBody([4]byte{10, 0, 0, 2}, 20,
 		labeledNLRI(0, false, pfx, []uint32{100})))
 
 	swapped := gatherCandidatesHeld(r, labeledFamily, cidr, false)
@@ -313,4 +320,6 @@ func TestLabeledRoutesWithDifferentLabelsAreComparable(t *testing.T) {
 		"the label value must not change which route wins")
 	assert.Equal(t, []uint32{200}, labelsFor(r, peerA, cidr),
 		"the winner's own label follows the winning route")
+	assert.Equal(t, uint32(10), bestSwapped.MED, "MED still wins after the label swap")
+	assert.Equal(t, 1, bestRecordCount(r, labeledFamily), "swapping labels creates no second best")
 }

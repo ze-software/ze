@@ -62,11 +62,9 @@ func bgplsRawMessage(t *testing.T) *bgptypes.RawMessage {
 // TestOpaqueNLRIRecordedAsSplitWireBytes verifies the inventory keeps the wire
 // bytes of an NLRI ze cannot parse, one record per NLRI.
 //
-// VALIDATES: wireu.ParseNLRIs returns the WHOLE NLRI section as one opaque
-// *nlri.WireNLRI for a family with no dedicated parser, and its String() is a
-// size summary ("wire[bgp-ls/bgp-ls](21 bytes)") carrying none of the bytes.
-// appendParsedRecords must record hex instead, and must split the section so
-// each NLRI gets its own key.
+// VALIDATES: wireu.ParseNLRIs frames registered families into opaque
+// *nlri.WireNLRI carriers. A non-CIDR carrier's String() is a size summary,
+// not a route identity. appendParsedRecords must retain each route's hex.
 // PREVENTS: a withdrawal-set key that names no route, and one key standing for
 // every NLRI in an UPDATE (a later MP_UNREACH of one of them would miss it and
 // leave the rest announced after the source peer goes down).
@@ -75,15 +73,15 @@ func TestOpaqueNLRIRecordedAsSplitWireBytes(t *testing.T) {
 	require.NotNil(t, records)
 	t.Cleanup(func() { returnNLRIRecords(records) })
 
-	require.Len(t, *records, 2, "the 21-octet section holds two Link-State NLRIs")
-	for _, rec := range *records {
+	require.Len(t, records.records, 2, "the 21-octet section holds two Link-State NLRIs")
+	for _, rec := range records.records {
 		assert.True(t, rec.wireForm, "an unparsed NLRI is recorded in wire form")
 		assert.Equal(t, actionAdd, rec.action)
 		assert.Equal(t, "bgp-ls/bgp-ls", rec.familyName)
 		assert.NotContains(t, rec.nlriStr, "wire[", "the size summary is not an NLRI")
 	}
-	assert.Equal(t, bgplsNLRINode, (*records)[0].nlriStr)
-	assert.Equal(t, bgplsNLRIUnknown, (*records)[1].nlriStr)
+	assert.Equal(t, bgplsNLRINode, records.records[0].nlriStr)
+	assert.Equal(t, bgplsNLRIUnknown, records.records[1].nlriStr)
 }
 
 // TestPeerDownWithdrawsOpaqueNLRIAsWireCommand verifies the peer-down
@@ -102,7 +100,7 @@ func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
 	records := extractWireNLRIRecords(bgplsRawMessage(t))
 	require.NotNil(t, records)
 	rs.withdrawalMu.Lock()
-	rs.applyNLRIRecords("10.0.0.1", *records)
+	rs.applyNLRIRecords("10.0.0.1", records.records)
 	entries := rs.withdrawals["10.0.0.1"]
 	rs.withdrawalMu.Unlock()
 	returnNLRIRecords(records)

@@ -1,31 +1,39 @@
 {
-  "audited": "2026-10-02",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC9117-4.1-1": {
-      "note": "c35 judge: conditions b.1 and b.2 are each discriminated on TestFlowSpecAuthorizationFromReceivedUpdates: + matching ORIGINATOR_IDs, empty path, AS_CONFED_SEQUENCE, AS_CONFED_SET install; - non-empty AS_SEQUENCE with the originator differing by transport or by ORIGINATOR_ID gets no candidate. Author probes c35p/9117-a (b.2 ignored) and 9117-b (originator check removed) turn exactly those cases red; records are reach-only reverts of flowSpecAuthorized. Missing: the row's best-match definition (the unicast route with the longest prefix covering the destination). Every case has one covering route, so judge probe j35/shortest (flowSpecAuthorized picks the SHORTEST covering prefix) leaves every rib test green. Owed: a case with two covering unicast routes of different lengths and different originators, where a rule matching only the shorter one is not installed and one matching the longer one is.",
+      "note": "RFC 9117 Section 4.1: 'b) One of the following conditions MUST hold true: 1. The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). 2. The AS_PATH attribute of the Flow Specification is empty or contains only an AS_CONFED_SEQUENCE segment [RFC5065].' Section 1 adds: 'If AS_CONFED_SET segments are also present in the AS_PATH, the same considerations apply to them.' Both tagged functions were read: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates and internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute. The former installs matching ORIGINATOR_ID, empty-path and each confederation-segment control, and refuses nonlocal paths whose transport or ORIGINATOR_ID differs. Shared BGP identifiers cannot substitute for the transport address. The latter now supplies /8 and /16 routes covering a /24, with distinct originators: internal cases change only the rule originator and require exactly the /16 match to authorize. The nonempty internal AS_SEQUENCE prevents condition b.2 masking b.1, and internal peering isolates originator selection from the external-AS check. Both functions assert current-generation eligibility, received-route retention, candidate availability through the real gatherCandidatesLocked producer, and exact selected-event NLRI/actions or no event. Producers read: handleReceivedStructured, reconcileFlowSpecs, flowSpecDestination, flowSpecASPath, flowSpecOriginator and flowSpecAuthorized in the RIB. The /16 comparison cases close the prior weak verdict's missing longest-prefix clause; selecting /8 instead reverses their exact expectations. Stored revert records establish reach only; this is a source judgment, with no new execution claim. Optional configuration to disable b.2 or permit nonempty paths is outside this MUST and remains absent, not implementation authorization.",
       "requirement_sha": "68e37b051b521571",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ae78183347926044",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ae78183347926044"
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "8037f84d89527ba0",
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "8037f84d89527ba0",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "9cd1a26af442a6a1",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "9cd1a26af442a6a1"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "f56f1a529417e04e",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "f56f1a529417e04e"
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "b7e34ad60a517978",
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "b7e34ad60a517978",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ec6a424c09c479ab",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ec6a424c09c479ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC9117-4.2-1": {
-      "note": "c35 judge: the left-most AS comparison is discriminated on TestFlowSpecAuthorizationFromReceivedUpdates: + eBGP rule from a route-server peer (peer AS 65100) whose left-most AS_SEQUENCE ASN 65001 equals the covering unicast route's installs; - left-most 65002 against 65001, and an AS_SET-first path with no left-most AS_SEQUENCE ASN, get no candidate with the originator matching, so the refusal is this rule's. Probes c35p/9117-c (comparison removed) turn both negatives red and 9117-d (old RFC 8955 rule: left-most vs peer ASN) turns the positive red. Missing: the comparison is against the BEST-MATCH unicast route, and every case has one covering route, so judge probe j35/shortest (selection picks the shortest covering prefix) stays green. Owed: two covering routes of different lengths with different left-most ASNs, the rule matching only the shorter one refused.",
+      "note": "RFC 9117 Section 4.2: 'BGP Flow Specification implementations MUST enforce that the AS in the left-most position of the AS_PATH attribute of a Flow Specification route received via the External Border Gateway Protocol (eBGP) matches the AS in the left-most position of the AS_PATH attribute of the best-match unicast route for the destination prefix embedded in the Flow Specification NLRI.' The explanation defines that AS as the last added to an AS_SEQUENCE; Section 7 makes comparison to the session neighbor ASN optional, not this row's requirement. All tags map to internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates and internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute, both read in full. The former accepts a route-server peer ASN 65100 carrying first AS 65001 matching unicast, and rejects first AS 65002 and an AS_SET-only path while keeping the originator match. The latter places /8 AS65001 and /16 AS65002 over the /24 rule, holds its originator at /16's, and varies only its first AS; /16 succeeds and /8 fails. Thus originator failure cannot explain the external negative. Both assert eligibility, retained state, real candidate enumeration and exact install/no-install events. Producers read: flowSpecASPath and flowSpecAuthorized through handleReceivedStructured/reconcileFlowSpecs; candidate checks reach gatherCandidatesLocked/gatherKeyCandidatesLocked. Reinstating peer-AS comparison rejects the conforming route-server case; bypassing AS equality accepts isolated negatives; choosing the shorter prefix fails the new /16 pair. The previous weak verdict's best-match test gap is closed by this added function. Existing revert records prove producer reach, not semantic mutation coverage; no commands were run for this judgment.",
       "requirement_sha": "7413a96c1e8caade",
       "tests": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ae78183347926044",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ae78183347926044"
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "8037f84d89527ba0",
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "8037f84d89527ba0",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "9cd1a26af442a6a1",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "9cd1a26af442a6a1"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "f56f1a529417e04e",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "f56f1a529417e04e"
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "b7e34ad60a517978",
+        "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "b7e34ad60a517978",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "ec6a424c09c479ab",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "ec6a424c09c479ab"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc9117"

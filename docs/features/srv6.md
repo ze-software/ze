@@ -23,7 +23,7 @@ behaviors.
 | L3/L2 Service TLVs | Types 5 (L3 Service) and 6 (L2 Service) per RFC 9252 Section 3.1 |
 | SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the Service TLV |
 | Transposition | SID Structure Sub-Sub-TLV reconstructs full SID from NLRI label bits (VPN/EVPN) |
-| Path ineligibility | Route with SRv6 TLVs but no valid SID excluded from best-path selection |
+| Path ineligibility | Partial: excludes paths with no extractable SID, but invalid SID Structure parameters can still pass best-path admission |
 | SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
@@ -133,7 +133,7 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: isSRv6Ineligible() excludes routes with broken SRv6 TLVs
+RIB best-path: isSRv6Ineligible() excludes SRv6 paths with no extractable SID
   |
   v
 Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
@@ -257,8 +257,11 @@ the VPP dispatch logic.
 | NH unchanged: preserve TLVs | 3.3 | Implemented (zero-copy forward) |
 | NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented (the Service TLVs leave because Ze allocates no local SRv6 SID; the Prefix-SID handler rewrites the attribute per route) |
 | Malformed Service TLV: treat-as-withdraw | 7 | Partial: a Service TLV overrunning the attribute gets attribute-discard instead (spec D2) |
-| Path ineligibility (no valid SID) | 5 | Partial: an invalid SID Structure still counts as a valid SID (spec D3, D4) |
+| Path ineligibility (no valid SID) | 7 | Partial: invalid SID Structure parameters and transposition widths can still pass best-path admission (spec D3, D4) |
 | SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
+
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
+<!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SID, parseSIDStructure -->
 
 ## Limitations
 

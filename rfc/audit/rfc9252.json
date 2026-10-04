@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC9252-3.1-1": {
       "note": "(a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).",
@@ -142,14 +142,14 @@
       "note": "The wire tag the previous note asked for is present: TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange, now tagged +, relays with next-hop-self on both rails a Prefix-SID whose L3 Service TLV carries an unrecognized Sub-TLV 0xF0 and Sub-Sub-TLV 0xEE, and asserts attribute 40 absent while the route arrives with the new next hop and its NLRI; a handler ignoring the Remove (the KeepAll the old note named) would put attribute 40 on the wire and go red. Observed red with prefixSIDNextHopHandler broken. Negative on TestPrefixSIDPropagationNextHop (next hop unchanged: no removal op). The SHOULD half (rebuild with a locally allocated SID) is not done: Ze allocates none; the MUST (unrecognized removed) is met by removing the whole Service TLVs.",
       "requirement_sha": "332f8de9d0c327f1",
       "tests": {
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "c845a4b49b1894c0",
         "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "91d588c10fec0c6e",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "c845a4b49b1894c0"
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "91d588c10fec0c6e"
       },
       "units": {
+        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "2214ed49b4ee3c25",
         "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "29df0bd665ea969c",
-        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c",
-        "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "2214ed49b4ee3c25"
+        "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "29df0bd665ea969c"
       },
       "verdict": "enforced"
     },
@@ -169,17 +169,17 @@
       "verdict": "weak"
     },
     "RFC9252-5-1": {
-      "note": "'any such' refers back to the Section 7 cases: transposition length wider than the label field, a SID Structure condition of Section 3.2.1 unmet, a non-zero transposition where none applies. TestIsSRv6Ineligible_InvalidSID covers only a SID Information Sub-TLV too short to hold a SID. isSRv6Ineligible decides on pool.ExtractSRv6SID, which returns a valid SID in each of the Section 7 cases, so such a path stays eligible. TestSRv6TranspositionWiderThanLabelFieldIsIneligible is tagged negative but asserts only that no SID is reconstructed, and says in its own comment that ineligibility is not asserted.",
+      "note": "RFC 9252 Section 7: 'The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix.' Its preceding sentence defines invalidity: 'The SRv6 SID value in the SRv6 SID Information Sub-TLV is invalid when the SID Structure Sub-Sub-TLV transposition length is greater than the number of bits of the label field or if any of the conditions for the fields of the Sub-Sub-TLV, as specified in Section 3.2.1, is not met.' Section 7 also requires zero transposition offset/length on families where transposition does not apply. Section 3.2.1 was read with verified erratum 7817 (sum >= offset+length). All tagged tests were read: internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID and ::TestIsSRv6Ineligible_InvalidSID, and internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible. The positive helper test uses a valid extracted SID. The first negative instead supplies a five-octet SID Information Sub-TLV: this is structural malformation whose RFC action is treat-as-withdraw, not an isolated semantic-ineligibility case. The transposition negative supplies an otherwise valid VPNv4 SID Structure with FL=24, offset=48, length=24 and a 20-bit label field, but checks only storedSRv6SID -> storedPathSRv6SID -> srv6SIDFromResult returning no SID. Its final comment explicitly excludes candidate admission from the assertion. Thus its tag claims a selection result the test never checks. rib_bestchange.go::isSRv6Ineligible calls pool.ExtractSRv6SID, which discards the transposition result and returns the extracted SID even for this width violation; rib_commands.go::candidateAdmitted and rib_flowspec_validation.go::reconcileFlowSpecs use that predicate. pool/srv6sid.go::parseSIDStructure also returns no-transposition on invalid sum without invalidating the SID returned by extractSIDFromServiceTLV. These are source-backed existing-capability defects, not authorization to implement absent EVPN reconstruction or endpoint-behavior features. Proposed unrun reproduction: feed the existing tooWide=24 VPNv4 fixture and assert zero real candidates and no best-change install; pair with valid 20-bit boundary input. Current tests can stay green while the invalid route participates in selection. No build, test or mutation was run for this judgment; no matching discrimination record exists.",
       "requirement_sha": "9e89afa433b86ebd",
       "tests": {
         "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_InvalidSID": "c72623c62630c397",
         "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID": "c72623c62630c397",
-        "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "fff9c223a3fde23a"
+        "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "cb9ea282a1c83121"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_InvalidSID": "83e8742884843e80",
         "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID": "df909dc03b5755bf",
-        "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "7005266a1978bd6f"
+        "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "05ed2002ebf57143"
       },
       "verdict": "weak"
     },

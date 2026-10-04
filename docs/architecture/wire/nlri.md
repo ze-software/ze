@@ -608,7 +608,9 @@ on the name (the route reflector's withdrawal map) pairs a SAFI 4 announcement,
 held as a `WireNLRI`, with its withdrawal, held as an `INET`. The route server
 keys both arms by the prefix and Path Identifier (`appendOpaqueRecords`,
 `appendParsedRecords`) and keeps the announcement's hex for its peer-down
-withdrawal.
+withdrawal. Inventory extraction keeps CIDR scratch in the same pooled holder
+as its records and reuses it across the UPDATE. Families without CIDR keys do
+not call the CIDR decoder.
 
 <!-- source: internal/component/bgp/wireu/mpwire.go -- ParseWithdrawnNLRIs, wrapNLRI -->
 <!-- source: internal/core/bgp/nlri/wire.go -- WireNLRI.String -->

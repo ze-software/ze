@@ -1,5 +1,5 @@
 // Copy of the untracked red test internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_red_test.go:
-// it belongs to plan/immediate/spec-bgp-addpath-best-path-per-prefix.md (RFC8277-3.1-1) as its
+// it belongs to spec-bgp-addpath-best-path-per-prefix (RFC8277-3.1-1) as its
 // failing-first test.
 // Design: docs/architecture/plugin/rib-storage-design.md -- best-path candidates
 // RFC: rfc/short/rfc8277.md -- RFC8277-3.1-1, comparability on one ADD-PATH session

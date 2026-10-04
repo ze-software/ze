@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-30",
+  "audited": "2026-10-04",
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5575-4-1": {
@@ -55,21 +55,21 @@
       "verdict": "enforced"
     },
     "RFC5575-4-8": {
-      "note": "Both clauses proven. Encode: flowspec_wire_contract_test asserts a zero-length MP_REACH next hop even with a configured IPv4/IPv6 address. Receipt: TestRFC8955NextHopIgnoredForFlowSpec (tags added, assertions unchanged) drives the real RIB producer and requires identical selected rules/actions whatever next-hop bytes arrive, and that self or non-address bytes cannot exclude or replace the candidate.",
+      "note": "Historical identity retained; RFC 5575 is superseded, not the live authority. RFC 5575 Section 4: 'Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.' The live obligations are RFC 8955 Section 4: 'When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.' and 'The Network Address of the Next-Hop field MUST be ignored.' Both tagged functions were read. internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop drives UpdateBuilder.BuildFlowSpec and the UPDATE writer, asserts the literal zero next-hop length and unchanged NLRI bytes with each configured IPv4/IPv6 address, and rejects a decoded forwarding address. Its producer is internal/component/bgp/message/update_build_flowspec.go::buildMPReachFlowSpec, which never reads the configured NextHop. However, gopls references for BuildFlowSpec identify internal/chaos/peer/sender.go::buildFlowSpecRoute as its only non-test caller. The daemon's config-route sender instead invokes BuildPlugin at internal/component/bgp/reactor/peer_initial_sync.go::sendPluginRoutesVia, and the independent internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin asks Family.NeedsNextHop before encoding the length. The API batch and queued RIB writers have their own family-dependent gates. Neither tagged function reaches these daemon advertisement producers. A configured-address regression in buildMPReachPlugin therefore leaves the tagged encoding assertion unchanged; this is a source-backed discrimination gap, not an executed mutation result or a present encoding defect. internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec does prove the receipt clause: handleReceivedStructured receives nil, self-address and non-address next-hop bytes; each generation must remain eligible, have exactly one real candidate, and preserve the single selected rule and exact action bytes. The nil case is the conforming control; nonzero cases isolate ignored receipt semantics. gatherCandidatesHeld reaches gatherCandidatesLocked, candidateAdmitted and extractCandidate read rib_bestchange.go::entryNextHopAddr, and its FlowSpec branch ignores both MP and unrelated legacy NEXT_HOP. Existing receipt revert records prove this producer reach only. The whole historical row remains weak because the advertised-zero clause does not exercise the daemon's producing functions. No test or discrimination command was run for this judgment, and no tests or production were edited.",
       "requirement_sha": "274b77e34ff118dd",
       "tests": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "fd0429028bee0447",
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "ae78183347926044",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "ae78183347926044"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "9cd1a26af442a6a1",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "9cd1a26af442a6a1"
       },
       "units": {
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",
         "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "8e1470a4697c8555",
-        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "8e1470a4697c8555"
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec": "a590b2390baa5841",
+        "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2": "a590b2390baa5841"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5575-5.1-1": {
       "note": "Forbidden: an ordering that depends on arrival order. TestFlowSpecPrecedenceFromWire always parses the expected-first rule first, so an arrival-order tie-break still yields Compare(a,b)<0 and Compare(b,a)>0; the negative tag says reversing arrival order cannot reverse precedence, but no case parses the pair in the reverse order or feeds the ordering from two arrival sequences.",

@@ -49,11 +49,11 @@
       "rid": "RFC2918-4-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh",
-      "unit-sha": "5195faade5bcc046",
+      "unit-sha": "9306faf697dc8e3b",
       "claim-sha": "08eef7c8adfedc90",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-      "producer-sha": "3a0c432ed15b6cb5",
+      "producer-sha": "d992db8e9f39ba5b",
       "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -71,7 +71,7 @@
       "rid": "RFC2918-4-3",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState",
-      "unit-sha": "dc7158d6e752ab97",
+      "unit-sha": "f5d2c3f50819a0a6",
       "claim-sha": "365dcdddfa2cf2a0",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
@@ -119,7 +119,7 @@
       "claim-sha": "def37428f24761e2",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleSentStructured",
-      "producer-sha": "3a0c432ed15b6cb5",
+      "producer-sha": "d992db8e9f39ba5b",
       "break": "body of handleSentStructured replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801"
     }

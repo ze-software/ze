@@ -1,5 +1,5 @@
 {
-  "audited": "2026-10-03",
+  "audited": "2026-10-04",
   "requirements": {
     "RFC8277-2-2": {
       "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. All three transmitters now covered with whole-NLRI literals: LabeledUnicast.WriteTo by TestLabeledSingleLabelSection22Encoding (HEAD, require.Equal on the whole encoding), and UpdateBuilder.BuildLabeledUnicastNLRIBytes (plain and ADD-PATH) and buildVPNNLRIBytes by TestRFC8277BuilderLabelLayout (20 000641 0a, 00000007 20 000641 0a, 60 000641 <RD> 0a; recorded revert of WriteLabelValues; judge overlay dropping the S line of WriteLabelValues reds every case). {single-polarity: positive} is valid: a one-label stack has one layout and Length is computed from the input, so no input reaches a non-Section-2.2 encoding; the reason now names all three transmitters (correction paragraph in rfc/corrections/rfc8277.md). Residual: the HEAD WriteTo unit has no discrimination record of its own.",
@@ -39,8 +39,8 @@
         "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy": "7709e060b8ea799b",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "c829ac5b6e0bd533",
         "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "c829ac5b6e0bd533",
-        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "185c8ef1c3f2dd5e",
-        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "185c8ef1c3f2dd5e"
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "d64eacce2b177603",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "d64eacce2b177603"
       },
       "units": {
         "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
@@ -85,15 +85,29 @@
       "verdict": "enforced"
     },
     "RFC8277-2.4-1": {
-      "note": "The tagged units prove the RIB plugin alone. TestRFC8277LabeledWithdrawIgnoresCompatibility and its ADD-PATH twin withdraw through handleReceivedStructured with Compatibility 0x800000, 0x000000 (both S clear, which the announcement S-bit walk misframes), label 999 and all-ones (S set, read as a label that matches no stored label), asserting Len 0 / the named path gone, the other path's label [200] kept, and a published withdraw; red if the field is read as a label or frames the NLRI. The requirement is a receive obligation of the whole stack, and another receive path does not meet it: MPUnreachWire.NLRIs (internal/component/bgp/wireu/mpwire.go) frames an MP_UNREACH NLRI with nlrisplit.Split, the announcement splitter, not SplitWithdrawn. An -overlay probe on 2026-10-03 returned 'nlrisplit: truncated label stack at offset 0' and no NLRI for [32 80 00 00 0a] and [32 00 00 00 0a], and one NLRI for Compatibility 0x000001. Its callers include format/text_update.go:457 (the received-UPDATE text and JSON event) and rr/withdrawal.go:63 (the route reflector's withdrawal map), so the RECOMMENDED value is not ignored there and no tagged unit can go red for it. TestLabeledCompatibilityFieldWithdrawalGap (nlrisplit) still pins the announcement-walk misread. Both tags are positive and the row has no {single-polarity} or {gap} annotation; TestVPNWithdrawIgnoresCompatibilityValue covers SAFI 128 but is untagged.",
+      "note": "RFC 8277 Section 2.4: Upon reception, the value of the Compatibility field MUST be ignored. Read the full section, current RFC Editor lineage (no update, successor or errata listed), every current tag carrier and its producing path. The three format tests assert exact del operations, including ADD-PATH 7, zero and label-like Compatibility values, and the /24 case that would be misdecoded as a label. MPUnreachWire.NLRIs now uses ParseWithdrawnNLRIs; wrapNLRI uses RouteCIDR with withdrawal framing, and appendNLRIJSONValue keeps INET out of plugin decoders. The two labeled RIB tests assert removal across four Compatibility values and retention of the other path's label; the VPN tests assert removal, the announced NLRI on withdrawal, and promotion of the other PE. FamilyRIB.Withdraw, LabeledWithdrawnPrefix, keyLabeled/keyVPN, and checkRouteBestChange implement their claimed identities. The rs and rr tagged tests assert that one of two same-length SAFI-4 prefixes survives, exercising appendOpaqueRecords/recordKey and walkNLRIsAllocating/WireNLRI.String respectively. Their assertions discriminate their stated SAFI-4 cases. The negative format tag is a nonrecommended field-value boundary, not a malformed NLRI; acceptance rather than rejection is required. Whole-stack enforcement remains unproven: RouteCIDR is registered only for SAFI 4, so wrapNLRI leaves VPN withdrawals opaque, rs opaqueRouteCIDR fails and recordKey retains full hex including Compatibility, which cannot remove a route announced with another label. The rr opaque fallback names VPN routes only by byte length, so two equal-size VPN routes alias. These are source-derived findings, not observed reproductions; proposed reproduction is two VPN routes of equal length followed by one 0x800000 withdrawal, asserting exact survivor identity and inventory count. The tagged rs/rr tests exercise neither case. The existing scoped gap is preserved in plan/handover/bgp-addpath-link-local-startup-race-review-and-closure.md, Not done, and who owns it, and the 2026-10-03 spec-bgp-addpath-best-path-per-prefix row of plan/journal/key-omits-a-fact-the-builder-uses.md; the sibling VPN decoder gap is recorded in plan/journal/guard-added-to-one-half-of-a-pair.md. These records do not authorize extending this implementation slice. Do not upgrade from weak on the SAFI-4 fix alone. Producer-linked discrimination renewal remains pending final rs allocation code; no proof was executed by this audit.",
       "requirement_sha": "712d43a16c62b1a7",
       "tests": {
+        "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues": "8f531bbb7a9e465d",
+        "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNamesThePrefix": "8f531bbb7a9e465d",
+        "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNeverReachesTheLabelDecoder": "8f531bbb7a9e465d",
         "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility": "7417f4bf72774671",
-        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "7417f4bf72774671"
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "7417f4bf72774671",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue": "3fbbf9d71f13af0f",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE": "a8f7e5bfb3bfcd13",
+        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "adcba7a7391a9222",
+        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "9d2fcd5041177847"
       },
       "units": {
+        "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues": "1cd0a026fa62fdb5",
+        "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNamesThePrefix": "16382ea43e0bfbd9",
+        "internal/component/bgp/format/rfc8277_withdraw_event_test.go::TestLabeledWithdrawalEventNeverReachesTheLabelDecoder": "7dd9de739618f859",
         "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility": "a7585bb811f11368",
-        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "1b7e5c362b993a25"
+        "internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go::TestRFC8277LabeledWithdrawIgnoresCompatibility": "1b7e5c362b993a25",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestVPNWithdrawIgnoresCompatibilityValue": "b5a6f9881a387401",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_withdraw_best_test.go::TestVPNWithdrawPromotesTheOtherPE": "3b800cee588fd288",
+        "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap": "a0dc29dfb4d8181e",
+        "internal/component/bgp/plugins/rs/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheRouteServerSet": "619ab964508b5f2c"
       },
       "verdict": "weak"
     },
@@ -101,9 +115,9 @@
       "note": "Forbidden: keeping L1 bound, or holding two bindings, after U2 for the same prefix and next hop without ADD-PATH. TestLabeledImplicitWithdrawalNoAddPath (SAFI 4, ingest) asserts Len()==1 and labelsFor==[200] after U2; red if a second entry or L1 survives. TestRFC8277VPNRelabelReplacesTheRoute (SAFI 128, ingest) asserts FamilyLen==1, the route found by its first NLRI (label not in the key), the walk handing back only the new-label NLRI, and the second best-change naming the new label; red if the label stays in the key or the relabel is swallowed. The negative is a boundary case rather than a violating input: an UPDATE for a different prefix must not withdraw the first binding (Len()==2, label 200 kept).",
       "requirement_sha": "57e1a0588d672167",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "26fbcadc788e5990",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "26fbcadc788e5990",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute": "5eb97d55463ed548"
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute": "3fbbf9d71f13af0f"
       },
       "units": {
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "0c4f435dc21741b2",
@@ -113,14 +127,18 @@
       "verdict": "enforced"
     },
     "RFC8277-2.5-2": {
-      "note": "The earlier weak finding was that labelsFor(cidr9)==[300] could not isolate path 9 because label side-data was keyed on the prefix alone. TestRFC8277AddPathLabelsBoundPerPath now holds path 7 at [100] beside path 9 throughout, so after path 9 is re-advertised with 300: labelsFor(cidr9)==[300] exactly (red if L1 200 survives or is stacked with L2), and labelsFor(cidr7)==[100] (red if L2 lands on the wrong path or the bindings share a prefix key). TestLabeledImplicitWithdrawalAddPath supplies the route-entry clause (Len()==2 after re-advertising path 9, red on a third entry) and the negative: a different path id withdraws nothing (path 7 still found). Both via the real ingest path.",
+      "note": "Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 2.5: \"If I1 is the same as I2, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1.\" TestRFC8277AddPathSameNextHopKeepsIndependentLabels holds peer, prefix, next hop and MED fixed; a reused path 9 replaces [200] by exactly [300], leaves exactly two routes and path 7 at [100]. Its negative boundary uses a different identifier, retaining both routes and both labels. Existing TestLabeledImplicitWithdrawalAddPath and TestRFC8277AddPathLabelsBoundPerPath retain route-entry and binding isolation coverage. pathSet.setLabels binds only the named entry; the parent observed the new test fail with [200] instead of [300] when that producer retained the old handle, and pass in the complete RIB race run. Native records separately observe producer disabling; no generic best-path compliance is inferred.",
       "requirement_sha": "44d0d337cb26bea6",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "26fbcadc788e5990",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "26fbcadc788e5990",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "26fbcadc788e5990"
+        "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "ddc271ea38bff667",
+        "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels#2": "ddc271ea38bff667",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "bc08d30bba92c34b"
       },
       "units": {
+        "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "6324c6dc9f1b1493",
+        "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels#2": "6324c6dc9f1b1493",
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "0d3d070dabaf72a3",
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "0d3d070dabaf72a3",
         "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "5e4d66177578306a"
@@ -128,30 +146,34 @@
       "verdict": "enforced"
     },
     "RFC8277-2.5-3": {
-      "note": "The assertions discriminate; the polarity pair does not exist. TestRFC8277AddPathLabelsBoundPerPath, through ingest on one ADD-PATH session, asserts after path 9 binds 200: labelsFor(cidr7)==[100] (the MUST NOT clause: red if U2 unbinds L1) and labelsFor(cidr9)==[200] (the L2 clause), and that path 7 keeps 100 across a relabel and a withdrawal of path 9. But the row carries only this positive tag and no {single-polarity} annotation, so no tagged unit stands as the negative and 'enforced' is not admissible. The fix is the tag author's: tag a negative (a same-id UPDATE that DOES unbind, which TestLabeledImplicitWithdrawalAddPath already drives) or argue {single-polarity} on the row.",
+      "note": "Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 2.5: \"If I1 is not the same as I2, U2 MUST be interpreted as meaning that L2 is now bound to P at N1, but U2 MUST NOT be interpreted as meaning that L1 is no longer bound to P at N1.\" The new positive TestRFC8277AddPathSameNextHopKeepsIndependentLabels holds the same-next-hop premise that the earlier different-next-hop test did not isolate: path 9 binds [200] while path 7 keeps [100], including across relabel and targeted withdrawal. TestRFC8277AddPathSameIdentifierRebinds supplies the negative boundary: the SAME path 7 leaves one route with [200] alone. Both reach received UPDATE ingestion and per-path label storage. Parent observed the new positive fail with path 7 reading [200] when setLabels bound every update to the first entry; normal complete RIB race run passed. This closes both the formerly absent negative tag and the same-next-hop proof gap.",
       "requirement_sha": "4cfb6903cb079bf6",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "26fbcadc788e5990"
+        "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "ddc271ea38bff667",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathSameIdentifierRebinds": "bc08d30bba92c34b"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "5e4d66177578306a"
+        "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "6324c6dc9f1b1493",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "5e4d66177578306a",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathSameIdentifierRebinds": "39c40f71cb75d122"
       },
-      "verdict": "weak"
+      "verdict": "enforced"
     },
     "RFC8277-3.1-1": {
-      "note": "Both cases of the Section 3.1 premise now carry an assertion. Different sessions: TestLabeledRoutesWithDifferentLabelsAreComparable (gatherCandidates Len==2, MED winner unchanged when only the labels swap, the negative). Same ADD-PATH session, different path ids: TestRFC8277AddPathRoutesOnOneSessionAreComparable feeds paths 7 (label 100, MED 20) and 9 (label 200, MED 10) over iBGP through handleReceivedStructured and asserts, from either path's key, 2 candidates and path 9 elected; MED opposes the lowest-path-id tie-break, so a per-path-id election (one candidate per key, path 7's key electing path 7) goes red on both assertions. The gathered set is the one checkRouteBestChange elects over (gatherPrefixCandidatesLocked, gatherKeyCandidatesLocked). TestRFC8277VPNAddPathLabelsAreOneElection proves the SAFI-128 same-session case by candidates==2 only: its winner, path 7, wins on MED and on the path-id tie-break alike, so its selection assertion does not discriminate MED, and it inserts through PeerRIB.Insert rather than ingest. Residual, not this row: SAFI-128 across two sessions has no tagged unit, and no tagged unit asserts the published best-change for the one-session case.",
+      "note": "Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 3.1: \"These two routes MUST be considered to be comparable, even if they specify different labels.\" The same section extends this to SAFI-128. Different sessions: strengthened TestLabeledRoutesWithDifferentLabelsAreComparable uses iBGP and opposes MED against peer-address fallback, gathers exactly two candidates, elects MED10 and counts exactly one stored best before and after swapping labels. The swap is the negative label-invariance assertion. Same ADD-PATH session: TestRFC8277AddPathRoutesOnOneSessionAreComparable gathers both identifiers from either lookup key and elects path9 by MED rather than path-id order; TestRFC8277VPNAddPathLabelsAreOneElection covers SAFI128. gatherPrefixCandidatesLocked/gatherKeyCandidatesLocked collect the shared election set; checkRouteBestChange retains one winner. Parent observed the strengthened different-session unit fail when comparePair skipped MED, and the complete RIB race package passed normally. This proves comparability and these elections, not every RFC4271 multi-candidate criterion.",
       "requirement_sha": "688242e75d18672d",
       "tests": {
-        "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable": "2eebad111b5a9fd6",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable": "26fbcadc788e5990",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable#2": "26fbcadc788e5990",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go::TestRFC8277VPNAddPathLabelsAreOneElection": "4e298f194533f744"
+        "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable": "088cc628bcb28fbb",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable#2": "bc08d30bba92c34b",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go::TestRFC8277VPNAddPathLabelsAreOneElection": "90e1c653b4d37d98"
       },
       "units": {
-        "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable": "fd142dbabb6d9444",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable": "61e04c91abc4c535",
-        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable#2": "61e04c91abc4c535",
-        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go::TestRFC8277VPNAddPathLabelsAreOneElection": "8160098bc02b7733"
+        "internal/component/bgp/plugins/rib/rfc8277_addpath_comparable_test.go::TestRFC8277AddPathRoutesOnOneSessionAreComparable": "c8cc432d8e5eb610",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable": "a8aee27cf6e47278",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable#2": "a8aee27cf6e47278",
+        "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_addpath_test.go::TestRFC8277VPNAddPathLabelsAreOneElection": "4e8064a8b699f73d"
       },
       "verdict": "enforced"
     },
