@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf/ospf-ext-6-authentication.md -- OSPF packet authentication.
+// Design: docs/architecture/ospf/ospf-12-auth.md -- OSPF packet authentication.
 // Related: auth_keystore.go -- authStore.verify, the AuType check.
 // Related: rfc2328_receive_test.go -- receiveEngine and the whole-packet receive tests.
 //

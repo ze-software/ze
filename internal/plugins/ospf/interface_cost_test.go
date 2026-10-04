@@ -7,6 +7,7 @@
 package ospf
 
 import (
+	"net/netip"
 	"slices"
 	"testing"
 	"testing/synctest"
@@ -277,6 +278,8 @@ func TestReferenceBandwidthReloadRepricesEveryAddressFamily(t *testing.T) {
 // receiveHello reads for TwoWay, while Full needs a database exchange with a peer and
 // ospf-auto-cost-frr is where a peer exists.
 func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
+	// MUST stop each engine before the isolated iface backend is restored.
+	installOSPFAddressBackend(t)
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
 	synctest.Test(t, func(t *testing.T) {
 		// min-ls-interval-ms 1 lets the reload's origination install inside one test. RFC 2328
@@ -292,7 +295,6 @@ func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
 		}
 		eng := newEngine(transport.New(&fakeBackend{}))
 		eng.setConfig(cfg)
-		addressedTopology(eng)
 		if err := eng.openInterfaces(); err != nil {
 			t.Fatalf("openInterfaces: %v", err)
 		}
@@ -308,13 +310,14 @@ func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
 		// 2-Way. A Hello that lists nobody leaves it one-way in Init, and NeighborCount counts a
 		// one-way neighbor the same, so the neighbor state is read out of the neighbor table.
 		hello := types.Hello{
+			NetworkMask:   [4]byte{255, 255, 255, 0},
 			HelloInterval: detail.HelloInterval,
 			DeadInterval:  uint32(detail.DeadInterval),
 			Options:       types.OptionE,
 			Priority:      1,
 			Neighbors:     []types.RouterID{cfg.RouterID},
 		}
-		if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
+		if reason := before.ReceiveDecodedHello(peer, netip.AddrFrom4([4]byte{192, 0, 2, 2}), hello, time.Now()); reason != "" {
 			t.Fatalf("ReceiveHello: %s", reason)
 		}
 		if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {
@@ -388,6 +391,8 @@ func TestReferenceBandwidthReloadKeepsNeighborAndReprices(t *testing.T) {
 // Passive and loopback interfaces must also publish after MinLSInterval without
 // a restart or a test-triggered origination retry.
 func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
+	// MUST stop each engine before the isolated iface backend is restored.
+	installOSPFAddressBackend(t)
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
 	for _, mode := range []struct {
 		name    string
@@ -411,7 +416,6 @@ func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
 				eng := newEngine(transport.New(&fakeBackend{}))
 				defer eng.shutdown()
 				eng.setConfig(cfg)
-				addressedTopology(eng)
 				if err := eng.openInterfaces(); err != nil {
 					t.Fatalf("openInterfaces: %v", err)
 				}
@@ -420,12 +424,13 @@ func TestExplicitCostReloadKeepsNeighborAndReprices(t *testing.T) {
 				if mode.name == "active" {
 					detail := before.Snapshot()
 					hello := types.Hello{
+						NetworkMask:   [4]byte{255, 255, 255, 0},
 						HelloInterval: detail.HelloInterval,
 						DeadInterval:  uint32(detail.DeadInterval),
 						Options:       types.OptionE,
 						Neighbors:     []types.RouterID{cfg.RouterID},
 					}
-					if reason := before.ReceiveHello(peer, hello, time.Now()); reason != "" {
+					if reason := before.ReceiveDecodedHello(peer, netip.AddrFrom4([4]byte{192, 0, 2, 2}), hello, time.Now()); reason != "" {
 						t.Fatalf("ReceiveHello: %s", reason)
 					}
 					if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != "2-way" {

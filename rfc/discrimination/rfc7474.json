@@ -27,7 +27,7 @@
       "rid": "RFC7474-2-3",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474EverySentPacketIncrementsSequence",
-      "unit-sha": "48ca9dee17c8f0cc",
+      "unit-sha": "b2d4e1d9351f75d7",
       "claim-sha": "33cb68f4e546bbfe",
       "route": "revert",
       "producer": "internal/plugins/ospf/auth_keystore.go::signKey",

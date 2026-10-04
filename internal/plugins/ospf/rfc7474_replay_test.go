@@ -129,9 +129,15 @@ func rfc7474SentSequence(t *testing.T, sent []byte) uint64 {
 		t.Fatal("signPacket returned nil: nothing was sent")
 	}
 	key := packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("k")}
-	seq, ok := packet.Verify(sent, packet.AuTypeCryptographicESN, key, [4]byte{})
+	// RFC 7474 Section 5: the source is the fixture's interface address, not zero.
+	seq, ok := packet.Verify(sent, packet.AuTypeCryptographicESN, key, [4]byte{192, 0, 2, 1})
 	if !ok {
 		t.Fatal("the sent packet does not verify as AuType 3")
+	}
+	for _, source := range [][4]byte{{}, {192, 0, 2, 2}} {
+		if _, ok := packet.Verify(sent, packet.AuTypeCryptographicESN, key, source); ok {
+			t.Fatalf("the sent packet verifies with wrong IP source %v", source)
+		}
 	}
 	return seq
 }
@@ -142,6 +148,7 @@ func rfc7474SentSequence(t *testing.T, sent []byte) uint64 {
 func TestRFC7474EverySentPacketIncrementsSequence(t *testing.T) {
 	// Goal: the increment happens per SENT packet, on the send path. Method: send three
 	// packets through engine.signPacket and decode each packet's sequence.
+	installOSPFAddressBackend(t)
 	installDaemonState(t)
 	store := daemonStateClient{}
 	if err := store.StatePut(context.Background(), zefs.KeyOSPFAuthBootCount.Key(), []byte{0, 0, 0, 7}); err != nil {

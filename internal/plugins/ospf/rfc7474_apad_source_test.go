@@ -118,9 +118,10 @@ func (h *rfc7474RawHandle) Close() error {
 	return nil
 }
 
-// rfc7474ApadEngine loads the address backend, then runs an engine whose broadcast eth0 is
-// authenticated by an AuType 3 (extended-sequence) HMAC-SHA-256 key chain.
-func rfc7474ApadEngine(t *testing.T) (*engine, *rfc7474RawBackend) {
+// installOSPFAddressBackend supplies eth0 as 192.0.2.1/24 through the production
+// iface registry, independent of host interfaces. Callers MUST NOT run in parallel
+// and MUST stop their engines before cleanup restores the previous backend.
+func installOSPFAddressBackend(t *testing.T) {
 	t.Helper()
 	if err := registerRFC7474AddressBackend(); err != nil {
 		t.Fatal(err)
@@ -142,6 +143,17 @@ func rfc7474ApadEngine(t *testing.T) (*engine, *rfc7474RawBackend) {
 	if got := interfaceIPv4Address("eth0"); got != [4]byte{192, 0, 2, 1} {
 		t.Fatalf("precondition: eth0 address %v, want 192.0.2.1 from the iface backend", got)
 	}
+	if got := interfaceNetworkMask("eth0"); got != [4]byte{255, 255, 255, 0} {
+		t.Fatalf("precondition: eth0 mask %v, want /24 from the iface backend", got)
+	}
+}
+
+// rfc7474ApadEngine loads the address backend, then runs an engine whose broadcast eth0 is
+// authenticated by an AuType 3 (extended-sequence) HMAC-SHA-256 key chain.
+func rfc7474ApadEngine(t *testing.T) (*engine, *rfc7474RawBackend) {
+	t.Helper()
+	// MUST stop the engine before installOSPFAddressBackend restores the backend.
+	installOSPFAddressBackend(t)
 	const data = `{"ospf":{"router-id":"10.0.0.1",` +
 		`"areas":{"area":{"0":{"area-id":"0","authentication":{"key-chain":"kc1"}}}},` +
 		`"interfaces":{"interface":{"eth0":{"area":"0","network-type":"broadcast","hello-interval":1,"authentication":{"mode":"inherit"}}}},` +

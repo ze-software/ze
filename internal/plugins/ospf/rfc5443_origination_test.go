@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf.md -- RFC 5443 LDP-IGP synchronization, read at origination.
+// Design: docs/architecture/ospf/ospf-ext-11-ldp-igp-sync.md -- LDP-IGP synchronization at origination.
 // Related: ldp_sync.go -- applyLDPSyncOverride, the producer these tests drive.
 // Related: ldp_sync_test.go -- the state-machine tests over the same manager.
 //

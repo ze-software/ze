@@ -245,7 +245,11 @@ func TestOSPFConfigApplyReconcile(t *testing.T) {
 	}
 }
 
+// TestOSPFReconcileAreaTypeRefreshesRuntime isolates the interface network and
+// checks that an area reload changes the Hello E-bit guard, not the mask guard.
 func TestOSPFReconcileAreaTypeRefreshesRuntime(t *testing.T) {
+	// MUST stop the engine before the isolated iface backend is restored.
+	installOSPFAddressBackend(t)
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0","area-type":"normal"}}},"interfaces":{"interface":{"eth0":{"area":"0"}}}}}`), nil)
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
@@ -278,8 +282,17 @@ func TestOSPFReconcileAreaTypeRefreshesRuntime(t *testing.T) {
 	eng.mu.Lock()
 	ifc := eng.interfaces["eth0"]
 	eng.mu.Unlock()
-	if got := ifc.ReceiveHello(peer, h, time.Now()); got != "options-e" {
+	// RFC 2328 Section 10.5: the wrong mask is still rejected before the E-bit.
+	if got := ifc.ReceiveDecodedHello(peer, netip.AddrFrom4([4]byte{192, 0, 2, 2}), h, time.Now()); got != "network-mask" {
+		t.Fatalf("stub runtime ReceiveHello = %q, want network-mask", got)
+	}
+	h.NetworkMask = [4]byte{255, 255, 255, 0}
+	if got := ifc.ReceiveDecodedHello(peer, netip.AddrFrom4([4]byte{192, 0, 2, 2}), h, time.Now()); got != "options-e" {
 		t.Fatalf("stub runtime ReceiveHello = %q, want options-e", got)
+	}
+	h.Options = 0
+	if got := ifc.ReceiveDecodedHello(peer, netip.AddrFrom4([4]byte{192, 0, 2, 2}), h, time.Now()); got != "" {
+		t.Fatalf("stub runtime rejected matching Hello: %q", got)
 	}
 }
 

@@ -45,6 +45,16 @@ extended 64-bit cryptographic sequence).
   protection AND a conformant peer forms zero AuType-3 adjacencies. A
   self-round-trip test cannot catch this, because both sides share the same wrong
   Apad. Sign with one source and verify with another.
+  The engine signer captures its source through the iface backend when the
+  key chain is configured. Signer tests MUST install the isolated address
+  backend before configuring the chain and verify against the fixture's
+  explicit source, not zero or a value copied from the signer's cached state.
+  A fake transport alone still reads the host's `eth0` on Linux and Colima.
+  The per-packet sequence test verifies with `192.0.2.1` and rejects zero and a
+  different source; the independent HMAC tests retain their separate digest
+  construction.
+  <!-- source: internal/plugins/ospf/rfc7474_apad_source_test.go -- installOSPFAddressBackend, rfc7474ExpectedDigest -->
+  <!-- source: internal/plugins/ospf/rfc7474_replay_test.go -- rfc7474SentSequence, TestRFC7474EverySentPacketIncrementsSequence -->
 - **The accept-lifetime gate runs BEFORE the digest and before the replay
   bookkeeping.** RFC 7474 Section 4 requires the accept window to include the
   current time for a key used on reception, so a key outside its window is

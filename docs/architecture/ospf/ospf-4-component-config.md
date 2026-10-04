@@ -34,9 +34,11 @@ lifecycle callbacks, transport enrollment and config validation.
 - **The engine's interface address and mask come from the iface component.**
   `interfaceNetworkMask` and `interfaceIPv4Address` read the live addresses
   when the interface runtime starts, and the receive check above reads that same
-  pair. A unit test that needs a real mask runs on `lo` with the netlink backend
-  blank-imported, not through a test-only engine field.
+  pair. Kernel-address integration tests run on `lo` with the netlink backend
+  blank-imported. Host-independent engine tests install an isolated iface backend
+  through the same registry, not a test-only engine field.
   <!-- source: internal/plugins/ospf/interface_addr.go -- interfaceNetworkMask, interfaceIPv4Address -->
+  <!-- source: internal/plugins/ospf/rfc7474_apad_source_test.go -- installOSPFAddressBackend -->
 - **Only the interface's first IPv4 address and prefix form the OSPF
   interface.** RFC 2328 section 9 gives an OSPF interface one IP address and one
   mask, so the engine takes the first IPv4 address the iface component lists and
@@ -134,6 +136,16 @@ lifecycle callbacks, transport enrollment and config validation.
   unknown-speed branch instead.
   <!-- source: internal/plugins/ospf/interface_cost_test.go -- stubLinkSpeed -->
   <!-- source: internal/plugins/iface/netlink/show_linux.go -- parseLinkSpeedDuplex -->
+- A fake raw-socket backend does not isolate interface addresses. On Linux,
+  including Colima, `eth0` can exist with a nonzero mask even when the transport
+  is fake. The reload tests install the registered `192.0.2.1/24` fixture before
+  configuring the engine and opening interfaces, and their Hellos carry that
+  fixture's mask. Repricing reads the unmodified production topology; changing
+  only the LSDB topology cannot fix a Hello's runtime mask mismatch. The
+  area-type reload test separately checks a wrong mask, a wrong E-bit and a
+  matching Hello, so isolating the fixture does not bypass either guard.
+  <!-- source: internal/plugins/ospf/interface_cost_test.go -- TestReferenceBandwidthReloadKeepsNeighborAndReprices, TestExplicitCostReloadKeepsNeighborAndReprices -->
+  <!-- source: internal/plugins/ospf/rfc6549_instance_test.go -- TestOSPFReconcileAreaTypeRefreshesRuntime -->
 
 The `ospf-auto-cost-frr` checker also reloads an explicit cost of 17 after Full
 and then removes it to restore auto-cost 47. It reads both metrics from FRR's
