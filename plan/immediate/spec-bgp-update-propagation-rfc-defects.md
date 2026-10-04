@@ -72,7 +72,7 @@ untagged, with no enforced verdict claimed.
 | Discrimination | `./le rfc discriminate-record` for every tagged unit |
 | Real entry point | `.ci` tests: a peer sends the UPDATE, a second peer receives the re-advertisement |
 | D6 cases | a received Global plus Link-Local next hop forwarded under next-hop auto to a multihop internal peer carries the global address only (red against HEAD); to an internal peer on the same link it may keep the link-local. The multihop EBGP twin (4-8, "Link-Local IPv6 next hops MUST NOT be included.") goes through the eBGP next-hop rewrite, which was not traced: the same test covers it |
-| Interop | D1, D2 against FRR or BIRD as the receiving peer; D4 against a Role-capable FRR; D6 with FRR as a multihop iBGP receiver |
+| Interop | D1, D2 against FRR or BIRD as the receiving peer; D4 against a Role-capable FRR; D6 with FRR as a multihop eBGP receiver (`bgp-linklocal-only-multihop-withdraw-frr`, FRR AS 65002, Ze AS 65001, 834f7d26e2). The multihop internal case (4-1, 4-2) is proven by unit tests only |
 
 ## D6 design (owner decisions 2026-10-03)
 
@@ -116,7 +116,11 @@ mods.SetWithdraw() and buildWithdrawalPayload, the RFC 9494 LLGR conversion;
 wireu.WithdrawalsOnly lost its forward-rail callers and was deleted with its
 test (owner approval, Thomas, 2026-10-03: "Delete both"). The reactor rail holds no
 per-peer Adj-RIB-Out, so the withdrawal is unconditional: RFC 7606 Section 2
-treat-as-withdraw, which BIRD also does. A withdrawal of a route the destination
+treat-as-withdraw. BIRD does not do this: `rt_notify_basic` (`nest/rt-table.c`)
+withdraws only a route its `export_map` says was exported to the channel, so it
+never sends the withdrawal of a route the peer was not sent. Withdrawing only
+what was sent is `plan/immediate/spec-bgp-withdraw-only-exported-routes.md`
+(skeleton, c5219d54b0). Until it lands, a withdrawal of a route the destination
 never held is a no-op for it, and its family is one the announcement would have
 been sent in.
 -> Decision: buildWithdrawalPayload merges the source UPDATE's own Withdrawn
@@ -226,3 +230,22 @@ shape rather than send half of it.
 
 ### Verification
 - [ ] `./le verify worktree`
+
+## Review Gate
+
+### Round 1 (link-local and withdrawal, 2026-10-03 and 2026-10-04)
+
+| Item | Finding | Disposition | Evidence |
+|------|---------|-------------|----------|
+| B1, N1 | a refused destination of a mixed UPDATE lost the other fields' routes | fixed: per-section redo (`withdrawalBySection`, `forwardBySection`, `reactorForwardRSSection`), chosen over a blanket split, which broke about 14 single-batch harness tests | 28ab406700; the three new tests red with the fix off |
+| I1 | `:: then fe80::x` cut to its Global reached a multihop peer as `::` | fixed: `nextHopValue.globalUnusable` | 28ab406700 |
+| I2 | the spec said BIRD also withdraws unconditionally | corrected in "D6 design": BIRD withdraws only exported routes; homed in `spec-bgp-withdraw-only-exported-routes.md` | this spec |
+| I3 | the withdrawal was converted per destination | fixed: `fwdWithdrawal` builds once per base, `buildWithdrawalPayload(payload, buf) int` | `BenchmarkFanoutWithdraw`, count 3: n=100/g=100 515 to 208 allocs/op and 148.7 KB to 118.8 KB per op; n=1/g=1 8 allocs either way, 2.5 KB to 6.9 KB per op (unverified: the 4 KB read-pool buffer the bench never returns). ns/op is not comparable: load average 14 during the after run |
+| I4 | the RS reflection test passed with `reflected` forced false | fixed: the speaker is attached to both segments, so only the reflection gate refuses the client | 94c9a3d3c6; red against mutant I |
+| I5 | the VPN Link-Local-only test was not shown red | shown red against mutant B (the off-link gate skipping SAFI 128) | 94c9a3d3c6 body |
+| I6 | no test proved an AS_PATH resolve failure costs a withheld destination nothing | fixed: `TestASPathResolveFailureCostsWithheldDestinationNothing`, both rails | 94c9a3d3c6; red against mutants D and E |
+| I7 | owner approvals for tagged units changed in 28ab406700 not recorded | 28ab406700 carries no `RFC-approved:` trailer, and a landed commit is not amended. Thomas approved on 2026-10-04 ("Approve") the RFC 1997 well-known community units changed through the `wkForwardParts` helper: `reactor.TestForwardNoExportStillWithdrawsFromExternalPeer`, `reactor.TestForwardNoExportWithdrawsAnAnnouncementOnlyUpdate`, `reactor.TestForwardRSHonorsWellKnownCommunities`, `reactor.TestForwardRSWithdrawsFromRefusedClient`. `./le commit audit` reports the file WEAKENED for good, because it never reads trailers (journaled in `plan/journal/check-cannot-see-the-change-it-looks-for.md`, 2026-10-03) | this record |
+| N2 | `peerOnLink` is any connected subnet; the draft's Section 4 MAY for an internal peer needs the source on the same interface | journaled in `plan/journal/escape-hatch-scoped-wider-than-its-justification.md`, 2026-10-04 | journal row |
+| N4 | the withhold warning named neither next hop nor family | fixed | 28ab406700 |
+| N5 | the Interop row called the FRR scenario iBGP | corrected: eBGP; the internal case is unit-only | this spec |
+| cap 77 | a received Link-Local-only next hop crossed unchanged to a peer without capability 77 | implemented, not committed: `egressNextHopLinkLocalOnlyRefused` asks the emitted next hop, written or received. Fixtures `llnhClient` and `llnhExternalPeer` negotiate capability 77. Waits for owner approval of the tagged units in `draft_ietf_idr_linklocal_capability_reflect_test.go` and `draft_ietf_idr_linklocal_capability_multihop_test.go` | `TestReceivedLinkLocalOnlyWithdrawnFromPeerWithoutCapability` red without the gate change on both rails |
